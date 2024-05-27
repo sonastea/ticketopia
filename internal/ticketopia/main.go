@@ -4,14 +4,20 @@ import (
 	"context"
 
 	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/logger"
 )
 
 func Execute(ctx context.Context) int {
-  srv := api.InitializeEcho(ctx)
+  logger := logger.NewLogger(ctx, "component", "api")
+
+  api := api.NewAPI(ctx, logger)
+  srv := api.Server(8080)
 
   go func() {
-  _ = srv.Start(":8080")
+    _ = srv.ListenAndServe()
   }()
+
+  logger.Info().Msg("API started")
 
   <-ctx.Done()
 
