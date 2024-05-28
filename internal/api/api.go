@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/views/home"
 )
 
 type api struct {
@@ -30,8 +32,19 @@ func (a *api) Routes() *echo.Echo {
 	e := echo.New()
 
 	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello world!")
+		return render(c, http.StatusOK, home.Index())
 	})
 
 	return e
+}
+
+func render(ctx echo.Context, status int, t templ.Component) error {
+	ctx.Response().Writer.WriteHeader(status)
+
+	err := t.Render(context.Background(), ctx.Response().Writer)
+	if err != nil {
+		return ctx.String(http.StatusInternalServerError, "failed to render response template")
+	}
+
+	return nil
 }
