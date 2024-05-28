@@ -2,26 +2,41 @@ package ticketopia
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/sonastea/ticketopia/internal/api"
 	"github.com/sonastea/ticketopia/internal/logger"
 )
 
 func Execute(ctx context.Context) int {
-  logger := logger.NewLogger(ctx, "component", "api")
+	logger := logger.NewLogger(ctx, "component", "api")
 
-  api := api.NewAPI(ctx, logger)
-  srv := api.Server(8080)
+	api := api.NewAPI(ctx, logger)
+	srv := api.Server(8080)
 
-  go func() {
-    _ = srv.ListenAndServe()
-  }()
+	srvCh := make(chan error, 1)
 
-  logger.Info().Msg("API started")
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			srvCh <- err
+		}
+		close(srvCh)
+	}()
 
-  <-ctx.Done()
+	logger.Info().Msg("API started...")
 
-  _ = srv.Shutdown(ctx)
+	select {
+	case <-ctx.Done():
+		if err := srv.Shutdown(ctx); err != nil {
+			logger.Error().Err(err).Msg("Server shutdown failed...")
+			return 1
+		}
+		logger.Info().Msg("Server stopped gracefully...")
 
-  return 0
+	case err := <-srvCh:
+		logger.Error().Err(err).Msg("Server experienced an error...")
+		return 1
+	}
+
+	return 0
 }
