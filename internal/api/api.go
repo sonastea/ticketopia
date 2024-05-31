@@ -4,20 +4,28 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
-	"github.com/sonastea/ticketopia/views/home"
 )
+
+var KEY, ROOT_URL string
 
 type api struct {
 	logger zerolog.Logger
+	redis  *redis.Client
 }
 
-func NewAPI(ctx context.Context, logger zerolog.Logger) *api {
+func NewAPI(ctx context.Context, logger zerolog.Logger, redis *redis.Client) *api {
+	KEY = os.Getenv("TICKETMASTER_KEY")
+	ROOT_URL = "https://app.ticketmaster.com/discovery/v2/events.json"
+
 	return &api{
 		logger: logger,
+		redis:  redis,
 	}
 }
 
@@ -31,9 +39,7 @@ func (a *api) Server(port int) *http.Server {
 func (a *api) Routes() *echo.Echo {
 	e := echo.New()
 
-	e.GET("/", func(c echo.Context) error {
-		return render(c, http.StatusOK, home.Index())
-	})
+	e.GET("/", a.retrieveEventsHandler)
 
 	return e
 }

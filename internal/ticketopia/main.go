@@ -4,14 +4,27 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/joho/godotenv"
 	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/infra"
 	"github.com/sonastea/ticketopia/internal/logger"
 )
 
 func Execute(ctx context.Context) int {
 	logger := logger.NewLogger(ctx, "component", "api")
 
-	api := api.NewAPI(ctx, logger)
+	err := godotenv.Load()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Error loading .env file...")
+	}
+
+	redis, err := infra.NewRedisClient(ctx)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Error creating new redis client...")
+		return 1
+	}
+
+	api := api.NewAPI(ctx, logger, redis)
 	srv := api.Server(8080)
 
 	srvCh := make(chan error, 1)
