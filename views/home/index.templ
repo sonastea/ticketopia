@@ -4,17 +4,23 @@ import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/internal/models"
 import "math"
 
-templ Index(data *models.EventsResponse) {
+type Events map[string][]models.Event
+
+templ Index(events Events) {
 	@layouts.Base() {
-		<div class="flex items-center justify-center h-screen">
-			<ul class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-2">
-				for _, event := range data.Embedded.Events {
-					<li class="bg-white shadow-lg rounded-lg overflow-hidden">
+		<div class="flex items-center justify-center overflow-auto p-4">
+			<ul class="max-w-screen-lg w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+				for name, event := range events {
+					<li class="rounded-lg overflow-hidden group hover:cursor-pointer" hx-on:click="alert('Clicked!')">
 						<div class="overflow-hidden h-48">
-							<img src={ getImageWithSize(event.Images, 480, 360) } class="w-full h-48 object-cover hover:scale-105 transition duration-150 ease-in-out"/>
+							<picture>
+								<source srcset={ getImageWithSize(event[len(event)-1].Images, 1024, 960) } media="(min-width: 1024)"/>
+								<source srcset={ getImageWithSize(event[len(event)-1].Images, 720, 640) } media="(max-width: 768px)"/>
+								<img src={ getImageWithSize(event[len(event)-1].Images, 480, 360) } class="w-full h-48 object-cover group-hover:scale-105 transition duration-150 ease-in-out"/>
+							</picture>
 						</div>
 						<div class="p-4">
-							<h3 class="text-lg font-semibold text-gray-800">{ event.Name }</h3>
+							<h2 class="font-semibold text-gray-800 group-hover:underline underline-offset-2">{ name }</h2>
 						</div>
 					</li>
 				}

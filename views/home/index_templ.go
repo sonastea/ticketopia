@@ -14,7 +14,9 @@ import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/internal/models"
 import "math"
 
-func Index(data *models.EventsResponse) templ.Component {
+type Events map[string][]models.Event
+
+func Index(events Events) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -33,38 +35,64 @@ func Index(data *models.EventsResponse) templ.Component {
 				templ_7745c5c3_Buffer = templ.GetBuffer()
 				defer templ.ReleaseBuffer(templ_7745c5c3_Buffer)
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center justify-center h-screen\"><ul class=\"grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-2\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center justify-center overflow-auto p-4\"><ul class=\"max-w-screen-lg w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			for _, event := range data.Embedded.Events {
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<li class=\"bg-white shadow-lg rounded-lg overflow-hidden\"><div class=\"overflow-hidden h-48\"><img src=\"")
+			for name, event := range events {
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<li class=\"rounded-lg overflow-hidden group hover:cursor-pointer\" hx-on:click=\"alert(&#39;Clicked!&#39;)\"><div class=\"overflow-hidden h-48\"><picture><source srcset=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var3 string
-				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(getImageWithSize(event.Images, 480, 360))
+				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(getImageWithSize(event[len(event)-1].Images, 1024, 960))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/index.templ`, Line: 14, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/index.templ`, Line: 17, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"w-full h-48 object-cover hover:scale-105 transition duration-150 ease-in-out\"></div><div class=\"p-4\"><h3 class=\"text-lg font-semibold text-gray-800\">")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" media=\"(min-width: 1024)\"> <source srcset=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(event.Name)
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(getImageWithSize(event[len(event)-1].Images, 720, 640))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/index.templ`, Line: 17, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/index.templ`, Line: 18, Col: 79}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</h3></div></li>")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" media=\"(max-width: 768px)\"> <img src=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var5 string
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(getImageWithSize(event[len(event)-1].Images, 480, 360))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/index.templ`, Line: 19, Col: 73}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" class=\"w-full h-48 object-cover group-hover:scale-105 transition duration-150 ease-in-out\"></picture></div><div class=\"p-4\"><h2 class=\"font-semibold text-gray-800 group-hover:underline underline-offset-2\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var6 string
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(name)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/index.templ`, Line: 23, Col: 94}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</h2></div></li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

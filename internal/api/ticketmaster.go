@@ -14,8 +14,8 @@ import (
 	"github.com/sonastea/ticketopia/views/home"
 )
 
-func fetchEvents(ctx context.Context, logger zerolog.Logger, r *redis.Client) (*models.EventsResponse, error) {
-  var data models.EventsResponse
+func fetchEvents(ctx context.Context, logger zerolog.Logger, r *redis.Client) (home.Events, error) {
+	var data home.Events
 	cacheKey := fmt.Sprintf("events:%s", KEY)
 
 	cachedData, err := r.Get(ctx, cacheKey).Result()
@@ -26,18 +26,21 @@ func fetchEvents(ctx context.Context, logger zerolog.Logger, r *redis.Client) (*
 			return nil, err
 		}
 
-		if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
+    var dataRes models.EventsResponse
+		if err := json.NewDecoder(res.Body).Decode(&dataRes); err != nil {
 			logger.Error().Msg("Error decoding fetch events response.")
 		}
 
-		serializedData, err := json.Marshal(data)
+    groupedEvents := groupEventByName(dataRes)
+
+		serializedData, err := json.Marshal(groupedEvents)
 		if err != nil {
 			logger.Error().Msg("Error marshalling fetched events response data.")
 		}
 
 		r.Set(ctx, cacheKey, serializedData, time.Hour)
 
-		return &data, nil
+		return groupedEvents, nil
 	}
 
 	// Cache hit
@@ -45,7 +48,7 @@ func fetchEvents(ctx context.Context, logger zerolog.Logger, r *redis.Client) (*
 		return nil, err
 	}
 
-	return &data, nil
+	return data, nil
 }
 
 func (a *api) retrieveEventsHandler(c echo.Context) error {
@@ -56,4 +59,13 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	}
 
 	return render(c, http.StatusOK, home.Index(data))
+}
+
+func groupEventByName(data models.EventsResponse) home.Events {
+	groups := make(home.Events)
+	for _, v := range data.Embedded.Events {
+		groups[v.Name] = append(groups[v.Name], v)
+	}
+
+	return groups
 }
