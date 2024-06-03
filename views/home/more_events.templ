@@ -1,0 +1,46 @@
+package home
+
+import "fmt"
+
+templ MoreEventsList(events Events, nextPage string) {
+	<div hx-swap-oob="beforeend:#event-list">
+		for name, event := range events {
+			<li class="flex items-center justify-between overflow-hidden group hover:cursor-pointer" data-name={ name } hx-on:click="alert(this.getAttribute('data-name'))">
+				<div class="flex-shrink-0 w-24 h-24">
+					<img src={ getImageWithSize(event[len(event)-1].Images, 480, 360) } class="w-full h-full object-cover rounded-lg" alt="Event thumbnail"/>
+				</div>
+				<div class="flex-grow p-4">
+					<div class="flex items-center justify-between">
+						<div>
+							<h2 class="font-semibold text-gray-800 group-hover:underline underline-offset-2">{ name }</h2>
+							<div class="text-sm text-gray-800">
+								<span class="sale-start-date">
+									Start { convertToLocalDate(event[len(event)-1].Sales.Public.StartDateTime) }
+								</span>
+								<span class="sale-end-date">
+									- { convertToLocalDate(event[len(event)-1].Sales.Public.EndDateTime) }
+								</span>
+							</div>
+							<div class="text-sm text-gray-600">
+								<span class="event-city">
+									{ event[len(event)-1].Embedded.Venues[0].City.Name },
+									{ event[len(event)-1].Embedded.Venues[0].State.Name }
+								</span>
+								<span class="event-location">
+									{ event[len(event)-1].Embedded.Venues[0].Name }
+								</span>
+							</div>
+						</div>
+						<div class="text-sm text-blue-600">
+							<a href="{eventLink}" target="_blank" class="hover:underline">Find Tickets</a>
+						</div>
+					</div>
+				</div>
+			</li>
+		}
+		<div class="flex justify-center items-center" id="pagination-button-container">
+			<button id="pagination-button" type="button" hx-get={ fmt.Sprintf("/?page=%v", nextPage) } hx-trigger="click" hx-target="#pagination-button-container" hx-swap="delete" hx-indicator="#spinner">Load more</button>
+			<div id="spinner" class="opacity-0 htmx-indicator ml-2 rounded-full h-5 w-5 border-2 border-t-blue-700"></div>
+		</div>
+	</div>
+}

@@ -1,10 +1,14 @@
 package models
 
 type Event struct {
-	Name     string         `json:"name"`
-	Images   []EventImage   `json:"images"`
-	Embedded *EventEmbedded `json:"_embedded,omitempty"`
-	Place    *EventPlace    `json:"place,omitempty"`
+	Name       string         `json:"name"`
+	Info       string         `json:"info"`
+	PleaseNote string         `json:"please_note"`
+	Images     []EventImage   `json:"images"`
+	Embedded   *EventEmbedded `json:"_embedded,omitempty"`
+	Place      *EventPlace    `json:"place,omitempty"`
+	Promoter   *EventPromoter `json:"promoter,omitempty"`
+	Sales      *EventSales    `json:"sales"`
 }
 
 type EventImage struct {
@@ -23,6 +27,30 @@ type EventPlace struct {
 	State    State         `json:"state"`
 	Country  Country       `json:"country"`
 	Location EventLocation `json:"location"`
+}
+
+type EventPromoter struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type EventSales struct {
+	Public   EventSalesPublic     `json:"public"`
+	Presales []EventSalesPresales `json:"presales"`
+}
+
+type EventSalesPublic struct {
+	StartDateTime string `json:"startDateTime"`
+	EndDateTime   string `json:"endDateTime"`
+}
+
+type EventSalesPresales struct {
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Url           string `json:"url"`
+	StartDateTime string `json:"startDateTime"`
+	EndDateTime   string `json:"endDateTime"`
 }
 
 type Area struct {
@@ -55,11 +83,16 @@ type EventLocation struct {
 }
 
 type EventVenue struct {
-	Id         string       `json:"id"`
-	Name       string       `json:"name"`
-	Url        string       `json:"url"`
-	PostalCode string       `json:"postalCode"`
-	Images     []VenueImage `json:"images"`
+	Id         string        `json:"id"`
+	Name       string        `json:"name"`
+	Url        string        `json:"url"`
+	PostalCode string        `json:"postalCode"`
+	Images     []VenueImage  `json:"images"`
+	Address    Address       `json:"address"`
+	City       City          `json:"city"`
+	State      State         `json:"state"`
+	Country    Country       `json:"country"`
+	Location   EventLocation `json:"location"`
 }
 
 type VenueImage struct {

@@ -13,6 +13,7 @@ import (
 )
 
 var KEY, ROOT_URL string
+var SIZE = "100"
 
 type api struct {
 	logger zerolog.Logger
