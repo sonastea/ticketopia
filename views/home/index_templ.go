@@ -191,7 +191,7 @@ func convertToLocalDate(utcTime string) string {
 	}
 
 	localTime := t.Local()
-	return localTime.Format("Oct 20")
+	return localTime.Format("Jan 02")
 }
 
 func getImageWithSize(images []models.EventImage, minWidth, minHeight int) string {
