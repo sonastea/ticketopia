@@ -1,10 +1,12 @@
 package home
 
-import "github.com/sonastea/ticketopia/views/layouts"
-import "github.com/sonastea/ticketopia/internal/models"
-import "math"
-import "fmt"
-import "time"
+import (
+	"fmt"
+	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/views/layouts"
+	"math"
+	"time"
+)
 
 type Events map[string][]models.Event
 
@@ -32,7 +34,7 @@ templ Index(events Events, page string) {
         background-color: currentcolor;
         border-radius: 50%;
         content: "";
-        margin: 0 0.3em;
+        margin: 0 0.3em 0 0.1em;
         transform: translateY(-50%);
       }
 
@@ -61,16 +63,17 @@ templ Index(events Events, page string) {
 									</div>
 									<div class="text-sm text-gray-600">
 										<span class="event-city">
-											{ event[len(event)-1].Embedded.Venues[0].City.Name },
-											{ event[len(event)-1].Embedded.Venues[0].State.Name }
+											{ getLocationName(event[len(event)-1].Embedded.Venues[0].City.Name,event[len(event)-1].Embedded.Venues[0].State.Name) }
 										</span>
-										<span class="event-location">
-											{ event[len(event)-1].Embedded.Venues[0].Name }
-										</span>
+										if event[len(event)-1].Embedded.Venues[0].Name != "" {
+											<span class="event-location">
+												{ event[len(event)-1].Embedded.Venues[0].Name }
+											</span>
+										}
 									</div>
 								</div>
-								<div class="text-sm text-blue-600">
-									<a href="{eventLink}" target="_blank" class="hover:underline">Find Tickets</a>
+								<div class="text-xs text-blue-600">
+									<a href="{eventLink}" target="_blank" class="hover:underline hidden sm:flex whitespace-nowrap">Find Tickets</a>
 								</div>
 							</div>
 						</div>
@@ -78,7 +81,7 @@ templ Index(events Events, page string) {
 				}
 				<div class="flex justify-center items-center" id="pagination-button-container">
 					<button id="pagination-button" type="button" hx-get={ fmt.Sprintf("/?page=%v", page) } hx-trigger="click" hx-target="#pagination-button-container" hx-swap="delete" hx-indicator="#spinner">Load more</button>
-          <div id="spinner" class="opacity-0 htmx-indicator ml-2 rounded-full h-5 w-5 border-2 border-t-blue-700"></div>
+					<div id="spinner" class="opacity-0 htmx-indicator ml-2 rounded-full h-5 w-5 border-2 border-t-blue-700"></div>
 				</div>
 			</ul>
 		</div>
@@ -93,6 +96,14 @@ func convertToLocalDate(utcTime string) string {
 
 	localTime := t.Local()
 	return localTime.Format("Jan 02")
+}
+
+func getLocationName(city, state string) string {
+	if state != "" || state == "" {
+		return city
+	}
+
+	return fmt.Sprintf("%s, %s", city, state)
 }
 
 func getImageWithSize(images []models.EventImage, minWidth, minHeight int) string {
