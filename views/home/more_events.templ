@@ -23,11 +23,14 @@ templ MoreEventsList(events Events, nextPage string) {
 							</div>
 							<div class="text-sm text-gray-600">
 								<span class="event-city">
-									{ event[len(event)-1].Embedded.Venues[0].City.Name },
-									{ event[len(event)-1].Embedded.Venues[0].State.Name }
+									if len(event[len(event)-1].Embedded.Venues) > 0 {
+										{ getEventCityName(event[len(event)-1].Embedded.Venues[0].City.Name, event[len(event)-1].Embedded.Venues[0].State.Name) }
+									} else {
+										{ event[len(event)-1].Place.Name }
+									}
 								</span>
 								<span class="event-location">
-									{ event[len(event)-1].Embedded.Venues[0].Name }
+									{ getEventLocationName(event[len(event)-1]) }
 								</span>
 							</div>
 						</div>

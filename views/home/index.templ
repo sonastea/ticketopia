@@ -27,6 +27,10 @@ templ Index(events Events, page string) {
         align-items: center;
       }
 
+      .event-location:empty::before {
+				display: none;
+			}
+
       .event-location::before {
         display: inline-block;
         width: 0.25em;
@@ -63,13 +67,15 @@ templ Index(events Events, page string) {
 									</div>
 									<div class="text-sm text-gray-600">
 										<span class="event-city">
-											{ getLocationName(event[len(event)-1].Embedded.Venues[0].City.Name,event[len(event)-1].Embedded.Venues[0].State.Name) }
+											if len(event[len(event)-1].Embedded.Venues) > 0 {
+												{ getEventCityName(event[len(event)-1].Embedded.Venues[0].City.Name, event[len(event)-1].Embedded.Venues[0].State.Name) }
+											} else {
+												{ event[len(event)-1].Place.Name }
+											}
 										</span>
-										if event[len(event)-1].Embedded.Venues[0].Name != "" {
-											<span class="event-location">
-												{ event[len(event)-1].Embedded.Venues[0].Name }
-											</span>
-										}
+										<span class="event-location">
+											{ getEventLocationName(event[len(event)-1]) }
+										</span>
 									</div>
 								</div>
 								<div class="text-xs text-blue-600">
@@ -98,12 +104,23 @@ func convertToLocalDate(utcTime string) string {
 	return localTime.Format("Jan 02")
 }
 
-func getLocationName(city, state string) string {
+func getEventCityName(city, state string) string {
 	if state != "" || state == "" {
 		return city
 	}
 
 	return fmt.Sprintf("%s, %s", city, state)
+}
+
+func getEventLocationName(event models.Event) string {
+	if len(event.Embedded.Venues) > 0 {
+		if event.Embedded.Venues[0].Name == "" {
+			return event.Embedded.Venues[0].Country.Name
+		}
+		return event.Embedded.Venues[0].Name
+	}
+
+	return event.Place.City.Name
 }
 
 func getImageWithSize(images []models.EventImage, minWidth, minHeight int) string {
