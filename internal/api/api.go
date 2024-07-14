@@ -12,8 +12,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var KEY, ROOT_URL string
-var SIZE = "100"
+var (
+	KEY, ROOT_URL string
+	SIZE          = "100"
+)
 
 type api struct {
 	logger zerolog.Logger
