@@ -49,14 +49,14 @@ templ Index(events Events, page string) {
 		<div class="flex flex-col items-center justify-center overflow-auto p-4">
 			<ul id="event-list" class="max-w-screen-lg w-full grid grid-cols-1 gap-4 divide-y-2">
 				for name, event := range events {
-					<li class="flex items-center justify-between overflow-hidden group hover:cursor-pointer" data-name={ name } hx-on:click="alert(this.getAttribute('data-name'))">
+					<li class="flex items-center justify-between overflow-hidden" data-name={ name }>
 						<div class="flex-shrink-0 w-24 h-24">
 							<img src={ getImageWithSize(event[len(event)-1].Images, 480, 360) } class="w-full h-full object-cover rounded-lg" alt="Event thumbnail"/>
 						</div>
 						<div class="flex-grow p-4">
 							<div class="flex items-center justify-between">
 								<div>
-									<h2 class="font-semibold text-gray-800 group-hover:underline underline-offset-2">{ name }</h2>
+									<h2 class="font-semibold text-gray-800 hover:underline underline-offset-2 hover:cursor-pointer" hx-on:click="alert(this.closest('[data-name]').getAttribute('data-name'))">{ name }</h2>
 									<div class="text-sm text-gray-800">
 										<span class="sale-start-date">
 											Start { convertToLocalDate(event[len(event)-1].Sales.Public.StartDateTime) }
@@ -79,7 +79,7 @@ templ Index(events Events, page string) {
 									</div>
 								</div>
 								<div class="text-xs text-blue-600">
-									<a href="{eventLink}" target="_blank" class="hover:underline hidden sm:flex whitespace-nowrap">Find Tickets</a>
+									<a href={ getEventSafeUrl(event[len(event)-1].Embedded.Venues[0].Url) } target="_blank" class="hover:underline hidden sm:flex whitespace-nowrap">Find Tickets</a>
 								</div>
 							</div>
 						</div>
@@ -121,6 +121,14 @@ func getEventLocationName(event models.Event) string {
 	}
 
 	return event.Place.City.Name
+}
+
+func getEventSafeUrl(url string) templ.SafeURL {
+	if url == "" || url != "" {
+    return templ.URL(url)
+	}
+
+	return templ.URL("#")
 }
 
 func getImageWithSize(images []models.EventImage, minWidth, minHeight int) string {
