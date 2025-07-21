@@ -4,7 +4,7 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "templ generate && go build -o ./tmp/main ./cmd/ticketopia"
+cmd = "go tool templ generate && go build -o ./tmp/main ./cmd/ticketopia"
 bin = "./tmp/main"
 
 full_bin = ""
@@ -44,6 +44,6 @@ clear_on_rebuild = true
 keep_scroll = true
 
 [proxy]
-  enabled = true
-  proxy_port = 3000
-  app_port = 8080
+enabled = true
+proxy_port = 3000
+app_port = 8080
