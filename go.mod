@@ -3,7 +3,7 @@ module github.com/sonastea/ticketopia
 go 1.24.5
 
 require (
-	github.com/a-h/templ v0.3.920
+	github.com/a-h/templ v0.3.924
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/redis/go-redis/v9 v9.11.0
