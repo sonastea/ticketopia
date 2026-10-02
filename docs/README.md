@@ -1,24 +1,56 @@
 # Documentation
 
 The root [README](../README.md) covers the project overview and quick start.
-Detailed setup and behavior live here.
+Detailed setup, product goals, and design notes live here. Plans are labeled with
+their status; they describe intended work rather than available features.
+
+## Goals and design
+
+- [Personal radar and reminders](goals/personal-radar.md): core discovery and
+  reminder goals, with small user outcomes and pilot checkpoints.
+- [Positive event communities](goals/event-communities.md): core participation
+  goals, Interested/Going, helpful reactions, discussions, reports, and moderation.
+- [Radar API](design/radar-api.md): a proposed shared backend for web, mobile,
+  and other clients, including community participation.
+- [Database plan](design/database.md): SQLite first, durable application state,
+  and when to consider a migration to PlanetScale.
+- [Venue insights](ideas/venue-insights-and-discovery.md): exploratory uses of
+  event history for venue and price analysis.
+- [Discovery games](ideas/discovery-games.md): passport, pick swaps, and other
+  hypotheses for meaningful repeat visits and social interaction.
+
+## Current features
 
 - [Cache configuration](cache.md): backends, environment variables, expiration,
   fallback behavior, and NATS setup.
-- [Recent changes](CHANGELOG.md): a short index of the latest change records.
-- [All change records](changes/): history grouped by year, for targeted browsing
-  or search.
+
+## History
+
+- [Recent feature changes](CHANGELOG.md): a short index with one link per feature.
+- [All feature histories](changes/): related changes stay in the same feature
+  document, with older entries archived under that feature when needed.
 
 ## Documenting future changes
 
 1. Add or update a focused feature guide and link it above. Guides describe the
    current behavior.
-2. Add a concise record at `changes/YYYY/YYYY-MM-DD-short-title.md` for each
-   notable change. Include the date, release (or **Unreleased**), a summary, and
-   links to relevant guides. Update the release field when publishing a release.
-3. Prepend a one-line link to `CHANGELOG.md`. Keep only the 20 most recent links;
-   older records remain in their year directories.
+2. Update `changes/<feature>.md` for the feature being worked on. Related ongoing
+   changes belong in the same dated **Unreleased** entry; revise or extend its
+   summary rather than create a document for each edit. Add a dated entry for a
+   distinct milestone, and record shared infrastructure under its own feature.
+3. Link to the relevant goals/designs for detail. When publishing a release,
+   move its entries under the release version and date, preserving their history.
+4. Update that feature's single line in `CHANGELOG.md` with its latest change
+   date. Keep the 20 most recently updated features, newest first. Feature files
+   remain available after their links age out of the recent index.
+5. Keep each feature history within 100 lines. Move older completed entries into
+   `changes/archive/<feature>/YYYY-part-NN.md` files, each within 100 lines, retaining
+   their dates/releases. Link to that archive directory from the feature history
+   once it exists. Detailed explanations belong in the feature guides.
 
-Read guides for current setup and behavior. Search filenames or content when you
-need history, then open the matching records. There is no need to load all records
-for routine development.
+For example, cache changes go in `changes/cache.md`, community changes in
+`changes/event-communities.md`, and persistence changes in `changes/database.md`.
+
+Read guides for current setup and behavior. When history is needed, open the
+matching feature file and search its archives only if necessary. Routine work
+does not require loading the history of other features.

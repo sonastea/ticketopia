@@ -1,8 +1,11 @@
-# Change history
+# Changes by feature
 
-This index links to the most recent changes, newest first, with a maximum of 20
-records. The full history lives in [changes/](changes/), grouped by year. Open only
-the records relevant to your task.
+Recent feature histories, ordered by latest update, with at most 20 links and
+one entry per feature. Related changes stay in the same feature document. Browse
+[all feature histories](changes/) or open only the feature relevant to your task.
 
-- 2026-10-02 — [Focused documentation and on-demand change history](changes/2026/2026-10-02-documentation.md)
-- 2026-10-02 — [Backend-neutral cache with in-memory fallback](changes/2026/2026-10-02-kv-cache.md)
+- 2026-10-02 — [Documentation](changes/documentation.md)
+- 2026-10-02 — [Database and persistence](changes/database.md)
+- 2026-10-02 — [Positive event communities](changes/event-communities.md)
+- 2026-10-02 — [Personal radar and reminders](changes/personal-radar.md)
+- 2026-10-02 — [KV cache](changes/cache.md)
