@@ -8,8 +8,8 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
-	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/internal/kv"
 )
 
 var (
@@ -19,16 +19,16 @@ var (
 
 type api struct {
 	logger zerolog.Logger
-	redis  *redis.Client
+	cache  kv.Store
 }
 
-func NewAPI(ctx context.Context, logger zerolog.Logger, redis *redis.Client) *api {
+func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store) *api {
 	KEY = os.Getenv("TICKETMASTER_KEY")
 	ROOT_URL = "https://app.ticketmaster.com/discovery/v2/events.json"
 
 	return &api{
 		logger: logger,
-		redis:  redis,
+		cache:  cache,
 	}
 }
 

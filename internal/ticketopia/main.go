@@ -3,6 +3,8 @@ package ticketopia
 import (
 	"context"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/sonastea/ticketopia/internal/api"
@@ -14,17 +16,19 @@ func Execute(ctx context.Context) int {
 	logger := logger.NewLogger(ctx, "component", "api")
 
 	err := godotenv.Load()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Error loading .env file...")
-	}
-
-	redis, err := infra.NewRedisClient(ctx)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Error creating new redis client...")
+	if err != nil && !os.IsNotExist(err) {
+		logger.Error().Err(err).Msg("Error loading .env file...")
 		return 1
 	}
 
-	api := api.NewAPI(ctx, logger, redis)
+	cache := infra.NewCache(ctx, logger)
+	defer func() {
+		if err := cache.Close(); err != nil {
+			logger.Error().Err(err).Msg("Error closing cache")
+		}
+	}()
+
+	api := api.NewAPI(ctx, logger, cache)
 	srv := api.Server(8080)
 
 	srvCh := make(chan error, 1)
@@ -40,7 +44,9 @@ func Execute(ctx context.Context) int {
 
 	select {
 	case <-ctx.Done():
-		if err := srv.Shutdown(ctx); err != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
 			logger.Error().Err(err).Msg("Server shutdown failed...")
 			return 1
 		}

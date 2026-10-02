@@ -3,53 +3,61 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/views/home"
 )
 
-func fetchEvents(ctx context.Context, page string, logger zerolog.Logger, r *redis.Client) (home.Events, error) {
+func fetchEvents(ctx context.Context, page string, logger zerolog.Logger, cache kv.Store) (home.Events, error) {
 	var data home.Events
 	cacheKey := fmt.Sprintf("events:%s", page)
 
-	cachedData, err := r.Get(ctx, cacheKey).Result()
-	if err == redis.Nil {
-		res, err := http.Get(fmt.Sprintf("%s?classificationName=music&size=%s&page=%s&apikey=%s", ROOT_URL, SIZE, page, KEY))
-		if err != nil {
-			logger.Error().Msg("Error fetching events from discovery api.")
-			return nil, err
+	cachedData, err := cache.Get(ctx, cacheKey)
+	if err == nil {
+		if err := json.Unmarshal(cachedData, &data); err == nil {
+			return data, nil
+		} else {
+			logger.Warn().Err(err).Msg("Invalid cached events; fetching fresh events")
 		}
-
-		var dataRes models.EventsResponse
-		if err := json.NewDecoder(res.Body).Decode(&dataRes); err != nil {
-			logger.Error().Msg("Error decoding fetch events response.")
-		}
-
-		events := groupEventByName(dataRes)
-
-		serializedData, err := json.Marshal(events)
-		if err != nil {
-			logger.Error().Msg("Error marshalling fetched events response data.")
-		}
-
-		r.Set(ctx, cacheKey, serializedData, time.Hour)
-
-		return events, nil
+	} else if !errors.Is(err, kv.ErrNotFound) {
+		logger.Warn().Err(err).Msg("Could not read cached events; fetching fresh events")
 	}
 
-	// Cache hit
-	if err := json.Unmarshal([]byte(cachedData), &data); err != nil {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s?classificationName=music&size=%s&page=%s&apikey=%s", ROOT_URL, SIZE, page, KEY), nil)
+	if err != nil {
 		return nil, err
 	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("discovery API returned %s", res.Status)
+	}
 
-	return data, nil
+	var dataRes models.EventsResponse
+	if err := json.NewDecoder(res.Body).Decode(&dataRes); err != nil {
+		return nil, err
+	}
+	events := groupEventByName(dataRes)
+
+	serializedData, err := json.Marshal(events)
+	if err != nil {
+		logger.Warn().Err(err).Msg("Could not serialize events for caching")
+	} else if err := cache.Set(ctx, cacheKey, serializedData, time.Hour); err != nil {
+		logger.Warn().Err(err).Msg("Could not cache events")
+	}
+
+	return events, nil
 }
 
 func (a *api) retrieveEventsHandler(c echo.Context) error {
@@ -58,7 +66,7 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		page = "1"
 	}
 
-	data, err := fetchEvents(c.Request().Context(), page, a.logger, a.redis)
+	data, err := fetchEvents(c.Request().Context(), page, a.logger, a.cache)
 	if err != nil {
 		a.logger.Error().Msg("Error fetching events.")
 		return nil
