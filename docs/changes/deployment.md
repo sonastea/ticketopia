@@ -10,11 +10,15 @@
   24; keep npm dependencies pinned and document the same versions for development.
 - Added dependency-free liveness/readiness endpoints, shutdown-aware readiness,
   an OpenAPI description, and SIGTERM handling for graceful container termination.
+- Include runtime `SOURCE_COMMIT` in the structured `source_commit` startup log
+  field, with an `unknown` fallback and no commit-dependent Docker build inputs.
 - Added regression tests for probe responses, shutdown, checker failures, redirects,
   and deadlines; documented Docker/Coolify setup and native Kubernetes liveness
   (`/healthz`) and readiness (`/readyz`) probes without localhost-dependent behavior.
 - Verified the Docker build, race tests, vet, and container smoke checks: embedded
   assets, checker exit statuses, Docker health, non-root/read-only operation,
   runtime certificates/timezones, and SIGTERM shutdown with exit code 0.
+- Verified two runtime revisions using the same image, whitespace trimming, and
+  missing/blank revision fallbacks, with readiness and graceful shutdown in each case.
 - See the [container deployment guide](../deployment.md) for configuration and
   verification.

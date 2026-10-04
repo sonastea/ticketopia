@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -44,7 +45,11 @@ func Execute(ctx context.Context) int {
 		close(srvCh)
 	}()
 
-	logger.Info().Msg("API started...")
+	sourceCommit := strings.TrimSpace(os.Getenv("SOURCE_COMMIT"))
+	if sourceCommit == "" {
+		sourceCommit = "unknown"
+	}
+	logger.Info().Str("source_commit", sourceCommit).Msg("API started...")
 
 	select {
 	case <-ctx.Done():

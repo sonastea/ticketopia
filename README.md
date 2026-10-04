@@ -113,6 +113,7 @@ PlanetScale remains a later migration option if workload or deployment needs war
 
 - [x] Build and run a non-root container with embedded assets, health checks, and
   graceful shutdown.
+- [x] Identify the deployed source revision in startup logs using runtime `SOURCE_COMMIT`.
 
 ### Optional explorations
 

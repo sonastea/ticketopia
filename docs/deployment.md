@@ -37,6 +37,32 @@ URL, or configure it in the deployment platform. See [cache configuration](cache
 and [trusted reverse-proxy configuration](location.md#configuration). Within Docker
 or Kubernetes, a separate Redis service needs its service hostname, not localhost.
 
+## Source revision in startup logs
+
+The `API started...` log includes a structured `source_commit` field read from
+the runtime **`SOURCE_COMMIT`** environment variable. The full value is preserved
+after trimming surrounding whitespace; missing or blank values log `unknown`
+without preventing startup.
+
+Coolify supplies `SOURCE_COMMIT` at runtime. For a manual Docker run, pass the
+revision matching the image being deployed:
+
+```sh
+export SOURCE_COMMIT=YOUR_IMAGE_SOURCE_COMMIT
+docker run --rm -p 8080:8080 -e TICKETMASTER_KEY -e SOURCE_COMMIT ticketopia:local
+```
+
+For example, the startup log contains:
+
+```json
+{"level":"info","component":"api","source_commit":"0123456789abcdef0123456789abcdef01234567","message":"API started..."}
+```
+
+This is runtime metadata only: no build argument, embedded revision, or Docker
+cache invalidation is introduced. It identifies the source revision reported by
+the deployment environment, not the image digest; keep it aligned with the image
+when supplying it manually. Local development can also set it in `.env`.
+
 ## Health and shutdown
 
 | Endpoint | Behavior |
