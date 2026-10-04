@@ -19,13 +19,55 @@ changes rather than only changing a connection URL.
 
 - Users, preferences, follows, saved events, and reminder settings.
 - Events, artists, venues, dated observations, and ingestion coverage.
-- Interested/Going/Went states, comments, positive reactions, and followed
-  discussions.
+- Separate event interest, public recommendations, threaded posts, and positive
+  post reactions; later attendance states and followed discussions.
 - Private reports, moderation decisions, notification jobs, and delivery history.
 
 The existing [KV cache](../cache.md) contains replaceable read results. SQLite
 holds durable application state, including data needed for future venue analysis.
 Cache expiry or switching cache providers must not lose saved activity or jobs.
+
+## Planned event and community model
+
+These are logical records and invariants, not a delivered schema. They implement
+the [interaction distinctions](../design-guidelines.md#interaction-semantics-and-hierarchy).
+
+| Record | Identity / relationship | Required meaning |
+| --- | --- | --- |
+| Event + provider mapping | Stable event ID; unique `(provider, source_id)` | Existing `ticketmaster:SOURCE_ID` IDs remain resolvable; never join by title/date alone |
+| Bookmark | Unique `(user_id, event_id)` | Owner-only saved collection; no implicit interest or public counts |
+| Event interest | Unique `(user_id, event_id)` | Reversible interest; profile visibility private by default, explicit public opt-in |
+| Event recommendation | Unique `(user_id, event_id)` | Public endorsement, optional bounded reason, creation/update times; independent of interest |
+| Discussion post | `id`, `event_id`, `author_id`, body, timestamps, moderation/removal state | Root post or reply; not an event endorsement record |
+| Helpful reaction | Unique `(user_id, post_id, kind)` | Positive post-level reaction; initially only `helpful` |
+| Preferences/profile | User-owned identity and category/privacy preferences | Interest preferences do not create event interest; public profile projection excludes private fields |
+
+All local records reference a durable event, never a cache entry. Upsert a minimal
+normalized event and its provider mapping before committing the first local
+action; do not wait for scheduled ingestion. Preserve it and its contributions
+when upstream results expire, omit it, or report cancellation. Distinguish source
+unavailability from cancellation. Retain category/segment references for all-category
+discovery without requiring artist metadata on non-music events.
+
+For root posts, `root_post_id` and `parent_post_id` are null. Replies retain the
+root ID and immediate parent ID, which may be the root or another reply. Enforce
+same-event/same-root references, existing parents, and no cycles; ancestry is
+immutable. Display at most one visual reply level, with explicit reply targets.
+Soft removal keeps IDs and reply structure while public reads withhold body text;
+private moderation evidence follows existing access rules. Index root feeds by
+`(event_id, created_at, id)` and replies by `(root_post_id, created_at, id)`.
+
+Count interests independently of recommendations and visible root discussions.
+Private interest contributes to totals but not public participant identities.
+Viewer action state is queried separately from aggregate/public projections;
+bookmarks are never inferred into public activity. Index collection reads by user
+and event, and recommendations by event/time; use transactions and unique
+constraints for retry-safe toggles. Compute bounded-page summaries in batched
+queries initially; no separate counter service is necessary.
+
+Future Going/Went attendance records remain distinct from MVP interest and do
+not replace bookmarks or imply verified ticket ownership. Discussion follows,
+notification jobs, and moderation records retain their previously planned roles.
 
 ## Initial operating model
 

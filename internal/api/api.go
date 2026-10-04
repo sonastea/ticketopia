@@ -2,58 +2,99 @@ package api
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/kv"
+	"github.com/sonastea/ticketopia/internal/location"
+	"github.com/sonastea/ticketopia/views/assets"
 )
 
-var (
-	KEY, ROOT_URL string
-	SIZE          = "100"
-)
+//go:embed openapi.yaml
+var openAPI []byte
 
 type api struct {
-	logger zerolog.Logger
-	cache  kv.Store
+	logger      zerolog.Logger
+	events      *discovery.Service
+	locations   *location.Resolver
+	ipExtractor echo.IPExtractor
 }
 
-func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store) *api {
-	KEY = os.Getenv("TICKETMASTER_KEY")
-	ROOT_URL = "https://app.ticketmaster.com/discovery/v2/events.json"
-
-	return &api{
-		logger: logger,
-		cache:  cache,
+func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store) (*api, error) {
+	budget := 4500
+	if value := os.Getenv("TICKETMASTER_DAILY_BUDGET"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 1 {
+			return nil, fmt.Errorf("TICKETMASTER_DAILY_BUDGET must be a positive integer")
+		}
+		budget = parsed
 	}
+	ipExtractor, err := clientIPExtractor(os.Getenv("TRUSTED_PROXY_CIDRS"))
+	if err != nil {
+		return nil, err
+	}
+	geolocation := true
+	if value := os.Getenv("IP_GEOLOCATION_ENABLED"); value != "" {
+		geolocation, err = strconv.ParseBool(value)
+		if err != nil {
+			return nil, fmt.Errorf("IP_GEOLOCATION_ENABLED must be true or false")
+		}
+	}
+	return &api{
+		logger: logger, ipExtractor: ipExtractor,
+		events: discovery.New(ctx, cache, logger, discovery.Config{
+			APIKey: os.Getenv("TICKETMASTER_KEY"), DailyBudget: budget,
+		}),
+		locations: location.New(ctx, cache, logger, location.Config{Disabled: !geolocation}),
+	}, nil
 }
 
 func (a *api) Server(port int) *http.Server {
 	return &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: a.Routes(),
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           a.Routes(),
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       time.Minute,
 	}
 }
 
 func (a *api) Routes() *echo.Echo {
 	e := echo.New()
+	e.IPExtractor = a.ipExtractor
+	if e.IPExtractor == nil {
+		e.IPExtractor = echo.ExtractIPDirect()
+	}
 
 	e.GET("/", a.retrieveEventsHandler)
+	e.GET("/events/:event_id", a.eventPageHandler)
+	e.GET("/saved", destinationHandler("saved", "Saved events"))
+	e.GET("/community", destinationHandler("community", "Community"))
+	e.GET("/me", destinationHandler("profile", "Your profile"))
+	e.GET("/me/interests", destinationHandler("interests", "Your interests"))
+	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
+	e.GET("/api/v1/events", a.eventsHandler)
+	e.GET("/api/v1/events/:event_id", a.eventHandler)
+	e.GET("/api/v1/genres", a.genresHandler)
+	e.GET("/api/v1/openapi.yaml", func(c echo.Context) error {
+		if len(c.QueryParams()) > 0 {
+			return problem(c, &discovery.ValidationError{Field: "query", Message: "the API contract does not accept filters"})
+		}
+		return c.Blob(http.StatusOK, "application/yaml", openAPI)
+	})
 
 	return e
 }
 
 func render(ctx echo.Context, status int, t templ.Component) error {
+	ctx.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTMLCharsetUTF8)
 	ctx.Response().Writer.WriteHeader(status)
-
-	err := t.Render(context.Background(), ctx.Response().Writer)
-	if err != nil {
-		return ctx.String(http.StatusInternalServerError, "failed to render response template")
-	}
-
-	return nil
+	return t.Render(ctx.Request().Context(), ctx.Response().Writer)
 }

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-10-03 — Local event identity and independent community records
+
+- Extend the [database plan](../design/database.md#planned-event-and-community-model)
+  with bookmark/interest/recommendation/post-reaction separation, thread ancestry,
+  visibility, retry-safe uniqueness, and durable event references across cache or
+  provider loss. Preserve SQLite-first, single-host, and later migration decisions.
+
 ### 2026-10-02 — SQLite first, with a later PlanetScale option
 
 - Select SQLite as the initial database for planned radar, community, event

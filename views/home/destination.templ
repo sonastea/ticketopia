@@ -1,0 +1,36 @@
+package home
+
+import "github.com/sonastea/ticketopia/views/layouts"
+
+templ Destination(active string, title string) {
+	@layouts.App(active, title) {
+		<main id="main" class="destination-page">
+			<h1>{ title }</h1>
+			<div class="destination-state">
+				<span class="availability-label">In development</span>
+				switch active {
+					case "saved":
+						<h2>Your own list of good nights.</h2>
+						<p>Saved events will be your private collection, separate from public recommendations and event interest.</p>
+						<p>Saving and accounts aren't available yet. You can explore shows and open their Ticketmaster pages today.</p>
+					case "community":
+						<h2>Local knowledge, shared around a show.</h2>
+						<p>This will be a place to find recommended events and useful conversations in your city.</p>
+						<p>Recommendations, discussions, and replies aren't available yet. For now, explore an event to get its dates, venue, and ticket details.</p>
+					case "interests":
+						<h2>More of what you love.</h2>
+						<p>Category preferences will help you describe your interests. They're separate from marking a particular event Interested.</p>
+						<p>Personal preferences aren't available yet. You can already narrow discovery by music genre, dates, and keywords.</p>
+					default:
+						<h2>A place for your event life.</h2>
+						<p>Accounts and profiles are in development. Sign-in, privacy controls, and personal collections aren't available yet.</p>
+						<p>Discovery is open to everyone. Start with a city and see what catches your ear.</p>
+				}
+				<a href="/" class="action"><span>Discover shows</span>@layouts.Icon("arrow")</a>
+			</div>
+			if active == "profile" {
+				<a href="/me/interests" class="destination-link">@layouts.Icon("interests")<span>Interests <small>About your future category preferences</small></span>@layouts.Icon("arrow")</a>
+			}
+		</main>
+	}
+}

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-10-03 — Distinct social signals and responsive participation
+
+- Align [community goals](../goals/event-communities.md) with separate private
+  saves, private-by-default interest identity, public recommendations, and
+  post-level Helpful reactions.
+- Specify asynchronous event threads and simple city/category community scopes
+  in the [design guidelines](../design-guidelines.md) and proposed
+  [API contracts](../design/radar-api.md#proposed-mvp-community-resources).
+- Retain pilot moderation; place Going/Went and discussion notifications after
+  the MVP. These are design decisions, not implemented community features.
+
 ### 2026-10-02 — Positive communities as a core product goal
 
 - Add [event communities](../goals/event-communities.md) as a core planned

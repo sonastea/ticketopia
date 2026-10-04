@@ -1,17 +1,34 @@
 # Personal radar and reminders
 
-Status: Core planned product feature. The current app displays cached Ticketmaster
-music events; the capabilities below are goals for upcoming work.
+Status: Core product direction. [City/date/genre discovery](../discovery.md) is
+implemented with cached Ticketmaster events and metadata. Saves, follows,
+personalized matches, reminders, and human pilot checkpoints remain upcoming work.
+The [delivery checklist](delivery.md) aligns backend and frontend tasks.
+Discovery now starts with a chosen, remembered, or approximate IP-based city;
+see [location behavior](../location.md).
+
+The updated MVP expands discovery to all Ticketmaster event categories; current
+music-only behavior remains the delivered baseline. Private saved events and
+category preferences support the first release alongside community interest and
+recommendations. Follows, personalized ranking, and reminders remain agreed
+subsequent goals, not prerequisites for the responsive community MVP. See the
+[release boundary](delivery.md#mvp-release-boundary) and
+[design guidelines](../design-guidelines.md) for the current delivery direction.
 
 ## Goal
 
-Help someone discover relevant concerts nearby, save the ones they care about,
+Help someone discover relevant events nearby, save the ones they care about,
 and remember when tickets go on sale or plans change.
 
-Start with people who enjoy live music but miss announcements or do not want to
-regularly browse listings. The first experience should be useful to one person:
+The original live-music audience remains supported, alongside people exploring
+sports, arts, and other Ticketmaster categories who miss announcements or do not
+want to regularly browse listings. The first experience should be useful to one person:
 
 **Choose a city and interests -> discover -> save -> receive a useful reminder.**
+
+Saving is private personal organization, not an Interested signal or public
+recommendation. Reminders are explicitly configured, not implied by any social
+action. See [interaction semantics](../design-guidelines.md#interaction-semantics-and-hierarchy).
 
 Deliver that experience through a shared backend that can also serve a mobile
 app, another personal app, or an analysis client. See the [API draft](../design/radar-api.md).
@@ -42,8 +59,10 @@ milestones and reporting/moderation expectations. Passport and quest ideas remai
 optional discovery experiments.
 
 **First checkpoint:** try steps 1-2 with three people in one well-covered city.
-Ask which show they would consider and whether saving it helps. Once steps 1-5
-are useful, expand to a small pilot of roughly 10-20 people. These are learning
+Ask which event they would consider and whether saving it helps across the
+chosen categories and device sizes. Expand to a small community MVP pilot of
+roughly 10-20 people once its release criteria are met; test reminder steps
+separately when delivered. These are learning
 checkpoints, not claims of product-market fit.
 
 ## What the radar should feel like

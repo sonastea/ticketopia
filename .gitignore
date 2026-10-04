@@ -28,3 +28,6 @@ go.work
 
 # Air live reload
 tmp/
+
+# Local visual verification captures and reports
+.impeccable/review/

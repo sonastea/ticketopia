@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-10-03 — All-category MVP and private saved collections
+
+- Expand the planned audience beyond music in the [radar goals](../goals/personal-radar.md)
+  while retaining the delivered music-only baseline and later follow/reminder goals.
+- Clarify private saves versus social signals, revise pilot sequencing, and align
+  [delivery](../goals/delivery.md) with responsive discovery/community scope.
+
 ### 2026-10-02 — Product goal, reusable API, and discovery experiments
 
 - Document the [personal radar and reminder goal](../goals/personal-radar.md),
@@ -12,5 +19,13 @@
   including the observations needed and how to interpret advertised price data.
 - Explore [discovery games and social motivations](../ideas/discovery-games.md),
   with a passport and one-to-one pick swap as the first suggested experiment.
+- Connect the implemented [discovery foundation](../discovery.md) to the first
+  radar outcome and map remaining backend/frontend work in the
+  [delivery checklist](../goals/delivery.md).
+- Make the first discovery visit location-aware, with an editable approximate
+  IP city, remembered manual choices, and a city-entry fallback. See the
+  [location guide](../location.md).
 
-These are planning documents; they do not add runtime features.
+Saves, follows, personalized matches, reminders, and human pilot checkpoints
+remain planned. Runtime discovery changes are recorded in its
+[feature history](discovery.md).

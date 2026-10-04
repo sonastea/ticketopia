@@ -1,0 +1,187 @@
+# Ticketmaster event discovery
+
+Status: Implemented for the web UI and public read-only JSON API. Delivery of
+later personal/community features is tracked in the [aligned checklist](goals/delivery.md).
+
+The [design direction](design-guidelines.md) now has a responsive discovery shell,
+selected-event previews, and dedicated event pages. All-category discovery and
+community participation remain planned. [DESIGN.md](../DESIGN.md) records the
+implemented visual system.
+
+## Fetch once, reuse across clients
+
+`internal/discovery` owns Ticketmaster requests, normalization, and caching.
+HTML and JSON handlers call the same service. The browser never receives the
+Ticketmaster key and the server does not call its own HTTP API.
+
+One search retrieves events with their artist, venue, classification, image,
+advertised price, status, and sale metadata. Those results also populate event
+detail cache entries, avoiding an external request per visible event. A separate
+request fetches the Music segment's genre/subgenre catalog for filter options.
+Artist and venue search/detail endpoints are future work; their references are
+already included in events.
+
+Set `TICKETMASTER_KEY` in the environment or optional `.env`. A missing key gives
+an explicit unavailable response on a cache miss. Configure storage and retention
+using the [cache guide](cache.md).
+
+## Web UI
+
+Open `/` to search by city, two-letter country code, artist/keyword, venue-local
+date range, and music genre. The default range is today (UTC) through 90 days
+later. The web page uses a chosen city, a remembered city, or an approximate
+IP-based city, in that order. When none is available it asks for a city before
+fetching events. Use both city and country to narrow ambiguous place names.
+See [location-aware discovery](location.md) for lookup caching, editable defaults,
+and reverse-proxy configuration. Filtering is city-based, rather than a GPS radius.
+
+Each occurrence has its own image-led row, even when titles match. Show dates and public
+sale dates are labeled separately; ticket links use the event URL. Missing dates,
+venues, and prices have explicit fallback labels. Prices do not establish fee
+inclusion or ticket inventory.
+
+Load-more keeps all filters, starts at provider page zero, and stops at the end
+or Ticketmaster's paging cap. With JavaScript it appends rows; without JavaScript
+the link navigates to the next page. Search is a regular GET form. The page
+includes loading, empty, error, and stale-result messages. Genre-catalog failures
+do not prevent an otherwise successful event search.
+
+### Responsive navigation and event details
+
+- Wide screens (72rem+) have labeled left navigation, a primary event list, and
+  a 21rem contextual preview. Intermediate screens (62–72rem) use a compact
+  labeled rail and a 20rem preview; below 62rem the app uses bottom navigation
+  and dedicated event pages. The higher intermediate threshold leaves room for
+  the navigation rail and readable results. The full shell caps at 100rem.
+- Location stays visible above search. **Change city** opens the native Filters
+  disclosure and focuses City. The same GET form exposes country, dates, and genre.
+  Ordering is explicitly date-first; no unsupported sorting/category choices are
+  presented. Inputs and disclosure remain usable without JavaScript.
+- Event titles and **Details** are real `/events/{event_id}` links. On larger
+  screens enhancement loads only the selected event into the preview, keeping
+  results in place. `selected_event` and `section` in the discovery URL reconstruct
+  the preview on direct entry or reload; these are HTML-only parameters.
+- Event pages use `section=overview|discussion|community` and a validated local
+  `return_to` URL. Overview shows supplied descriptions, venue information, prices,
+  status, separate sale dates, freshness, and the Ticketmaster link. Discussion
+  and Community explain their current unavailable state without invented counts.
+- Back restores previous selection; loaded result pages, focus, and scroll are
+  retained in browser history across the event's full-page section links. A
+  one-use, same-tab session-storage handoff carries the originating history entry;
+  if storage is unavailable, a normal return
+  link still preserves validated search filters. Resizing retains the selected
+  event without adding history; narrow selected URLs show the preview in-shell.
+- Preview loads cancel obsolete requests, have bounded timeouts, and offer Retry
+  and Open event on failure. A failed preview leaves the discovery list usable.
+  Keyboard users can tab to **Jump to event preview** on the selected row.
+- `/saved`, `/community`, `/me`, and `/me/interests` are navigable availability
+  pages. Save/Interested/Recommend controls are explicitly disabled and explained.
+  These routes do not implement accounts, persistence, or community mutations.
+
+### UI source and assets
+
+Reusable templ components live in `views/layouts/` and `views/home/`.
+`views/styles/app.css` owns the visual tokens and responsive rules. Its compiled
+Tailwind output, browser enhancement, htmx, and licensed Manrope font are embedded
+from `views/assets/` and served at `/assets/`; no runtime styling CDN is required.
+Event imagery comes directly from the normalized provider image records and has
+a fixed-ratio fallback when missing or broken.
+
+After editing styles, run:
+
+```sh
+npx --yes tailwindcss@3.4.17 --input views/styles/app.css --output views/assets/app.css --minify
+```
+
+Regenerate templates with `go tool templ generate`, then restart the Go server
+after asset edits because browser files are embedded in the binary.
+
+## JSON API
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/v1/events` | Filtered events with pagination and freshness. |
+| GET | `/api/v1/events/{event_id}` | One normalized event, fetched on demand if uncached. |
+| GET | `/api/v1/genres` | Music genre/subgenre metadata and freshness. |
+| GET | `/api/v1/openapi.yaml` | [OpenAPI 3.1 contract](../internal/api/openapi.yaml). |
+
+Event filters: `city`, `country`, `keyword`, `genre_id`, `artist_id`, `venue_id`,
+`start_date`, `end_date`, `limit`, and `cursor`. Empty filters are treated as
+omitted. Unknown/repeated parameters are rejected. The genre and contract routes
+accept no query parameters.
+JSON reads use the supplied filters; browser location defaults are applied by
+the HTML handler before calling the shared discovery service.
+
+- Dates use `YYYY-MM-DD` and are inclusive venue-local dates. End must be on/after
+  start and no more than 366 days later. Date filtering follows provider semantics
+  and normally excludes shows whose dates are still TBA/TBD.
+- `limit` defaults to 20 and accepts 1–100. Cursors are opaque page tokens bound
+  to the normalized filters and limit. Keep explicit dates and the same filters
+  on subsequent requests; omitted defaults may change at midnight UTC.
+- Provider ordering is date/name ascending. The upstream result set can shift
+  between refreshes; this is not a snapshot cursor or a durable history.
+- Ticketmaster requires `size * page < 1000`. `next_cursor` is `null` at the end;
+  `limited: true` means the cap prevented another page. `total` is the provider's
+  total, which can exceed the accessible results. Narrow filters to continue.
+- Event, artist, and venue IDs use `ticketmaster:SOURCE_ID`. They survive title
+  changes and distinguish identically named events. Genre IDs are raw taxonomy
+  IDs from `/api/v1/genres`. URL-encode path IDs when needed.
+- Known instants use RFC 3339. Missing instants are `null`; local dates/times,
+  time zones, and TBA/TBD flags are retained. Unknown prices are `null`; amount
+  strings preserve the provider's decimal representation. `fees_included` is
+  `null` when unknown.
+- `meta.data_as_of` is the successful collection time. `meta.stale` identifies a
+  retained result served after refresh failure or a request-budget cooldown.
+  These values are not durable first-seen/change-detection timestamps.
+- Errors use `application/problem+json`: 400 for invalid or provider-rejected
+  filters, 404 for a missing event, and 503 for unavailable data. Upstream 429
+  becomes 503 with `Retry-After`
+  when there is no usable cached result. Provider bodies and API keys are not
+  included in responses or provider-error logs.
+
+Example:
+
+```sh
+curl 'http://localhost:8080/api/v1/events?city=Chicago&country=US&start_date=2026-10-02&end_date=2026-12-31'
+curl 'http://localhost:8080/api/v1/genres'
+```
+
+## External request budget
+
+The [Discovery API documentation](https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/)
+lists default limits of 5 requests/second and 5,000/day. Ticketopia starts at most
+four external requests/second and permits 4,500 calls per process window of
+24 hours, starting with its first request. This leaves headroom for other uses
+of the key. Set `TICKETMASTER_DAILY_BUDGET` to a
+positive integer to fit your account. All resource types share this budget.
+Cache hits consume no requests. There are no automatic request retries or
+background crawls.
+
+Timeouts and provider failures pause new external requests for 30 seconds; 429
+pauses for at least a minute. Longer `Retry-After` values (seconds or HTTP dates)
+and Ticketmaster's millisecond `Rate-Limit-Reset` for an exhausted daily quota are
+respected, up to 24 hours. A successful response with zero remaining quota is
+still returned and cached. HTTP calls time out after eight seconds; shared cache
+refresh work is bounded to ten seconds. Response bodies are limited to 8 MiB.
+
+Rate pacing, budget accounting, cooldowns, and concurrent-request deduplication
+are **per process** and reset on restart. Shared KV reuses stored results across
+instances but does not provide distributed locking or a shared request budget.
+Use the planned single-host deployment initially; distributed coordination and
+durable scheduled collection belong to the next backend milestone.
+
+## Verification
+
+`go test -race ./...` covers metadata fidelity, cache reuse, concurrent misses,
+caller cancellation, refresh/retention, outage cooldowns, quota budgets, empty
+results, negative caching, corrupted entries, cursor validation, and shared
+HTML/API behavior. `go vet ./...` checks the Go code. Validate the contract with
+`npx --yes @redocly/cli lint internal/api/openapi.yaml`.
+
+Route tests cover HTML/API detail-cache reuse, selected URL reconstruction,
+failure isolation, parameter separation, valid local return contexts, and truthful
+planned destinations. Browser checks exercise live Chicago data at 1440, 1024,
+390, and 320px; selection/sections, rapid switching, retry, Back/reload/resize,
+appended-page restoration, city detection, no-JavaScript routes/pagination,
+long-title reflow, 200% text, reduced motion, and automated WCAG A/AA scans.
+Human relevance/usability pilot checkpoints remain open.

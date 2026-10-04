@@ -1,17 +1,65 @@
 package layouts
 
-templ Base() {
+templ Base(title string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
-			<script src="https://cdn.tailwindcss.com"></script>
-			<title>Ticketopia</title>
-			<body>
-				{ children... }
-			</body>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+			<meta name="theme-color" content="#2946c7"/>
+			<link rel="preload" href="/assets/fonts/manrope.ttf" as="font" type="font/ttf" crossorigin/>
+			<link rel="stylesheet" href="/assets/app.css"/>
+			<script src="/assets/htmx.min.js" defer></script>
+			<script src="/assets/app.js" defer></script>
+			<title>{ title } · Ticketopia</title>
 		</head>
+		<body>
+			<a href="#main" class="skip-link">Skip to content</a>
+			{ children... }
+		</body>
 	</html>
+}
+
+templ App(active string, title string) {
+	@Base(title) {
+		<div class="app-shell">
+			<aside class="sidebar">
+				<a href="/" class="brand" aria-label="Ticketopia home">@Icon("ticket")<span>ticketopia<span class="brand-stop">.</span></span></a>
+				<nav class="desktop-nav" aria-label="Main navigation">
+					@NavLink("/", "Discover", "discover", active == "discover")
+					@NavLink("/saved", "Saved", "saved", active == "saved")
+					@NavLink("/community", "Community", "community", active == "community")
+					@NavLink("/me/interests", "Interests", "interests", active == "interests")
+				</nav>
+				<div class="sidebar-foot">
+					<p class="sidebar-tagline">Live music,<br/>worth finding.</p>
+					@NavLink("/me", "Profile", "profile", active == "profile")
+				</div>
+			</aside>
+			<div class="app-workspace">
+				<header class="compact-header">
+					<a href="/" class="brand">@Icon("ticket")<span>ticketopia<span class="brand-stop">.</span></span></a>
+					<span>Live music, worth finding.</span>
+				</header>
+				{ children... }
+			</div>
+		</div>
+		<nav class="bottom-nav" aria-label="Main navigation">
+			@NavLink("/", "Discover", "discover", active == "discover")
+			@NavLink("/saved", "Saved", "saved", active == "saved")
+			@NavLink("/community", "Community", "community", active == "community")
+			@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests")
+		</nav>
+	}
+}
+
+func CurrentPage(current bool) string {
+	if current {
+		return "page"
+	}
+	return "false"
+}
+
+templ NavLink(href string, label string, icon string, current bool) {
+	<a href={ templ.URL(href) } class="nav-link" aria-current={ CurrentPage(current) }>@Icon(icon)<span>{ label }</span></a>
 }

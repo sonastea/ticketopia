@@ -1,0 +1,188 @@
+# Aligned backend and frontend delivery checklist
+
+Status: The discovery foundation, responsive navigation, and basic event previews/
+detail pages are implemented. Account/community outcomes remain planned.
+The [root goals](../../README.md#goals) track user outcomes; this checklist maps
+those outcomes to shared backend capabilities and their web UI. Check a task
+only when its behavior has been implemented and verified. API availability alone
+does not complete a UI outcome, and a cache does not complete durable storage.
+
+## MVP release boundary
+
+The updated release combines location-based discovery across **all Ticketmaster
+event categories** with event-centered community participation. The current
+music-only search remains a verified foundation, not completion of this expansion.
+The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
+Section numbers below group capabilities; they do not force reminders/ranking
+to ship before community work.
+
+**MVP:** nearby/upcoming discovery, event details, authentication/profiles and
+privacy controls, private saves, Interested, public recommendations with optional
+reasons, event root posts/threaded replies/Helpful reactions, simple city/category
+community browsing, and usable desktop/tablet/mobile layouts. Retain basic private
+reporting and owner moderation before the first public community pilot.
+
+**Retained subsequent milestones:** artist/venue follows, personalized radar,
+on-sale/change reminders and digest, followed-discussion notifications, Going/Went
+and structured post-show prompts, and budgeted scheduled observation history.
+Minimal durable events/accounts/community records and verified backup/restore
+are MVP foundations; the full ingestion scheduler is not a dependency of posting.
+
+**Future explorations:** direct messaging, real-time chat, advanced recommendation
+algorithms, personalized social activity feeds, managed groups/large-scale
+community tooling, map/list discovery, games, and venue analysis. Category/location
+scopes and explicit endorsements provide useful recommendations without these.
+
+## 1. Find a show worth considering
+
+Aligns with [personal radar, step 1](personal-radar.md#small-goals-one-at-a-time)
+and the reusable API goal. Current behavior: [discovery guide](../discovery.md).
+
+- [x] Backend: Fetch music events and embedded artist/venue/classification metadata;
+  retain source IDs, URLs, show/sale dates, statuses, images, and optional prices.
+- [x] Backend: Fetch the music genre/subgenre catalog for discovery filters.
+- [x] Backend: Reuse filter-aware cached reads across clients, coalesce concurrent
+  misses, populate detail entries from searches, and retain stale data on failure.
+- [x] Backend: Bound pagination, timeouts, request rate, and per-process daily
+  budget; respect provider cooldowns and validate inputs before fetching.
+- [x] Backend: Publish event list/detail and genre JSON reads with freshness,
+  structured errors, and an OpenAPI contract.
+- [x] Frontend: Search by city/country, dates, keyword, and genre; paginate while
+  preserving filters and distinct event occurrences.
+- [x] Backend: Resolve approximate IP city hints with cached, bounded lookups and
+  explicit proxy trust; prefer the visitor's chosen or remembered city.
+- [x] Frontend: Label the active city, allow changing it, remember a manual choice,
+  and ask for a city when none is available instead of fetching worldwide events.
+- [x] Frontend: Show local concert dates, separate public-sale dates, venues,
+  advertised/unknown prices, event status, and the correct ticket link.
+- [x] Frontend: Handle empty, loading, error, and stale results; support keyboard
+  navigation, small screens, and functional search/pagination without JavaScript.
+- [ ] Product: Verify relevance with three people in one well-covered pilot city.
+- [ ] Backend: Expand beyond the Music segment; expose category metadata/filtering
+  with an all-categories option and compatible genre behavior, preserving existing IDs.
+- [ ] Frontend: Offer category selection and appropriate non-music metadata;
+  preserve city/date defaults, source links, and explicit unknown values.
+- [ ] Verification: Exercise multiple available categories, category-specific and
+  empty results, existing music filters, and non-music events without artists.
+
+## 2. Keep reliable event and application history
+
+Aligns with [SQLite-first persistence](../design/database.md), reminder change
+detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
+
+- [ ] Backend: Select SQLite driver/migrations; persist events, artists, venues,
+  provider-ID mappings, and dated observations with first/last-seen and change times.
+- [ ] Backend: Schedule city/date collection within the request budget; record
+  coverage, failures, and meaningful changes without erasing the last good data.
+- [ ] Backend: Add durable budget/refresh coordination before multiple workers or
+  hosts; measure cache hits, external calls, quota usage, and collection coverage.
+- [ ] Backend: Back up and verify restoration of application state and jobs.
+- [ ] Frontend: Add an event detail page with useful metadata and clear change,
+  freshness, cancellation, and postponement information from durable observations.
+- [x] Frontend foundation: Read current event metadata, venue, status, prices,
+  source freshness, and ticket links on a dedicated event page using cached reads.
+- [ ] MVP foundation: Upsert durable event/provider identity before local writes;
+  preserve conversations and saved events when provider/cache data disappears.
+  Basic event details must ship without waiting for historical change detection.
+
+## 3. Save, follow, and find personal matches
+
+Aligns with [personal radar, steps 2–3 and 5](personal-radar.md#small-goals-one-at-a-time)
+and [cross-client continuity](../design/radar-api.md#shared-backend).
+
+- [ ] Backend: Establish accounts, verified web/API credentials, ownership, and
+  durable location, interest, time-zone, and notification preferences.
+- [ ] MVP Backend: Provide own/public profiles, private-by-default interest
+  visibility, private category preferences, and owner-only bookmark reads/writes.
+- [ ] MVP Frontend: Provide sign-in return to the pending event task, profile and
+  public-view preview, privacy controls, and a private Saved collection.
+- [ ] MVP Backend: Add idempotent save/unsave APIs backed by durable bookmarks.
+- [ ] Later Backend: Add artist/venue follow APIs and search backed by cached
+  provider or stored metadata; rank radar matches with understandable reasons.
+- [ ] Later Frontend: Provide artist/venue search and follow controls, and a radar
+  with match explanations alongside the MVP profile/preferences and saved list.
+- [ ] Verification: Save a show, leave, return, and find it again; confirm the
+  same preferences and choices are available to another authenticated client.
+
+## 4. Receive useful reminders
+
+Aligns with the [reminder promises](personal-radar.md#reminder-promises).
+
+- [ ] Backend: Persist reminder settings and idempotent notification jobs; handle
+  time zones, unknown on-sale times, changed dates, cancellation, and delivery retries.
+- [ ] Backend: Deliver public on-sale email, meaningful event changes, and a weekly
+  discovery digest; enforce pause/preferences before each delivery.
+- [ ] Frontend: Offer reminder lead times, pending/sent/failed state, pause/stop
+  controls, and email/digest preferences with clear expectations.
+- [ ] Verification: Deliver a timely reminder while the app is closed, prevent
+  duplicate/obsolete messages, and prove preference changes affect future jobs.
+
+## 5. Participate in positive event communities
+
+Aligns with [all core community goals](event-communities.md#small-goals-one-at-a-time).
+Build backend/API and UI together for each small outcome:
+
+- [ ] Backend: Persist Interested independently from bookmarks, recommendations,
+  and later attendance states; default identity visibility to private.
+- [ ] Frontend: Let people toggle interest, control its visibility, and distinguish
+  their own selected state from aggregate counts.
+- [ ] Backend: Persist one public recommendation per user/event with optional
+  reason; support editing/withdrawal and paginated city/category discovery.
+- [ ] Frontend: Offer Recommend as a secondary action, disclose public attribution,
+  and browse simple community recommendations and active event conversations.
+- [ ] Backend: Persist comments, replies, edits/removals, and positive Helpful
+  reactions, enforcing ownership and preserving removed reply context.
+- [ ] Frontend: Provide readable threads, composing/replying/editing/removal, and
+  adding/removing Helpful reactions.
+- [ ] Later Backend: Persist followed discussions and preference-aware activity jobs.
+- [ ] Later Frontend: Follow/unfollow conversations and surface useful activity updates.
+- [ ] Backend: Support private reports, authorized moderator review, decision
+  records, reporter acknowledgment, and appropriate author outcomes.
+- [ ] Frontend: Provide private reporting/status and a moderator review workflow.
+- [ ] Later Frontend: Offer post-show Went choices and reflection prompts using the
+  same participation and conversation services.
+- [ ] Later: Add distinct Going/Went records and visibility controls, without
+  redefining MVP Interested or implying verified attendance.
+- [ ] Verification: Observe a useful question, reply, and Helpful acknowledgment;
+  exercise reporting/moderation before the first public community pilot.
+
+## 6. Responsive discovery-to-discussion experience
+
+The read-only discovery subset below is delivered. Community layout and writing
+journeys remain planned; the discovery work does not establish their completion.
+
+- [x] Frontend: Responsive global navigation, image-led discovery, and selected
+  event metadata previews with dedicated event pages on compact screens.
+- [x] Frontend: Encode selection/section in URLs; reconstruct on reload, preserve
+  context on resize, cancel stale loads, and isolate preview errors with retry.
+- [x] Verification: Check desktop/tablet and 320/390px discovery/event views,
+  browser Back, loaded-result restoration, direct section links, no-JavaScript
+  navigation, keyboard focus, long titles, 200% text, and automated accessibility.
+
+- [ ] Frontend: Wide three-column discovery with global nav, results, and selected
+  event discussion; selection does not require replacing the discovery page.
+- [ ] Frontend: Expand an event to a dedicated detail page and a conversation to
+  a shareable full discussion/thread view with persistent event context.
+- [ ] Frontend: Adapt intermediate widths to two columns or a dedicated view
+  based on readable content widths, with collapsible global navigation.
+- [ ] Frontend: Single-column mobile discovery, persistent bottom navigation,
+  compact search/filter access, event sections, and keyboard-safe thread composing.
+- [ ] Backend/UI: Paginate posts/replies independently; batch card aggregates,
+  fetch only selected context, isolate failures, and reject stale selection loads.
+- [ ] Frontend: Keep filters, event/thread identity, action state, return scroll,
+  focus, and drafts coherent across navigation, resizing, and authentication.
+- [ ] Verification: Complete discovery, Save, Interested, Recommend, post/reply,
+  Helpful, and return journeys on desktop, tablet, and phone, including 320px,
+  zoom, keyboard/screen reader, Back/direct links, and loading/empty/error states.
+- [ ] Verification: Confirm as owner, another user, and guest that saves/private
+  interest identities stay private while counts/public endorsements remain distinct.
+
+## Completion rules across milestones
+
+- Extend the OpenAPI contract alongside each implemented endpoint.
+- Keep HTML and other clients on shared services and the same identity/visibility rules.
+- Verify persistence and restart behavior for durable features, plus loading,
+  empty, error, accessibility, and responsive behavior for their UI.
+- Update the matching feature guide/history and root checklist after delivery.
+- Keep [games](../ideas/discovery-games.md) and advanced venue/price analysis as
+  optional explorations after the core discovery/reminder/community outcomes.

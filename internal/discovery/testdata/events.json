@@ -1,0 +1,31 @@
+{
+  "_embedded": {
+    "events": [
+      {
+        "id": "show-1",
+        "name": "The Same Tour",
+        "url": "https://www.ticketmaster.com/event/show-1",
+        "info": "Doors open one hour before the show.",
+        "pleaseNote": "All ages.",
+        "images": [{"url": "https://example.com/show.jpg", "width": 160, "height": 90}],
+        "dates": {
+          "start": {"localDate": "2026-10-12", "localTime": "19:30:00", "dateTime": "2026-10-12T23:30:00Z"},
+          "timezone": "America/New_York",
+          "status": {"code": "rescheduled"}
+        },
+        "sales": {
+          "public": {"startDateTime": "2026-09-01T14:00:00Z", "endDateTime": "2026-10-12T23:30:00Z"},
+          "presales": [{"name": "Artist presale", "startDateTime": "2026-08-30T14:00:00Z"}]
+        },
+        "priceRanges": [{"type": "standard", "currency": "USD", "min": 25.10, "max": 99.95}],
+        "classifications": [{"primary": true, "segment": {"id": "KZFzniwnSyZfZ7v7nJ", "name": "Music"}, "genre": {"id": "rock", "name": "Rock"}, "subGenre": {"id": "alt", "name": "Alternative"}}],
+        "_embedded": {
+          "attractions": [{"id": "artist-1", "name": "A Band", "url": "https://example.com/artist"}],
+          "venues": [{"id": "venue-1", "name": "The Hall", "url": "https://example.com/venue", "timezone": "America/New_York", "city": {"name": "Boston"}, "state": {"name": "Massachusetts"}, "country": {"name": "United States", "countryCode": "US"}, "address": {"line1": "1 Music St"}, "location": {"latitude": "42.36", "longitude": "-71.06"}}]
+        }
+      },
+      {"id": "show-2", "name": "The Same Tour", "dates": {"start": {"dateTBA": true}}}
+    ]
+  },
+  "page": {"number": 0, "size": 20, "totalElements": 2, "totalPages": 1}
+}

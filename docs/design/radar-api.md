@@ -1,8 +1,28 @@
 # Radar API
 
-Status: Draft design for [personal radar](../goals/personal-radar.md) and
-[event communities](../goals/event-communities.md).
-These JSON endpoints are proposed; the current server exposes the HTML event list.
+Status: The [discovery read API](../discovery.md#json-api) is implemented.
+Personal radar, durable ingestion, reminders, and community endpoints below remain
+draft designs. Track backend and frontend delivery in the
+[aligned checklist](../goals/delivery.md).
+
+## Implemented discovery slice
+
+The HTML search and `/api/v1/events`, `/api/v1/events/{event_id}`, and
+`/api/v1/genres` use a shared discovery service and KV cache. The
+[OpenAPI contract](../../internal/api/openapi.yaml) documents the current API.
+Event/artist/venue IDs are stable provider-scoped IDs, not title groups.
+
+The current discovery implementation filters the Music segment. All-category
+discovery is now planned MVP scope: add category/segment metadata and an optional
+category filter with an all-categories choice; apply genre filters only within a
+compatible category. Preserve existing music/genre query behavior and IDs, and
+specify the expanded contract in OpenAPI when implemented. The current contract
+does not yet advertise category filters or the resources proposed below.
+
+Current pagination wraps provider pages in filter-bound cursors; it does not yet
+offer a stored snapshot or an ID tie-breaker across upstream pages. Freshness is
+collection time, not durable first/last-seen history. The persistence and scheduled
+ingestion architecture below is the next stage, not current storage behavior.
 
 ## Shared backend
 
@@ -29,15 +49,17 @@ possible later migration to PlanetScale.
 
 Ingest city/date batches once and reuse them across users within the upstream
 request budget. Record collection coverage and failures alongside observations.
-The current event model needs source event and artist IDs, actual concert start
-dates, statuses, source event URLs, and optional price ranges.
+The current normalized model already preserves source event and artist IDs,
+actual concert start dates, statuses, source event URLs, and optional price ranges.
 
 ## Proposed resources
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/v1/events` | Filter events by city, date window, artist, venue, or genre. |
-| GET | `/api/v1/events/{event_id}` | Read a normalized event with source and freshness information. |
+| GET | `/api/v1/events` | Implemented: filter events by city, date window, artist, venue, or genre. |
+| GET | `/api/v1/events/{event_id}` | Implemented: normalized event with source and freshness information. |
+| GET | `/api/v1/genres` | Implemented: cached music genre/subgenre catalog. |
+| GET | `/api/v1/categories` | Planned MVP: supported Ticketmaster segments/categories for all-category discovery. |
 | GET | `/api/v1/artists` | Search artists to follow. |
 | GET | `/api/v1/venues` | Search venues to follow. |
 | GET, PATCH | `/api/v1/me/preferences` | Read/update location, interests, time zone, and email/digest preferences. |
@@ -58,12 +80,14 @@ it does not imply that a notification has been delivered.
 Personal routes use the identity established by verified credentials. Mobile
 and other API clients use user-scoped bearer credentials; the browser may use a
 session mapped to the same identity. The authentication provider and token
-issuance/revocation flow need a concrete design before personal endpoints ship.
+  issuance/revocation flow need a concrete design before personal endpoints ship.
 
 ## Response conventions
 
 - Use stable Ticketopia IDs and retain unique `(provider, source_id)` mappings.
   Title changes or identical event names must not change or merge identities.
+  Keep current `ticketmaster:SOURCE_ID` public IDs resolvable through persistence;
+  introducing internal surrogate keys must not break saved or discussion links.
 - Normalize events into application DTOs rather than expose provider payloads
   or template types. Include artist/venue references and the source event URL.
 - Keep concert start time, public on-sale time, and time-zone information
@@ -115,13 +139,92 @@ support mobile push later without changing how clients follow or save events.
 
 ## Community clients
 
-The same shared backend should serve the core
-[event community goals](../goals/event-communities.md): Interested/Going/Went
-states, comments and replies, positive Helpful reactions, followed discussions,
-private reports, and moderator review. Define the resource contracts as the
-corresponding user goals are implemented.
+The same shared backend serves the [event community goals](../goals/event-communities.md)
+and [responsive journeys](../design-guidelines.md#discovery-to-discussion-journeys-and-shared-state).
+MVP resources distinguish private bookmarks, interest, public event endorsements,
+and post-level Helpful reactions. Going/Went, followed-discussion notifications,
+and richer social features remain later goals. Basic private reports and moderator
+review remain required before the public community pilot.
 
-Participation visibility follows user choices. Reactions support positive
+### Proposed MVP community resources
+
+All routes below are **unimplemented proposals** under `/api/v1`. Existing saved
+event routes above retain their owner-only semantics. Public reads return only
+permitted fields; writes require verified identity and ownership/role checks.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET, PATCH | `/me/profile` | Own profile and privacy settings; allowlisted writable fields |
+| GET | `/users/{user_id}` | Public profile, excluding saved events/private interests/account fields |
+| GET | `/users/{user_id}/activity` | Paginated public contributions, recommendations, opted-in interests; not a personalized feed |
+| GET | `/me/event-interests` | Owner's interest collection, including private entries |
+| PUT, DELETE | `/me/event-interests/{event_id}` | Set/remove interest; PUT carries explicit visibility, initially private |
+| GET | `/me/event-recommendations` | Owner's endorsements for management |
+| PUT, DELETE | `/me/event-recommendations/{event_id}` | Publish/update/withdraw one public endorsement with optional reason |
+| GET | `/events/{event_id}/community` | Aggregate counts and a separately scoped viewer state when authenticated |
+| GET | `/events/{event_id}/participants` | Paginated public-opt-in interested identities only |
+| GET | `/events/{event_id}/recommendations` | Public endorsements, authors, and optional reasons |
+| GET, POST | `/events/{event_id}/discussions` | List visible root posts / create a root post |
+| GET | `/events/{event_id}/discussions/{discussion_id}` | Root post and event reference for direct-link context |
+| GET, POST | `/events/{event_id}/discussions/{discussion_id}/replies` | Paginated replies / create reply with optional same-thread parent target |
+| PATCH, DELETE | `/posts/{post_id}` | Author edit / removal preserving reply context |
+| PUT, DELETE | `/posts/{post_id}/reactions/helpful` | Set/remove current user's positive post reaction |
+| GET | `/community/recommendations` | City/category-scoped recent event endorsements |
+| GET | `/community/discussions` | City/category-scoped active event threads |
+| POST | `/posts/{post_id}/reports` | Submit a private concern |
+| GET | `/me/reports` | Reporter-only acknowledgment and permitted status |
+| GET, PATCH | `/moderation/reports/{report_id}` | Authorized case review/decision, excluding private notes from public responses |
+| GET | `/moderation/reports` | Authorized paginated review queue |
+
+Use unique user/event constraints for interest and recommendations, user/post
+constraints for Helpful, and independent bookmark ownership. PUT/DELETE retries
+must not double-count or create duplicate endorsements. Accept bounded text and
+an idempotency key for post/reply/report creation so retries do not duplicate a
+contribution; reject reuse with a different payload. Specify limits and key
+retention before these endpoints ship. Mutations return authoritative viewer
+state and affected counts (or trigger a scoped refetch after `204`). Do not infer
+recommendation from Helpful, save, interest, or text mentioning an event.
+
+Enforce thread/event identity, reply ancestry, edit ownership, and content
+visibility in shared services, not only templates. A discussion count counts
+visible root posts; reply counts and post reaction counts have separate fields.
+Public participant lists can be smaller than interest totals because identities
+are private by default. Changing interest visibility affects all public surfaces;
+it does not hide separately published recommendations or posts. Responses must
+never disclose private bookmark status to another viewer.
+
+### Contextual loading and client state
+
+Keep the initial event search bounded. Hydrate public counts and viewer flags for
+the returned event IDs in batched local queries; do not issue a provider request
+or a discussion query per card. Load the selected event's first root-post page
+only on selection, with replies fetched on expansion. HTML fragments and JSON
+use the same services; htmx enhancement does not require a SPA or server self-HTTP.
+
+Use independent opaque cursors for discovery, root posts, replies, endorsements,
+and profile/community activity (default 20, max 100). Bind local cursors to scope,
+filters, sort, and visibility; sort root posts newest-first and replies oldest-first
+with `(created_at, id)` tie-breakers. Active-community ordering may use
+`(last_activity_at, id)` with a stable snapshot boundary for pagination. Fresh
+activity is revealed by refresh rather than reordering a page being read. Current
+provider discovery retains its documented non-snapshot pagination limits.
+
+The URL owns selected event/filter/section/thread identity; client view state owns
+scroll, loaded pages, pending requests, and unsent drafts. Key responses by event
+and thread ID and reject outdated selection responses. Selection loads should
+reuse cached event metadata and fail independently of discovery. Load-more errors
+retain previous pages. Save/interest/recommendation mutations synchronize card,
+detail, panel, and owner collections without resetting discovery filters.
+
+Cache public metadata independently from authenticated viewer state; responses
+containing private viewer fields must not enter a public shared cache. Counts
+must honor moderation/visibility policy, and unknown counts remain unknown.
+Keep local event identity/discussion available during Ticketmaster outages, with
+explicit stale/unavailable metadata. Basic request/refresh behavior suffices for
+asynchronous discussion; no WebSockets, message broker, or new database is required.
+
+Interest identity visibility defaults to private and follows explicit user choices.
+Recommendations and contributions are public with clear disclosure. Reactions support positive
 acknowledgment only; there is no downvote operation. Report submission and status
 are private to the reporter and authorized moderators. Moderator decisions and
 private case notes require moderator access; public conversation responses must

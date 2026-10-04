@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T20:36:43Z",
+  "title": "Design System: Ticketopia",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": ["oklch(15% 0.0381 272.86)", "oklch(26.43% 0.0381 272.86)", "oklch(37.86% 0.0381 272.86)", "oklch(49.29% 0.0381 272.86)", "oklch(60.71% 0.0381 272.86)", "oklch(72.14% 0.0381 272.86)", "oklch(83.57% 0.0381 272.86)", "oklch(95% 0.0381 272.86)"]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted ink",
+        "tonalRamp": ["oklch(15% 0.0293 273.06)", "oklch(26.43% 0.0293 273.06)", "oklch(37.86% 0.0293 273.06)", "oklch(49.29% 0.0293 273.06)", "oklch(60.71% 0.0293 273.06)", "oklch(72.14% 0.0293 273.06)", "oklch(83.57% 0.0293 273.06)", "oklch(95% 0.0293 273.06)"]
+      },
+      "cobalt": {
+        "role": "primary",
+        "displayName": "Cobalt",
+        "tonalRamp": ["oklch(15% 0.2022 267.45)", "oklch(26.43% 0.2022 267.45)", "oklch(37.86% 0.2022 267.45)", "oklch(49.29% 0.2022 267.45)", "oklch(60.71% 0.2022 267.45)", "oklch(72.14% 0.2022 267.45)", "oklch(83.57% 0.2022 267.45)", "oklch(95% 0.2022 267.45)"]
+      },
+      "cobalt-dark": {
+        "role": "primary",
+        "displayName": "Deep cobalt",
+        "tonalRamp": ["oklch(15% 0.1767 267.50)", "oklch(26.43% 0.1767 267.50)", "oklch(37.86% 0.1767 267.50)", "oklch(49.29% 0.1767 267.50)", "oklch(60.71% 0.1767 267.50)", "oklch(72.14% 0.1767 267.50)", "oklch(83.57% 0.1767 267.50)", "oklch(95% 0.1767 267.50)"]
+      },
+      "on-cobalt": {
+        "role": "primary",
+        "displayName": "Pale cobalt ink",
+        "tonalRamp": ["oklch(15% 0.0318 274.12)", "oklch(26.43% 0.0318 274.12)", "oklch(37.86% 0.0318 274.12)", "oklch(49.29% 0.0318 274.12)", "oklch(60.71% 0.0318 274.12)", "oklch(72.14% 0.0318 274.12)", "oklch(83.57% 0.0318 274.12)", "oklch(95% 0.0318 274.12)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Cool paper",
+        "tonalRamp": ["oklch(15% 0.0067 277.16)", "oklch(26.43% 0.0067 277.16)", "oklch(37.86% 0.0067 277.16)", "oklch(49.29% 0.0067 277.16)", "oklch(60.71% 0.0067 277.16)", "oklch(72.14% 0.0067 277.16)", "oklch(83.57% 0.0067 277.16)", "oklch(95% 0.0067 277.16)"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White surface",
+        "tonalRamp": ["oklch(15% 0.0000 0.00)", "oklch(26.43% 0.0000 0.00)", "oklch(37.86% 0.0000 0.00)", "oklch(49.29% 0.0000 0.00)", "oklch(60.71% 0.0000 0.00)", "oklch(72.14% 0.0000 0.00)", "oklch(83.57% 0.0000 0.00)", "oklch(95% 0.0000 0.00)"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Quiet line",
+        "tonalRamp": ["oklch(15% 0.0153 273.84)", "oklch(26.43% 0.0153 273.84)", "oklch(37.86% 0.0153 273.84)", "oklch(49.29% 0.0153 273.84)", "oklch(60.71% 0.0153 273.84)", "oklch(72.14% 0.0153 273.84)", "oklch(83.57% 0.0153 273.84)", "oklch(95% 0.0153 273.84)"]
+      },
+      "control-line": {
+        "role": "neutral",
+        "displayName": "Control line",
+        "tonalRamp": ["oklch(15% 0.0290 269.54)", "oklch(26.43% 0.0290 269.54)", "oklch(37.86% 0.0290 269.54)", "oklch(49.29% 0.0290 269.54)", "oklch(60.71% 0.0290 269.54)", "oklch(72.14% 0.0290 269.54)", "oklch(83.57% 0.0290 269.54)", "oklch(95% 0.0290 269.54)"]
+      },
+      "selection": {
+        "role": "secondary",
+        "displayName": "Apricot",
+        "tonalRamp": ["oklch(15% 0.0497 65.19)", "oklch(26.43% 0.0497 65.19)", "oklch(37.86% 0.0497 65.19)", "oklch(49.29% 0.0497 65.19)", "oklch(60.71% 0.0497 65.19)", "oklch(72.14% 0.0497 65.19)", "oklch(83.57% 0.0497 65.19)", "oklch(95% 0.0497 65.19)"]
+      },
+      "selection-ink": {
+        "role": "secondary",
+        "displayName": "Apricot ink",
+        "tonalRamp": ["oklch(15% 0.0820 53.69)", "oklch(26.43% 0.0820 53.69)", "oklch(37.86% 0.0820 53.69)", "oklch(49.29% 0.0820 53.69)", "oklch(60.71% 0.0820 53.69)", "oklch(72.14% 0.0820 53.69)", "oklch(83.57% 0.0820 53.69)", "oklch(95% 0.0820 53.69)"]
+      },
+      "blue-soft": {
+        "role": "primary",
+        "displayName": "Soft blue",
+        "tonalRamp": ["oklch(15% 0.0246 275.91)", "oklch(26.43% 0.0246 275.91)", "oklch(37.86% 0.0246 275.91)", "oklch(49.29% 0.0246 275.91)", "oklch(60.71% 0.0246 275.91)", "oklch(72.14% 0.0246 275.91)", "oklch(83.57% 0.0246 275.91)", "oklch(95% 0.0246 275.91)"]
+      },
+      "error": {
+        "role": "status",
+        "displayName": "Error",
+        "tonalRamp": ["oklch(15% 0.1543 18.92)", "oklch(26.43% 0.1543 18.92)", "oklch(37.86% 0.1543 18.92)", "oklch(49.29% 0.1543 18.92)", "oklch(60.71% 0.1543 18.92)", "oklch(72.14% 0.1543 18.92)", "oklch(83.57% 0.1543 18.92)", "oklch(95% 0.1543 18.92)"]
+      },
+      "error-bg": {
+        "role": "status",
+        "displayName": "Error wash",
+        "tonalRamp": ["oklch(15% 0.0163 12.78)", "oklch(26.43% 0.0163 12.78)", "oklch(37.86% 0.0163 12.78)", "oklch(49.29% 0.0163 12.78)", "oklch(60.71% 0.0163 12.78)", "oklch(72.14% 0.0163 12.78)", "oklch(83.57% 0.0163 12.78)", "oklch(95% 0.0163 12.78)"]
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Warning",
+        "tonalRamp": ["oklch(15% 0.0884 73.76)", "oklch(26.43% 0.0884 73.76)", "oklch(37.86% 0.0884 73.76)", "oklch(49.29% 0.0884 73.76)", "oklch(60.71% 0.0884 73.76)", "oklch(72.14% 0.0884 73.76)", "oklch(83.57% 0.0884 73.76)", "oklch(95% 0.0884 73.76)"]
+      },
+      "warning-bg": {
+        "role": "status",
+        "displayName": "Warning wash",
+        "tonalRamp": ["oklch(15% 0.0364 86.17)", "oklch(26.43% 0.0364 86.17)", "oklch(37.86% 0.0364 86.17)", "oklch(49.29% 0.0364 86.17)", "oklch(60.71% 0.0364 86.17)", "oklch(72.14% 0.0364 86.17)", "oklch(83.57% 0.0364 86.17)", "oklch(95% 0.0364 86.17)"]
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Success",
+        "tonalRamp": ["oklch(15% 0.0759 160.80)", "oklch(26.43% 0.0759 160.80)", "oklch(37.86% 0.0759 160.80)", "oklch(49.29% 0.0759 160.80)", "oklch(60.71% 0.0759 160.80)", "oklch(72.14% 0.0759 160.80)", "oklch(83.57% 0.0759 160.80)", "oklch(95% 0.0759 160.80)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page headings; compact discovery and dedicated event headings use the documented smaller overrides." },
+      "headline": { "displayName": "Headline", "purpose": "Section and selected-preview headings." },
+      "title": { "displayName": "Supporting title", "purpose": "Supporting h3 headings, including the empty preview." },
+      "event-title": { "displayName": "Event title", "purpose": "Result titles with open leading for long provider names." },
+      "body": { "displayName": "Body", "purpose": "Base reading text; inputs retain this size with weight 500." },
+      "body-small": { "displayName": "Event prose", "purpose": "Descriptions and practical event-section copy, limited to 70ch." },
+      "label": { "displayName": "Field label", "purpose": "Visible form labels and utility text links." },
+      "action": { "displayName": "Action", "purpose": "Primary and secondary action labels." },
+      "navigation": { "displayName": "Full navigation", "purpose": "Labeled sidebar links; the current destination uses weight 800." },
+      "small-label": { "displayName": "Small label", "purpose": "Event dates, quiet controls, availability labels, and section links; date lines use tabular numerals." },
+      "metadata": { "displayName": "Metadata", "purpose": "Supporting event facts, freshness, source notes, and availability explanations." },
+      "date-number": { "displayName": "Date index number", "purpose": "The stacked date marker's day; horizontal row indexes use .9375rem instead." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Shared easing for action fill, disclosure-chevron rotation, and selected-result fill." },
+      { "name": "control-state", "value": "160ms", "purpose": "Action background-color and filter-chevron transform transitions." },
+      { "name": "selection-state", "value": "180ms", "purpose": "Event-row background-color transition." },
+      { "name": "reduced-motion", "value": "0s", "purpose": "prefers-reduced-motion: reduce removes transition/animation durations and forces scroll-behavior: auto, all with !important." }
+    ],
+    "breakpoints": [
+      { "name": "small-phone-max", "value": "23rem" },
+      { "name": "row-image-min", "value": "40rem" },
+      { "name": "context-rail-min", "value": "62rem" },
+      { "name": "full-sidebar-min", "value": "72rem" },
+      { "name": "wide-spacing-min", "value": "86rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The shipped filled action, shown with the search label and its hover, pressed, focus, and reduced-motion states.",
+      "html": "<button class=\"ds-primary\" type=\"button\">Find shows</button>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-primary { display: inline-flex; justify-content: center; align-items: center; gap: .6rem; min-height: 2.75rem; padding: .65rem 1rem; background: var(--cobalt, #2946c7); color: white; border: 1px solid transparent; border-radius: .5rem; font-family: Manrope, sans-serif; font-size: .875rem; line-height: 1.4; font-weight: 750; cursor: pointer; touch-action: manipulation; transition: background-color 160ms var(--ease-out, cubic-bezier(.16, 1, .3, 1)); } .ds-primary:hover { background: var(--cobalt-dark, #2038a5); } .ds-primary:active { background: #172b87; } .ds-primary:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } @media (prefers-reduced-motion: reduce) { .ds-primary { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; } }"
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The bordered pagination action, shown as a static link with an inline SVG chevron.",
+      "html": "<a class=\"ds-secondary\" href=\"#ds-more-shows\"><span>Load more shows</span><svg class=\"ds-secondary-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m6 9 6 6 6-6\"></path></svg></a>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-secondary { display: inline-flex; justify-content: center; align-items: center; gap: .6rem; min-height: 2.75rem; min-width: 12rem; padding: .65rem 1rem; background: var(--surface, #ffffff); color: var(--cobalt, #2946c7); border: 1px solid var(--control-line, #959caf); border-radius: .5rem; font-family: Manrope, sans-serif; font-size: .875rem; line-height: 1.4; font-weight: 750; text-decoration: none; touch-action: manipulation; transition: background-color 160ms var(--ease-out, cubic-bezier(.16, 1, .3, 1)); } .ds-secondary:hover { background: var(--blue-soft, #e9edff); color: var(--cobalt-dark, #2038a5); } .ds-secondary:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } .ds-secondary-icon { flex: 0 0 auto; width: 1.25rem; height: 1.25rem; } @media (prefers-reduced-motion: reduce) { .ds-secondary { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; } }"
+    },
+    {
+      "name": "Unavailable quiet action",
+      "kind": "button",
+      "refersTo": "button-quiet-unavailable",
+      "description": "Save is visibly and semantically disabled, with the shipped availability explanation; no successful save state is implied.",
+      "html": "<div class=\"ds-participation\"><button class=\"ds-quiet\" type=\"button\" disabled aria-describedby=\"ds-participation-note\"><svg class=\"ds-quiet-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 4h12v17l-6-4-6 4Z\"></path></svg><span>Save</span></button><p class=\"ds-participation-note\" id=\"ds-participation-note\">Save and Interested are not available yet.</p></div>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-participation { font-family: Manrope, sans-serif; line-height: 1.6; } .ds-quiet { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.75rem; padding: .5rem .6rem; background: transparent; border: 1px solid var(--line, #dfe2ed); border-radius: .5rem; color: var(--ink, #202539); font-family: Manrope, sans-serif; font-size: .8125rem; line-height: 1.6; font-weight: 650; touch-action: manipulation; } .ds-quiet:disabled { color: var(--muted, #5d6274); border-color: var(--line, #dfe2ed); background: transparent; cursor: not-allowed; } .ds-quiet:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } .ds-quiet-icon { flex: 0 0 auto; width: 1rem; height: 1rem; } .ds-participation-note { color: var(--muted, #5d6274); font-size: .75rem; margin: .5rem 0 1rem; overflow-wrap: anywhere; }"
+    },
+    {
+      "name": "Search field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "One bordered search surround keeps a labeled, shrinkable input beside the real Find shows action; the icon disappears on small phones.",
+      "html": "<form class=\"ds-search\" action=\"/\" method=\"get\" aria-label=\"Search music events\"><svg class=\"ds-search-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"></circle><path d=\"m16 16 5 5\"></path></svg><label class=\"ds-search-label\" for=\"ds-keyword\">Artist or keyword</label><input class=\"ds-search-input\" type=\"search\" id=\"ds-keyword\" name=\"keyword\" placeholder=\"Artist, venue, or a little inspiration\" maxlength=\"120\"/><button class=\"ds-search-action\" type=\"submit\">Find shows</button></form>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-search { display: flex; align-items: center; gap: .65rem; padding: .45rem .45rem .45rem .9rem; border: 1px solid var(--control-line, #959caf); background: var(--surface, #ffffff); border-radius: .75rem; color: var(--ink, #202539); font-family: Manrope, sans-serif; font-size: 1rem; line-height: 1.6; } .ds-search-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; } .ds-search-icon { flex: 0 0 auto; width: 1.25rem; height: 1.25rem; color: var(--muted, #5d6274); } .ds-search-input { width: 100%; min-width: 0; min-height: 2.75rem; padding: .4rem 0; background: transparent; border: 0; border-radius: .2rem; color: var(--ink, #202539); font-family: Manrope, sans-serif; font-size: 1rem; line-height: 1.6; font-weight: 400; caret-color: var(--cobalt, #2946c7); touch-action: manipulation; } .ds-search-input::placeholder { color: var(--muted, #5d6274); opacity: 1; } .ds-search-action { flex-shrink: 0; display: inline-flex; justify-content: center; align-items: center; gap: .6rem; min-height: 2.75rem; padding: .65rem 1rem; background: var(--cobalt, #2946c7); color: white; border: 1px solid transparent; border-radius: .5rem; font-family: Manrope, sans-serif; font-size: .875rem; line-height: 1.4; font-weight: 750; cursor: pointer; touch-action: manipulation; transition: background-color 160ms var(--ease-out, cubic-bezier(.16, 1, .3, 1)); } .ds-search-action:hover { background: var(--cobalt-dark, #2038a5); } .ds-search-action:active { background: #172b87; } .ds-search-input:focus-visible, .ds-search-action:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } @media (max-width: 23rem) { .ds-search { gap: .4rem; padding-left: .65rem; } .ds-search-icon { display: none; } .ds-search-action { padding-inline: .65rem; } } @media (prefers-reduced-motion: reduce) { .ds-search-action { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; } }"
+    },
+    {
+      "name": "Labeled filter fields",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Visible labels, body-sized input text, and the unavailable genre-select treatment from the first-visit form.",
+      "html": "<div class=\"ds-fields\"><label class=\"ds-field\">City<input class=\"ds-field-control\" name=\"city\" placeholder=\"e.g. Chicago\" maxlength=\"120\" autocomplete=\"address-level2\"/></label><label class=\"ds-field\">Genre<select class=\"ds-field-control\" name=\"genre_id\" disabled><option value=\"\">All music</option></select></label></div>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; color: var(--ink, #202539); font-family: Manrope, sans-serif; line-height: 1.6; } .ds-field { display: block; font-size: .875rem; font-weight: 700; min-width: 0; } .ds-field-control { width: 100%; min-width: 0; min-height: 2.875rem; display: block; padding: .6rem .7rem; margin-top: .4rem; border: 1px solid var(--control-line, #959caf); border-radius: .5rem; background: var(--surface, #ffffff); color: var(--ink, #202539); font-family: Manrope, sans-serif; font-weight: 500; font-size: 1rem; line-height: 1.6; caret-color: var(--cobalt, #2946c7); touch-action: manipulation; } .ds-field-control::placeholder { color: var(--muted, #5d6274); opacity: 1; } .ds-field-control:disabled { color: var(--muted, #5d6274); background: var(--paper, #f4f5fa); } .ds-field-control:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } @media (max-width: 23rem) { .ds-fields { grid-template-columns: minmax(0, 1fr); } }"
+    },
+    {
+      "name": "Cobalt navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Full-navigation styling with apricot current state and contrast-preserving focus; the other destinations explain planned availability.",
+      "html": "<div class=\"ds-nav-shell\"><nav class=\"ds-nav\" aria-label=\"Main navigation\"><a class=\"ds-nav-link\" href=\"/\" aria-current=\"page\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"9\"></circle><path d=\"m16 8-2.5 5.5L8 16l2.5-5.5Z\"></path></svg><span>Discover</span></a><a class=\"ds-nav-link\" href=\"/saved\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 4h12v17l-6-4-6 4Z\"></path></svg><span>Saved</span></a><a class=\"ds-nav-link\" href=\"/community\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M21 11.5a8 8 0 0 1-8 8H6l-4 3 1.5-6A8 8 0 1 1 21 11.5Z\"></path><path d=\"M7 10h10M7 14h6\"></path></svg><span>Community</span></a><a class=\"ds-nav-link\" href=\"/me/interests\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z\"></path></svg><span>Interests</span></a></nav></div>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-nav-shell { padding: 2rem 1rem 1.5rem; background: var(--cobalt, #2946c7); color: var(--on-cobalt, #e2e8ff); font-family: Manrope, sans-serif; line-height: 1.6; } .ds-nav { display: grid; gap: .5rem; } .ds-nav-link { display: flex; align-items: center; gap: .8rem; min-height: 3rem; padding: .75rem 1rem; border-radius: .6rem; color: var(--on-cobalt, #e2e8ff); font-size: .9375rem; font-weight: 650; text-decoration: none; touch-action: manipulation; } .ds-nav-link:hover { background: var(--cobalt-dark, #2038a5); color: white; } .ds-nav-link[aria-current='page'] { background: var(--selection, #ffe1c5); color: var(--ink, #202539); font-weight: 800; } .ds-nav-link:focus-visible { outline: 3px solid var(--selection, #ffe1c5); outline-offset: 4px; } .ds-nav-icon { flex: 0 0 auto; width: 1.25rem; height: 1.25rem; }"
+    },
+    {
+      "name": "Availability label",
+      "kind": "chip",
+      "refersTo": "availability-label",
+      "description": "An informational tag from planned destinations, not an interactive filter chip or a success state.",
+      "html": "<span class=\"ds-availability\">In development</span>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-availability { display: inline-block; font-family: Manrope, sans-serif; font-size: .8125rem; font-weight: 650; line-height: 1.6; color: var(--selection-ink, #653613); background: var(--selection, #ffe1c5); border-radius: .4rem; padding: .35rem .65rem; }"
+    },
+    {
+      "name": "Indexed event row",
+      "kind": "custom",
+      "refersTo": "event-row-selected",
+      "description": "Selected-row geometry and the shipped SVG image fallback. Event text is a static sample from the reviewed capture, not live inventory; no provider raster is copied.",
+      "html": "<ul class=\"ds-event-list\"><li class=\"ds-event-row\" data-selected=\"true\"><div class=\"ds-event-art\"><div class=\"ds-event-image\"><div class=\"ds-event-fallback\" aria-hidden=\"true\"><svg class=\"ds-event-music\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" focusable=\"false\"><path d=\"M9 18V5l12-2v13M9 9l12-2\"></path><ellipse cx=\"6\" cy=\"18\" rx=\"3\" ry=\"3\"></ellipse><ellipse cx=\"18\" cy=\"16\" rx=\"3\" ry=\"3\"></ellipse></svg></div></div><div class=\"ds-date-marker\" aria-hidden=\"true\"><span>Oct</span><strong>3</strong></div></div><div class=\"ds-event-copy\"><p class=\"ds-event-date\">Sat, Oct 3, 2026 · 6:00 PM</p><h3 class=\"ds-event-title\"><a class=\"ds-event-link\" href=\"#ds-event-details\" aria-current=\"true\">Underground Madness</a></h3><p class=\"ds-event-venue\">Reggies Rock Club · Chicago · Illinois · US</p><div class=\"ds-event-metadata\"><span class=\"ds-event-status\" data-status=\"onsale\">On sale</span><span>Price not listed</span></div><details class=\"ds-event-extra\"><summary>More show information</summary><p>Public sale: May 22, 2026, 10:00 AM CDT</p></details><div class=\"ds-event-actions\"><button class=\"ds-event-quiet\" type=\"button\" disabled aria-describedby=\"ds-event-note\"><svg class=\"ds-event-action-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 4h12v17l-6-4-6 4Z\"></path></svg><span>Save</span></button><button class=\"ds-event-quiet\" type=\"button\" disabled aria-describedby=\"ds-event-note\"><svg class=\"ds-event-action-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z\"></path></svg><span>Interested</span></button><a class=\"ds-event-detail\" href=\"#ds-event-details\" aria-label=\"Details for Underground Madness\"><span>Details</span><svg class=\"ds-event-action-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 12h14m-5-5 5 5-5 5\"></path></svg></a></div></div></li></ul><p class=\"ds-event-note\" id=\"ds-event-note\">Save and Interested are not available yet.</p>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-event-list { padding: 0; margin: 0; list-style: none; color: var(--ink, #202539); font-family: Manrope, sans-serif; font-size: 1rem; line-height: 1.6; } .ds-event-row { position: relative; padding: 1.5rem .75rem; border-top: 1px solid var(--line, #dfe2ed); transition: background-color 180ms var(--ease-out, cubic-bezier(.16, 1, .3, 1)); scroll-margin-block: 2rem 6rem; } .ds-event-row[data-selected='true'] { background: var(--selection, #ffe1c5); border-radius: var(--radius, .75rem); } .ds-event-art { position: relative; margin-bottom: 1rem; } .ds-event-image { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; background: var(--blue-soft, #e9edff); border-radius: .65rem; } .ds-event-fallback { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cobalt, #2946c7); } .ds-event-music { width: 2.5rem; height: 2.5rem; } .ds-date-marker { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 3.2rem; width: max-content; padding: .4rem .65rem; background: var(--selection, #ffe1c5); color: var(--ink, #202539); border-radius: .45rem; font-variant-numeric: tabular-nums; position: absolute; bottom: .6rem; left: .6rem; } .ds-date-marker span { font-size: .75rem; font-weight: 750; } .ds-date-marker strong { font-size: 1.375rem; font-weight: 800; line-height: 1.2; } .ds-event-copy { min-width: 0; } .ds-event-date { margin: 0; font-size: .8125rem; color: var(--cobalt-dark, #2038a5); font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; } .ds-event-title { margin: .35rem 0 .4rem; font-size: 1.125rem; line-height: 1.4; font-weight: 750; letter-spacing: -.015em; text-wrap: balance; overflow-wrap: anywhere; } .ds-event-link { color: var(--ink, #202539); text-decoration: none; text-underline-offset: .22em; touch-action: manipulation; } .ds-event-link:hover { color: var(--cobalt, #2946c7); text-decoration: underline; } .ds-event-venue { margin: 0; font-size: .875rem; color: var(--muted, #5d6274); overflow-wrap: anywhere; } .ds-event-metadata { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .85rem; margin-top: .75rem; font-size: .75rem; color: var(--muted, #5d6274); } .ds-event-status { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem; font-weight: 650; } .ds-event-status[data-status='onsale'] { color: var(--success, #286247); } .ds-event-extra { font-size: .75rem; color: var(--muted, #5d6274); margin-top: .2rem; } .ds-event-extra summary { display: flex; align-items: center; min-height: 2.75rem; width: fit-content; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; touch-action: manipulation; } .ds-event-extra summary::-webkit-details-marker { display: none; } .ds-event-extra p { margin: 0 0 .5rem; overflow-wrap: anywhere; } .ds-event-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; margin-top: .5rem; } .ds-event-quiet { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.75rem; padding: .5rem .6rem; background: transparent; border: 1px solid var(--line, #dfe2ed); border-radius: .5rem; color: var(--muted, #5d6274); font-family: Manrope, sans-serif; font-size: .8125rem; line-height: 1.6; font-weight: 650; cursor: not-allowed; } .ds-event-action-icon { flex: 0 0 auto; width: 1rem; height: 1rem; } .ds-event-detail { display: inline-flex; align-items: center; gap: .35rem; min-height: 2.75rem; padding: .3rem .2rem .3rem .5rem; margin-left: auto; color: var(--cobalt, #2946c7); font-size: .8125rem; font-weight: 750; text-decoration: none; text-underline-offset: .22em; touch-action: manipulation; } .ds-event-detail:hover { text-decoration: underline; } .ds-event-link:focus-visible, .ds-event-detail:focus-visible, .ds-event-extra summary:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } .ds-event-note { color: var(--muted, #5d6274); font-family: Manrope, sans-serif; font-size: .75rem; line-height: 1.6; margin: .5rem 0 1rem; } @media (min-width: 40rem) { .ds-event-row { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; } .ds-event-art { margin: 0; } .ds-event-image { aspect-ratio: 1; } .ds-date-marker { position: static; flex-direction: row; gap: .35rem; width: 100%; margin-top: .5rem; padding: .4rem; } .ds-date-marker strong { font-size: .9375rem; } .ds-date-marker span { font-size: .8125rem; } .ds-event-title { margin-top: .25rem; } } @media (min-width: 62rem) { .ds-event-row { grid-template-columns: 6.5rem minmax(0, 1fr); gap: 1rem; } } @media (min-width: 86rem) { .ds-event-row { grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; } } @media (prefers-reduced-motion: reduce) { .ds-event-row { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; } }"
+    },
+    {
+      "name": "Empty context card",
+      "kind": "card",
+      "refersTo": "context-card",
+      "description": "The shipped quiet, border-defined preview before selection; its SVG placeholder is intentional empty-state content.",
+      "html": "<aside class=\"ds-context\" aria-label=\"Event preview\" tabindex=\"-1\"><div class=\"ds-context-empty\"><h2>A closer look</h2><div class=\"ds-context-placeholder\" aria-hidden=\"true\"><svg class=\"ds-context-music\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" focusable=\"false\"><path d=\"M9 18V5l12-2v13M9 9l12-2\"></path><ellipse cx=\"6\" cy=\"18\" rx=\"3\" ry=\"3\"></ellipse><ellipse cx=\"18\" cy=\"16\" rx=\"3\" ry=\"3\"></ellipse></svg></div><h3>Something catch your ear?</h3><p>Select a show to see its dates, venue, and ticket details here.</p><div class=\"ds-context-footnote\"><p>Good plans start with the details.</p><p>Event conversations and recommendations are coming later.</p></div></div></aside>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-context { min-width: 0; border: 1px solid var(--line, #dfe2ed); background: var(--surface, #ffffff); border-radius: var(--radius, .75rem); color: var(--ink, #202539); font-family: Manrope, sans-serif; font-size: 1rem; line-height: 1.6; } .ds-context:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } .ds-context-empty { padding: 1.25rem; } .ds-context-empty h2 { margin: 0; font-size: 1rem; font-weight: 750; line-height: 1.25; letter-spacing: -.02em; text-wrap: balance; overflow-wrap: anywhere; } .ds-context-empty h3 { margin: 0 0 .65rem; font-size: 1.0625rem; font-weight: 750; line-height: 1.25; letter-spacing: -.015em; text-wrap: balance; overflow-wrap: anywhere; } .ds-context-empty p { margin: 0; color: var(--muted, #5d6274); font-size: .875rem; overflow-wrap: anywhere; } .ds-context-placeholder { display: grid; place-items: center; min-height: 11rem; margin: 1.25rem 0; color: var(--cobalt, #2946c7); background: var(--blue-soft, #e9edff); border-radius: .6rem; } .ds-context-music { width: 2.75rem; height: 2.75rem; } .ds-context-footnote { border-top: 1px solid var(--line, #dfe2ed); margin-top: 2rem; padding-top: 1.25rem; } .ds-context-footnote p:first-child { color: var(--ink, #202539); font-weight: 700; margin-bottom: .5rem; } .ds-context-footnote p:last-child { font-size: .8125rem; }"
+    },
+    {
+      "name": "Event section navigation",
+      "kind": "nav",
+      "refersTo": "section-link",
+      "description": "Real-link styling for event sections, with a cobalt baseline and heavier current label; Discussion and Community currently show availability explanations.",
+      "html": "<nav class=\"ds-sections\" aria-label=\"Event sections\"><a class=\"ds-section-link\" href=\"#ds-overview\" aria-current=\"page\">Overview</a><a class=\"ds-section-link\" href=\"#ds-discussion\">Discussion</a><a class=\"ds-section-link\" href=\"#ds-community\">Community</a></nav>",
+      "css": "@font-face { font-family: Manrope; src: url('/assets/fonts/manrope.ttf') format('truetype'); font-weight: 400 800; font-style: normal; font-display: swap; } .ds-sections { display: flex; gap: .75rem; border-bottom: 1px solid var(--line, #dfe2ed); margin-top: 1.5rem; color: var(--ink, #202539); font-family: Manrope, sans-serif; line-height: 1.6; } .ds-section-link { display: flex; align-items: center; justify-content: center; min-height: 2.75rem; padding: .5rem .1rem; font-size: .8125rem; font-weight: 650; color: var(--ink, #202539); text-decoration: none; border-bottom: 2px solid transparent; touch-action: manipulation; } .ds-section-link:hover { color: var(--cobalt, #2946c7); } .ds-section-link[aria-current='page'] { color: var(--cobalt, #2946c7); border-bottom-color: var(--cobalt, #2946c7); font-weight: 800; } .ds-section-link:focus-visible { outline: 3px solid var(--cobalt, #2946c7); outline-offset: 4px; } @media (max-width: 23rem) { .ds-sections { gap: .65rem; } .ds-section-link { font-size: .75rem; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Local frequency",
+    "overview": "Local frequency makes event discovery feel personally assembled: the presence of a record shop, the intimacy of a mixtape, and the clarity of an everyday planning tool. Cobalt navigation frames cool light reading surfaces; apricot selection and compact date indexes give the collection a warm, human rhythm.\n\nBold, readable Manrope and real provider photography carry the personality. Familiar labeled controls keep this an Operate-mode product: useful dates, venues, prices, and clear availability matter more than promotional decoration. Density changes with the available space while the event identity stays recognizable.",
+    "keyCharacteristics": [
+      "Cobalt navigation and actions against cool paper and white surfaces.",
+      "Apricot selection, date indexing, and honest availability labels.",
+      "One expressive, readable Manrope family with substantial heading weights.",
+      "Record-sleeve provider imagery and compact, aligned event facts.",
+      "Border-only depth, restrained state transitions, and visible keyboard focus."
+    ],
+    "rules": [
+      { "name": "The Cobalt and Apricot Rule", "body": "Cobalt carries navigation and actions; apricot marks desktop selection, date indexes, and availability, while compact bottom navigation uses soft blue for its current destination.", "section": "colors" },
+      { "name": "The One Family, Clear Roles Rule", "body": "Use Manrope's size, weight, leading, and spacing to distinguish headings, facts, and controls; keep dates tabular and long event names able to wrap.", "section": "typography" },
+      { "name": "The Border-Only Depth Rule", "body": "Separate surfaces with tone, spacing, and borders; selection changes the fill without lifting the component or adding a cast shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use cobalt for navigation and actions, cool light surfaces for reading, and apricot for the shipped selection and indexing roles.",
+      "Do keep real provider imagery, full readable dates, venue, price availability, and sale status connected to the event title.",
+      "Do preserve the 62rem context/rail threshold and 72rem full-sidebar threshold when extending the shared shell.",
+      "Do keep visible focus, wrapping titles, labeled controls, reduced motion, and ordinary link/form behavior.",
+      "Do explain unavailable participation, unknown event facts, and stale provider data in text."
+    ],
+    "donts": [
+      "Don't add cast shadows, glass effects, or raised hover cards to this flat, border-defined system.",
+      "Don't force provider photographs into monochrome or substitute decorative stock imagery for event identity.",
+      "Don't style planned accounts, saves, interest, recommendations, or discussions as completed actions or fabricate participation counts.",
+      "Don't use promotional clutter or manufactured urgency to compete with practical event information.",
+      "Don't promote route-specific composition or synthesized sidecar tonal ramps into new global design tokens."
+    ]
+  }
+}

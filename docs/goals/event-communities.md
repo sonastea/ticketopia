@@ -6,8 +6,8 @@ for upcoming work.
 
 ## Goal
 
-Give each show a place where people can participate, discuss, connect, and
-discover together. Help someone decide whether a show is for them, feel prepared
+Give each event a place where people can participate, discuss, connect, and
+discover together. Help someone decide whether an event is for them, feel prepared
 to go, and share their experience afterward.
 
 **Discover -> express interest -> discuss -> appreciate help -> make a plan ->
@@ -15,33 +15,48 @@ return and share.**
 
 ## Core experience
 
-- **Interested / Going:** people can express or change their plans. Show counts
-  and participant profiles according to the visibility people choose. These are
-  user-declared plans, not verified ticket purchases or official attendance.
+- **Interested:** reversible event interest, distinct from a private Save and a
+  public Recommend. Interest identity is private by default, with explicit opt-in
+  for public profiles/participant lists; aggregate counts may include private
+  interests. Interest never establishes ticket ownership or confirmed attendance.
+- **Recommend:** a public event endorsement with an optional short reason; people
+  can edit or withdraw it. Show who endorsed an event without turning their
+  endorsement into a post reaction, save, or attendance declaration.
 - **Comments and replies:** each event has a conversation for questions, venue
   tips, recommendations, and shared experiences. People can edit or remove their
   own contributions.
 - **Helpful thumbs-up:** a positive reaction thanks someone for a useful comment
   or reply. A person can add or remove their reaction. There are no thumbs-down
   reactions or negative voting scores.
-- **Follow the conversation:** people can return to replies and useful activity
+- **Later — Follow the conversation:** people can return to replies and useful activity
   on discussions they choose to follow, with control over notifications.
-- **Went and reflections:** after a show, people can record self-reported
+- **Later — Going, Went and reflections:** people can declare plans and, after an event, record self-reported
   attendance and share memories or advice that may help future visitors.
+
+Event-specific threads are asynchronous, not live chat. City/category community
+spaces collect recommendations and conversations around existing events; group
+membership/administration is not required. MVP includes basic reporting and owner
+moderation before a public pilot. See [design guidelines](../design-guidelines.md)
+for screen structures, responsive parity, and the authoritative action hierarchy.
 
 ## Small goals, one at a time
 
 | Step | Goal | What success looks like |
 | --- | --- | --- |
 | 1 | Express interest in one show. | Someone marks Interested, sees their choice, and can change or remove it. |
-| 2 | Share a plan to attend. | Someone marks Going and understands how their participation is displayed. |
+| 2 | Recommend an event. | Someone publishes an explicit endorsement, optionally explains why, and can edit or withdraw it independently of Interested. |
 | 3 | Ask one useful question. | A question appears in the right event conversation with enough context for others to answer. |
 | 4 | Help another person. | Someone replies with relevant information that the question's author finds useful. |
 | 5 | Acknowledge that help. | The recipient gives a Helpful thumbs-up, and the contributor can see that their answer helped. |
 | 6 | Report a concern privately. | Someone reports a comment or reply, gives a reason, and receives acknowledgment. |
 | 7 | Resolve a reported concern. | A moderator reviews the context, makes a proportionate decision, and communicates the outcome appropriately. |
-| 8 | Return for a conversation. | Someone voluntarily returns because of a reply or relevant activity in a discussion they follow. |
-| 9 | Contribute after attending. | Someone shares a reflection or venue tip that another person can use. |
+| 8 | Return for a conversation. | Someone returns through an event or direct thread link; followed-discussion notifications are a later enhancement. |
+| 9 | Contribute after attending. | Someone shares a reflection or venue tip in a discussion; structured Went prompts are later. |
+| Later | Share attendance plans. | Someone marks Going/Went and understands visibility and that attendance is self-reported. |
+
+Verify these outcomes on mobile as well as desktop; tablet context must collapse
+without losing event/thread identity. A private save should never publish social
+activity, and Helpful should never increment event interest/recommendations.
 
 **First community milestone:** a useful question gets an answer and a positive
 acknowledgment. Reporting and moderator review should also be usable for the

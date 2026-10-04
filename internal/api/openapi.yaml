@@ -1,0 +1,270 @@
+openapi: 3.1.0
+info:
+  title: Ticketopia Discovery API
+  version: 1.0.0
+  license:
+    name: MIT
+    identifier: MIT
+  description: |
+    Read-only music discovery shared with the web UI. Event, artist, and venue IDs
+    are provider-scoped (ticketmaster:SOURCE_ID). Genre IDs are Ticketmaster
+    taxonomy IDs. Data is cached, not a live inventory or durable event history.
+servers:
+  - url: /
+security: []
+paths:
+  /api/v1/events:
+    get:
+      operationId: listEvents
+      summary: Search music events
+      description: |
+        Dates are inclusive venue-local dates, defaulting to today in UTC through
+        90 days later. Maximum span is 366 days. Results use Ticketmaster's
+        date/name ordering. Pass the same explicit filters with the next cursor.
+        Provider pages can shift on refresh; cursors do not pin a snapshot.
+        Unknown filters, repeated parameters, and invalid cursors return 400.
+      parameters:
+        - {name: city, in: query, schema: {type: string, maxLength: 120}}
+        - {name: country, in: query, description: Two-letter country code., schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
+        - {name: keyword, in: query, schema: {type: string, maxLength: 120}}
+        - {name: genre_id, in: query, description: ID from the genre catalog., schema: {type: string}}
+        - {name: artist_id, in: query, schema: {$ref: '#/components/schemas/ResourceID'}}
+        - {name: venue_id, in: query, schema: {$ref: '#/components/schemas/ResourceID'}}
+        - {name: start_date, in: query, schema: {type: string, format: date}}
+        - {name: end_date, in: query, schema: {type: string, format: date}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
+      responses:
+        '200':
+          description: Events and source freshness. Empty results are cached too.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor, total, limited, meta]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/Event'}}
+                  next_cursor: {type: [string, 'null']}
+                  total: {type: integer, minimum: 0, description: 'Total reported by Ticketmaster, including results beyond its paging limit.'}
+                  limited: {type: boolean, description: True when further pages exist but the provider's size times page limit prevents access. Narrow the filters.}
+                  meta: {$ref: '#/components/schemas/Freshness'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/events/{event_id}:
+    get:
+      operationId: getEvent
+      summary: Read an event and its embedded metadata
+      parameters:
+        - name: event_id
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ResourceID'}
+      responses:
+        '200':
+          description: Event data reused from a search or fetched on demand.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item, meta]
+                properties:
+                  item: {$ref: '#/components/schemas/Event'}
+                  meta: {$ref: '#/components/schemas/Freshness'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404':
+          description: Event not found; cached for five minutes.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/genres:
+    get:
+      operationId: listGenres
+      summary: Read music genres and subgenres
+      description: English music taxonomy, sorted by genre name then ID. No query parameters.
+      responses:
+        '200':
+          description: Music genres, cached for 24 hours.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, meta]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      allOf:
+                        - {$ref: '#/components/schemas/NamedID'}
+                        - type: object
+                          required: [subgenres]
+                          properties:
+                            subgenres: {type: array, items: {$ref: '#/components/schemas/NamedID'}}
+                  meta: {$ref: '#/components/schemas/Freshness'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/openapi.yaml:
+    get:
+      operationId: getOpenAPI
+      summary: Read this contract
+      responses:
+        '200':
+          description: OpenAPI 3.1 contract.
+          content:
+            application/yaml:
+              schema: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+components:
+  responses:
+    BadRequest:
+      description: Invalid query or ID, or filters rejected by Ticketmaster. Local validation failures make no provider request.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unavailable:
+      description: Provider outage, timeout, missing key, or exhausted request budget with no usable cached data.
+      headers:
+        Retry-After:
+          description: Seconds until retry, when known.
+          schema: {type: integer, minimum: 1}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    ResourceID:
+      type: string
+      pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'
+    Freshness:
+      type: object
+      required: [data_as_of, stale]
+      properties:
+        data_as_of: {type: string, format: date-time, description: 'When this data was successfully collected, not when this response was served.'}
+        stale: {type: boolean, description: A refresh failed or was paused and retained data is being served.}
+    Source:
+      type: object
+      required: [provider, id, url]
+      properties:
+        provider: {type: string, const: ticketmaster}
+        id: {type: string}
+        url: {type: string, description: 'Original source URL, or an empty string if unavailable.'}
+    NamedID:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string}
+    NullableInstant:
+      type: [string, 'null']
+      format: date-time
+    EventStart:
+      type: object
+      required: [date_time, local_date, local_time, timezone, date_tba, date_tbd, time_tba, no_specific_time]
+      properties:
+        date_time: {$ref: '#/components/schemas/NullableInstant'}
+        local_date: {type: [string, 'null'], description: Provider local date; TBA/TBD flags override any placeholder value.}
+        local_time: {type: [string, 'null'], description: Provider local time; time_tba and no_specific_time override placeholder values.}
+        timezone: {type: [string, 'null']}
+        date_tba: {type: boolean}
+        date_tbd: {type: boolean}
+        time_tba: {type: boolean}
+        no_specific_time: {type: boolean}
+    PublicSale:
+      type: object
+      required: [start, end, start_tbd]
+      properties:
+        start: {$ref: '#/components/schemas/NullableInstant'}
+        end: {$ref: '#/components/schemas/NullableInstant'}
+        start_tbd: {type: boolean}
+    Presale:
+      type: object
+      required: [name, description, url, start, end]
+      properties:
+        name: {type: string}
+        description: {type: string}
+        url: {type: string}
+        start: {$ref: '#/components/schemas/NullableInstant'}
+        end: {$ref: '#/components/schemas/NullableInstant'}
+    PriceRange:
+      type: object
+      required: [type, currency, min, max, fees_included]
+      properties:
+        type: {type: string}
+        currency: {type: string}
+        min: {type: [string, 'null'], description: Decimal amount preserved without floating-point conversion.}
+        max: {type: [string, 'null'], description: Decimal amount preserved without floating-point conversion.}
+        fees_included: {type: [boolean, 'null'], description: Null when the source does not establish fee inclusion.}
+    Image:
+      type: object
+      required: [url, width, height, ratio, fallback]
+      properties:
+        url: {type: string}
+        width: {type: integer}
+        height: {type: integer}
+        ratio: {type: string}
+        fallback: {type: boolean}
+    Artist:
+      type: object
+      required: [id, name, source]
+      properties:
+        id: {$ref: '#/components/schemas/ResourceID'}
+        name: {type: string}
+        source: {$ref: '#/components/schemas/Source'}
+    Place:
+      type: object
+      required: [name, address, city, state, country, country_code, postal_code, latitude, longitude]
+      properties:
+        name: {type: string}
+        address: {type: string}
+        city: {type: string}
+        state: {type: string}
+        country: {type: string}
+        country_code: {type: string}
+        postal_code: {type: string}
+        latitude: {type: string}
+        longitude: {type: string}
+    Venue:
+      allOf:
+        - {$ref: '#/components/schemas/Place'}
+        - type: object
+          required: [id, source, timezone]
+          properties:
+            id: {$ref: '#/components/schemas/ResourceID'}
+            source: {$ref: '#/components/schemas/Source'}
+            timezone: {type: string}
+    Classification:
+      type: object
+      required: [primary, segment, genre, subgenre]
+      properties:
+        primary: {type: boolean}
+        segment: {anyOf: [{$ref: '#/components/schemas/NamedID'}, {type: 'null'}]}
+        genre: {anyOf: [{$ref: '#/components/schemas/NamedID'}, {type: 'null'}]}
+        subgenre: {anyOf: [{$ref: '#/components/schemas/NamedID'}, {type: 'null'}]}
+    Event:
+      type: object
+      required: [id, name, source, start, status, public_sale, presales, price_ranges, images, artists, venues, place, classifications, info, please_note]
+      properties:
+        id: {$ref: '#/components/schemas/ResourceID'}
+        name: {type: string}
+        source: {$ref: '#/components/schemas/Source'}
+        start: {$ref: '#/components/schemas/EventStart'}
+        status: {type: string, description: 'Source status (onsale, offsale, canceled, postponed, rescheduled) or unknown. Not seat availability.'}
+        public_sale: {$ref: '#/components/schemas/PublicSale'}
+        presales: {type: array, items: {$ref: '#/components/schemas/Presale'}}
+        price_ranges: {type: [array, 'null'], items: {$ref: '#/components/schemas/PriceRange'}, description: 'Null means no advertised prices, not free admission.'}
+        images: {type: array, items: {$ref: '#/components/schemas/Image'}}
+        artists: {type: array, items: {$ref: '#/components/schemas/Artist'}}
+        venues: {type: array, items: {$ref: '#/components/schemas/Venue'}}
+        place: {anyOf: [{$ref: '#/components/schemas/Place'}, {type: 'null'}]}
+        classifications: {type: array, items: {$ref: '#/components/schemas/Classification'}}
+        info: {type: string}
+        please_note: {type: string}
+    Problem:
+      type: object
+      required: [type, title, status, code, detail]
+      properties:
+        type: {type: string, const: 'about:blank'}
+        title: {type: string}
+        status: {type: integer}
+        code: {type: string, enum: [invalid_query, event_not_found, provider_unavailable]}
+        detail: {type: string}
+        fields: {type: object, additionalProperties: {type: string}}

@@ -6,10 +6,18 @@ their status; they describe intended work rather than available features.
 
 ## Goals and design
 
+- [Implemented visual system](../DESIGN.md): tokens, typography, components, and
+  the cobalt/record-shop/mixtape visual direction.
+- [Product design and responsive UI guidelines](design-guidelines.md): broader
+  event-centered direction, navigation, screen wireframes, responsive matrix,
+  interaction semantics, accessibility, and reusable component boundaries.
+- [Backend and frontend delivery checklist](goals/delivery.md): aligned product
+  outcomes, implementation tasks, and verification checkpoints.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and
   reminder goals, with small user outcomes and pilot checkpoints.
-- [Positive event communities](goals/event-communities.md): core participation
-  goals, Interested/Going, helpful reactions, discussions, reports, and moderation.
+- [Positive event communities](goals/event-communities.md): MVP interest,
+  recommendations, threaded discussions, Helpful reactions, reports/moderation,
+  and retained later attendance and notification goals.
 - [Radar API](design/radar-api.md): a proposed shared backend for web, mobile,
   and other clients, including community participation.
 - [Database plan](design/database.md): SQLite first, durable application state,
@@ -21,8 +29,14 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Ticketmaster discovery](discovery.md): event/metadata fetching, JSON API,
+  frontend search, request budgets, and verification.
+- [Location-aware discovery](location.md): editable IP/remembered city defaults,
+  lookup caching, manual fallback, and trusted-proxy configuration.
 - [Cache configuration](cache.md): backends, environment variables, expiration,
   fallback behavior, and NATS setup.
+- [Product context](../PRODUCT.md): agreed audience, web platform, current UI scope,
+  and accessibility baseline.
 
 ## History
 

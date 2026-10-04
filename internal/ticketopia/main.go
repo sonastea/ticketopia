@@ -28,7 +28,11 @@ func Execute(ctx context.Context) int {
 		}
 	}()
 
-	api := api.NewAPI(ctx, logger, cache)
+	api, err := api.NewAPI(ctx, logger, cache)
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid API configuration")
+		return 1
+	}
 	srv := api.Server(8080)
 
 	srvCh := make(chan error, 1)

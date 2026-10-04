@@ -1,8 +1,38 @@
 # Cache configuration
 
 Ticketopia uses an in-process, concurrency-safe KV cache by default. No cache
-server or `.env` file is required. Event results expire after one hour, and expired
-in-memory entries are cleaned up automatically.
+server or `.env` file is required for the cache. Discovery reads use these policies:
+
+| Data | Fresh for | Retained from collection time |
+| --- | --- | --- |
+| Event searches and details | 1 hour | 24 hours |
+| Music genre/subgenre catalog | 24 hours | 7 days |
+| Missing event (404) | 5 minutes | 5 minutes |
+
+Fresh reads make no Ticketmaster requests. Expired freshness triggers one shared
+refresh per key and process. On temporary failure, retained data is returned with
+its original collection time and `stale: true`; after the retention deadline it
+is unavailable. An authoritative 404 replaces an old event with a five-minute
+negative entry. Empty search results are cached normally. Failed/malformed
+provider responses never replace successful data. Corrupt cache entries are misses.
+
+Keys are versioned and based on normalized filters, date range, page, and page
+size, with fixed music/English semantics. API keys are excluded. Equivalent query
+ordering, whitespace, country-code case, and numeric defaults share keys. Search
+results populate detail entries from embedded metadata. The HTML and JSON API
+share these entries. Cancellation of one caller does not cancel a shared refresh.
+Expired in-memory entries are cleaned up automatically.
+
+[IP-based city hints](location.md#ip-lookup-and-caching) use the same KV store:
+24 hours for successful lookups and 15 minutes for unsuccessful lookups, with
+per-process concurrent-request deduplication. They expire without a stale window.
+Event search keys contain the resolved city and filters, so visitors in the same
+city share event results without adding per-visitor event-cache entries.
+
+See [discovery](discovery.md#external-request-budget) for timeouts, cooldowns,
+per-process budget limits, and multi-instance coordination boundaries. These are
+replaceable read caches; [SQLite persistence](design/database.md) is planned for
+durable history, user activity, and jobs.
 
 Set `KV_URL` to use a shared cache:
 
