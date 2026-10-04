@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-10-04 — Current design references and terminology
+
+- Remove unused product-register metadata and superseded prototype wireframes,
+  thresholds, and controls from the [UX guide](../design-guidelines.md).
+- Consolidate current navigation and interaction guidance around the implemented
+  shadcn-templ UI; retain future community requirements with explicit scope labels.
+- Refresh the Impeccable component reference and replace music-only discovery
+  terminology in current product, surface, location, and delivery documentation.
+
 ### 2026-10-03 — Event-centered responsive product direction
 
 - Add [design guidelines](../design-guidelines.md) as the single UX reference for

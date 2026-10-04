@@ -31,3 +31,5 @@ tmp/
 
 # Local visual verification captures and reports
 .impeccable/review/
+node_modules/
+bin/

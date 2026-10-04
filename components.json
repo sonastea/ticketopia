@@ -1,0 +1,21 @@
+{
+  "scripts": {
+    "dir": "views/assets/js",
+    "path": "/assets/js"
+  },
+  "$schema": "https://shadcn-templ.com/schema/components.json",
+  "style": "base-nova",
+  "tailwind": {
+    "css": "views/styles/app.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "rtl": false,
+  "iconLibrary": "lucide",
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "aliases": {
+    "components": "github.com/sonastea/ticketopia/views/components",
+    "utils": "github.com/sonastea/ticketopia/utils"
+  }
+}

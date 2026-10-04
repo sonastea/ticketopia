@@ -6,10 +6,6 @@
 
 web
 
-## Register
-
-product
-
 ## Users
 
 People looking for worthwhile nearby events and practical advice from others
@@ -19,9 +15,10 @@ that will also support other clients.
 
 ## Capabilities and Constraints
 
-The current Go/Echo, templ, htmx, and Tailwind web app provides all-category discovery,
-city/date/category/genre search, and cached event list/detail reads. The confirmed UI
-refactor uses this existing backend and the [responsive UI spec](docs/design-guidelines.md).
+The Go/Echo, templ, htmx, shadcn-templ, and Tailwind web app provides all-category
+discovery, city/date/category/genre search, and cached event list/detail reads.
+The [responsive UX guide](docs/design-guidelines.md) describes the implemented
+navigation and interaction contract.
 Accounts, durable saves, interest, recommendations, and discussions remain
 planned; their UI must communicate availability truthfully rather than simulate
 successful participation.
@@ -60,7 +57,7 @@ messenger. Do not present asynchronous discussions as live chat.
 - Keep private saves, social interest, event endorsements, and post reactions distinct.
 - Prefer asynchronous threads over advanced messaging complexity.
 - Start with a relevant city and make the location visible and easy to change.
-- Keep show dates distinct from ticket-sale dates.
+- Keep event dates distinct from ticket-sale dates.
 - Make unknown information and data freshness explicit.
 - Carry the same event identity and behavior across web and API clients.
 - Deliver and verify small user outcomes before expanding.

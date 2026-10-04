@@ -15,14 +15,13 @@ unavailable states for accounts and community features.
 
 **THESIS:** Local frequency makes nearby discovery feel personally assembled:
 record-sleeve imagery and a mixtape's clearly indexed dates in a practical app.
-The user explicitly combined these qualities after a re-roll.
 
 **OWN-WORLD:** Cobalt navigation, cool white reading surfaces, apricot selection,
 ink text, Manrope sans, substantial event imagery, compact date markers, and
 ordinary labeled controls. People plan in daylight and on phones outdoors;
 the main reading surface is light.
 
-**STORY:** Choose a city, refine music discovery, compare dates and venues,
+**STORY:** Choose a city, refine discovery across event categories, compare dates and venues,
 select an event, inspect its real details, and return to the same results.
 Unavailable participation is explicit, never fabricated.
 
@@ -33,9 +32,9 @@ Mobile uses a compact header, single-column image-led events, full event views,
 and four-item bottom navigation. Selection highlights a row in apricot and
 updates its matching context without displacing the list.
 
-**FORM:** Community-radio identity, grounded candidate 7, seed `6b2b9e52`,
-user-pinned record-shop imagery and mixtape intimacy. Code-led. Earlier
-`0a981c44` was re-rolled. Source palette/type/density only; the spec owns layout.
+**FORM:** Community-radio identity, seed `6b2b9e52`, with user-pinned record-shop
+imagery and mixtape intimacy. Code-led. The current implementation uses themed
+shadcn-templ primitives; DESIGN.md owns visual rules and the UX guide owns behavior.
 
 **FINISH:** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 

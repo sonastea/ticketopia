@@ -3,7 +3,7 @@
 Status: Implemented for the web UI and public read-only JSON API. Delivery of
 later personal/community features is tracked in the [aligned checklist](goals/delivery.md).
 
-The [design direction](design-guidelines.md) now has a responsive discovery shell,
+The [responsive UX guide](design-guidelines.md) describes the discovery shell,
 selected-event previews, dedicated event pages, and all-category discovery.
 Community participation remains planned. [DESIGN.md](../DESIGN.md) records the
 implemented visual system.
@@ -105,21 +105,23 @@ A new form submission starts at the first page.
 
 ### UI source and assets
 
-Reusable templ components live in `views/layouts/` and `views/home/`.
+Reusable shadcn-templ primitives live in `views/components/`, with app composition
+in `views/layouts/` and `views/home/`. See the [component guide](ui-components.md).
 `views/styles/app.css` owns the visual tokens and responsive rules. Its compiled
 Tailwind output, browser enhancement, htmx, and licensed Manrope font are embedded
 from `views/assets/` and served at `/assets/`; no runtime styling CDN is required.
 Event imagery comes directly from the normalized provider image records and has
 a fixed-ratio fallback when missing or broken.
 
-After editing styles, run:
+Install build dependencies with `npm ci`. After editing components or styles, run:
 
 ```sh
-npx --yes tailwindcss@3.4.17 --input views/styles/app.css --output views/assets/app.css --minify
+npm run build
 ```
 
-Regenerate templates with `go tool templ generate`, then restart the Go server
-after asset edits because browser files are embedded in the binary.
+This generates templates, bundles component scripts, builds Tailwind v4 CSS, and
+builds the binary. Restart the Go server after asset edits because browser files
+are embedded in the binary.
 
 ## JSON API
 
@@ -130,6 +132,9 @@ after asset edits because browser files are embedded in the binary.
 | GET | `/api/v1/genres` | Music genre/subgenre metadata and freshness. |
 | GET | `/api/v1/categories` | Categories with compatible genres/subgenres and freshness. |
 | GET | `/api/v1/openapi.yaml` | [OpenAPI 3.1 contract](../internal/api/openapi.yaml). |
+
+See the [OpenAPI guide](openapi.md) for what the contract describes, how it is
+embedded and served, and how to validate and keep it aligned with the handlers.
 
 Event filters: `city`, `country`, `keyword`, `category_id`, `genre_id`, `artist_id`, `venue_id`,
 `start_date`, `end_date`, `limit`, and `cursor`. Empty filters are treated as
@@ -146,7 +151,7 @@ the HTML handler before calling the shared discovery service.
   not required to run a JSON event search.
 - Dates use `YYYY-MM-DD` and are inclusive venue-local dates. End must be on/after
   start and no more than 366 days later. Date filtering follows provider semantics
-  and normally excludes shows whose dates are still TBA/TBD.
+  and normally excludes events whose dates are still TBA/TBD.
 - `limit` defaults to 20 and accepts 1–100. Cursors are opaque page tokens bound
   to the normalized filters and limit. Keep explicit dates and the same filters
   on subsequent requests; omitted defaults may change at midnight UTC.

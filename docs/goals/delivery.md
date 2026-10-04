@@ -33,13 +33,13 @@ algorithms, personalized social activity feeds, managed groups/large-scale
 community tooling, map/list discovery, games, and venue analysis. Category/location
 scopes and explicit endorsements provide useful recommendations without these.
 
-## 1. Find a show worth considering
+## 1. Find an event worth considering
 
 Aligns with [personal radar, step 1](personal-radar.md#small-goals-one-at-a-time)
 and the reusable API goal. Current behavior: [discovery guide](../discovery.md).
 
 - [x] Backend: Fetch music events and embedded artist/venue/classification metadata;
-  retain source IDs, URLs, show/sale dates, statuses, images, and optional prices.
+  retain source IDs, URLs, event/sale dates, statuses, images, and optional prices.
 - [x] Backend: Fetch the music genre/subgenre catalog for discovery filters.
 - [x] Backend: Reuse filter-aware cached reads across clients, coalesce concurrent
   misses, populate detail entries from searches, and retain stale data on failure.
@@ -53,7 +53,7 @@ and the reusable API goal. Current behavior: [discovery guide](../discovery.md).
   explicit proxy trust; prefer the visitor's chosen or remembered city.
 - [x] Frontend: Label the active city, allow changing it, remember a manual choice,
   and ask for a city when none is available instead of fetching worldwide events.
-- [x] Frontend: Show local concert dates, separate public-sale dates, venues,
+- [x] Frontend: Show local event dates, separate public-sale dates, venues,
   advertised/unknown prices, event status, and the correct ticket link.
 - [x] Frontend: Handle empty, loading, error, and stale results; support keyboard
   navigation, small screens, and functional search/pagination without JavaScript.
@@ -114,7 +114,7 @@ and [cross-client continuity](../design/radar-api.md#shared-backend).
   provider or stored metadata; rank radar matches with understandable reasons.
 - [ ] Later Frontend: Provide artist/venue search and follow controls, and a radar
   with match explanations alongside the MVP profile/preferences and saved list.
-- [ ] Verification: Save a show, leave, return, and find it again; confirm the
+- [ ] Verification: Save an event, leave, return, and find it again; confirm the
   same preferences and choices are available to another authenticated client.
 
 ## 4. Receive useful reminders

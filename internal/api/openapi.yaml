@@ -14,6 +14,33 @@ servers:
   - url: /
 security: []
 paths:
+  /healthz:
+    get:
+      operationId: getLiveness
+      summary: Check whether the HTTP server responds
+      description: Does not call external APIs or the cache. Remains healthy while draining requests.
+      responses:
+        '200':
+          description: The HTTP server is responding.
+          content:
+            text/plain:
+              schema: {type: string, example: "ok\n"}
+  /readyz:
+    get:
+      operationId: getReadiness
+      summary: Check whether the initialized server is accepting traffic
+      description: Does not call external APIs or the cache. Returns 503 once the application shutdown context is cancelled.
+      responses:
+        '200':
+          description: The server is initialized and not shutting down.
+          content:
+            text/plain:
+              schema: {type: string, example: "ok\n"}
+        '503':
+          description: The server is shutting down.
+          content:
+            text/plain:
+              schema: {type: string, example: "not ready\n"}
   /api/v1/events:
     get:
       operationId: listEvents

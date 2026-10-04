@@ -26,6 +26,7 @@ type api struct {
 	events      *discovery.Service
 	locations   *location.Resolver
 	ipExtractor echo.IPExtractor
+	shutdown    <-chan struct{}
 }
 
 func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store) (*api, error) {
@@ -49,7 +50,7 @@ func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store) (*api, e
 		}
 	}
 	return &api{
-		logger: logger, ipExtractor: ipExtractor,
+		logger: logger, ipExtractor: ipExtractor, shutdown: ctx.Done(),
 		events: discovery.New(ctx, cache, logger, discovery.Config{
 			APIKey: os.Getenv("TICKETMASTER_KEY"), DailyBudget: budget,
 		}),
@@ -73,6 +74,8 @@ func (a *api) Routes() *echo.Echo {
 		e.IPExtractor = echo.ExtractIPDirect()
 	}
 
+	e.GET("/healthz", healthHandler)
+	e.GET("/readyz", a.readinessHandler)
 	e.GET("/", a.retrieveEventsHandler)
 	e.GET("/events/:event_id", a.eventPageHandler)
 	e.GET("/saved", destinationHandler("saved", "Saved events"))

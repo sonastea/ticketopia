@@ -136,7 +136,7 @@
   }
 
   const context = document.getElementById('event-context');
-  const emptyContext = context.querySelector('.context-empty')?.outerHTML;
+  const previewTemplate = name => document.getElementById('preview-' + name + '-template').content.cloneNode(true);
   const status = document.getElementById('selection-status');
   const desktop = matchMedia('(min-width: 62rem)');
   let request;
@@ -197,29 +197,12 @@
   window.addEventListener('pageshow', restoreResults);
 
   const showError = (url, retry) => {
-    context.replaceChildren();
-    const box = document.createElement('div');
-    box.className = 'context-inner feedback';
-    box.setAttribute('role', 'alert');
-    const heading = document.createElement('h2');
-    heading.textContent = 'Event preview unavailable';
-    const message = document.createElement('p');
-    message.textContent = "We couldn't load this event. Try again or open its full page.";
-    const button = document.createElement('button');
-    button.className = 'action';
-    button.textContent = 'Retry';
+    context.replaceChildren(previewTemplate('error'));
+    const button = context.querySelector('[data-preview-retry]');
+    button.hidden = false;
     button.addEventListener('click', retry);
-    const link = document.createElement('a');
-    link.className = 'text-link';
+    const link = context.querySelector('[data-preview-open]');
     link.href = url.href;
-    link.textContent = 'Open event';
-    const close = document.createElement('a');
-    close.className = 'text-link';
-    close.href = workspace.dataset.resultsUrl;
-    close.dataset.closeContext = '';
-    close.textContent = 'Back to results';
-    box.append(heading, message, button, link, close);
-    context.append(box);
   };
   const select = async (id, section, push = true) => {
     const panelHadFocus = context.contains(document.activeElement);
@@ -239,7 +222,7 @@
     markSelection(id);
     const url = detailURL(id, section);
     context.setAttribute('aria-busy', 'true');
-    context.innerHTML = '<div class="context-loading"><p>Loading event…</p><div class="skeleton-art" aria-hidden="true"></div><div class="skeleton-line" aria-hidden="true"></div><div class="skeleton-line" aria-hidden="true"></div></div>';
+    context.replaceChildren(previewTemplate('loading'));
     status.textContent = 'Loading event preview.';
     const timeout = setTimeout(() => currentRequest.abort(), 12000);
     try {
@@ -273,8 +256,7 @@
       history.pushState({ ...history.state }, '', url);
     }
     markSelection('');
-    if (emptyContext) context.innerHTML = emptyContext;
-    else context.innerHTML = '<div class="context-empty"><h2>A closer look</h2><p>Select a show to see its dates, venue, and ticket details here.</p></div>';
+    context.replaceChildren(previewTemplate('empty'));
     status.textContent = 'Event preview closed.';
     const trigger = [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === lastFocusID);
     trigger?.focus({ preventScroll: true });

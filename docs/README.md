@@ -8,9 +8,9 @@ their status; they describe intended work rather than available features.
 
 - [Implemented visual system](../DESIGN.md): tokens, typography, components, and
   the cobalt/record-shop/mixtape visual direction.
-- [Product design and responsive UI guidelines](design-guidelines.md): broader
-  event-centered direction, navigation, screen wireframes, responsive matrix,
-  interaction semantics, accessibility, and reusable component boundaries.
+- [Responsive UX and interaction guidelines](design-guidelines.md): current
+  navigation and responsive behavior, shared state, participation semantics,
+  accessibility, and explicitly planned community interactions.
 - [Backend and frontend delivery checklist](goals/delivery.md): aligned product
   outcomes, implementation tasks, and verification checkpoints.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and
@@ -29,6 +29,12 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [OpenAPI contract](openapi.md): API specification format, published YAML,
+  tooling, and maintenance alongside Go handlers.
+- [Container deployment](deployment.md): Docker builds, Coolify settings, health
+  checks, graceful shutdown, and Kubernetes probes.
+- [UI components](ui-components.md): shadcn-templ installation, themed primitives,
+  Tailwind v4 builds, progressive enhancement, and component updates.
 - [Ticketmaster discovery](discovery.md): event/metadata fetching, JSON API,
   frontend search, request budgets, and verification.
 - [Location-aware discovery](location.md): editable IP/remembered city defaults,

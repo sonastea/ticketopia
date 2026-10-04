@@ -1,13 +1,18 @@
 package home
 
 import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/badge"
+import "github.com/sonastea/ticketopia/views/components/empty"
 
 templ Destination(active string, title string) {
 	@layouts.App(active, title) {
 		<main id="main" class="destination-page">
 			<h1>{ title }</h1>
-			<div class="destination-state">
-				<span class="availability-label">In development</span>
+			@empty.Empty(empty.Props{Class: "destination-state"}) {
+				@badge.Badge(badge.Props{Class: "availability-label"}) {
+					In development
+				}
 				switch active {
 					case "saved":
 						<h2>Your own list of good nights.</h2>
@@ -26,10 +31,15 @@ templ Destination(active string, title string) {
 						<p>Accounts and profiles are in development. Sign-in, privacy controls, and personal collections aren't available yet.</p>
 						<p>Discovery is open to everyone. Start with a city and see what catches your ear.</p>
 				}
-				<a href="/" class="action"><span>Discover events</span>@layouts.Icon("arrow")</a>
-			</div>
+				@button.Button(button.Props{Href: "/", Class: "action"}) {
+					<span>Discover events</span>@layouts.Icon("arrow")
+				}
+			}
 			if active == "profile" {
-				<a href="/me/interests" class="destination-link">@layouts.Icon("interests")<span>Interests <small>About your future category preferences</small></span>@layouts.Icon("arrow")</a>
+				@button.Button(button.Props{Href: "/me/interests", Variant: button.VariantGhost, Class: "destination-link"}) {
+					@layouts.Icon("interests")
+					<span>Interests <small>About your future category preferences</small></span>@layouts.Icon("arrow")
+				}
 			}
 		</main>
 	}

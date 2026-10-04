@@ -5,5 +5,5 @@ import "embed"
 
 // Files is embedded so the server can run independently of its working directory.
 //
-//go:embed app.css app.js htmx.min.js fonts LICENSES.txt
+//go:embed app.css app.js htmx.min.js fonts js LICENSES.txt
 var Files embed.FS

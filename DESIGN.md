@@ -212,7 +212,7 @@ Bold, readable Manrope and real provider photography carry the personality. Fami
 - Record-sleeve provider imagery and compact, aligned event facts.
 - Border-only depth, restrained state transitions, and visible keyboard focus.
 
-**Implementation authority:** [`views/styles/app.css`](views/styles/app.css) is the unminified token and style source; [`views/assets/app.css`](views/assets/app.css) is its compiled output. Frontmatter records the shipped values, retaining CSS custom-property names where present. `tailwind.config.js` supplies scan paths, not another theme. [`PRODUCT.md`](PRODUCT.md) owns product truth; [`docs/design-guidelines.md`](docs/design-guidelines.md) owns UX; the [surface contract](.impeccable/surfaces/views-home-index-templ.md) retains route strategy and the selected direction's seed. The sidecar's synthesized tonal strips are panel previews, not additional shipping colors.
+**Implementation authority:** [`views/styles/app.css`](views/styles/app.css) is the unminified token and style source; [`views/assets/app.css`](views/assets/app.css) is its compiled output. Frontmatter records the shipped values, retaining CSS custom-property names where present. Tailwind v4 `@source` declarations in that stylesheet supply scan paths. Copied shadcn-templ primitives live in `views/components`; the [component guide](docs/ui-components.md) records theme mappings and native-form adaptations. [`PRODUCT.md`](PRODUCT.md) owns product truth; [`docs/design-guidelines.md`](docs/design-guidelines.md) owns UX; the [surface contract](.impeccable/surfaces/views-home-index-templ.md) retains route strategy and the selected direction's seed. The sidecar's synthesized tonal strips are panel previews, not additional shipping colors.
 
 ## Colors
 

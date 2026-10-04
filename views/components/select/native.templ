@@ -1,0 +1,17 @@
+package selectcomp
+
+// Native keeps ordinary GET forms and dependent options usable without JavaScript.
+// It shares the library's select theme tokens, with the browser owning selection.
+type NativeProps struct {
+	ID         string
+	Name       string
+	Class      string
+	Disabled   bool
+	Attributes templ.Attributes
+}
+
+templ Native(p NativeProps) {
+	<select id={ p.ID } name={ p.Name } disabled?={ p.Disabled } data-slot="native-select" class={ "border-input bg-background text-foreground rounded-lg border px-2.5 py-1 text-base w-full min-w-0", p.Class } { p.Attributes... }>
+		{ children... }
+	</select>
+}

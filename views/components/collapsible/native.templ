@@ -1,0 +1,13 @@
+package collapsible
+
+// Native preserves browser disclosure, validation and no-script form behavior.
+templ Native(p Props) {
+	<details id={ p.ID } class={ p.Class } open?={ initialOpen(p) } data-slot="native-collapsible" { p.Attributes... }>
+		{ children... }
+	</details>
+}
+
+templ Summary() {
+	<summary data-slot="native-collapsible-trigger">{ children... }
+</summary>
+}

@@ -2,37 +2,48 @@ package home
 
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/badge"
+import "github.com/sonastea/ticketopia/views/components/card"
+import "github.com/sonastea/ticketopia/views/components/alert"
 
 templ Event(page EventPage) {
 	@layouts.App("discover", eventPageTitle(page)) {
 		<main id="main" class="event-page">
-			<a href={ templ.URL(page.ReturnURL) } class="text-link back-link" data-return-results>@layouts.Icon("back")
+			@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "text-link back-link", Attributes: templ.Attributes{"data-return-results": true}}) {
+				@layouts.Icon("back")
 				if page.ReturnURL != "/" {
 					Back to results
 				} else {
 					Discover events
 				}
-			</a>
+			}
 			if page.Error != "" {
-				<section class="feedback error-state" role="alert"><h1>Event unavailable</h1><p>{ page.Error }</p><a href={ templ.URL(page.ReturnURL) } class="action">Find another event</a></section>
+				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+					<h1>Event unavailable</h1>
+					<p>{ page.Error }</p>@button.Button(button.Props{Href: page.ReturnURL, Class: "action"}) {
+	Find another event
+}
+				}
 			} else {
 				<div class="event-page-grid">
 					<article class="event-main">
 						@EventImage(page.Detail.Item, true)
 						<div class="event-heading">
 							<div class="date-marker" aria-hidden="true"><span>{ datePart(page.Detail.Item.Start, "Jan") }</span><strong>{ datePart(page.Detail.Item.Start, "2") }</strong></div>
-							<div><h1>{ page.Detail.Item.Name }</h1><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)</div>
+							<div><h1>{ page.Detail.Item.Name }</h1><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)
+</div>
 						</div>
 						@EventParticipation("event-participation-note")
 						@EventSections(page)
 						@EventSectionContent(page)
 					</article>
-					<aside class="event-side" aria-label="Tickets and event source">
+					@card.Card(card.Props{Class: "event-side", Attributes: templ.Attributes{"role": "complementary", "aria-label": "Tickets and event source"}}) {
 						<h2>Make a plan</h2>
 						@TicketDetails(page.Detail.Item)
 						@Freshness(page.Detail.Meta)
 						@SourceFooter()
-					</aside>
+					}
 				</div>
 			}
 		</main>
@@ -40,34 +51,43 @@ templ Event(page EventPage) {
 }
 
 templ EventContext(page EventPage) {
-	<div class="context-inner" data-context-id={ page.Detail.Item.ID } data-context-section={ page.Section }>
-		<div class="context-toolbar"><span>Event preview</span><a href={ templ.URL(page.ReturnURL) } class="icon-button" data-close-context aria-label="Close event preview">@layouts.Icon("close")</a></div>
+	@card.Card(card.Props{Class: "context-inner", Attributes: templ.Attributes{"data-context-id": page.Detail.Item.ID, "data-context-section": page.Section}}) {
+		<div class="context-toolbar"><span>Event preview</span>@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantGhost, Size: button.SizeIcon, Class: "icon-button", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview"}}) {
+	@layouts.Icon("close")
+}
+</div>
 		@EventImage(page.Detail.Item, true)
-		<div class="context-heading"><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)</div>
-		<a href={ templ.URL(sectionURL(page, page.Section)) } class="text-link open-event"><span>Open full event details</span>@layouts.Icon("arrow")</a>
+		<div class="context-heading"><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)
+</div>
+		@button.Button(button.Props{Href: sectionURL(page, page.Section), Variant: button.VariantLink, Class: "text-link open-event"}) {
+			<span>Open full event details</span>@layouts.Icon("arrow")
+		}
 		@EventParticipation("context-participation-note")
 		@EventSections(page)
 		@EventSectionContent(page)
 		@TicketDetails(page.Detail.Item)
 		@Freshness(page.Detail.Meta)
-	</div>
+	}
 }
 
 templ EventFacts(event models.Event) {
-	<div class="event-summary" aria-label="Price and sale status"><strong>{ priceLabel(event.PriceRanges) }</strong><span class="event-status" data-status={ event.Status }>{ statusLabel(event.Status) }</span></div>
+	<div class="event-summary" aria-label="Price and sale status"><strong>{ priceLabel(event.PriceRanges) }</strong>@EventStatus(event.Status)
+</div>
 	<p class="genre-label">{ classificationLabel(event) }</p>
 }
 
 templ EventParticipation(noteID string) {
-	<div class="participation-actions"><button type="button" class="button-quiet" disabled aria-describedby={ noteID }>@layouts.Icon("saved")<span>Save</span></button><button type="button" class="button-quiet" disabled aria-describedby={ noteID }>@layouts.Icon("interests")<span>Interested</span></button></div>
+	<div class="participation-actions">@ParticipationButton("saved", "Save", noteID)
+@ParticipationButton("interests", "Interested", noteID)
+</div>
 	<p id={ noteID } class="participation-note">Save and Interested are not available yet.</p>
 }
 
 templ EventSections(page EventPage) {
 	<nav class="section-nav" aria-label="Event sections">
-		<a href={ templ.URL(sectionURL(page, "overview")) } data-panel-link aria-current={ layouts.CurrentPage(page.Section == "overview") }>Overview</a>
-		<a href={ templ.URL(sectionURL(page, "discussion")) } data-panel-link aria-current={ layouts.CurrentPage(page.Section == "discussion") }>Discussion</a>
-		<a href={ templ.URL(sectionURL(page, "community")) } data-panel-link aria-current={ layouts.CurrentPage(page.Section == "community") }>Community</a>
+		@SectionLink(page, "overview", "Overview")
+		@SectionLink(page, "discussion", "Discussion")
+		@SectionLink(page, "community", "Community")
 	</nav>
 }
 
@@ -77,11 +97,13 @@ templ EventSectionContent(page EventPage) {
 			case "discussion":
 				<h2 id="event-section-heading">A place to talk about this event</h2>
 				<p>Event discussions are in development. Questions, tips, and threaded replies will live here, alongside the event they belong to.</p>
-				<p class="availability-label">Posting and replies are not available yet.</p>
+				@badge.Badge(badge.Props{Class: "availability-label"}) {
+					Posting and replies are not available yet.
+				}
 			case "community":
 				<h2 id="event-section-heading">Good events are worth sharing</h2>
 				<p>Public recommendations and community interest are in development. No participation counts are available for this event.</p>
-				<button class="button-quiet" type="button" disabled aria-describedby="recommend-note">@layouts.Icon("community")<span>Recommend</span></button>
+				@ParticipationButton("community", "Recommend", "recommend-note")
 				<p id="recommend-note" class="participation-note">Recommending an event is not available yet.</p>
 			default:
 				<h2 id="event-section-heading">About the event</h2>
@@ -91,13 +113,16 @@ templ EventSectionContent(page EventPage) {
 					<p>Ticketmaster hasn't supplied a description for this event. Check the ticket page for the latest details.</p>
 				}
 				if artistsLabel(page.Detail.Item.Artists) != "" {
-					<h3>Featuring</h3><p>{ artistsLabel(page.Detail.Item.Artists) }</p>
+					<h3>Featuring</h3>
+					<p>{ artistsLabel(page.Detail.Item.Artists) }</p>
 				}
 				if eventPlace(page.Detail.Item).Address != "" {
-					<h3>Venue</h3><p>{ venueLabel(page.Detail.Item) }<br/>{ eventPlace(page.Detail.Item).Address } { eventPlace(page.Detail.Item).PostalCode }</p>
+					<h3>Venue</h3>
+					<p>{ venueLabel(page.Detail.Item) }<br/>{ eventPlace(page.Detail.Item).Address } { eventPlace(page.Detail.Item).PostalCode }</p>
 				}
 				if page.Detail.Item.PleaseNote != "" {
-					<h3>Before you go</h3><p class="provider-copy">{ page.Detail.Item.PleaseNote }</p>
+					<h3>Before you go</h3>
+					<p class="provider-copy">{ page.Detail.Item.PleaseNote }</p>
 				}
 		}
 	</section>
@@ -105,14 +130,36 @@ templ EventSectionContent(page EventPage) {
 
 templ TicketDetails(event models.Event) {
 	<div class="ticket-details">
-		<div class="ticket-price"><strong>{ priceLabel(event.PriceRanges) }</strong><span class="event-status" data-status={ event.Status }>{ statusLabel(event.Status) }</span></div>
+		<div class="ticket-price"><strong>{ priceLabel(event.PriceRanges) }</strong>@EventStatus(event.Status)
+</div>
 		if saleLabel(event) != "" {
 			<p class="sale-date">{ saleLabel(event) }</p>
 		}
 		if event.Source.URL != "" {
-			<a href={ templ.URL(event.Source.URL) } class="action ticket-link"><span>Tickets on Ticketmaster</span>@layouts.Icon("external")</a>
+			@button.Button(button.Props{Href: event.Source.URL, Class: "action ticket-link"}) {
+				<span>Tickets on Ticketmaster</span>@layouts.Icon("external")
+			}
 		} else {
 			<p>A ticket link hasn't been supplied for this event.</p>
 		}
 	</div>
+}
+
+templ ParticipationButton(name string, text string, noteID string) {
+	@button.Button(button.Props{Variant: button.VariantOutline, Class: "button-quiet", Disabled: true, Attributes: templ.Attributes{"aria-describedby": noteID}}) {
+		@layouts.Icon(name)
+		<span>{ text }</span>
+	}
+}
+
+templ EventStatus(status string) {
+	@badge.Badge(badge.Props{Variant: badge.VariantOutline, Class: "event-status", Attributes: templ.Attributes{"data-status": status}}) {
+		{ statusLabel(status) }
+	}
+}
+
+templ SectionLink(page EventPage, section string, text string) {
+	@button.Button(button.Props{Href: sectionURL(page, section), Variant: button.VariantGhost, Attributes: templ.Attributes{"data-panel-link": true, "aria-current": layouts.CurrentPage(page.Section == section)}}) {
+		{ text }
+	}
 }

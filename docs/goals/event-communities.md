@@ -37,13 +37,13 @@ Event-specific threads are asynchronous, not live chat. City/category community
 spaces collect recommendations and conversations around existing events; group
 membership/administration is not required. MVP includes basic reporting and owner
 moderation before a public pilot. See [design guidelines](../design-guidelines.md)
-for screen structures, responsive parity, and the authoritative action hierarchy.
+for responsive behavior, shared state, and the authoritative action hierarchy.
 
 ## Small goals, one at a time
 
 | Step | Goal | What success looks like |
 | --- | --- | --- |
-| 1 | Express interest in one show. | Someone marks Interested, sees their choice, and can change or remove it. |
+| 1 | Express interest in one event. | Someone marks Interested, sees their choice, and can change or remove it. |
 | 2 | Recommend an event. | Someone publishes an explicit endorsement, optionally explains why, and can edit or withdraw it independently of Interested. |
 | 3 | Ask one useful question. | A question appears in the right event conversation with enough context for others to answer. |
 | 4 | Help another person. | Someone replies with relevant information that the question's author finds useful. |
@@ -60,7 +60,7 @@ activity, and Helpful should never increment event interest/recommendations.
 
 **First community milestone:** a useful question gets an answer and a positive
 acknowledgment. Reporting and moderator review should also be usable for the
-first public pilot. Start around a small set of shows in one well-covered city
+first public pilot. Start around a small set of events in one well-covered city
 so participants encounter each other in the same conversations.
 
 ## A positive culture
@@ -117,7 +117,7 @@ reported concerns receive clear and fair outcomes as part of the pilot.
 
 ## Connection to other goals
 
-The radar brings relevant people and shows together; event communities give
+The radar brings relevant people and events together; event communities give
 them a reason to participate. Both should be available through the shared
 [client API](../design/radar-api.md).
 

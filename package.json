@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "css": "tailwindcss -i views/styles/app.css -o views/assets/app.css --minify",
+    "generate": "go tool shadcn-templ bundle && go tool templ generate",
+    "build": "npm run generate && npm run css && go build -o bin/ticketopia ./cmd/ticketopia"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.1.18",
+    "tailwindcss": "4.1.18"
+  }
+}

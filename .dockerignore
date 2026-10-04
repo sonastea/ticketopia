@@ -1,0 +1,25 @@
+# Allow only build inputs; leave local dependencies, binaries, Git, and docs out.
+**
+!go.mod
+!go.sum
+!package.json
+!package-lock.json
+!components.json
+!healthcheck.go
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!utils/
+!utils/**
+!views/
+!views/**
+
+# Never send local configuration or data, even from an included directory.
+**/.env*
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite-*
+**/*.sqlite3
+**/*.sqlite3-*

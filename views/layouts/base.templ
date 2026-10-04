@@ -1,5 +1,8 @@
 package layouts
 
+import "github.com/sonastea/ticketopia/views/components"
+import "github.com/sonastea/ticketopia/views/components/button"
+
 templ Base(title string) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -10,6 +13,7 @@ templ Base(title string) {
 			<link rel="preload" href="/assets/fonts/manrope.ttf" as="font" type="font/ttf" crossorigin/>
 			<link rel="stylesheet" href="/assets/app.css"/>
 			<script src="/assets/htmx.min.js" defer></script>
+			@components.Scripts()
 			<script src="/assets/app.js" defer></script>
 			<title>{ title } · Ticketopia</title>
 		</head>
@@ -24,7 +28,8 @@ templ App(active string, title string) {
 	@Base(title) {
 		<div class="app-shell">
 			<aside class="sidebar">
-				<a href="/" class="brand" aria-label="Ticketopia home">@Icon("ticket")<span>ticketopia<span class="brand-stop">.</span></span></a>
+				<a href="/" class="brand" aria-label="Ticketopia home">@Icon("ticket")
+<span>ticketopia<span class="brand-stop">.</span></span></a>
 				<nav class="desktop-nav" aria-label="Main navigation">
 					@NavLink("/", "Discover", "discover", active == "discover")
 					@NavLink("/saved", "Saved", "saved", active == "saved")
@@ -38,7 +43,8 @@ templ App(active string, title string) {
 			</aside>
 			<div class="app-workspace">
 				<header class="compact-header">
-					<a href="/" class="brand">@Icon("ticket")<span>ticketopia<span class="brand-stop">.</span></span></a>
+					<a href="/" class="brand">@Icon("ticket")
+<span>ticketopia<span class="brand-stop">.</span></span></a>
 					<span>Live events, worth finding.</span>
 				</header>
 				{ children... }
@@ -61,5 +67,8 @@ func CurrentPage(current bool) string {
 }
 
 templ NavLink(href string, label string, icon string, current bool) {
-	<a href={ templ.URL(href) } class="nav-link" aria-current={ CurrentPage(current) }>@Icon(icon)<span>{ label }</span></a>
+	@button.Button(button.Props{Href: href, Variant: button.VariantGhost, Class: "nav-link", Attributes: templ.Attributes{"aria-current": CurrentPage(current)}}) {
+		@Icon(icon)
+		<span>{ label }</span>
+	}
 }

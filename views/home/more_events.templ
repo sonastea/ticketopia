@@ -3,6 +3,8 @@ package home
 import "fmt"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/collapsible"
 
 templ MoreEventsList(page SearchPage) {
 	<ul hx-swap-oob="beforeend:#event-list">
@@ -22,9 +24,13 @@ templ EventRows(events []models.Event, returnURL string, selectedID string) {
 				<p class="event-date">{ startLabel(event.Start) }</p>
 				<h3><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
 				<p class="event-venue">{ venueLabel(event) }</p>
-				<div class="event-metadata"><span class="event-status" data-status={ event.Status }>{ statusLabel(event.Status) }</span><span>{ priceLabel(event.PriceRanges) }</span></div>
+				<div class="event-metadata">@EventStatus(event.Status)
+<span>{ priceLabel(event.PriceRanges) }</span></div>
 				<p class="genre-label">{ classificationLabel(event) }</p>
-				<details class="extra-metadata"><summary>More event information</summary>
+				@collapsible.Native(collapsible.Props{Class: "extra-metadata"}) {
+					@collapsible.Summary() {
+						More event information
+					}
 					if artistsLabel(event.Artists) != "" {
 						<p>{ artistsLabel(event.Artists) }</p>
 					}
@@ -32,15 +38,21 @@ templ EventRows(events []models.Event, returnURL string, selectedID string) {
 						<p>{ saleLabel(event) }</p>
 					}
 					if event.Source.URL != "" {
-						<a href={ templ.URL(event.Source.URL) } class="text-link" aria-label={ "View tickets for " + event.Name }><span>View tickets on Ticketmaster</span>@layouts.Icon("external")</a>
+						@button.Button(button.Props{Href: event.Source.URL, Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"aria-label": "View tickets for " + event.Name}}) {
+							<span>View tickets on Ticketmaster</span>@layouts.Icon("external")
+						}
 					}
-				</details>
+				}
 				<div class="event-actions">
-					<button type="button" class="button-quiet" disabled aria-describedby="participation-note">@layouts.Icon("saved")<span>Save</span></button>
-					<button type="button" class="button-quiet" disabled aria-describedby="participation-note">@layouts.Icon("interests")<span>Interested</span></button>
-					<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } class="detail-link" aria-label={ "Details for " + event.Name }><span>Details</span>@layouts.Icon("arrow")</a>
+					@ParticipationButton("saved", "Save", "participation-note")
+					@ParticipationButton("interests", "Interested", "participation-note")
+					@button.Button(button.Props{Href: eventURL(event.ID, "overview", returnURL), Variant: button.VariantLink, Class: "detail-link", Attributes: templ.Attributes{"data-event-link": true, "data-id": event.ID, "aria-label": "Details for " + event.Name}}) {
+						<span>Details</span>@layouts.Icon("arrow")
+					}
 				</div>
-				<a href="#event-context" class="context-jump text-link">Jump to event preview</a>
+				@button.Button(button.Props{Href: "#event-context", Variant: button.VariantLink, Class: "context-jump text-link"}) {
+					Jump to event preview
+				}
 			</div>
 		</li>
 	}
@@ -48,7 +60,8 @@ templ EventRows(events []models.Event, returnURL string, selectedID string) {
 
 templ EventImage(event models.Event, large bool) {
 	<div class="event-image">
-		<div class="image-fallback" aria-hidden="true">@layouts.Icon(eventIcon(event))</div>
+		<div class="image-fallback" aria-hidden="true">@layouts.Icon(eventIcon(event))
+</div>
 		if imageURL(event.Images) != "" {
 			if large {
 				<img src={ sizedImageURL(event.Images, 1000) } alt="" width="640" height="360"/>
@@ -63,7 +76,7 @@ templ Freshness(meta models.Freshness) {
 	if !meta.DataAsOf.IsZero() {
 		<p class={ "freshness", templ.KV("is-stale", meta.Stale) }>
 			if meta.Stale {
-				<strong>Showing saved results while Ticketmaster is unavailable.</strong><span> </span>
+				<strong>Showing saved results while Ticketmaster is unavailable.</strong><span></span>
 			}
 			Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
 		</p>
@@ -73,7 +86,9 @@ templ Freshness(meta models.Freshness) {
 templ Pagination(page SearchPage) {
 	<div id="pagination" class="pagination" aria-live="polite">
 		if page.Events.NextCursor != nil {
-			<a href={ templ.URL(nextURL(page)) } hx-get={ nextURL(page) } hx-target="#pagination" hx-swap="outerHTML" hx-indicator="#pagination" hx-sync="this:drop" class="action action-secondary"><span class="ready-label">Load more events</span><span class="loading-label">Loading events…</span>@layouts.Icon("chevron")</a>
+			@button.Button(button.Props{Href: nextURL(page), Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"hx-get": nextURL(page), "hx-target": "#pagination", "hx-swap": "outerHTML", "hx-indicator": "#pagination", "hx-sync": "this:drop"}}) {
+				<span class="ready-label">Load more events</span><span class="loading-label">Loading events…</span>@layouts.Icon("chevron")
+			}
 		} else if page.Events.Limited {
 			<p>You've reached Ticketmaster's search limit. Narrow your city, dates, category, or genre to find more relevant events.</p>
 		} else if len(page.Events.Items) > 0 {

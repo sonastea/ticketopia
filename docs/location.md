@@ -32,7 +32,7 @@ work without JavaScript or a browser-location permission prompt.
 With JavaScript enabled, **Detect my city** makes an on-demand request from the
 browser to `https://ipwho.is/`, which sees the browser's public IP rather than
 the server's loopback address. This also works on localhost. It fills city and
-country for review; choose **Find shows** to search and remember the selection.
+country for review; choose **Find events** to search and remember the selection.
 The result is approximate and may reflect a VPN's location. No GPS permission
 is needed. Successful browser lookups are cached locally for 24 hours. Failure
 leaves the existing fields editable and shows a manual-entry message.
