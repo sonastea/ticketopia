@@ -2,7 +2,19 @@
 
 ## Unreleased
 
-### 2026-10-03 — Responsive discovery, event views, and city detection
+### 2026-10-03 — All-category discovery, responsive event views, and city detection
+
+- Deliver all-category discovery in three independently verifiable slices:
+  category-aware shared discovery/API, web filters/non-music display, and regression
+  checks. See [verification commands](../discovery.md#verification-by-slice).
+- Add a cached category/genre catalog and `/api/v1/categories`; keep legacy
+  genre-only links scoped to Music, preserve resource IDs, and isolate category
+  cache/cursor scopes. Pre-expansion cursors require a new search.
+- Add category-compatible genre options with JavaScript and ordinary GET forms,
+  clear genres on category changes, and show neutral event/performer/team metadata.
+- Verify provider fixtures, catalog outages, empty/sparse events, race/vet/OpenAPI,
+  live Chicago categories, pagination, previews/return context, and six responsive
+  accessibility views with no violations or horizontal overflow.
 
 - Initialize the confirmed web product record and refactor discovery into the
   chosen cobalt/record-shop/mixtape direction, with shared components, local assets,

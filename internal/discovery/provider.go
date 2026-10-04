@@ -76,6 +76,15 @@ type providerSegment struct {
 	} `json:"_embedded"`
 }
 
+type providerClassifications struct {
+	Embedded struct {
+		Classifications []struct {
+			Segment *providerSegment
+		}
+	} `json:"_embedded"`
+	Page *providerPage
+}
+
 func normalizeEvent(raw providerEvent) models.Event {
 	start := raw.Dates.Start
 	status := raw.Dates.Status.Code

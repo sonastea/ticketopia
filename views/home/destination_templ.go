@@ -62,17 +62,17 @@ func Destination(active string, title string) templ.Component {
 			}
 			switch active {
 			case "saved":
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h2>Your own list of good nights.</h2><p>Saved events will be your private collection, separate from public recommendations and event interest.</p><p>Saving and accounts aren't available yet. You can explore shows and open their Ticketmaster pages today.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<h2>Your own list of good nights.</h2><p>Saved events will be your private collection, separate from public recommendations and event interest.</p><p>Saving and accounts aren't available yet. You can explore events and open their Ticketmaster pages today.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			case "community":
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<h2>Local knowledge, shared around a show.</h2><p>This will be a place to find recommended events and useful conversations in your city.</p><p>Recommendations, discussions, and replies aren't available yet. For now, explore an event to get its dates, venue, and ticket details.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<h2>Local knowledge, shared around an event.</h2><p>This will be a place to find recommended events and useful conversations in your city.</p><p>Recommendations, discussions, and replies aren't available yet. For now, explore an event to get its dates, venue, and ticket details.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			case "interests":
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<h2>More of what you love.</h2><p>Category preferences will help you describe your interests. They're separate from marking a particular event Interested.</p><p>Personal preferences aren't available yet. You can already narrow discovery by music genre, dates, and keywords.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<h2>More of what you love.</h2><p>Category preferences will help you describe your interests. They're separate from marking a particular event Interested.</p><p>Personal preferences aren't available yet. You can already narrow discovery by category, genre, dates, and keywords.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -82,7 +82,7 @@ func Destination(active string, title string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<a href=\"/\" class=\"action\"><span>Discover shows</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<a href=\"/\" class=\"action\"><span>Discover events</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

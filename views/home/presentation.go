@@ -11,18 +11,18 @@ import (
 )
 
 type SearchPage struct {
-	Filters           discovery.Query
-	Events            models.EventList
-	Genres            models.GenreList
-	GenresUnavailable bool
-	LocationSource    string
-	NeedsLocation     bool
-	Error             string
-	ReturnURL         string
-	SelectedID        string
-	Selected          *models.EventDetail
-	SelectionError    string
-	Section           string
+	Filters               discovery.Query
+	Events                models.EventList
+	Categories            models.CategoryList
+	CategoriesUnavailable bool
+	LocationSource        string
+	NeedsLocation         bool
+	Error                 string
+	ReturnURL             string
+	SelectedID            string
+	Selected              *models.EventDetail
+	SelectionError        string
+	Section               string
 }
 
 type EventPage struct {
@@ -70,13 +70,36 @@ func datePart(start models.EventStart, format string) string {
 	return "TBA"
 }
 
-func genreLabel(event models.Event) string {
+func classificationLabel(event models.Event) string {
+	label := func(classification models.Classification) string {
+		var names []string
+		for _, item := range []*models.NamedID{classification.Segment, classification.Genre} {
+			if item != nil && strings.TrimSpace(item.Name) != "" && !strings.EqualFold(item.Name, "Undefined") {
+				names = append(names, item.Name)
+			}
+		}
+		return strings.Join(names, " · ")
+	}
 	for _, classification := range event.Classifications {
-		if classification.Genre != nil && classification.Genre.Name != "Undefined" {
-			return classification.Genre.Name
+		if classification.Primary && label(classification) != "" {
+			return label(classification)
 		}
 	}
-	return "Music"
+	for _, classification := range event.Classifications {
+		if value := label(classification); value != "" {
+			return value
+		}
+	}
+	return "Category not listed"
+}
+
+func eventIcon(event models.Event) string {
+	for _, classification := range event.Classifications {
+		if classification.Segment != nil && classification.Segment.Name == "Music" {
+			return "music"
+		}
+	}
+	return "ticket"
 }
 
 func dateRangeLabel(query discovery.Query) string {
@@ -88,13 +111,33 @@ func dateRangeLabel(query discovery.Query) string {
 	return start.Format("Jan 2") + " – " + end.Format("Jan 2, 2006")
 }
 
-func genreFilterLabel(page SearchPage) string {
-	for _, genre := range page.Genres.Items {
-		if genre.ID == page.Filters.GenreID {
-			return genre.Name
+func (page SearchPage) category() models.Category {
+	for _, category := range page.Categories.Items {
+		if category.ID == page.Filters.CategoryID {
+			return category
 		}
 	}
-	return "All music"
+	return models.Category{}
+}
+
+func categoryFilterLabel(page SearchPage) string {
+	if page.Filters.CategoryID == "" {
+		return "All categories"
+	}
+	category := page.category()
+	name := category.Name
+	if name == "" {
+		name = page.Filters.CategoryID
+	}
+	for _, genre := range category.Genres {
+		if genre.ID == page.Filters.GenreID {
+			return name + " · " + genre.Name
+		}
+	}
+	if page.Filters.GenreID != "" {
+		return name + " · " + page.Filters.GenreID
+	}
+	return name
 }
 
 func cityLabel(page SearchPage) string {
@@ -114,18 +157,18 @@ func nextURL(page SearchPage) string {
 
 func resultsTitle(total int) string {
 	if total == 1 {
-		return "1 show"
+		return "1 event"
 	}
-	return fmt.Sprintf("%d shows", total)
+	return fmt.Sprintf("%d events", total)
 }
 
 func startLabel(start models.EventStart) string {
 	if start.DateTBA || start.DateTBD || start.LocalDate == nil {
-		return "Show date to be announced"
+		return "Event date to be announced"
 	}
 	date, err := time.Parse(time.DateOnly, *start.LocalDate)
 	if err != nil {
-		return "Show date to be announced"
+		return "Event date to be announced"
 	}
 	label := date.Format("Mon, Jan 2, 2006")
 	if start.NoSpecificTime {

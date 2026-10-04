@@ -32,14 +32,14 @@ templ App(active string, title string) {
 					@NavLink("/me/interests", "Interests", "interests", active == "interests")
 				</nav>
 				<div class="sidebar-foot">
-					<p class="sidebar-tagline">Live music,<br/>worth finding.</p>
+					<p class="sidebar-tagline">Live events,<br/>worth finding.</p>
 					@NavLink("/me", "Profile", "profile", active == "profile")
 				</div>
 			</aside>
 			<div class="app-workspace">
 				<header class="compact-header">
 					<a href="/" class="brand">@Icon("ticket")<span>ticketopia<span class="brand-stop">.</span></span></a>
-					<span>Live music, worth finding.</span>
+					<span>Live events, worth finding.</span>
 				</header>
 				{ children... }
 			</div>

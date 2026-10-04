@@ -293,7 +293,7 @@ Use modest, distinct corner treatments: the shared `radius` for context/ticket c
 
 Event imagery fills a clipped frame with `object-fit: cover`. The default frame is 16:9; list images become square at the row-image threshold. Full-event images cap their height at 22rem, and a compact selected preview caps it at 16rem. Preserve provider color and content; the reviewed monochrome photographs are source material, not a prescribed grayscale filter.
 
-Icons are inline outline SVGs with a 24-unit viewBox, rounded caps/joins, and stroke width 1.7. The usual displayed size is 1.25rem; quiet controls use 1rem. The music-icon fallback occupies the same image frame, so a failed image does not erase the event's place in the list.
+Icons are inline outline SVGs with a 24-unit viewBox, rounded caps/joins, and stroke width 1.7. The usual displayed size is 1.25rem; quiet controls use 1rem. The fallback uses a music icon for classified music events and a ticket icon otherwise. It occupies the same image frame, so a failed image does not erase the event's place in the list.
 
 ## Components
 
@@ -308,6 +308,8 @@ Action background changes and disclosure-chevron rotation use 160ms; result sele
 ### Inputs / Fields
 
 White, clearly bounded, ordinary fields. Search combines an SVG icon, labeled search input, and submit action inside one control-line surround. The text input can shrink without displacing the action. Labeled filters use a minimum height of 2.875rem, body-sized text, and visible control borders; disabled genre selects use paper and muted ink. Native `details`/`summary` discloses filters and extra event metadata. The shared focus outline remains visible; field errors use explanatory text and the error-state container rather than an invented field-specific color system.
+
+Category and genre use the same native select treatment. All categories disables genre; changing category clears the previous genre and offers compatible options. The ordinary GET form supports the same workflow without JavaScript by applying category before selecting a genre. Result rows, previews, and event pages show supplied category/genre metadata with an explicit unknown fallback.
 
 ### Navigation
 
@@ -325,7 +327,7 @@ Photos are live external Ticketmaster assets retained in normalized `Event.Image
 
 ### Cards / Containers
 
-Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a soft-blue music placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale data explains its source state.
+Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a soft-blue ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale data explains its source state.
 
 Keep event price and sale status ahead of unavailable participation. Desktop selection preserves the list and changes the matching context; close and return interactions restore a useful focus target. Search and pagination retain ordinary links/forms without JavaScript. Discussion/community sections and account destinations currently explain planned availability; they do not render invented engagement.
 

@@ -1,10 +1,11 @@
 package home
 
 import "fmt"
+import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/views/layouts"
 
 templ Index(page SearchPage) {
-	@layouts.App("discover", "Discover live music") {
+	@layouts.App("discover", "Discover events") {
 		<main id="main" class={ "discovery-workspace", templ.KV("has-selection", page.SelectedID != "") } data-results-url={ page.ReturnURL }>
 			<div class="discovery-content">
 				<header class="discovery-header">
@@ -21,10 +22,10 @@ templ Index(page SearchPage) {
 					} else if page.LocationSource == "saved" {
 						<p class="location-source">Your remembered city</p>
 					}
-					<h1>Find your next show</h1>
-					<p class="intro">Explore artists, venues, and shows in your city.</p>
+					<h1>Find your next event</h1>
+					<p class="intro">Explore music, sports, arts, and more in your city.</p>
 					if page.NeedsLocation && page.Error == "" {
-						<p class="location-prompt">Enter a city below to see shows near you. We'll remember your choice for your next visit.</p>
+						<p class="location-prompt">Enter a city below to see events near you. We'll remember your choice for your next visit.</p>
 					}
 				</header>
 				@SearchControls(page)
@@ -36,12 +37,12 @@ templ Index(page SearchPage) {
 				} else if !page.NeedsLocation {
 					<section aria-labelledby="results-heading">
 						<div class="results-heading">
-							<h2 id="results-heading">Upcoming shows <span>{ resultsTitle(page.Events.Total) }</span></h2>
+							<h2 id="results-heading">Upcoming events <span>{ resultsTitle(page.Events.Total) }</span></h2>
 							<span class="sort-label">Date, soonest first</span>
 						</div>
 						@Freshness(page.Events.Meta)
 						if len(page.Events.Items) == 0 {
-							<div class="feedback empty-state"><h3>No shows found for these filters</h3><p>Try a nearby city, a wider date range, or all music genres.</p><a href="/" class="text-link">Reset filters</a></div>
+							<div class="feedback empty-state"><h3>No events found for these filters</h3><p>Try a nearby city, a wider date range, or all categories.</p><a href="/" class="text-link">Reset filters</a></div>
 						} else {
 							<p id="participation-note" class="participation-note">Save and Interested are not available yet.</p>
 						}
@@ -52,9 +53,9 @@ templ Index(page SearchPage) {
 					</section>
 				} else {
 					<section class="first-visit" aria-labelledby="first-visit-heading">
-						@layouts.Icon("music")
+						@layouts.Icon("ticket")
 						<h2 id="first-visit-heading">A good night starts nearby.</h2>
-						<p>Choose a city to find live music, from familiar favorites to something new.</p>
+						<p>Choose a city to find events, from familiar favorites to something new.</p>
 					</section>
 				}
 				@SourceFooter()
@@ -74,31 +75,44 @@ templ Index(page SearchPage) {
 }
 
 templ SearchControls(page SearchPage) {
-	<form action="/" method="get" class="search-form" aria-label="Search music events">
+	<form action="/" method="get" class="search-form" aria-label="Search events">
 		<div class="search-bar">
-			<label for="keyword" class="sr-only">Artist or keyword</label>
+			<label for="keyword" class="sr-only">Event, performer, team, or keyword</label>
 			@layouts.Icon("search")
-			<input type="search" id="keyword" name="keyword" value={ page.Filters.Keyword } placeholder="Artist, venue, or a little inspiration" maxlength="120"/>
-			<button type="submit" class="action">Find shows</button>
+			<input type="search" id="keyword" name="keyword" value={ page.Filters.Keyword } placeholder="Event, performer, team, or venue" maxlength="120"/>
+			<button type="submit" class="action">Find events</button>
 		</div>
 		<details id="filters" class="filter-disclosure" open?={ page.NeedsLocation || page.Error != "" }>
-			<summary>@layouts.Icon("filters")<span>Filters</span><span class="filter-summary">{ genreFilterLabel(page) }<span aria-hidden="true"> · </span>{ dateRangeLabel(page.Filters) }</span>@layouts.Icon("chevron")</summary>
+			<summary>@layouts.Icon("filters")<span>Filters</span><span class="filter-summary">{ categoryFilterLabel(page) }<span aria-hidden="true"> · </span>{ dateRangeLabel(page.Filters) }</span>@layouts.Icon("chevron")</summary>
 			<div class="filter-fields">
 				<div class="field-grid">
 					<label class="field">City<input id="city" name="city" value={ page.Filters.City } placeholder="e.g. Chicago" maxlength="120" autocomplete="address-level2" required?={ page.Filters.VenueID == "" }/></label>
 					<label class="field">Country code <span>(optional)</span><input name="country" value={ page.Filters.Country } placeholder="e.g. US, CA, GB" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="country"/></label>
 					<label class="field">From<input type="date" name="start_date" value={ page.Filters.StartDate } required/></label>
 					<label class="field">Through<input type="date" name="end_date" value={ page.Filters.EndDate } required/></label>
-					<label class="field field-wide">Genre<select name="genre_id" disabled?={ page.NeedsLocation }>
-						<option value="">All music</option>
-						if page.Filters.GenreID != "" && !hasGenre(page.Genres.Items, page.Filters.GenreID) {
-							<option value={ page.Filters.GenreID } selected>{ page.Filters.GenreID }</option>
+					<label class="field field-wide">Category<select id="category" name="category_id" aria-describedby="genre-help">
+						<option value="all" selected?={ page.Filters.CategoryID == "" }>All categories</option>
+						if page.Filters.CategoryID != "" && page.category().ID == "" {
+							<option value={ page.Filters.CategoryID } selected>{ page.Filters.CategoryID }</option>
 						}
-						for _, genre := range page.Genres.Items {
-							<option value={ genre.ID } selected?={ genre.ID == page.Filters.GenreID }>{ genre.Name }</option>
+						for _, category := range page.Categories.Items {
+							<option value={ category.ID } selected?={ category.ID == page.Filters.CategoryID }>{ category.Name }</option>
 						}
 					</select></label>
+					<label class="field field-wide">Genre<select id="genre" name="genre_id" disabled?={ page.Filters.CategoryID == "" } aria-describedby="genre-help">
+						<option value="">All genres</option>
+						if page.Filters.GenreID != "" && !hasGenre(page.category().Genres, page.Filters.GenreID) {
+							<option value={ page.Filters.GenreID } selected>{ page.Filters.GenreID }</option>
+						}
+						@GenreOptions(page.category().Genres, page.Filters.GenreID)
+					</select></label>
 				</div>
+				<input type="hidden" name="genre_category_id" value={ page.Filters.CategoryValue() }/>
+				for _, category := range page.Categories.Items {
+					<template data-category-genres={ category.ID }>@GenreOptions(category.Genres, "")</template>
+				}
+				<p id="genre-help" class="field-note">Genres belong to a category. Changing category clears the previous genre.</p>
+				<noscript><p class="field-note">Apply your category first, then choose a genre from the updated options.</p></noscript>
 				if page.Filters.ArtistID != "" {
 					<input type="hidden" name="artist_id" value={ page.Filters.ArtistID }/>
 				}
@@ -108,10 +122,10 @@ templ SearchControls(page SearchPage) {
 				if page.Filters.Limit > 0 {
 					<input type="hidden" name="limit" value={ fmt.Sprint(page.Filters.Limit) }/>
 				}
-				if page.GenresUnavailable {
-					<p class="field-note">Genre options are temporarily unavailable. You can still search by city, dates, or keyword.</p>
-				} else if page.Genres.Meta.Stale {
-					<p class="field-note">Showing previously collected genre options while Ticketmaster is unavailable.</p>
+				if page.CategoriesUnavailable {
+					<p class="field-note">Category and genre options are temporarily unavailable. You can still search by city, dates, or keyword.</p>
+				} else if page.Categories.Meta.Stale {
+					<p class="field-note">Showing previously collected category and genre options while Ticketmaster is unavailable.</p>
 				}
 				<div class="filter-actions"><button type="submit" class="action">Apply filters</button><span id="browser-location" hidden><button id="detect-city" type="button" class="text-link" aria-describedby="location-feedback">Detect my city</button></span><a href="/" class="text-link">Reset filters</a></div>
 				<p id="location-feedback" role="status" class="field-note"></p>
@@ -120,12 +134,18 @@ templ SearchControls(page SearchPage) {
 	</form>
 }
 
+templ GenreOptions(genres []models.Genre, selected string) {
+	for _, genre := range genres {
+		<option value={ genre.ID } selected?={ genre.ID == selected }>{ genre.Name }</option>
+	}
+}
+
 templ EmptyContext() {
 	<div class="context-empty">
 		<h2>A closer look</h2>
-		<div class="preview-placeholder" aria-hidden="true">@layouts.Icon("music")</div>
-		<h3>Something catch your ear?</h3>
-		<p>Select a show to see its dates, venue, and ticket details here.</p>
+		<div class="preview-placeholder" aria-hidden="true">@layouts.Icon("ticket")</div>
+		<h3>Something catch your eye?</h3>
+		<p>Select an event to see its dates, venue, and ticket details here.</p>
 		<div class="context-footnote"><p>Good plans start with the details.</p><p>Event conversations and recommendations are coming later.</p></div>
 	</div>
 }

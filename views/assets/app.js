@@ -2,6 +2,18 @@
   'use strict';
 
   const filters = document.getElementById('filters');
+  const category = document.getElementById('category');
+  const genre = document.getElementById('genre');
+  if (category && genre) {
+    category.addEventListener('change', () => {
+      const options = Array.from(document.querySelectorAll('[data-category-genres]'))
+        .find(template => template.dataset.categoryGenres === category.value);
+      genre.replaceChildren(new Option('All genres', ''));
+      if (options) genre.append(options.content.cloneNode(true));
+      genre.disabled = category.value === 'all';
+      category.form.elements.genre_category_id.value = category.value;
+    });
+  }
   document.addEventListener('click', event => {
     const link = event.target.closest('[data-open-filters]');
     if (!link || !filters) return;
@@ -23,7 +35,7 @@
   for (const name of ['htmx:responseError', 'htmx:sendError', 'htmx:timeout']) {
     document.body.addEventListener(name, () => {
       const message = document.getElementById('load-error');
-      if (message) message.textContent = 'More shows could not be loaded. Please try again shortly.';
+      if (message) message.textContent = 'More events could not be loaded. Please try again shortly.';
     });
   }
   document.body.addEventListener('htmx:beforeRequest', () => {
@@ -63,7 +75,7 @@
         feedback.textContent = 'Estimated city: ' + city.city.trim() + ', ' + city.country_code + '. You can change it before searching.';
         document.getElementById('city').focus();
       } catch {
-        feedback.textContent = "We couldn't detect your city. Enter a city above to find shows.";
+        feedback.textContent = "We couldn't detect your city. Enter a city above to find events.";
       } finally {
         clearTimeout(timeout);
         detect.disabled = false;

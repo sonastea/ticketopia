@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: Ticketopia Discovery API
-  version: 1.0.0
+  version: 1.1.0
   license:
     name: MIT
     identifier: MIT
   description: |
-    Read-only music discovery shared with the web UI. Event, artist, and venue IDs
-    are provider-scoped (ticketmaster:SOURCE_ID). Genre IDs are Ticketmaster
+    Read-only event discovery across all Ticketmaster categories, shared with the
+    web UI. Event, artist, and venue IDs are provider-scoped (ticketmaster:SOURCE_ID).
+    Category and genre IDs are Ticketmaster
     taxonomy IDs. Data is cached, not a live inventory or durable event history.
 servers:
   - url: /
@@ -16,18 +17,24 @@ paths:
   /api/v1/events:
     get:
       operationId: listEvents
-      summary: Search music events
+      summary: Search events across categories
       description: |
         Dates are inclusive venue-local dates, defaulting to today in UTC through
         90 days later. Maximum span is 366 days. Results use Ticketmaster's
         date/name ordering. Pass the same explicit filters with the next cursor.
         Provider pages can shift on refresh; cursors do not pin a snapshot.
         Unknown filters, repeated parameters, and invalid cursors return 400.
+        Searches default to all categories. Legacy genre-only searches imply Music.
+        Cursors issued before category support must be replaced by a new search.
       parameters:
         - {name: city, in: query, schema: {type: string, maxLength: 120}}
         - {name: country, in: query, description: Two-letter country code., schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
         - {name: keyword, in: query, schema: {type: string, maxLength: 120}}
-        - {name: genre_id, in: query, description: ID from the genre catalog., schema: {type: string}}
+        - name: category_id
+          in: query
+          description: 'Ticketmaster segment ID from /api/v1/categories, or all. Omitted/empty means all categories unless genre_id is supplied, which implies Music for legacy links.'
+          schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}
+        - {name: genre_id, in: query, description: 'ID from the selected category’s genres. Explicit category_id=all cannot be combined with a genre. Category/genre combinations follow provider matching and can return no results.', schema: {type: string}}
         - {name: artist_id, in: query, schema: {$ref: '#/components/schemas/ResourceID'}}
         - {name: venue_id, in: query, schema: {$ref: '#/components/schemas/ResourceID'}}
         - {name: start_date, in: query, schema: {type: string, format: date}}
@@ -81,10 +88,30 @@ paths:
     get:
       operationId: listGenres
       summary: Read music genres and subgenres
-      description: English music taxonomy, sorted by genre name then ID. No query parameters.
+      description: English music taxonomy, sorted by genre name then ID. No query parameters. Use /api/v1/categories for the complete category/genre catalog.
       responses:
         '200':
           description: Music genres, cached for 24 hours.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, meta]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Genre'}
+                  meta: {$ref: '#/components/schemas/Freshness'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/categories:
+    get:
+      operationId: listCategories
+      summary: Read event categories and their compatible genres
+      description: English Ticketmaster segments with genres and subgenres. Categories and genres are sorted by name then ID. No query parameters. Types and subtypes are not categories.
+      responses:
+        '200':
+          description: Category catalog, cached for 24 hours with retained fallback for up to seven days.
           content:
             application/json:
               schema:
@@ -97,9 +124,9 @@ paths:
                       allOf:
                         - {$ref: '#/components/schemas/NamedID'}
                         - type: object
-                          required: [subgenres]
+                          required: [genres]
                           properties:
-                            subgenres: {type: array, items: {$ref: '#/components/schemas/NamedID'}}
+                            genres: {type: array, items: {$ref: '#/components/schemas/Genre'}}
                   meta: {$ref: '#/components/schemas/Freshness'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
@@ -153,6 +180,13 @@ components:
       properties:
         id: {type: string}
         name: {type: string}
+    Genre:
+      allOf:
+        - {$ref: '#/components/schemas/NamedID'}
+        - type: object
+          required: [subgenres]
+          properties:
+            subgenres: {type: array, items: {$ref: '#/components/schemas/NamedID'}}
     NullableInstant:
       type: [string, 'null']
       format: date-time
@@ -252,7 +286,7 @@ components:
         presales: {type: array, items: {$ref: '#/components/schemas/Presale'}}
         price_ranges: {type: [array, 'null'], items: {$ref: '#/components/schemas/PriceRange'}, description: 'Null means no advertised prices, not free admission.'}
         images: {type: array, items: {$ref: '#/components/schemas/Image'}}
-        artists: {type: array, items: {$ref: '#/components/schemas/Artist'}}
+        artists: {type: array, items: {$ref: '#/components/schemas/Artist'}, description: 'Provider attractions, including performers or teams. The field name is retained for compatibility; events without attractions return an empty array.'}
         venues: {type: array, items: {$ref: '#/components/schemas/Venue'}}
         place: {anyOf: [{$ref: '#/components/schemas/Place'}, {type: 'null'}]}
         classifications: {type: array, items: {$ref: '#/components/schemas/Classification'}}

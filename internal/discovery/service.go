@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -139,9 +140,45 @@ func (s *Service) Genres(ctx context.Context) (models.GenreList, error) {
 		if raw.ID != musicSegment {
 			return nil, s.unavailable(30 * time.Second)
 		}
-		items := make([]models.Genre, 0, len(raw.Embedded.Genres))
-		for _, genre := range raw.Embedded.Genres {
-			items = append(items, models.Genre{NamedID: genre.NamedID, Subgenres: nonNil(genre.Embedded.Subgenres)})
+		return normalizedGenres(raw), nil
+	})
+	return models.GenreList{Items: items, Meta: meta}, err
+}
+
+// Categories exposes Ticketmaster segments with their compatible genres. The
+// classifications collection also contains types, which are not event categories.
+func (s *Service) Categories(ctx context.Context) (models.CategoryList, error) {
+	items, meta, err := cached(ctx, s, "ticketmaster:v1:categories:en", genrePolicy, func(ctx context.Context) ([]models.Category, error) {
+		items := []models.Category{}
+		seen := map[string]bool{}
+		for page := 0; ; page++ {
+			var raw providerClassifications
+			if err := s.get(ctx, "/classifications.json", url.Values{"size": {"100"}, "page": {strconv.Itoa(page)}}, &raw); err != nil {
+				return nil, err
+			}
+			// Bound the full-catalog fetch and never cache a truncated catalog.
+			if raw.Page == nil || raw.Page.Number != page || raw.Page.TotalPages < 1 || raw.Page.TotalPages > 10 {
+				return nil, s.unavailable(30 * time.Second)
+			}
+			for _, classification := range raw.Embedded.Classifications {
+				segment := classification.Segment
+				if segment == nil {
+					continue
+				}
+				if !sourceIDPattern.MatchString(segment.ID) || segment.Name == "" {
+					return nil, s.unavailable(30 * time.Second)
+				}
+				if !seen[segment.ID] {
+					seen[segment.ID] = true
+					items = append(items, models.Category{NamedID: models.NamedID{ID: segment.ID, Name: segment.Name}, Genres: normalizedGenres(*segment)})
+				}
+			}
+			if page+1 >= raw.Page.TotalPages {
+				break
+			}
+		}
+		if len(items) == 0 {
+			return nil, s.unavailable(30 * time.Second)
 		}
 		sort.Slice(items, func(i, j int) bool {
 			if items[i].Name == items[j].Name {
@@ -151,5 +188,19 @@ func (s *Service) Genres(ctx context.Context) (models.GenreList, error) {
 		})
 		return items, nil
 	})
-	return models.GenreList{Items: items, Meta: meta}, err
+	return models.CategoryList{Items: items, Meta: meta}, err
+}
+
+func normalizedGenres(raw providerSegment) []models.Genre {
+	items := make([]models.Genre, 0, len(raw.Embedded.Genres))
+	for _, genre := range raw.Embedded.Genres {
+		items = append(items, models.Genre{NamedID: genre.NamedID, Subgenres: nonNil(genre.Embedded.Subgenres)})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Name == items[j].Name {
+			return items[i].ID < items[j].ID
+		}
+		return items[i].Name < items[j].Name
+	})
+	return items
 }

@@ -4,8 +4,8 @@ Status: Implemented for the web UI and public read-only JSON API. Delivery of
 later personal/community features is tracked in the [aligned checklist](goals/delivery.md).
 
 The [design direction](design-guidelines.md) now has a responsive discovery shell,
-selected-event previews, and dedicated event pages. All-category discovery and
-community participation remain planned. [DESIGN.md](../DESIGN.md) records the
+selected-event previews, dedicated event pages, and all-category discovery.
+Community participation remains planned. [DESIGN.md](../DESIGN.md) records the
 implemented visual system.
 
 ## Fetch once, reuse across clients
@@ -17,7 +17,12 @@ Ticketmaster key and the server does not call its own HTTP API.
 One search retrieves events with their artist, venue, classification, image,
 advertised price, status, and sale metadata. Those results also populate event
 detail cache entries, avoiding an external request per visible event. A separate
-request fetches the Music segment's genre/subgenre catalog for filter options.
+request fetches the category/genre/subgenre catalog for filter options. Categories
+are Ticketmaster segments (including Music, Sports, Arts & Theatre, Film, and
+Miscellaneous), fetched from the paginated classifications collection. Types and
+subtypes are excluded. The bounded full-catalog read is cached for 24 hours with
+seven-day retained fallback; incomplete catalogs do not replace successful data.
+The legacy music-only genre endpoint remains available.
 Artist and venue search/detail endpoints are future work; their references are
 already included in events.
 
@@ -27,8 +32,9 @@ using the [cache guide](cache.md).
 
 ## Web UI
 
-Open `/` to search by city, two-letter country code, artist/keyword, venue-local
-date range, and music genre. The default range is today (UTC) through 90 days
+Open `/` to search by city, two-letter country code, event/performer/team keyword,
+venue-local date range, category, and compatible genre. Searches default to
+**All categories**. The default range is today (UTC) through 90 days
 later. The web page uses a chosen city, a remembered city, or an approximate
 IP-based city, in that order. When none is available it asks for a city before
 fetching events. Use both city and country to narrow ambiguous place names.
@@ -37,14 +43,33 @@ and reverse-proxy configuration. Filtering is city-based, rather than a GPS radi
 
 Each occurrence has its own image-led row, even when titles match. Show dates and public
 sale dates are labeled separately; ticket links use the event URL. Missing dates,
-venues, and prices have explicit fallback labels. Prices do not establish fee
+venues, classifications, and prices have explicit fallback labels. Category and
+genre labels prefer the primary classification; missing classifications never
+imply Music. The neutral Featuring section can contain performers or teams and
+is omitted when no attractions are supplied. Prices do not establish fee
 inclusion or ticket inventory.
 
 Load-more keeps all filters, starts at provider page zero, and stops at the end
 or Ticketmaster's paging cap. With JavaScript it appends rows; without JavaScript
 the link navigates to the next page. Search is a regular GET form. The page
-includes loading, empty, error, and stale-result messages. Genre-catalog failures
-do not prevent an otherwise successful event search.
+includes loading, empty, error, and stale-result messages. Event results are read
+before optional metadata so a catalog failure cannot replace successful results.
+Unavailable catalogs retain selected filter IDs and offer all-category search;
+retained catalogs show their stale state.
+
+### Category and genre controls
+
+Choose a category to enable its genre choices. Changing category clears the
+previous genre; choosing All categories disables genre filtering. JavaScript
+updates options locally from the rendered catalog, without another HTTP call.
+Without JavaScript, apply the category first, then choose from its updated genres.
+The HTML-only `genre_category_id` form field identifies the previous options so
+the server can clear a carried-over genre. It is excluded from shared filters,
+pagination, and event return links, and is rejected by the JSON API.
+
+Existing `genre_id` links without a category still select Music. New category
+choices and genres survive pagination, event selection, reload, and return links.
+A new form submission starts at the first page.
 
 ### Responsive navigation and event details
 
@@ -54,8 +79,8 @@ do not prevent an otherwise successful event search.
   and dedicated event pages. The higher intermediate threshold leaves room for
   the navigation rail and readable results. The full shell caps at 100rem.
 - Location stays visible above search. **Change city** opens the native Filters
-  disclosure and focuses City. The same GET form exposes country, dates, and genre.
-  Ordering is explicitly date-first; no unsupported sorting/category choices are
+  disclosure and focuses City. The same GET form exposes country, dates, category,
+  and genre. Ordering is explicitly date-first; no unsupported sorting choices are
   presented. Inputs and disclosure remain usable without JavaScript.
 - Event titles and **Details** are real `/events/{event_id}` links. On larger
   screens enhancement loads only the selected event into the preview, keeping
@@ -103,29 +128,41 @@ after asset edits because browser files are embedded in the binary.
 | GET | `/api/v1/events` | Filtered events with pagination and freshness. |
 | GET | `/api/v1/events/{event_id}` | One normalized event, fetched on demand if uncached. |
 | GET | `/api/v1/genres` | Music genre/subgenre metadata and freshness. |
+| GET | `/api/v1/categories` | Categories with compatible genres/subgenres and freshness. |
 | GET | `/api/v1/openapi.yaml` | [OpenAPI 3.1 contract](../internal/api/openapi.yaml). |
 
-Event filters: `city`, `country`, `keyword`, `genre_id`, `artist_id`, `venue_id`,
+Event filters: `city`, `country`, `keyword`, `category_id`, `genre_id`, `artist_id`, `venue_id`,
 `start_date`, `end_date`, `limit`, and `cursor`. Empty filters are treated as
-omitted. Unknown/repeated parameters are rejected. The genre and contract routes
+omitted. Unknown/repeated parameters are rejected. The catalog and contract routes
 accept no query parameters.
 JSON reads use the supplied filters; browser location defaults are applied by
 the HTML handler before calling the shared discovery service.
 
+- `category_id` accepts a raw category/segment ID from `/api/v1/categories` or
+  `all`. Omitted/empty means all categories, except legacy genre-only searches
+  imply Music (`KZFzniwnSyZfZ7v7nJ`). Explicit `all` plus `genre_id` is rejected.
+  Use a genre from the chosen category; category/genre combinations follow
+  Ticketmaster matching and may return empty results. Catalog availability is
+  not required to run a JSON event search.
 - Dates use `YYYY-MM-DD` and are inclusive venue-local dates. End must be on/after
   start and no more than 366 days later. Date filtering follows provider semantics
   and normally excludes shows whose dates are still TBA/TBD.
 - `limit` defaults to 20 and accepts 1–100. Cursors are opaque page tokens bound
   to the normalized filters and limit. Keep explicit dates and the same filters
   on subsequent requests; omitted defaults may change at midnight UTC.
+  Category is part of both cache and cursor scope. Cursors issued before this
+  expansion must restart; old music-only cache entries cannot appear as all-category results.
 - Provider ordering is date/name ascending. The upstream result set can shift
   between refreshes; this is not a snapshot cursor or a durable history.
 - Ticketmaster requires `size * page < 1000`. `next_cursor` is `null` at the end;
   `limited: true` means the cap prevented another page. `total` is the provider's
   total, which can exceed the accessible results. Narrow filters to continue.
 - Event, artist, and venue IDs use `ticketmaster:SOURCE_ID`. They survive title
-  changes and distinguish identically named events. Genre IDs are raw taxonomy
-  IDs from `/api/v1/genres`. URL-encode path IDs when needed.
+  changes and distinguish identically named events. Category and genre IDs are
+  raw taxonomy IDs from `/api/v1/categories`; `/api/v1/genres` still returns only
+  music genres. The existing `artists` array and `artist_id` filter retain their
+  names/IDs for compatibility and represent provider attractions, including teams
+  and performers. URL-encode path IDs when needed.
 - Known instants use RFC 3339. Missing instants are `null`; local dates/times,
   time zones, and TBA/TBD flags are retained. Unknown prices are `null`; amount
   strings preserve the provider's decimal representation. `fees_included` is
@@ -144,6 +181,8 @@ Example:
 ```sh
 curl 'http://localhost:8080/api/v1/events?city=Chicago&country=US&start_date=2026-10-02&end_date=2026-12-31'
 curl 'http://localhost:8080/api/v1/genres'
+curl 'http://localhost:8080/api/v1/categories'
+curl 'http://localhost:8080/api/v1/events?city=Chicago&country=US&category_id=KZFzniwnSyZfZ7v7nE'
 ```
 
 ## External request budget
@@ -185,3 +224,32 @@ planned destinations. Browser checks exercise live Chicago data at 1440, 1024,
 appended-page restoration, city detection, no-JavaScript routes/pagination,
 long-title reflow, 200% text, reduced motion, and automated WCAG A/AA scans.
 Human relevance/usability pilot checkpoints remain open.
+
+### Verification by slice
+
+Run these deterministic checks without a Ticketmaster key; tests use local provider
+fixtures, including empty results, sparse non-music events, and taxonomy outages.
+
+1. **Shared discovery/API:**
+   ```sh
+   go test ./internal/discovery -run 'TestCategor|TestSearchPreservesMetadata|TestGenreCatalog'
+   go test ./internal/api -run TestCategoryAPI
+   ```
+2. **Web filters and event display:**
+   ```sh
+   go test ./internal/api -run 'TestCategoryWeb|TestCategoryCatalogFailure'
+   ```
+3. **Regression gate:**
+   ```sh
+   go test -race ./...
+   go vet ./...
+   npx --yes @redocly/cli lint internal/api/openapi.yaml
+   ```
+
+Browser smoke check: choose Chicago/US, switch Music + Rock → Sports + Basketball
+→ All categories, and confirm the old genre clears. Repeat with JavaScript disabled
+(apply category before choosing genre). Load another page, open an event, reload,
+and return to the same category/genre. Check desktop, tablet, 390px, and 320px.
+Live verification covered all returned categories, category-specific pagination,
+previews/details/return navigation, and legacy music links, with six zero-violation
+automated accessibility scans and no horizontal overflow.

@@ -10,11 +10,11 @@ templ Event(page EventPage) {
 				if page.ReturnURL != "/" {
 					Back to results
 				} else {
-					Discover shows
+					Discover events
 				}
 			</a>
 			if page.Error != "" {
-				<section class="feedback error-state" role="alert"><h1>Event unavailable</h1><p>{ page.Error }</p><a href={ templ.URL(page.ReturnURL) } class="action">Find another show</a></section>
+				<section class="feedback error-state" role="alert"><h1>Event unavailable</h1><p>{ page.Error }</p><a href={ templ.URL(page.ReturnURL) } class="action">Find another event</a></section>
 			} else {
 				<div class="event-page-grid">
 					<article class="event-main">
@@ -43,7 +43,7 @@ templ EventContext(page EventPage) {
 	<div class="context-inner" data-context-id={ page.Detail.Item.ID } data-context-section={ page.Section }>
 		<div class="context-toolbar"><span>Event preview</span><a href={ templ.URL(page.ReturnURL) } class="icon-button" data-close-context aria-label="Close event preview">@layouts.Icon("close")</a></div>
 		@EventImage(page.Detail.Item, true)
-		<div class="context-heading"><span class="genre-label">{ genreLabel(page.Detail.Item) }</span><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)</div>
+		<div class="context-heading"><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)</div>
 		<a href={ templ.URL(sectionURL(page, page.Section)) } class="text-link open-event"><span>Open full event details</span>@layouts.Icon("arrow")</a>
 		@EventParticipation("context-participation-note")
 		@EventSections(page)
@@ -55,6 +55,7 @@ templ EventContext(page EventPage) {
 
 templ EventFacts(event models.Event) {
 	<div class="event-summary" aria-label="Price and sale status"><strong>{ priceLabel(event.PriceRanges) }</strong><span class="event-status" data-status={ event.Status }>{ statusLabel(event.Status) }</span></div>
+	<p class="genre-label">{ classificationLabel(event) }</p>
 }
 
 templ EventParticipation(noteID string) {
@@ -74,20 +75,20 @@ templ EventSectionContent(page EventPage) {
 	<section class="event-section" aria-labelledby="event-section-heading">
 		switch page.Section {
 			case "discussion":
-				<h2 id="event-section-heading">A place to talk about this show</h2>
+				<h2 id="event-section-heading">A place to talk about this event</h2>
 				<p>Event discussions are in development. Questions, tips, and threaded replies will live here, alongside the event they belong to.</p>
 				<p class="availability-label">Posting and replies are not available yet.</p>
 			case "community":
-				<h2 id="event-section-heading">Good shows are worth sharing</h2>
+				<h2 id="event-section-heading">Good events are worth sharing</h2>
 				<p>Public recommendations and community interest are in development. No participation counts are available for this event.</p>
 				<button class="button-quiet" type="button" disabled aria-describedby="recommend-note">@layouts.Icon("community")<span>Recommend</span></button>
 				<p id="recommend-note" class="participation-note">Recommending an event is not available yet.</p>
 			default:
-				<h2 id="event-section-heading">About the show</h2>
+				<h2 id="event-section-heading">About the event</h2>
 				if page.Detail.Item.Info != "" {
 					<p class="provider-copy">{ page.Detail.Item.Info }</p>
 				} else {
-					<p>Ticketmaster hasn't supplied a description for this show. Check the ticket page for the latest details.</p>
+					<p>Ticketmaster hasn't supplied a description for this event. Check the ticket page for the latest details.</p>
 				}
 				if artistsLabel(page.Detail.Item.Artists) != "" {
 					<h3>Featuring</h3><p>{ artistsLabel(page.Detail.Item.Artists) }</p>

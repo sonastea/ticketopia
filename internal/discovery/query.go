@@ -25,6 +25,7 @@ type ValidationError struct {
 func (e *ValidationError) Error() string { return e.Field + ": " + e.Message }
 
 type Query struct {
+	CategoryID                                         string
 	City, Country, Keyword, GenreID, ArtistID, VenueID string
 	StartDate, EndDate                                 string
 	Limit, Page                                        int
@@ -34,7 +35,7 @@ type Query struct {
 // dates are day-bucketed so requests do not create a new cache key every second.
 func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	allowed := map[string]bool{
-		"city": true, "country": true, "keyword": true, "genre_id": true,
+		"city": true, "country": true, "keyword": true, "category_id": true, "genre_id": true,
 		"artist_id": true, "venue_id": true, "start_date": true,
 		"end_date": true, "limit": true, "cursor": true,
 	}
@@ -45,7 +46,8 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	}
 	text := func(key string) string { return strings.Join(strings.Fields(values.Get(key)), " ") }
 	q := Query{
-		City: text("city"), Country: strings.ToUpper(text("country")),
+		CategoryID: text("category_id"),
+		City:       text("city"), Country: strings.ToUpper(text("country")),
 		Keyword: text("keyword"), GenreID: text("genre_id"),
 		ArtistID: text("artist_id"), VenueID: text("venue_id"), Limit: 20,
 		StartDate: text("start_date"), EndDate: text("end_date"),
@@ -67,6 +69,20 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	}
 	if q.GenreID != "" && !sourceIDPattern.MatchString(q.GenreID) {
 		return q, &ValidationError{"genre_id", "use an ID from the genre catalog"}
+	}
+	// Old genre-only links remain music searches. Explicit all-category searches
+	// cannot carry a genre; choose its category first.
+	if q.CategoryID == "" && q.GenreID != "" {
+		q.CategoryID = musicSegment
+	}
+	if q.CategoryID == "all" {
+		q.CategoryID = ""
+		if q.GenreID != "" {
+			return q, &ValidationError{"genre_id", "choose a category before filtering by genre"}
+		}
+	}
+	if q.CategoryID != "" && !sourceIDPattern.MatchString(q.CategoryID) {
+		return q, &ValidationError{"category_id", "use all or an ID from the category catalog"}
 	}
 	if value := text("limit"); value != "" {
 		limit, err := strconv.Atoi(value)
@@ -110,7 +126,8 @@ func sourceID(id string) (string, error) {
 
 func (q Query) Values() url.Values {
 	values := url.Values{
-		"start_date": {q.StartDate}, "end_date": {q.EndDate}, "limit": {strconv.Itoa(q.Limit)},
+		"category_id": {q.CategoryValue()},
+		"start_date":  {q.StartDate}, "end_date": {q.EndDate}, "limit": {strconv.Itoa(q.Limit)},
 	}
 	for key, value := range map[string]string{
 		"city": q.City, "country": q.Country, "keyword": q.Keyword,
@@ -123,14 +140,24 @@ func (q Query) Values() url.Values {
 	return values
 }
 
+// CategoryValue keeps all-category URLs explicit and separates their cache and
+// cursor fingerprints from the old implicit music-only queries.
+func (q Query) CategoryValue() string {
+	if q.CategoryID == "" {
+		return "all"
+	}
+	return q.CategoryID
+}
+
 func (q Query) upstream() url.Values {
 	values := url.Values{
-		"segmentId": {musicSegment}, "locale": {"en"}, "sort": {"date,name,asc"},
+		"locale": {"en"}, "sort": {"date,name,asc"},
 		"size": {strconv.Itoa(q.Limit)}, "page": {strconv.Itoa(q.Page)},
 		"localStartDateTime": {q.StartDate + "T00:00:00," + q.EndDate + "T23:59:59"},
 	}
 	for key, value := range map[string]string{
-		"city": q.City, "countryCode": q.Country, "keyword": q.Keyword, "genreId": q.GenreID,
+		"segmentId": q.CategoryID,
+		"city":      q.City, "countryCode": q.Country, "keyword": q.Keyword, "genreId": q.GenreID,
 		"attractionId": strings.TrimPrefix(q.ArtistID, "ticketmaster:"),
 		"venueId":      strings.TrimPrefix(q.VenueID, "ticketmaster:"),
 	} {

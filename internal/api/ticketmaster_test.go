@@ -17,11 +17,12 @@ import (
 )
 
 func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
+	fixture := categoryFixture(t)
 	var eventCalls, genreCalls atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "classifications") {
 			genreCalls.Add(1)
-			_, _ = fmt.Fprint(w, `{"id":"KZFzniwnSyZfZ7v7nJ","_embedded":{"genres":[{"id":"rock","name":"Rock"}]}}`)
+			_, _ = w.Write(fixture)
 			return
 		}
 		eventCalls.Add(1)
@@ -33,7 +34,7 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 	defer cache.Close()
 	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "secret", BaseURL: upstream.URL})}
 	routes := a.Routes()
-	query := "city=Boston&start_date=2026-10-02&end_date=2026-10-31&limit=1"
+	query := "city=Boston&start_date=2026-10-02&end_date=2026-10-31&limit=1&category_id=KZFzniwnSyZfZ7v7nJ"
 	request := func(path string, partial bool) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		if partial {
@@ -47,7 +48,7 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 	if html.Code != 200 || !strings.HasPrefix(html.Header().Get("Content-Type"), "text/html") {
 		t.Fatalf("HTML response failed: %d %s", html.Code, html.Body.String())
 	}
-	for _, text := range []string{"Mon, Oct 12, 2026", "Public sale: Sep 1, 2026", "Venue to be announced", "Price not listed", `https://www.ticketmaster.com/event/show-0`, `data-event-id="ticketmaster:show-0"`, "Load more shows", `<option value="rock">Rock</option>`} {
+	for _, text := range []string{"Mon, Oct 12, 2026", "Public sale: Sep 1, 2026", "Venue to be announced", "Price not listed", `https://www.ticketmaster.com/event/show-0`, `data-event-id="ticketmaster:show-0"`, "Load more events", `<option value="rock">Rock</option>`} {
 		if !strings.Contains(html.Body.String(), text) {
 			t.Errorf("HTML omitted %q", text)
 		}
@@ -66,14 +67,14 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 			t.Fatalf("encoded detail ID or shared detail cache failed: %d %s", detail.Code, detail.Body.String())
 		}
 		web := request("/events/"+id+"?section=discussion&return_to="+url.QueryEscape("/?"+query), false)
-		for _, text := range []string{"A show", "A place to talk about this show", "Posting and replies are not available yet.", "Back to results", `aria-current="page"`} {
+		for _, text := range []string{"A show", "A place to talk about this event", "Posting and replies are not available yet.", "Back to results", `aria-current="page"`} {
 			if web.Code != 200 || !strings.Contains(web.Body.String(), text) || eventCalls.Load() != 1 {
 				t.Fatalf("web event route/cache failed for %s: %d, missing %q", id, web.Code, text)
 			}
 		}
 	}
 	selected := request("/?"+query+"&selected_event=ticketmaster:show-0&section=community", false)
-	if selected.Code != 200 || !strings.Contains(selected.Body.String(), `data-context-id="ticketmaster:show-0"`) || !strings.Contains(selected.Body.String(), "Good shows are worth sharing") || eventCalls.Load() != 1 {
+	if selected.Code != 200 || !strings.Contains(selected.Body.String(), `data-context-id="ticketmaster:show-0"`) || !strings.Contains(selected.Body.String(), "Good events are worth sharing") || eventCalls.Load() != 1 {
 		t.Fatalf("selected event did not reconstruct from URL/cache: %d %s", selected.Code, selected.Body.String())
 	}
 	panelReq := httptest.NewRequest(http.MethodGet, "/events/ticketmaster:show-0", nil)
@@ -84,7 +85,7 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 		t.Fatal("event panel did not reuse cached detail or returned a full document")
 	}
 	partial := request("/?"+query+"&cursor="+url.QueryEscape(*list.NextCursor), true)
-	if partial.Code != 200 || strings.Contains(partial.Body.String(), "Load more shows") || strings.Contains(partial.Body.String(), "<html") || !strings.Contains(partial.Body.String(), `hx-swap-oob="beforeend:#event-list"`) || !strings.Contains(partial.Body.String(), "ticketmaster:show-1") {
+	if partial.Code != 200 || strings.Contains(partial.Body.String(), "Load more events") || strings.Contains(partial.Body.String(), "<html") || !strings.Contains(partial.Body.String(), `hx-swap-oob="beforeend:#event-list"`) || !strings.Contains(partial.Body.String(), "ticketmaster:show-1") {
 		t.Fatalf("last-page fragment failed: %d %s", partial.Code, partial.Body.String())
 	}
 	if eventCalls.Load() != 2 || genreCalls.Load() != 1 {
@@ -110,7 +111,7 @@ func TestUnavailableResponsesAreVisibleAndRedacted(t *testing.T) {
 	cache := kv.NewMemory()
 	defer cache.Close()
 	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "private-api-key", BaseURL: upstream.URL})}
-	for _, path := range []string{"/api/v1/events", "/?city=Boston", "/api/v1/genres"} {
+	for _, path := range []string{"/api/v1/events", "/?city=Boston", "/api/v1/genres", "/api/v1/categories"} {
 		rec := httptest.NewRecorder()
 		a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
 		if rec.Code != 503 || rec.Header().Get("Retry-After") == "" || strings.Contains(rec.Body.String(), "private-api-key") {

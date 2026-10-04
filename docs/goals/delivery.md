@@ -1,6 +1,6 @@
 # Aligned backend and frontend delivery checklist
 
-Status: The discovery foundation, responsive navigation, and basic event previews/
+Status: All-category discovery, responsive navigation, and basic event previews/
 detail pages are implemented. Account/community outcomes remain planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
@@ -10,8 +10,8 @@ does not complete a UI outcome, and a cache does not complete durable storage.
 ## MVP release boundary
 
 The updated release combines location-based discovery across **all Ticketmaster
-event categories** with event-centered community participation. The current
-music-only search remains a verified foundation, not completion of this expansion.
+event categories** with event-centered community participation. Category-aware
+discovery is implemented; account and community participation remain planned.
 The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
 Section numbers below group capabilities; they do not force reminders/ranking
 to ship before community work.
@@ -58,12 +58,25 @@ and the reusable API goal. Current behavior: [discovery guide](../discovery.md).
 - [x] Frontend: Handle empty, loading, error, and stale results; support keyboard
   navigation, small screens, and functional search/pagination without JavaScript.
 - [ ] Product: Verify relevance with three people in one well-covered pilot city.
-- [ ] Backend: Expand beyond the Music segment; expose category metadata/filtering
+- [x] Backend: Expand beyond the Music segment; expose category metadata/filtering
   with an all-categories option and compatible genre behavior, preserving existing IDs.
-- [ ] Frontend: Offer category selection and appropriate non-music metadata;
+- [x] Frontend: Offer category selection and appropriate non-music metadata;
   preserve city/date defaults, source links, and explicit unknown values.
-- [ ] Verification: Exercise multiple available categories, category-specific and
+- [x] Verification: Exercise multiple available categories, category-specific and
   empty results, existing music filters, and non-music events without artists.
+
+### All-category discovery: testable slices
+
+1. [x] Shared discovery/API: expose the category/genre catalog, remove the implicit
+   Music restriction, preserve genre-only music links, and bind categories to
+   cache keys/cursors. Verify with provider fixtures and JSON route tests.
+2. [x] Web search: add category-aware genre controls and neutral event metadata.
+   Verify category switching, ordinary GET forms, empty results, and detail links.
+3. [x] Regression gate: exercise category-specific pagination and return context,
+   catalog outages, music compatibility, and desktop/mobile browser journeys.
+   Run race tests, vet, and OpenAPI lint before checking the root milestone.
+
+Focused commands and manual checks: [discovery verification](../discovery.md#verification-by-slice).
 
 ## 2. Keep reliable event and application history
 

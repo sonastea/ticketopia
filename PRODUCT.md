@@ -13,19 +13,18 @@ product
 ## Users
 
 People looking for worthwhile nearby events and practical advice from others
-who share their interests. Discovery spans Ticketmaster event categories in the
-planned MVP; the current implementation covers music. The responsive web
-experience serves phones, tablets, and desktop browsers through a shared backend
+who share their interests. Discovery spans Ticketmaster event categories. The
+responsive web experience serves phones, tablets, and desktop browsers through a shared backend
 that will also support other clients.
 
 ## Capabilities and Constraints
 
-The current Go/Echo, templ, htmx, and Tailwind web app provides music discovery,
-city/date/genre search, and cached event list/detail reads. The confirmed UI
+The current Go/Echo, templ, htmx, and Tailwind web app provides all-category discovery,
+city/date/category/genre search, and cached event list/detail reads. The confirmed UI
 refactor uses this existing backend and the [responsive UI spec](docs/design-guidelines.md).
 Accounts, durable saves, interest, recommendations, and discussions remain
 planned; their UI must communicate availability truthfully rather than simulate
-successful participation. All-category discovery is also a planned expansion.
+successful participation.
 
 ## Product Purpose
 

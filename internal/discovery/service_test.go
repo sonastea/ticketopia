@@ -51,7 +51,7 @@ func TestSearchPreservesMetadataAndSharesDetailCache(t *testing.T) {
 	s := newTestService(t, func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		q := r.URL.Query()
-		if r.URL.Path != "/events.json" || q.Get("apikey") != "test-secret" || q.Get("page") != "0" || q.Get("segmentId") != musicSegment || q.Get("city") != "Boston" || q.Get("localStartDateTime") != "2026-10-02T00:00:00,2026-12-31T23:59:59" {
+		if r.URL.Path != "/events.json" || q.Get("apikey") != "test-secret" || q.Get("page") != "0" || q.Get("segmentId") != "" || q.Get("city") != "Boston" || q.Get("localStartDateTime") != "2026-10-02T00:00:00,2026-12-31T23:59:59" {
 			t.Errorf("unexpected upstream filters (path %s)", r.URL.Path)
 		}
 		_, _ = w.Write(eventsFixture)

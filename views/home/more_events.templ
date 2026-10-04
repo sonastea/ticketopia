@@ -23,7 +23,8 @@ templ EventRows(events []models.Event, returnURL string, selectedID string) {
 				<h3><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
 				<p class="event-venue">{ venueLabel(event) }</p>
 				<div class="event-metadata"><span class="event-status" data-status={ event.Status }>{ statusLabel(event.Status) }</span><span>{ priceLabel(event.PriceRanges) }</span></div>
-				<details class="extra-metadata"><summary>More show information</summary>
+				<p class="genre-label">{ classificationLabel(event) }</p>
+				<details class="extra-metadata"><summary>More event information</summary>
 					if artistsLabel(event.Artists) != "" {
 						<p>{ artistsLabel(event.Artists) }</p>
 					}
@@ -47,7 +48,7 @@ templ EventRows(events []models.Event, returnURL string, selectedID string) {
 
 templ EventImage(event models.Event, large bool) {
 	<div class="event-image">
-		<div class="image-fallback" aria-hidden="true">@layouts.Icon("music")</div>
+		<div class="image-fallback" aria-hidden="true">@layouts.Icon(eventIcon(event))</div>
 		if imageURL(event.Images) != "" {
 			if large {
 				<img src={ sizedImageURL(event.Images, 1000) } alt="" width="640" height="360"/>
@@ -64,7 +65,7 @@ templ Freshness(meta models.Freshness) {
 			if meta.Stale {
 				<strong>Showing saved results while Ticketmaster is unavailable.</strong><span> </span>
 			}
-			Updated { freshnessLabel(meta.DataAsOf) }. Venue-local show times.
+			Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
 		</p>
 	}
 }
@@ -72,9 +73,9 @@ templ Freshness(meta models.Freshness) {
 templ Pagination(page SearchPage) {
 	<div id="pagination" class="pagination" aria-live="polite">
 		if page.Events.NextCursor != nil {
-			<a href={ templ.URL(nextURL(page)) } hx-get={ nextURL(page) } hx-target="#pagination" hx-swap="outerHTML" hx-indicator="#pagination" hx-sync="this:drop" class="action action-secondary"><span class="ready-label">Load more shows</span><span class="loading-label">Loading shows…</span>@layouts.Icon("chevron")</a>
+			<a href={ templ.URL(nextURL(page)) } hx-get={ nextURL(page) } hx-target="#pagination" hx-swap="outerHTML" hx-indicator="#pagination" hx-sync="this:drop" class="action action-secondary"><span class="ready-label">Load more events</span><span class="loading-label">Loading events…</span>@layouts.Icon("chevron")</a>
 		} else if page.Events.Limited {
-			<p>You've reached Ticketmaster's search limit. Narrow your city, dates, or genre to find more relevant shows.</p>
+			<p>You've reached Ticketmaster's search limit. Narrow your city, dates, category, or genre to find more relevant events.</p>
 		} else if len(page.Events.Items) > 0 {
 			<p>You've reached the end of these results.</p>
 		}

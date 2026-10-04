@@ -49,6 +49,7 @@ func TestClientIPTrustIsExplicit(t *testing.T) {
 }
 
 func TestLocationDefaultsOverrideRememberAndShareEventCache(t *testing.T) {
+	fixture := categoryFixture(t)
 	var geoCalls atomic.Int32
 	geo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		geoCalls.Add(1)
@@ -58,7 +59,7 @@ func TestLocationDefaultsOverrideRememberAndShareEventCache(t *testing.T) {
 	var eventCalls sync.Map
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "classifications") {
-			_, _ = fmt.Fprint(w, `{"id":"KZFzniwnSyZfZ7v7nJ"}`)
+			_, _ = w.Write(fixture)
 			return
 		}
 		city, country, page := r.URL.Query().Get("city"), r.URL.Query().Get("countryCode"), r.URL.Query().Get("page")

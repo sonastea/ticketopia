@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -52,6 +51,17 @@ func (a *api) genresHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, data)
 }
 
+func (a *api) categoriesHandler(c echo.Context) error {
+	if len(c.QueryParams()) > 0 {
+		return problem(c, &discovery.ValidationError{Field: "query", Message: "the category catalog does not accept filters"})
+	}
+	data, err := a.events.Categories(c.Request().Context())
+	if err != nil {
+		return problem(c, err)
+	}
+	return c.JSON(http.StatusOK, data)
+}
+
 func (a *api) retrieveEventsHandler(c echo.Context) error {
 	// IP- and cookie-derived defaults must not be shared by an HTTP intermediary.
 	c.Response().Header().Set("Cache-Control", "private, no-store")
@@ -72,16 +82,14 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	}
 	page.ReturnURL = "/?" + returnValues.Encode()
 	if err == nil && !page.NeedsLocation {
-		var wg sync.WaitGroup
-		if !partial {
-			wg.Go(func() {
-				var genreErr error
-				page.Genres, genreErr = a.events.Genres(c.Request().Context())
-				page.GenresUnavailable = genreErr != nil
-			})
-		}
+		// Event results take priority: a failed optional catalog refresh must not
+		// pause this search before it reaches the shared provider request gate.
 		page.Events, err = a.events.Events(c.Request().Context(), page.Filters)
-		wg.Wait()
+		if !partial {
+			var catalogErr error
+			page.Categories, catalogErr = a.events.Categories(c.Request().Context())
+			page.CategoriesUnavailable = catalogErr != nil
+		}
 	}
 	if err != nil {
 		status, page.Error = errorMessage(err)
@@ -92,7 +100,7 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	}
 	if partial {
 		if page.NeedsLocation {
-			return c.String(http.StatusBadRequest, "Choose a city before loading shows.")
+			return c.String(http.StatusBadRequest, "Choose a city before loading events.")
 		}
 		return render(c, status, home.MoreEventsList(page))
 	}

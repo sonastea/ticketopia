@@ -110,6 +110,16 @@ type Genre struct {
 	Subgenres []NamedID `json:"subgenres"`
 }
 
+type Category struct {
+	NamedID
+	Genres []Genre `json:"genres"`
+}
+
+type CategoryList struct {
+	Items []Category `json:"items"`
+	Meta  Freshness  `json:"meta"`
+}
+
 type Freshness struct {
 	DataAsOf time.Time `json:"data_as_of"`
 	Stale    bool      `json:"stale"`

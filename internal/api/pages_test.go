@@ -13,13 +13,14 @@ import (
 )
 
 func TestSelectedEventFailureDoesNotReplaceResults(t *testing.T) {
+	fixture := categoryFixture(t)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/events/missing") {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		if strings.Contains(r.URL.Path, "classifications") {
-			_, _ = fmt.Fprint(w, `{"id":"KZFzniwnSyZfZ7v7nJ"}`)
+			_, _ = w.Write(fixture)
 			return
 		}
 		_, _ = fmt.Fprint(w, `{"page":{"number":0,"size":20,"totalElements":1,"totalPages":1},"_embedded":{"events":[{"id":"available","name":"Available show","dates":{"status":{"code":"canceled"}},"priceRanges":[{"currency":"USD","min":20,"max":40}]}]}}`)
@@ -72,7 +73,7 @@ func TestPlannedDestinationsRemainTruthful(t *testing.T) {
 	for _, path := range []string{"/saved", "/community", "/me", "/me/interests"} {
 		rec := httptest.NewRecorder()
 		a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
-		if rec.Code != 200 || !strings.Contains(rec.Body.String(), "In development") || !strings.Contains(rec.Body.String(), "Discover shows") {
+		if rec.Code != 200 || !strings.Contains(rec.Body.String(), "In development") || !strings.Contains(rec.Body.String(), "Discover events") {
 			t.Errorf("planned destination %s is missing its availability/recovery state", path)
 		}
 	}

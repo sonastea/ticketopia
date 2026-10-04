@@ -1,0 +1,19 @@
+{
+  "page": {"number": 0, "size": 100, "totalElements": 6, "totalPages": 1},
+  "_embedded": {
+    "classifications": [
+      {"segment": {"id": "KZFzniwnSyZfZ7v7nE", "name": "Sports", "_embedded": {"genres": [
+        {"id": "basketball", "name": "Basketball", "_embedded": {"subgenres": [{"id": "nba", "name": "NBA"}]}}
+      ]}}},
+      {"type": {"id": "event-style", "name": "Event Style"}},
+      {"segment": {"id": "KZFzniwnSyZfZ7v7nJ", "name": "Music", "_embedded": {"genres": [
+        {"id": "rock", "name": "Rock"}, {"id": "jazz", "name": "Jazz"}
+      ]}}},
+      {"segment": {"id": "KZFzniwnSyZfZ7v7na", "name": "Arts & Theatre", "_embedded": {"genres": [
+        {"id": "theatre", "name": "Theatre"}
+      ]}}},
+      {"segment": {"id": "KZFzniwnSyZfZ7v7nn", "name": "Film"}},
+      {"segment": {"id": "KZFzniwnSyZfZ7v7n1", "name": "Miscellaneous"}}
+    ]
+  }
+}

@@ -3,12 +3,12 @@
 An early-stage event discovery and community app built with Go, Echo, templ, htmx, and
 Tailwind CSS, using the Ticketmaster Discovery API.
 
-Discover music events in a detected or remembered city, with editable filters,
-image-led results, contextual event previews, dedicated event pages, and load-more
+Discover events across Ticketmaster categories in a detected or remembered city,
+with editable filters, image-led results, contextual event previews, dedicated event pages, and load-more
 pagination. Cached event data is shared by the responsive web UI and JSON API.
 
-Current discovery covers music. The planned MVP expands to all Ticketmaster event
-categories and connects events to private saves, social interest, recommendations,
+Discovery includes category-aware genre filters for music, sports, arts, and more.
+The planned MVP connects events to private saves, social interest, recommendations,
 and asynchronous discussions. See the [design guidelines](docs/design-guidelines.md)
 for desktop, tablet, and mobile direction and the
 [MVP boundary](docs/goals/delivery.md#mvp-release-boundary) for release scope.
@@ -25,13 +25,13 @@ goal to implementation work and verification checkpoints.
 [Discovery guide](docs/discovery.md) · [Cache behavior](docs/cache.md)
 
 - [x] Fetch Ticketmaster events with artist, venue, date, status, and price metadata.
-- [x] Load a cached music genre/subgenre catalog for discovery filters.
+- [x] Load cached category and genre/subgenre catalogs for discovery filters.
 - [x] Reuse cached data across clients with concurrent-request deduplication,
   stale fallback, and bounded external request usage.
 - [x] Provide a searchable, responsive event list with correct ticket links and
   clear loading, empty, error, and freshness states.
 - [ ] Persist observations and schedule budgeted city/date refreshes in SQLite.
-- [ ] Discover across all Ticketmaster event categories with compatible filters.
+- [x] Discover across all Ticketmaster event categories with compatible filters.
 
 ### Personal radar
 
@@ -91,7 +91,7 @@ goal to implementation work and verification checkpoints.
 
 [API design](docs/design/radar-api.md)
 
-- [x] Read events, their metadata, and music genres through the API.
+- [x] Read events, their metadata, categories, and genres through the API.
 - [ ] Read personalized radar results through the API.
 - [ ] Manage personal and community activity from another client.
 - [x] Provide an OpenAPI description for implemented endpoints.
@@ -123,8 +123,8 @@ go run ./cmd/ticketopia
 Open <http://localhost:8080>. Environment variables can also be placed in an
 optional `.env` file.
 
-JSON reads start at `/api/v1/events` and `/api/v1/genres`; the contract is served
-at `/api/v1/openapi.yaml`. See the [discovery guide](docs/discovery.md) for filters
+JSON reads start at `/api/v1/events`, `/api/v1/categories`, and `/api/v1/genres`;
+the contract is served at `/api/v1/openapi.yaml`. See the [discovery guide](docs/discovery.md) for filters
 and `TICKETMASTER_DAILY_BUDGET` configuration.
 
 Localhost starts with a city prompt. Public visitors can receive an approximate

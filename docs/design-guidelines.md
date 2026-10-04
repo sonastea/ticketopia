@@ -2,7 +2,7 @@
 
 Status: Direction confirmed 2026-10-03. The responsive discovery shell and basic
 event details are implemented; account/community participation remains planned.
-The [discovery guide](discovery.md) records the exact shipped music-only scope.
+The [discovery guide](discovery.md) records the exact shipped all-category scope.
 These guidelines own UX and information architecture; [product context](../PRODUCT.md)
 owns purpose, [delivery](goals/delivery.md) owns scope/status, and the
 [API](design/radar-api.md) and [database](design/database.md) plans own technical

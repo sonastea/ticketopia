@@ -6,7 +6,7 @@ server or `.env` file is required for the cache. Discovery reads use these polic
 | Data | Fresh for | Retained from collection time |
 | --- | --- | --- |
 | Event searches and details | 1 hour | 24 hours |
-| Music genre/subgenre catalog | 24 hours | 7 days |
+| Category/genre/subgenre catalogs (including legacy music genres) | 24 hours | 7 days |
 | Missing event (404) | 5 minutes | 5 minutes |
 
 Fresh reads make no Ticketmaster requests. Expired freshness triggers one shared
@@ -17,7 +17,8 @@ negative entry. Empty search results are cached normally. Failed/malformed
 provider responses never replace successful data. Corrupt cache entries are misses.
 
 Keys are versioned and based on normalized filters, date range, page, and page
-size, with fixed music/English semantics. API keys are excluded. Equivalent query
+size, with explicit category scope and English metadata. All-category keys are
+distinct from pre-expansion music-only keys. API keys are excluded. Equivalent query
 ordering, whitespace, country-code case, and numeric defaults share keys. Search
 results populate detail entries from embedded metadata. The HTML and JSON API
 share these entries. Cancellation of one caller does not cancel a shared refresh.
