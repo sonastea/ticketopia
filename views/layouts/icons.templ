@@ -4,7 +4,11 @@ import "github.com/sonastea/ticketopia/views/components/icon"
 
 // Keep product-facing names stable while the library owns the SVG vocabulary.
 templ Icon(name string) {
-	@icon.Icon(iconName(name))(icon.Props{Class: "icon", Attributes: templ.Attributes{"aria-hidden": "true", "focusable": "false"}})
+	@IconClass(name, "icon")
+}
+
+templ IconClass(name string, class string) {
+	@icon.Icon(iconName(name))(icon.Props{Class: class, Attributes: templ.Attributes{"aria-hidden": "true", "focusable": "false"}})
 }
 
 func iconName(name string) string {
@@ -31,8 +35,18 @@ func iconName(name string) string {
 		return "external-link"
 	case "chevron":
 		return "chevron-down"
+	case "chevron-up":
+		return "chevron-up"
 	case "close":
 		return "x"
+	case "customize":
+		return "arrow-up-down"
+	case "grip":
+		return "grip-vertical"
+	case "sidebar-collapse":
+		return "panel-left-close"
+	case "sidebar-expand":
+		return "panel-left-open"
 	default:
 		return name
 	}

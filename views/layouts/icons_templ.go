@@ -32,7 +32,36 @@ func Icon(name string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = icon.Icon(iconName(name))(icon.Props{Class: "icon", Attributes: templ.Attributes{"aria-hidden": "true", "focusable": "false"}}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = IconClass(name, "icon").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func IconClass(name string, class string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var2 == nil {
+			templ_7745c5c3_Var2 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = icon.Icon(iconName(name))(icon.Props{Class: class, Attributes: templ.Attributes{"aria-hidden": "true", "focusable": "false"}}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -64,8 +93,18 @@ func iconName(name string) string {
 		return "external-link"
 	case "chevron":
 		return "chevron-down"
+	case "chevron-up":
+		return "chevron-up"
 	case "close":
 		return "x"
+	case "customize":
+		return "arrow-up-down"
+	case "grip":
+		return "grip-vertical"
+	case "sidebar-collapse":
+		return "panel-left-close"
+	case "sidebar-expand":
+		return "panel-left-open"
 	default:
 		return name
 	}

@@ -33,6 +33,31 @@ Community / Profile** bottom navigation below 62rem. Full event pages use a tick
 column when space permits. Exact dimensions and image transitions live in
 [DESIGN.md](../DESIGN.md#layout).
 
+### Sidebar preferences
+
+From 72rem, the light sidebar groups **Discover / Community** under Browse and
+**Saved / Interests** under Your space, with Profile fixed at the bottom. The
+collapse button switches between labels and a compact icon rail; destination
+labels remain accessible and appear on hover or keyboard focus. Expanded is the
+default. Sidebar ordering never changes the homepage or event/filter state.
+
+**Customize sidebar** reveals handles for dragging whole sections or links within
+their section, plus keyboard-accessible Move up / Move down buttons. Section
+membership stays fixed. Done saves the draft, Cancel (or Escape) restores the
+previous order, and Reset to default changes the draft without committing it.
+Collapse is unavailable during editing; resizing below the desktop threshold
+cancels an unfinished draft rather than leaving hidden editing controls active.
+
+Collapse and committed ordering are remembered **only in this browser**, without
+an account or cross-device sync. Invalid preferences fall back to default;
+new destinations append to their section while preserving compatible choices.
+When browser storage is unavailable, controls still work for the current page
+and feedback explains that the order cannot be remembered. Without JavaScript,
+the default expanded sidebar remains usable and enhancement-only controls hide.
+The intermediate rail and mobile bottom navigation retain their fixed order.
+
+### Discovery controls
+
 Search filters use a native disclosure on every layout. Category changes reset
 genre selection and offer only compatible options. Results are ordered by date;
 there is no user-selectable sort, filter-chip strip, or map view. Explicit
@@ -145,5 +170,8 @@ empty, unavailable, and error states explicitly, with appropriate recovery.
 Verify search, dependent filters, pagination, selection, retry, direct URLs,
 Back/reload, resize, keyboard focus, and no-JavaScript behavior across sidebar,
 rail, and compact layouts. Check long content, zoom, and image failures.
+Verify sidebar collapse, drag and keyboard reordering, Done/Cancel/Reset,
+reload/navigation persistence, unavailable/corrupt storage, new destinations,
+focus retention, and a short viewport while customizing.
 Participation, privacy, authentication return, and keyboard-safe composition
 need separate verification when those features are implemented.

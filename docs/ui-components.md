@@ -41,8 +41,8 @@ The script bundle is served at `/assets/js/shadcn-templ-<hash>.js`.
 
 `views/styles/app.css` imports Tailwind v4 and the library's animation/style
 utilities, scans the templ/component sources, and maps shadcn semantic colors to
-Ticketopia's existing cobalt, apricot, paper, and ink palette. Manrope remains
-self-hosted. Page composition, event rows, imagery, date indexing, breakpoints,
+Ticketopia's plum actions, light-stone navigation, dusty-rose dates, and ink palette.
+Manrope remains self-hosted. Page composition, event rows, imagery, date indexing, breakpoints,
 and route semantics remain app-owned; see [DESIGN.md](../DESIGN.md).
 
 - Buttons cover actions, navigation items, section links, ticket links, pagination,
@@ -51,6 +51,15 @@ and route semantics remain app-owned; see [DESIGN.md](../DESIGN.md).
 - Badge covers event sale statuses and unavailable-feature labels.
 - Card, Alert, Empty, and Skeleton cover context, tickets, feedback, and loading.
 - The library's Lucide icons replace the hand-authored SVG switch.
+- The app-owned sidebar uses grouped navigation, a 14rem/4.5rem collapse state,
+  and explicit reorder controls. Browser-local preferences and editing semantics
+  are documented in the [responsive UX guide](design-guidelines.md#sidebar-preferences).
+  Brand tokens are semantic (`brand`, `brand-dark`, `brand-active`, `brand-soft`);
+  navigation and dates use distinct `nav-surface`, `nav-hover`, and `date-surface`.
+  Pale-plum selection (`#ebdde8`), neutral hover stone (`#e6e0e5`), and warmer
+  dusty-rose date paper (`#e8d2db`) are deliberately distinct. Rose remains
+  exclusive to date markers; availability uses stone, and focus/actions use plum.
+  Loading actions use plum text on pale plum to retain readable contrast.
 - JavaScript preview states clone server-rendered component templates, keeping
   initial pages, fetched fragments, loading, errors, and retry consistent.
 

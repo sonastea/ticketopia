@@ -234,7 +234,7 @@ func priceLabel(prices []models.PriceRange) string {
 		if price.Min != nil && price.Currency != "" {
 			label := price.Currency + " " + *price.Min
 			if price.Max != nil && *price.Max != *price.Min {
-				label += " to " + *price.Max
+				label += " - " + *price.Max
 			}
 			return label
 		}

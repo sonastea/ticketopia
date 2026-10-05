@@ -2,18 +2,19 @@
 name: Ticketopia
 description: "Local frequency: record-shop imagery, mixtape intimacy, and clear everyday event discovery."
 colors:
-  ink: "#202539"
-  muted: "#5d6274"
-  cobalt: "#2946c7"
-  cobalt-dark: "#2038a5"
-  on-cobalt: "#e2e8ff"
-  paper: "#f4f5fa"
+  ink: "#29252d"
+  muted: "#69616d"
+  brand: "#6b3d5f"
+  brand-dark: "#522c49"
+  brand-active: "#432338"
+  brand-soft: "#ebdde8"
+  nav-surface: "#f2f0f3"
+  nav-hover: "#e6e0e5"
+  paper: "#faf9fb"
   surface: "#ffffff"
-  line: "#dfe2ed"
-  control-line: "#959caf"
-  selection: "#ffe1c5"
-  selection-ink: "#653613"
-  blue-soft: "#e9edff"
+  line: "#dfdae2"
+  control-line: "#938b99"
+  date-surface: "#e8d2db"
   error: "#a22b39"
   error-bg: "#fff0f1"
   warning: "#795318"
@@ -71,14 +72,38 @@ typography:
   navigation:
     fontFamily: "Manrope, sans-serif"
     fontSize: ".9375rem"
-    fontWeight: 650
-    lineHeight: 1.6
+    fontWeight: 550
+    lineHeight: "calc(1.25 / .875)"
     letterSpacing: "normal"
+  navigation-current:
+    fontFamily: "Manrope, sans-serif"
+    fontSize: ".9375rem"
+    fontWeight: 700
+    lineHeight: "calc(1.25 / .875)"
+    letterSpacing: "normal"
+  navigation-group:
+    fontFamily: "Manrope, sans-serif"
+    fontSize: ".75rem"
+    fontWeight: 700
+    lineHeight: 1.25
+    letterSpacing: ".02em"
   small-label:
     fontFamily: "Manrope, sans-serif"
     fontSize: ".8125rem"
     fontWeight: 650
     lineHeight: 1.6
+    letterSpacing: "normal"
+  quiet-action:
+    fontFamily: "Manrope, sans-serif"
+    fontSize: ".8125rem"
+    fontWeight: 650
+    lineHeight: "calc(1.25 / .875)"
+    letterSpacing: "normal"
+  availability:
+    fontFamily: "Manrope, sans-serif"
+    fontSize: ".8125rem"
+    fontWeight: 650
+    lineHeight: "calc(1 / .75)"
     letterSpacing: "normal"
   metadata:
     fontFamily: "Manrope, sans-serif"
@@ -95,10 +120,12 @@ typography:
 rounded:
   radius: ".75rem"
   control: ".5rem"
-  navigation: ".6rem"
+  navigation: ".5rem"
   image: ".65rem"
   date-marker: ".45rem"
   availability: ".4rem"
+  sidebar-move: ".35rem"
+  sidebar-utility: ".4rem"
 spacing:
   space-1: ".25rem"
   space-2: ".5rem"
@@ -109,28 +136,28 @@ spacing:
   space-7: "3rem"
 components:
   button-primary:
-    backgroundColor: "{colors.cobalt}"
+    backgroundColor: "{colors.brand}"
     textColor: "{colors.surface}"
     typography: "{typography.action}"
     rounded: "{rounded.control}"
     padding: ".65rem 1rem"
   button-primary-hover:
-    backgroundColor: "{colors.cobalt-dark}"
+    backgroundColor: "{colors.brand-dark}"
   button-primary-active:
-    backgroundColor: "#172b87"
+    backgroundColor: "{colors.brand-active}"
   button-secondary:
     backgroundColor: "{colors.surface}"
-    textColor: "{colors.cobalt}"
+    textColor: "{colors.brand}"
     typography: "{typography.action}"
     rounded: "{rounded.control}"
     padding: ".65rem 1rem"
   button-secondary-hover:
-    backgroundColor: "{colors.blue-soft}"
-    textColor: "{colors.cobalt-dark}"
+    backgroundColor: "{colors.brand-soft}"
+    textColor: "{colors.brand-dark}"
   button-quiet-unavailable:
     backgroundColor: "transparent"
     textColor: "{colors.muted}"
-    typography: "{typography.small-label}"
+    typography: "{typography.quiet-action}"
     rounded: "{rounded.control}"
     padding: ".5rem .6rem"
   search-field:
@@ -148,37 +175,55 @@ components:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.muted}"
   nav-link:
-    textColor: "{colors.on-cobalt}"
+    textColor: "{colors.ink}"
     typography: "{typography.navigation}"
     rounded: "{rounded.navigation}"
-    padding: ".75rem 1rem"
+    padding: ".5rem .75rem"
   nav-link-hover:
-    backgroundColor: "{colors.cobalt-dark}"
-    textColor: "{colors.surface}"
-  nav-link-current:
-    backgroundColor: "{colors.selection}"
+    backgroundColor: "{colors.nav-hover}"
     textColor: "{colors.ink}"
+  nav-link-current:
+    backgroundColor: "{colors.brand-soft}"
+    textColor: "{colors.brand}"
+    typography: "{typography.navigation-current}"
+  sidebar:
+    backgroundColor: "{colors.nav-surface}"
+    textColor: "{colors.ink}"
+    padding: "1.25rem .75rem 1rem"
+    width: "14rem"
+  sidebar-collapsed:
+    width: "4.5rem"
+  sidebar-tooltip:
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.sidebar-utility}"
+    padding: ".3rem .55rem"
+  sidebar-move:
+    backgroundColor: "transparent"
+    textColor: "{colors.muted}"
+    rounded: "{rounded.sidebar-move}"
+    width: "2.75rem"
   bottom-nav-current:
-    backgroundColor: "{colors.blue-soft}"
-    textColor: "{colors.cobalt}"
+    backgroundColor: "{colors.brand-soft}"
+    textColor: "{colors.brand}"
   availability-label:
-    backgroundColor: "{colors.selection}"
-    textColor: "{colors.selection-ink}"
-    typography: "{typography.small-label}"
+    backgroundColor: "{colors.nav-surface}"
+    textColor: "{colors.muted}"
+    typography: "{typography.availability}"
     rounded: "{rounded.availability}"
     padding: ".35rem .65rem"
   event-row:
     textColor: "{colors.ink}"
     padding: "1.5rem .75rem"
   event-row-selected:
-    backgroundColor: "{colors.selection}"
+    backgroundColor: "{colors.brand-soft}"
     rounded: "{rounded.radius}"
   event-image:
-    backgroundColor: "{colors.blue-soft}"
+    backgroundColor: "{colors.brand-soft}"
     rounded: "{rounded.image}"
     width: "100%"
   date-marker:
-    backgroundColor: "{colors.selection}"
+    backgroundColor: "{colors.date-surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.date-marker}"
     padding: ".4rem .65rem"
@@ -189,10 +234,10 @@ components:
     padding: "1.25rem"
   section-link:
     textColor: "{colors.ink}"
-    typography: "{typography.small-label}"
+    typography: "{typography.quiet-action}"
     padding: ".5rem .1rem"
   section-link-current:
-    textColor: "{colors.cobalt}"
+    textColor: "{colors.brand}"
 ---
 
 # Design System: Ticketopia
@@ -201,13 +246,13 @@ components:
 
 **Creative North Star: "Local frequency"**
 
-Local frequency makes event discovery feel personally assembled: the presence of a record shop, the intimacy of a mixtape, and the clarity of an everyday planning tool. Cobalt navigation frames cool light reading surfaces; apricot selection and compact date indexes give the collection a warm, human rhythm.
+Local frequency makes event discovery feel personally assembled: the presence of a record shop, the intimacy of a mixtape, and the clarity of an everyday planning tool. Deep plum actions and pale-plum selection sit within light-stone navigation and near-white reading surfaces; compact dusty-rose date indexes give the collection a warm, human rhythm.
 
-Bold, readable Manrope and real provider photography carry the personality. Familiar labeled controls keep this an Operate-mode product: useful dates, venues, prices, and clear availability matter more than promotional decoration. Density changes with the available space while the event identity stays recognizable.
+Bold, readable Manrope and real provider photography carry the personality. Familiar labeled controls keep everyday planning practical: useful dates, venues, prices, and clear availability matter more than promotional decoration. Density changes with the available space while the event identity stays recognizable.
 
 **Key Characteristics:**
-- Cobalt navigation and actions against cool paper and white surfaces.
-- Apricot selection, date indexing, and honest availability labels.
+- Deep plum actions and pale-plum selection against light-stone navigation, near-white paper, and white surfaces.
+- Dusty-rose date indexing and neutral, honest availability labels.
 - One expressive, readable Manrope family with substantial heading weights.
 - Record-sleeve provider imagery and compact, aligned event facts.
 - Border-only depth, restrained state transitions, and visible keyboard focus.
@@ -216,23 +261,24 @@ Bold, readable Manrope and real provider photography carry the personality. Fami
 
 ## Colors
 
-The palette combines confident cobalt, cool near-white reading space, and a small warm apricot vocabulary; dark ink and clearly differentiated borders keep it practical.
+The palette combines muted deep plum, light stone, near-white reading space, and a small dusty-rose date vocabulary; dark ink and clearly differentiated borders keep it practical.
 
 ### Primary
-- **Cobalt** (`cobalt`): navigation backgrounds, primary actions, actionable text, caret, and focus outline on light surfaces.
-- **Deep cobalt** (`cobalt-dark`): action/navigation hover and readable event-date text.
-- **Pale cobalt ink** (`on-cobalt`): secondary navigation text on cobalt.
-- **Soft blue** (`blue-soft`): image fallbacks, empty-preview artwork, secondary-action hover, and the current bottom-nav destination.
+- **Deep plum** (`brand`): primary actions, actionable text, selected navigation text/icons, brand icon/stop, caret, and focus outlines.
+- **Dark plum** (`brand-dark`): primary-action hover, secondary-action hover text, and readable event-date text.
+- **Pressed plum** (`brand-active`): primary-action pressed fill.
+- **Pale plum** (`brand-soft`): selected event rows, current navigation on every device class, secondary-action hover, image/preview fallbacks, static loading artwork, and browser text selection.
 
 ### Secondary
-- **Apricot** (`selection`): selected event rows, current sidebar/rail destinations, date markers, availability labels, the brand's stop, and browser text selection.
-- **Apricot ink** (`selection-ink`): explanatory availability text on apricot. Dates and selected navigation use ordinary ink instead.
+- **Dusty-rose date paper** (`date-surface`): compact date markers only, paired with ordinary ink. Its low-chroma rose tint harmonizes with plum selection and stone surfaces without competing with event imagery. It is not a selection, action, availability, or focus color.
 
 ### Neutral
-- **Ink** (`ink`): headings, body content, and selected navigation text.
+- **Ink** (`ink`): headings, body content, default navigation text, and the collapsed-rail tooltip background.
 - **Muted ink** (`muted`): venues, explanatory copy, source freshness, and unavailable controls.
-- **Cool paper** (`paper`): page background and disabled selects.
-- **White surface** (`surface`): search/field surfaces, event context, and ticket containers; also light text on filled cobalt actions.
+- **Light stone** (`nav-surface`): desktop sidebar, intermediate rail, and neutral availability labels.
+- **Hover stone** (`nav-hover`): default navigation and sidebar utility hover.
+- **Near-white paper** (`paper`): page background, disabled selects, and light tooltip text.
+- **White surface** (`surface`): compact header, bottom navigation, search/field surfaces, event context, tickets, and navigation links during customization; also light text on filled plum actions.
 - **Quiet line** (`line`): result separators and container boundaries.
 - **Control line** (`control-line`): stronger field and secondary-action boundaries.
 
@@ -241,7 +287,18 @@ The palette combines confident cobalt, cool near-white reading space, and a smal
 - **Warning / warning wash** (`warning`, `warning-bg`): stale-data notices; warning text also marks postponed/rescheduled events.
 - **Success** (`success`): the provider's “On sale” status, always accompanied by its text.
 
-**The Cobalt and Apricot Rule.** Cobalt carries navigation and actions; apricot marks desktop selection, date indexes, and availability, while compact bottom navigation uses soft blue for its current destination.
+**The Plum State, Rose Date Rule.** Plum carries actions, focus, and selection; dusty rose belongs only to date indexing. Availability stays neutral, and every navigation layout shares the pale-plum current state.
+
+The supporting washes deliberately separate their roles: pale plum (`#ebdde8`)
+makes selection visible, hover stone (`#e6e0e5`) stays neutral, and warmer
+dusty rose (`#e8d2db`) gives dates their own index. Keep the deep-plum action
+colors and near-white reading surfaces unchanged. Selection is also communicated
+through current-navigation weight and `aria-current`, with a distinct plum focus
+outline; do not rely on pale fills alone. Ink on date paper is 10.50:1, plum on
+selection is 6.53:1, and muted ink on selection is 4.54:1. The selection wash is
+one RGB step lighter than `#eadce7`, whose muted-text contrast falls below 4.5:1.
+Date markers use ink, not muted text. Loading actions pair pale plum with plum
+text rather than white.
 
 ## Typography
 
@@ -254,9 +311,11 @@ The palette combines confident cobalt, cool near-white reading space, and a smal
 - **Headline:** `typography.headline` for section and preview headings. Event-content section headings use 1.125rem; destination-state headings use 1.5rem.
 - **Title:** `typography.title` for supporting headings; `typography.event-title` for result titles, with the more open leading needed by long names.
 - **Body:** `typography.body` for the base reading size; `typography.body-small` for event descriptions. Observed reading measures are 65ch for introductions, 70ch for event prose, and 75ch for source notes.
-- **Label / action:** `typography.label` for field labels and `typography.action` for primary/secondary controls. Inputs remain at the body size with weight 500.
-- **Navigation:** `typography.navigation` for full navigation; current destinations use weight 800. Rail/bottom-nav labels use .6875rem; event-section links use `typography.small-label`, also rising to weight 800 when current.
-- **Metadata:** `typography.metadata` for supporting facts and freshness; `typography.small-label` for dates, quiet controls, and availability. Date numbers use `typography.date-number`; month labels use weight 750. Date markers and event-date lines use tabular numerals.
+- **Label / action:** `typography.label` for field labels and `typography.action` for primary/secondary controls. Labeled filter inputs remain at the body size with weight 500; search uses ordinary body weight.
+- **Navigation:** `typography.navigation` for full navigation (weight 550), with `typography.navigation-current` for the current destination (weight 700). Group labels use `typography.navigation-group`; rail/bottom-nav labels use .6875rem and the same normal/current weights. Collapsed desktop labels remain accessible and appear as .75rem tooltips (weight 650). Event-section links use `typography.quiet-action`, rising to weight 800 when current.
+- **Metadata:** `typography.metadata` for supporting facts and freshness; `typography.small-label` for date lines. Quiet participation uses `typography.quiet-action`, and neutral availability labels use `typography.availability`. Date numbers use `typography.date-number`; month labels use weight 750. Date markers and event-date lines use tabular numerals.
+
+Themed library primitives retain their own utility leading where the app has not overridden it: navigation, quiet buttons, and section links use the `text-sm` ratio (`calc(1.25 / .875)`); availability and sale-status badges use the `text-xs` ratio (`calc(1 / .75)`); search/filter input text uses 1.5. These are observed inherited roles, not a universal 1.6 line-height applied to every control. Plain date lines and sidebar customization labels retain the body leading.
 
 Headings balance lines, and headings/paragraphs can wrap anywhere to handle long provider names. Smaller metadata supports the event title and essential facts rather than replacing them.
 
@@ -268,28 +327,32 @@ The centered application shell stops at 100rem and fills at least the dynamic vi
 
 | Threshold | Shipped behavior |
 | --- | --- |
-| Base, below 40rem | Single-column image-led rows; content padding 1.5rem 1.25rem. Compact cobalt header and four-item fixed bottom navigation. Workspace reserves `calc(5.5rem + env(safe-area-inset-bottom))`. |
+| Base, below 40rem | Single-column image-led rows; content padding 1.5rem 1.25rem. Light compact header and four-item fixed bottom navigation. Workspace reserves `calc(5.5rem + env(safe-area-inset-bottom))`. |
 | At most 23rem | Content padding becomes 1.25rem 1rem; fields form one column. Search loses its decorative icon and tightens its inset; event headings and section links reduce to fit. |
 | At least 40rem | General page padding becomes 2rem. Result rows use an 8rem image column and 1.25rem gap; images become square and date markers become horizontal strips below them. |
-| At least 62rem | A 5.5rem cobalt navigation rail replaces the bottom bar. Discovery gains a 20rem context column with 1.5rem gutter/padding; result images use a 6.5rem column and 1rem gap. Dedicated event pages gain an 18rem ticket column with a 2rem gap. |
-| At least 72rem | A 13.5rem labeled sidebar replaces the rail/header. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |
+| At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding; result images use a 6.5rem column and 1rem gap. Dedicated event pages gain an 18rem ticket column with a 2rem gap. |
+| At least 72rem | A sticky labeled sidebar replaces the fixed rail/header, occupying 14rem expanded or 4.5rem collapsed. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |
 | At least 86rem | Result image columns return to 8rem with 1.25rem gaps. The filter grid becomes three columns, with the city field spanning two. |
 
-Below 62rem, ordinary result selection follows the dedicated event link. An existing selected-preview URL or a resized desktop selection displays context in place of the results, preserving identity. The CSS and JavaScript share the same 62rem threshold.
+The CSS and JavaScript share the 62rem context and 72rem desktop-navigation thresholds. Selection, direct-entry, return-state, and resize strategy belong to the [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state) and [surface contract](.impeccable/surfaces/views-home-index-templ.md), not additional global design rules.
 
-The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100dvh - 3rem)`, vertical overflow, and a stable scrollbar gutter. The full sidebar is sticky and one dynamic viewport tall. Ticket panels remain in the page layout. Filters use two equal columns and a 1rem gap until the small-phone or wide-screen adjustments apply.
+The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100dvh - 3rem)`, vertical overflow, and a stable scrollbar gutter; it is keyboard focusable. The full sidebar is one dynamic viewport tall, with grouped navigation and a footer pushed to the bottom. During customization its navigation region scrolls independently, keeps a stable scrollbar gutter, and becomes keyboard focusable so tools remain reachable at small viewport heights. Ticket panels remain in the page layout. Filters use two equal columns and a 1rem gap until the small-phone or wide-screen adjustments apply.
 
 ## Elevation & Depth
 
-The shipped system has no card or control shadows. Depth comes from white against cool paper, one-pixel quiet borders, stronger control borders, and the apricot selection fill. The selected row stays in the list's geometry. Fixed navigation and sticky context are functional layers, not floating or glass surfaces.
+The normal interface has no cast shadows. Depth comes from white against near-white paper and light stone, one-pixel quiet borders, stronger control borders, and pale-plum selection. The selected row stays in the list's geometry. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not floating or glass surfaces.
 
-Focus is an outline, not a shadow: a solid cobalt ring (3px) offset from the target (4px). Navigation and brand links on cobalt use apricot focus; bottom navigation on white uses cobalt.
+Focus is an outline, not a shadow: a solid plum ring (3px) offset from the target (4px), including navigation and sidebar controls. Themed library focus rings and card shadows are explicitly suppressed.
+
+The source does use `box-shadow` for drag insertion markers: `inset 0 2px 0 var(--brand)` before a target and `inset 0 -2px 0 var(--brand)` after it. These are functional two-pixel rules inside a reorder target, not elevation or cast depth; the dragged item/section also dims to opacity .55.
 
 **The Border-Only Depth Rule.** Separate surfaces with tone, spacing, and borders; selection changes the fill without lifting the component or adding a cast shadow.
 
 ## Shapes
 
-Use modest, distinct corner treatments: the shared `radius` for context/ticket containers, selected rows, and the search surround; `control` for buttons and fields; `navigation` for navigation; `image` for photographs; and the smaller `date-marker` and `availability` corners for indexing and state. These are rounded rectangles, not a universal pill vocabulary. Unselected result rows are separated by a top rule rather than enclosed in individual cards.
+Use modest, role-specific corner treatments: the shared `radius` for context/ticket containers, selected rows, and the search surround; `control` and `navigation` for buttons, fields, and links; `image` for photographs; and the smaller `date-marker` and `availability` corners for indexing and state. Sidebar move/drag tools use `sidebar-move`, while collapse, commit controls, and tooltips use `sidebar-utility`. These are rounded rectangles, not a universal pill vocabulary. Unselected result rows are separated by a top rule rather than enclosed in individual cards.
+
+Some observed component-local corners are intentionally outside the reusable scale: the search input is .2rem, filter summary .3rem, preview artwork .6rem, and the library's inner empty-context Card uses its derived `radius-xl` (1.05rem) within the outer .75rem context boundary. They are real roles, not a mandate to homogenize radii or invent new primitives for every measurement.
 
 Event imagery fills a clipped frame with `object-fit: cover`. The default frame is 16:9; list images become square at the row-image threshold. Full-event images cap their height at 22rem, and a compact selected preview caps it at 16rem. Preserve provider color and content; the reviewed monochrome photographs are source material, not a prescribed grayscale filter.
 
@@ -299,11 +362,11 @@ Icons are inline outline SVGs with a 24-unit viewBox, rounded caps/joins, and st
 
 ### Buttons
 
-Compact, confident, plainly labeled controls. Primary actions pair cobalt with white text; secondary actions use white, cobalt text, and a control-line border. Both use the frontmatter's action typography and padding with a minimum height of 2.75rem. Hover darkens primary actions and gives secondary actions a soft-blue fill. Primary pressed fill is recorded as the source's component-local literal.
+Compact, confident, plainly labeled controls. Primary actions pair plum with white text; secondary actions use white, plum text, and a control-line border. Both use the frontmatter's action typography and padding with a minimum height of 2.75rem (44px), not a fixed height that clips wrapping labels. Minimum heights, borders, focus outlines, and transitions live in the sidecar snippets because the frontmatter's component schema cannot express them accurately. Hover darkens primary actions and gives secondary actions a pale-plum fill. Pressed primary actions use `brand-active`; there is no pressed translation or raised effect.
 
-Quiet participation controls use a transparent fill, quiet border, small-label typography, and the same minimum target height. Shipped Save, Interested, and Recommend controls are disabled, use muted text, and have nearby explanatory copy. Their appearance does not establish working participation. Underlined text links offer navigation and small utility actions; the preview-close icon has a 2.75rem target.
+Quiet participation controls use a transparent fill, quiet border, quiet-action typography, and the same minimum target height. Shipped Save, Interested, and Recommend controls are disabled, use muted text, and have nearby explanatory copy. Their appearance does not establish working participation. Underlined text links offer navigation and small utility actions; the preview-close icon has a 2.75rem target.
 
-Action background changes and disclosure-chevron rotation use 160ms; result selection uses 180ms. All use the source's `cubic-bezier(.16, 1, .3, 1)`. Reduced-motion mode sets transition and animation durations to zero and scroll behavior to auto. No loading shimmer is part of the system.
+Action background changes, sidebar width changes, and disclosure-chevron rotation use 160ms; result selection uses 180ms. These use the source's `cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms standard easing for color/fill changes only. Reduced-motion mode sets transition and animation durations to zero and scroll behavior to auto. No loading shimmer is part of the system.
 
 ### Inputs / Fields
 
@@ -313,32 +376,39 @@ Category and genre use the same native select treatment. All categories disables
 
 ### Navigation
 
-Cobalt sidebar/rail links use pale text, deep-cobalt hover, and apricot current state with ink and stronger weight. Compact bottom navigation has a white surface, quiet top border, icon-over-label layout, and soft-blue current state. Event sections are real links with a quiet baseline; the current section adds a cobalt two-pixel bottom border and heavier text. A current link is also marked with `aria-current`.
+Quiet, grouped icon-and-text navigation. Expanded desktop navigation uses light stone, a quiet right border, ink labels (weight 550), muted outline icons, hover stone, and pale-plum current state with plum text/icons (weight 700). Browse groups Discover and Community; Your space groups Saved and Interests. Profile remains fixed in the bottom footer. Links and utility/move controls preserve 44px targets.
+
+Desktop collapse hides visual labels without removing their accessible names. CSS shows a compact label tooltip on both hover and keyboard focus: ink background, paper text, no cast shadow. Group labels and customization controls hide while collapsed. The intermediate fixed rail and compact four-item bottom navigation keep a fixed order: Discover, Saved, Community, Profile. Bottom navigation uses white with a quiet top border and icon-over-label layout; both compact layouts share the pale-plum current state.
+
+Explicit customization reveals section/link drag handles and Move up / Move down controls; links use white draft surfaces. Sections can move, links stay within their section, and Profile stays fixed. Done commits the draft; Cancel or Escape restores the previous order; Reset to default changes only the cancellable draft. Collapse is disabled while editing; leaving the desktop threshold cancels unfinished editing. Preferences are browser-only, not account persistence or cross-device sync. Storage failure leaves current-page controls usable with honest feedback. Without JavaScript, the expanded default navigation remains and enhancement-only tools hide. See the [sidebar preference contract](docs/design-guidelines.md#sidebar-preferences) for behavior details.
+
+Event sections remain real links with a quiet baseline; the current section adds a plum two-pixel bottom border and heavier text. Current destinations use `aria-current`, not partial ARIA-tab semantics.
 
 ### Availability Labels
 
-Small apricot rectangles with apricot ink explain “In development” or a specific unavailable capability. They are informational labels, not selectable filter chips. Do not turn them into a success confirmation.
+Small neutral rectangles with light-stone fill, muted text, a quiet one-pixel border, and availability corners explain “In development” or a specific unavailable capability. They are informational labels, not selectable filter chips. Do not give them date-marker styling or turn them into a success confirmation.
 
 ### Indexed Event Rows
 
-The signature pairs provider photography with compact date indexing. Rows lead with local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is an apricot fill; the title and Details remain real event links. The date marker overlays the lower-left image corner on compact rows, then becomes a horizontal index beneath square artwork. Its short date is decorative beside the full readable date; unknown dates say TBA.
+The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is pale plum; the title and Details remain real event links. The dusty-rose date marker overlays the lower-left image corner on compact rows, then becomes a horizontal index beneath square artwork. Its short date is decorative beside the full readable date; unknown dates say TBA.
 
 Photos are live external Ticketmaster assets retained in normalized `Event.Images`; presentation chooses an available width close to the requested size. No authored shipping raster belongs to this system. Local styles, JavaScript, htmx, and Manrope are Go-embedded assets; SVG supplies the icons. The sidecar demonstrates the shipped image fallback rather than copying provider photography into documentation assets.
 
 ### Cards / Containers
 
-Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a soft-blue ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale data explains its source state.
+Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale data explains its source state.
 
-Keep event price and sale status ahead of unavailable participation. Desktop selection preserves the list and changes the matching context; close and return interactions restore a useful focus target. Search and pagination retain ordinary links/forms without JavaScript. Discussion/community sections and account destinations currently explain planned availability; they do not render invented engagement.
+Keep event price and sale status ahead of unavailable participation. Search and pagination retain ordinary links/forms without JavaScript. Discussion/community sections and account destinations currently explain planned availability; they do not render invented engagement. Selection and return strategy remain in the linked UX guide and surface contract.
 
 ## Do's and Don'ts
 
 ### Do:
-- Do use cobalt for navigation and actions, cool light surfaces for reading, and apricot for the shipped selection and indexing roles.
+- Do use plum for actions, focus, and selection; light stone for navigation; near-white surfaces for reading; and dusty rose only for date indexes.
 - Do keep real provider imagery, full readable dates, venue, price availability, and sale status connected to the event title.
 - Do preserve the 62rem context/rail threshold and 72rem full-sidebar threshold when extending the shared shell.
 - Do keep visible focus, wrapping titles, labeled controls, reduced motion, and ordinary link/form behavior.
 - Do explain unavailable participation, unknown event facts, and stale provider data in text.
+- Do keep sidebar editing explicit, cancellable, keyboard accessible, and truthful about browser-only persistence.
 
 ### Don't:
 - Don't add cast shadows, glass effects, or raised hover cards to this flat, border-defined system.
@@ -346,3 +416,4 @@ Keep event price and sale status ahead of unavailable participation. Desktop sel
 - Don't style planned accounts, saves, interest, recommendations, or discussions as completed actions or fabricate participation counts.
 - Don't use promotional clutter or manufactured urgency to compete with practical event information.
 - Don't promote route-specific composition or synthesized sidecar tonal ramps into new global design tokens.
+- Don't reuse date paper for selected rows, current navigation, availability labels, caret, or focus.

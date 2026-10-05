@@ -78,6 +78,8 @@ goal to implementation work and verification checkpoints.
 [Screen and interaction guidelines](docs/design-guidelines.md)
 
 - [x] Browse with a desktop sidebar, intermediate labeled rail, and mobile bottom navigation.
+- [x] Collapse the desktop sidebar and rearrange sections/destinations with
+  browser-local preferences.
 - [x] Use themed shadcn-templ components throughout the existing responsive UI.
 - [x] Preview real event details alongside results and open a dedicated event page.
 - [x] Share/reload selected events and sections, recover local preview failures,

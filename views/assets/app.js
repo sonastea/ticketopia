@@ -32,6 +32,246 @@
     if (image.complete && !image.naturalWidth) image.hidden = true;
   }
 
+  // Sidebar collapse and navigation customization (desktop shell).
+  const sidebar = document.querySelector('[data-sidebar]');
+  if (sidebar) {
+    const navOrder = sidebar.querySelector('[data-nav-order]');
+    const status = sidebar.querySelector('[data-nav-status]');
+    const collapseKey = 'ticketopia-sidebar-collapsed-v1';
+    const orderKey = 'ticketopia-nav-order-v1';
+    const announce = message => {
+      if (status) status.textContent = message;
+    };
+
+    const toggle = sidebar.querySelector('[data-sidebar-toggle]');
+    if (toggle) {
+      toggle.hidden = false;
+      let collapsed = false;
+      try {
+        collapsed = localStorage.getItem(collapseKey) === 'true';
+      } catch { /* Collapse simply starts expanded when storage is unavailable. */ }
+      const applyCollapse = value => {
+        document.body.classList.toggle('nav-collapsed', value);
+        toggle.setAttribute('aria-expanded', String(!value));
+        const label = value ? 'Expand sidebar' : 'Collapse sidebar';
+        toggle.setAttribute('aria-label', label);
+        toggle.title = label;
+      };
+      applyCollapse(collapsed);
+      toggle.addEventListener('click', () => {
+        collapsed = !collapsed;
+        applyCollapse(collapsed);
+        try {
+          localStorage.setItem(collapseKey, String(collapsed));
+        } catch { /* The toggle still works for this page view. */ }
+        announce(collapsed ? 'Sidebar collapsed.' : 'Sidebar expanded.');
+      });
+    }
+
+    if (navOrder) {
+      const groupElements = () => [...navOrder.querySelectorAll('[data-nav-group]')];
+      const itemElements = group => [...group.querySelectorAll('[data-nav-item]')];
+      const initialDefault = {
+        groups: groupElements().map(group => group.dataset.navGroup),
+        items: Object.fromEntries(groupElements().map(group => [group.dataset.navGroup, itemElements(group).map(item => item.dataset.navItem)])),
+      };
+      // Keep surviving choices in order and append newly introduced destinations.
+      // Duplicate or non-string IDs indicate a corrupt preference, not an order.
+      const reconcileIDs = (saved, defaults) => {
+        if (!Array.isArray(saved) || saved.some(id => typeof id !== 'string') || new Set(saved).size !== saved.length) return null;
+        const known = saved.filter(id => defaults.includes(id));
+        return [...known, ...defaults.filter(id => !known.includes(id))];
+      };
+      const readOrder = () => {
+        let saved;
+        try {
+          saved = JSON.parse(localStorage.getItem(orderKey));
+        } catch {
+          return null;
+        }
+        if (!saved || !saved.items || typeof saved.items !== 'object' || Array.isArray(saved.items)) return null;
+        const groups = reconcileIDs(saved.groups, initialDefault.groups);
+        if (!groups) return null;
+        const items = {};
+        for (const group of initialDefault.groups) {
+          items[group] = reconcileIDs(saved.items[group] ?? [], initialDefault.items[group]);
+          if (!items[group]) return null;
+        }
+        return { groups, items };
+      };
+      const applyOrder = order => {
+        const groupsById = Object.fromEntries(groupElements().map(group => [group.dataset.navGroup, group]));
+        for (const id of order.groups) navOrder.append(groupsById[id]);
+        for (const id of order.groups) {
+          const itemsById = Object.fromEntries(itemElements(groupsById[id]).map(item => [item.dataset.navItem, item]));
+          for (const itemId of order.items[id]) groupsById[id].append(itemsById[itemId]);
+        }
+      };
+      const currentOrder = () => ({
+        groups: groupElements().map(group => group.dataset.navGroup),
+        items: Object.fromEntries(groupElements().map(group => [group.dataset.navGroup, itemElements(group).map(item => item.dataset.navItem)])),
+      });
+      const persistOrder = () => {
+        try {
+          localStorage.setItem(orderKey, JSON.stringify(currentOrder()));
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      const savedOrder = readOrder();
+      if (savedOrder) applyOrder(savedOrder);
+
+      const moveItem = (item, direction) => {
+        const sibling = direction === 'up' ? item.previousElementSibling : item.nextElementSibling;
+        if (!sibling || !sibling.matches('[data-nav-item]')) {
+          announce('Already at the ' + (direction === 'up' ? 'top' : 'bottom') + ' of this section.');
+          return;
+        }
+        if (direction === 'up') item.parentElement.insertBefore(item, sibling);
+        else item.parentElement.insertBefore(sibling, item);
+        announce(item.querySelector('.nav-label').textContent + ' moved ' + direction + '.');
+      };
+      const moveGroup = (group, direction) => {
+        const sibling = direction === 'up' ? group.previousElementSibling : group.nextElementSibling;
+        if (!sibling || !sibling.matches('[data-nav-group]')) {
+          announce('This section is already ' + (direction === 'up' ? 'first' : 'last') + '.');
+          return;
+        }
+        if (direction === 'up') navOrder.insertBefore(group, sibling);
+        else navOrder.insertBefore(sibling, group);
+        announce(group.querySelector('.nav-group-label').textContent + ' section moved ' + direction + '.');
+      };
+      sidebar.addEventListener('click', event => {
+        const itemButton = event.target.closest('[data-move-item]');
+        if (itemButton) {
+          moveItem(itemButton.closest('[data-nav-item]'), itemButton.dataset.moveItem);
+          itemButton.focus({ preventScroll: true });
+          return;
+        }
+        const groupButton = event.target.closest('[data-move-group]');
+        if (groupButton) {
+          moveGroup(groupButton.closest('[data-nav-group]'), groupButton.dataset.moveGroup);
+          groupButton.focus({ preventScroll: true });
+        }
+      });
+
+      const customize = sidebar.querySelector('[data-nav-customize]');
+      const actions = sidebar.querySelector('[data-nav-customize-actions]');
+      if (customize && actions) {
+        customize.hidden = false;
+        let customizing = false;
+        let snapshot = null;
+        const setCustomizing = value => {
+          customizing = value;
+          sidebar.dataset.customizing = String(value);
+          customize.setAttribute('aria-pressed', String(value));
+          actions.hidden = !value;
+          if (toggle) toggle.disabled = value;
+          if (value) navOrder.setAttribute('tabindex', '0');
+          else navOrder.removeAttribute('tabindex');
+          for (const handle of sidebar.querySelectorAll('[data-nav-drag], [data-nav-group-drag]')) {
+            handle.draggable = value;
+          }
+        };
+        customize.addEventListener('click', () => {
+          if (customizing) return;
+          snapshot = currentOrder();
+          setCustomizing(true);
+          announce('Customizing navigation. Use the move buttons or drag items to reorder.');
+        });
+        actions.querySelector('[data-nav-customize-done]').addEventListener('click', () => {
+          const saved = persistOrder();
+          setCustomizing(false);
+          announce(saved ? 'Navigation order saved in this browser.' : 'Navigation reordered for this page. Browser storage is unavailable, so it cannot be remembered.');
+          customize.focus();
+        });
+        const cancelCustomization = (restoreFocus = true) => {
+          if (snapshot) applyOrder(snapshot);
+          setCustomizing(false);
+          announce('Navigation changes canceled.');
+          if (restoreFocus) customize.focus();
+        };
+        actions.querySelector('[data-nav-customize-cancel]').addEventListener('click', () => cancelCustomization());
+        actions.querySelector('[data-nav-customize-reset]').addEventListener('click', () => {
+          applyOrder(initialDefault);
+          announce('Default order restored. Choose Done to save, or Cancel to keep your previous order.');
+        });
+        sidebar.addEventListener('keydown', event => {
+          if (customizing && event.key === 'Escape') {
+            event.preventDefault();
+            cancelCustomization();
+          }
+        });
+        matchMedia('(min-width: 72rem)').addEventListener('change', event => {
+          if (!event.matches && customizing) cancelCustomization(false);
+        });
+
+        let dragged = null;
+        const clearDropMarks = () => {
+          for (const el of sidebar.querySelectorAll('.drop-before, .drop-after')) {
+            el.classList.remove('drop-before', 'drop-after');
+          }
+        };
+        sidebar.addEventListener('dragstart', event => {
+          if (!customizing) {
+            event.preventDefault();
+            return;
+          }
+          const itemHandle = event.target.closest('[data-nav-drag]');
+          const groupHandle = event.target.closest('[data-nav-group-drag]');
+          if (!itemHandle && !groupHandle) {
+            event.preventDefault();
+            return;
+          }
+          dragged = itemHandle
+            ? { type: 'item', el: itemHandle.closest('[data-nav-item]') }
+            : { type: 'group', el: groupHandle.closest('[data-nav-group]') };
+          dragged.el.classList.add('nav-dragging');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', 'ticketopia-navigation');
+          try {
+            event.dataTransfer.setDragImage(dragged.el, 16, 16);
+          } catch { /* A default drag image is fine. */ }
+        });
+        sidebar.addEventListener('dragover', event => {
+          if (!dragged) return;
+          const selector = dragged.type === 'item' ? '[data-nav-item]' : '[data-nav-group]';
+          const over = event.target.closest(selector);
+          clearDropMarks();
+          if (!over || over === dragged.el) return;
+          if (dragged.type === 'item' && over.parentElement !== dragged.el.parentElement) return;
+          if (dragged.type === 'group' && over.parentElement !== navOrder) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          const rect = over.getBoundingClientRect();
+          const before = event.clientY < rect.top + rect.height / 2;
+          over.classList.add(before ? 'drop-before' : 'drop-after');
+        });
+        sidebar.addEventListener('drop', event => {
+          if (!dragged) return;
+          const selector = dragged.type === 'item' ? '[data-nav-item]' : '[data-nav-group]';
+          const over = event.target.closest(selector);
+          if (over && over !== dragged.el && over.parentElement === dragged.el.parentElement && (over.classList.contains('drop-before') || over.classList.contains('drop-after'))) {
+            event.preventDefault();
+            const before = over.classList.contains('drop-before');
+            over.parentElement.insertBefore(dragged.el, before ? over : over.nextElementSibling);
+            const name = dragged.type === 'item'
+              ? dragged.el.querySelector('.nav-label').textContent
+              : dragged.el.querySelector('.nav-group-label').textContent + ' section';
+            announce(name + ' moved.');
+          }
+          clearDropMarks();
+        });
+        sidebar.addEventListener('dragend', () => {
+          if (dragged) dragged.el.classList.remove('nav-dragging');
+          dragged = null;
+          clearDropMarks();
+        });
+      }
+    }
+  }
+
   for (const name of ['htmx:responseError', 'htmx:sendError', 'htmx:timeout']) {
     document.body.addEventListener(name, () => {
       const message = document.getElementById('load-error');

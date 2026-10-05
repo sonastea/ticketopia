@@ -2,7 +2,37 @@
 
 ## Unreleased
 
-### 2026-10-04 — Build toolchain alignment
+### 2026-10-04 — Sidebar identity, preferences, and build toolchain
+
+- Replace cobalt navigation with a plum/light-stone identity, pale-plum selection,
+  dusty-rose date indexing, and consistent themed buttons, links, focus, and fallbacks.
+- Harmonize date-marker paper with the plum/stone palette using a low-chroma
+  rose tint instead of apricot; retain readable ink, date geometry, and behavior.
+  Verify the refinement with a production build, 17 targeted browser checks,
+  four zero-violation automated accessibility views, and a scoped **ship** review.
+- Separate the pale semantic colors with more visible plum selection, neutral
+  stone hover, and warmer dusty-rose date paper, retaining the primary brand and
+  reading surfaces. Keep loading text plum on pale plum; see the
+  [palette roles and contrast](../../DESIGN.md#colors).
+  Use a one-step-lighter selection wash to keep muted text above WCAG AA.
+  Verify the final palette with 35 targeted Chromium checks, seven zero-violation
+  automated accessibility views, production assets, race tests, and vet.
+- Add grouped desktop navigation, an explicit collapse/expand rail, and an editing
+  mode for drag or keyboard reordering of sections and their destinations.
+- Remember committed preferences in this browser, with reversible edits, safe
+  storage fallback, and unchanged compact navigation and discovery behavior; see
+  the [sidebar interaction guide](../design-guidelines.md#sidebar-preferences)
+  and [visual system](../../DESIGN.md).
+- Verify 68 browser checks, 11 zero-violation automated accessibility views,
+  native drag and keyboard edits, storage failure/corruption, compact reflow,
+  no-JavaScript search, production assets, race tests, and vet. Keep the empty
+  bounded event preview keyboard-scrollable on short desktop screens.
+- Confirm dependent genre resets and htmx/no-JavaScript pagination in five
+  additional discovery smoke checks.
+- Receive **ship** from an independent read-only finish review at the approved
+  scope, with advisory-only detector findings and no material changes requested.
+- Refresh `DESIGN.md` and its schema-v2 sidecar from shipped tokens and components,
+  validating source colors, references, and documentation previews.
 
 - Use Go 1.27 and Node.js 24 for asset/application builds; declare Node 24 in npm
   metadata and `.nvmrc`, and align the [component guide](../ui-components.md) with

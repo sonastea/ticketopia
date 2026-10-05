@@ -81,7 +81,7 @@ templ Index(page SearchPage) {
 				}
 				@SourceFooter()
 			</div>
-			<aside id="event-context" class="event-context" aria-label="Event preview" tabindex="-1">
+			<aside id="event-context" class="event-context" aria-label="Event preview" tabindex="0">
 				if page.SelectionError != "" {
 					@PreviewError(page.SelectionError, eventURL(page.SelectedID, page.Section, page.ReturnURL), page.ReturnURL)
 				} else if page.Selected != nil {

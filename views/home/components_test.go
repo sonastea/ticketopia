@@ -30,3 +30,13 @@ func TestSearchComponentsKeepNativeFormContract(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyPreviewCanReceiveKeyboardFocus(t *testing.T) {
+	var out bytes.Buffer
+	if err := Index(SearchPage{NeedsLocation: true}).Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), `id="event-context" class="event-context" aria-label="Event preview" tabindex="0"`) {
+		t.Fatal("bounded preview must be keyboard-scrollable even without interactive event content")
+	}
+}

@@ -9,7 +9,7 @@ templ Base(title string) {
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-			<meta name="theme-color" content="#2946c7"/>
+			<meta name="theme-color" content="#faf9fb"/>
 			<link rel="preload" href="/assets/fonts/manrope.ttf" as="font" type="font/ttf" crossorigin/>
 			<link rel="stylesheet" href="/assets/app.css"/>
 			<script src="/assets/htmx.min.js" defer></script>
@@ -27,24 +27,48 @@ templ Base(title string) {
 templ App(active string, title string) {
 	@Base(title) {
 		<div class="app-shell">
-			<aside class="sidebar">
-				<a href="/" class="brand" aria-label="Ticketopia home">@Icon("ticket")
-<span>ticketopia<span class="brand-stop">.</span></span></a>
-				<nav class="desktop-nav" aria-label="Main navigation">
-					@NavLink("/", "Discover", "discover", active == "discover")
-					@NavLink("/saved", "Saved", "saved", active == "saved")
-					@NavLink("/community", "Community", "community", active == "community")
-					@NavLink("/me/interests", "Interests", "interests", active == "interests")
+			<aside class="sidebar" data-sidebar data-customizing="false">
+				<div class="sidebar-head">
+					<a href="/" class="brand" aria-label="Ticketopia home">
+						@Icon("ticket")
+						<span class="brand-word">ticketopia<span class="brand-stop">.</span></span>
+					</a>
+					<button type="button" class="sidebar-toggle" data-sidebar-toggle aria-expanded="true" aria-controls="desktop-nav" aria-label="Collapse sidebar" title="Collapse sidebar" hidden>
+						@IconClass("sidebar-collapse", "icon icon-collapse")
+						@IconClass("sidebar-expand", "icon icon-expand")
+					</button>
+				</div>
+				<nav class="desktop-nav" id="desktop-nav" aria-label="Main navigation" data-nav-order>
+					@NavGroup("browse", "Browse") {
+						@NavItem("/", "Discover", "discover", active == "discover")
+						@NavItem("/community", "Community", "community", active == "community")
+					}
+					@NavGroup("your-space", "Your space") {
+						@NavItem("/saved", "Saved", "saved", active == "saved")
+						@NavItem("/me/interests", "Interests", "interests", active == "interests")
+					}
 				</nav>
 				<div class="sidebar-foot">
-					<p class="sidebar-tagline">Live events,<br/>worth finding.</p>
+					<button type="button" class="sidebar-customize" data-nav-customize aria-pressed="false" hidden>
+						@Icon("customize")
+						<span>Customize sidebar</span>
+					</button>
+					<div class="sidebar-customize-actions" data-nav-customize-actions hidden>
+						<p class="sidebar-preference-note">Saved only in this browser.</p>
+						<button type="button" data-nav-customize-done>Done</button>
+						<button type="button" data-nav-customize-cancel>Cancel</button>
+						<button type="button" data-nav-customize-reset>Reset to default</button>
+					</div>
 					@NavLink("/me", "Profile", "profile", active == "profile")
 				</div>
+				<p class="sr-only" role="status" data-nav-status></p>
 			</aside>
 			<div class="app-workspace">
 				<header class="compact-header">
-					<a href="/" class="brand">@Icon("ticket")
-<span>ticketopia<span class="brand-stop">.</span></span></a>
+					<a href="/" class="brand">
+						@Icon("ticket")
+						<span class="brand-word">ticketopia<span class="brand-stop">.</span></span>
+					</a>
 					<span>Live events, worth finding.</span>
 				</header>
 				{ children... }
@@ -66,9 +90,48 @@ func CurrentPage(current bool) string {
 	return "false"
 }
 
+templ NavGroup(id string, label string) {
+	<section class="nav-group" data-nav-group={ id }>
+		<div class="nav-group-head">
+			<h2 class="nav-group-label">{ label }</h2>
+			<span class="nav-group-tools">
+				<span class="nav-group-drag" data-nav-group-drag draggable="false" aria-hidden="true">
+					@Icon("grip")
+				</span>
+				<span class="nav-move">
+					<button type="button" class="nav-move-button" data-move-group="up" aria-label={ "Move " + label + " section up" }>
+						@Icon("chevron-up")
+					</button>
+					<button type="button" class="nav-move-button" data-move-group="down" aria-label={ "Move " + label + " section down" }>
+						@Icon("chevron-down")
+					</button>
+				</span>
+			</span>
+		</div>
+		{ children... }
+	</section>
+}
+
+templ NavItem(href string, label string, icon string, current bool) {
+	<div class="nav-item" data-nav-item={ icon }>
+		<span class="nav-drag" data-nav-drag draggable="false" aria-hidden="true">
+			@Icon("grip")
+		</span>
+		@NavLink(href, label, icon, current)
+		<span class="nav-move">
+			<button type="button" class="nav-move-button" data-move-item="up" aria-label={ "Move " + label + " up" }>
+				@Icon("chevron-up")
+			</button>
+			<button type="button" class="nav-move-button" data-move-item="down" aria-label={ "Move " + label + " down" }>
+				@Icon("chevron-down")
+			</button>
+		</span>
+	</div>
+}
+
 templ NavLink(href string, label string, icon string, current bool) {
-	@button.Button(button.Props{Href: href, Variant: button.VariantGhost, Class: "nav-link", Attributes: templ.Attributes{"aria-current": CurrentPage(current)}}) {
+	@button.Button(button.Props{Href: href, Variant: button.VariantGhost, Class: "nav-link", Attributes: templ.Attributes{"aria-current": CurrentPage(current), "data-label": label}}) {
 		@Icon(icon)
-		<span>{ label }</span>
+		<span class="nav-label">{ label }</span>
 	}
 }

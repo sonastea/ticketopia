@@ -7,7 +7,7 @@ their status; they describe intended work rather than available features.
 ## Goals and design
 
 - [Implemented visual system](../DESIGN.md): tokens, typography, components, and
-  the cobalt/record-shop/mixtape visual direction.
+  the plum/light-stone visual direction, event imagery, and dusty-rose date indexes.
 - [Responsive UX and interaction guidelines](design-guidelines.md): current
   navigation and responsive behavior, shared state, participation semantics,
   accessibility, and explicitly planned community interactions.
