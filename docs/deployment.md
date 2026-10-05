@@ -90,12 +90,16 @@ Before the first run:
    **Settings → Actions → Runners**. Its labels must include `self-hosted`, `linux`,
    and `x64`. Keep its runner software current (at least **2.327.1** for Node 24
    actions); Ubuntu 24.04 is a suitable host.
-2. Install Git, Bash, CA certificates, tar/unzip, a C compiler for Go race tests, and
+2. Install Git, Bash, CA certificates, tar/unzip, and
    Docker with the Buildx plugin. The runner account must be able to run Docker
    without interactive `sudo`. Allow outbound access to GitHub/GHCR, Go/npm
    downloads, and the Dockerfile's base registries. Go and Node need not be
    preinstalled: pinned setup actions select **Go 1.27.x** and **Node 24.x** for
    asset generation and validation. The Dockerfile uses the same release lines.
+   Go race tests require GCC and C development headers. If GCC is missing, the
+   workflow installs `build-essential` using `apt-get`; this requires root or
+   passwordless `sudo`. On other distributions or locked-down runners, preinstall
+   the compiler and development headers instead.
 3. In the [private package settings](https://github.com/users/sonastea/packages/container/package/ticketopia),
    open **Manage Actions access**, add `sonastea/ticketopia`, and grant **Write**.
    This package was first published locally, so repository-token access must be
@@ -108,7 +112,9 @@ Before the first run:
    its short-lived `GITHUB_TOKEN`. Repository/organization policy must permit it.
 
 The job runs `npm ci`, `npm run build`, `go test -race ./...`, and `go vet ./...`
-before building/pushing `linux/amd64`. Real MariaDB integration tests are skipped
+before building/pushing `linux/amd64`. The validation step explicitly sets
+`CGO_ENABLED=1` and `CC=gcc` for the race detector, overriding runner defaults;
+the preceding step ensures GCC is available. Real MariaDB integration tests are skipped
 without `MARIADB_TEST_ADDR`; this workflow does not provision a database or run
 the local outage smoke script. Buildx uses GitHub Actions layer caching, a
 job-specific temporary Docker config, and automatic registry logout. Actions are
@@ -126,8 +132,9 @@ No `latest` tag is generated. Deploy by the digest in the run summary, using the
 same digest for the app and its migration Job. Supply the matching Git commit as
 runtime `SOURCE_COMMIT` if desired; CI labels do not set that environment variable.
 
-The workflow has been linted locally but has not run on GitHub; runner registration
-and package Actions access remain setup prerequisites.
+GitHub runs exposed disabled CGO and missing GCC during validation. The workflow
+now explicitly enables CGO and ensures GCC is available, but a successful
+end-to-end publication with these fixes remains unverified.
 
 The default cache is in memory. Add `-e KV_URL` after exporting a shared backend
 URL, or configure it in the deployment platform. See [cache configuration](cache.md)

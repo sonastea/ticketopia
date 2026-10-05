@@ -11,8 +11,13 @@
 - Add the clearer app tag `test-amd64-20261005` for the same tested image. Add a
   SHA-pinned self-hosted Linux/x64 workflow using Go 1.27 and Node 24 validation,
   repository-token GHCR publishing, `edge`/commit/release tags, and fail-closed
-  private-package checks. Document runner/package access setup; the workflow has
-  not yet run on GitHub. See [CI setup](../deployment.md#github-actions-on-a-self-hosted-runner).
+  private-package checks. Document runner/package access setup.
+  See [CI setup](../deployment.md#github-actions-on-a-self-hosted-runner).
+- Explicitly enable CGO in the validation step after a GitHub run failed because
+  `go test -race` requires it. After a subsequent missing-compiler failure, ensure
+  GCC is available, installing `build-essential` with apt-get when needed, and
+  select `CC=gcc`. Document root/passwordless sudo or preinstallation requirements.
+  Successful end-to-end publication with these fixes remains unverified.
 - Document and supply standalone `mariadb-operator` examples for shared MariaDB persistence
   across three stateless application replicas, with independent database topology,
   primary routing, Secrets/TLS, migration sequencing, pool budgets, and recovery
