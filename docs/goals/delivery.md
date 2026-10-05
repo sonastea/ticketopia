@@ -80,11 +80,14 @@ Focused commands and manual checks: [discovery verification](../discovery.md#ver
 
 ## 2. Keep reliable event and application history
 
-Aligns with [SQLite-first persistence](../design/database.md), reminder change
+Aligns with [MariaDB persistence](../design/database.md), reminder change
 detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
 
-- [ ] Backend: Select SQLite driver/migrations; persist events, artists, venues,
-  provider-ID mappings, and dated observations with first/last-seen and change times.
+- [ ] MVP foundation: Connect to MariaDB through `database/sql` and
+  `github.com/go-sql-driver/mysql`; choose migration tooling and run versioned
+  migrations as a serialized deployment step with separate migration credentials.
+- [ ] Backend: Persist events, artists, venues, provider-ID mappings, and dated
+  observations with first/last-seen and change times.
 - [ ] Backend: Schedule city/date collection within the request budget; record
   coverage, failures, and meaningful changes without erasing the last good data.
 - [ ] Backend: Add durable budget/refresh coordination before multiple workers or
@@ -97,6 +100,12 @@ detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
 - [ ] MVP foundation: Upsert durable event/provider identity before local writes;
   preserve conversations and saved events when provider/cache data disappears.
   Basic event details must ship without waiting for historical change detection.
+- [ ] Deployment: Provision shared MariaDB with `mariadb-operator`; configure
+  persistent database volumes, primary routing, Secrets/TLS, connection limits,
+  backups, and the selected database availability topology independently of app replicas.
+- [ ] Verification: Exercise concurrent writes and read-after-write behavior across
+  three app replicas, pod restarts/rolling updates, migration serialization, and
+  backup restoration; rehearse failover if database HA is enabled.
 
 ## 3. Save, follow, and find personal matches
 

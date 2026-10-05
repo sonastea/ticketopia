@@ -1,21 +1,26 @@
-# Database: SQLite first
+# Database: MariaDB
 
 Status: Selected direction for planned persistence. The current application has
 a KV cache; durable application storage is upcoming work.
 
 ## Decision
 
-Use **SQLite as the initial database** for development and the first deployed
-version. Start with one application host and a database on persistent local
-storage. Web, mobile, and other clients access it through the application API.
+Use **MariaDB** for durable application storage, accessed through Go's
+`database/sql` and **`github.com/go-sql-driver/mysql`**. Use **`mariadb-operator`**
+to manage MariaDB in Kubernetes. This replaces the earlier SQLite-first and later
+PlanetScale direction: multiple application hosts writing shared state are a
+deployment requirement, not a later migration trigger.
 
-**PlanetScale is the intended option to evaluate later** if measured workload or
-operational needs justify a managed database. Its PostgreSQL and MySQL-compatible
-Vitess offerings use different database engines from SQLite. Select the target
-engine when planning that move; migration will involve schema, query, and data
-changes rather than only changing a connection URL.
+All application replicas connect over TCP to the same logical database. Database
+storage belongs to MariaDB, not the application pods. Web, mobile, and other
+clients access durable state through the application API, never directly through
+database credentials. Use a standalone MariaDB instance for local development
+and test persistence against the deployed MariaDB release, not SQLite.
 
-## What SQLite owns
+These are selected technologies, not delivered integrations. The application does
+not yet open a SQL connection, run migrations, or ship operator manifests.
+
+## What MariaDB owns
 
 - Users, preferences, follows, saved events, and reminder settings.
 - Events, artists, venues, dated observations, and ingestion coverage.
@@ -23,7 +28,7 @@ changes rather than only changing a connection URL.
   post reactions; later attendance states and followed discussions.
 - Private reports, moderation decisions, notification jobs, and delivery history.
 
-The existing [KV cache](../cache.md) contains replaceable read results. SQLite
+The existing [KV cache](../cache.md) contains replaceable read results. MariaDB
 holds durable application state, including data needed for future venue analysis.
 Cache expiry or switching cache providers must not lose saved activity or jobs.
 
@@ -69,61 +74,107 @@ Future Going/Went attendance records remain distinct from MVP interest and do
 not replace bookmarks or imply verified ticket ownership. Discussion follows,
 notification jobs, and moderation records retain their previously planned roles.
 
-## Initial operating model
+## Application operating model
 
-- Keep the application and background workers on the same host as the database,
-  with a durable disk/volume that survives deployments.
-- Use a maintained SQLite version, WAL mode, short write transactions, and a
-  bounded busy timeout. WAL allows readers alongside a writer; each database
-  still has only one writer at a time. Fetch upstream data and send email outside
-  write transactions.
-- Enable foreign-key enforcement on every connection, use schema migrations,
-  and index the actual event, discussion, and scheduling queries.
-- Take consistent SQLite-aware backups and verify restoration. In WAL mode,
-  copying the main database file alone while it is active is not a complete
-  backup strategy.
-- Use consistent snapshots or exports for heavier exploratory analysis so long
-  analysis reads do not hold up normal database maintenance.
+- Use InnoDB, foreign keys, unique constraints, and indexes for the actual event,
+  discussion, and scheduling queries. Keep write transactions short; fetch
+  upstream data and send email outside them.
+- Give each process one bounded `*sql.DB` pool. Budget the sum of all pools,
+  including rolling-update surge pods, workers, migrations, and operator/admin
+  connections, against MariaDB's connection limit. Set connection lifetimes and
+  idle limits rather than relying on unlimited defaults.
+- Configure dial/read/write timeouts and use context-aware queries with deadlines.
+  Build connection settings with `mysql.Config`; never log credentials or full
+  DSNs. Require verified TLS in production, trusting the operator's CA bundle and
+  checking the database service hostname; do not use `tls=skip-verify` or plaintext
+  fallback. Plan pool renewal or a rolling restart when credentials/CAs rotate.
+- Use `utf8mb4` for user content, explicit case-sensitive/binary identity columns,
+  and strict SQL mode. Preserve case in provider IDs; the default case-insensitive
+  collation must not merge distinct source identities.
+- Store known instants as UTC with an explicit precision, preserving time-zone
+  names and local date/TBA/TBD fields separately. Enable `parseTime` and use UTC
+  in the driver; configure server/session time zones separately because `loc=UTC`
+  does not set MariaDB's time zone. Use nullable values and exact decimal money.
+- Route reads and writes to the same primary endpoint initially. Do not split
+  account, saved-event, or community reads onto lagging replicas; people must be
+  able to read their own committed changes from any application pod.
+- Apply versioned migrations as a serialized deployment Job or local command,
+  not from each app pod's startup. Use a migration lock to prevent overlapping
+  releases, separate DDL credentials from the runtime user, and keep schema
+  changes compatible with old and new app versions during rolling updates.
+- Handle transaction deadlocks with bounded retries of retry-safe operations.
+  A dropped connection during commit has an uncertain outcome: use unique
+  constraints/idempotency records rather than blindly replaying mutations.
+- Coordinate jobs with atomic database claims and expiring ownership, or an
+  explicitly fenced leader. Process-local locks do not coordinate three pods.
+  External request budgets also need shared atomic accounting; the existing
+  discovery counters and deduplication remain per process even with shared KV.
 
-This model can support the initial radar and community goals. Capacity depends
-on query patterns, write frequency, transaction duration, and the host's storage.
+## Kubernetes operating model
 
-## Keep a later migration manageable
+```text
+Ingress -> Service -> Ticketopia Deployment (3 stateless replicas)
+                              |
+                       MariaDB primary Service
+                              |
+                    operator-managed MariaDB + PVCs
+```
 
-- Keep persistence queries behind the application's domain services, so API
-  handlers and clients do not depend on SQLite-specific SQL or database rows.
-- Preserve stable application IDs and source-ID mappings across databases.
-- Define types, nullability, uniqueness, timestamp/time-zone handling, and money
-  representation explicitly. Validate data instead of relying on SQLite's
-  permissive typing.
-- Keep engine-specific queries and migrations identifiable. A common Go database
-  interface does not make SQL dialects or transaction behavior interchangeable.
-- Preserve atomic operations for reactions, attendance updates, moderation,
-  and notification job claims when implementing a different storage backend.
+Application replica count and database replica count are independent. Three app
+pods can use one standalone MariaDB server, but that is not database HA. If HA is
+required, select an operator-supported replication or Galera topology and its
+failure/durability guarantees before deploying; do not infer three database pods
+from three application replicas.
 
-The goal is a contained migration that preserves client behavior. Implement
-SQLite first and adapt persistence to the chosen PlanetScale engine when needed.
+For a replication topology, one primary plus two database replicas is a possible
+HA layout. The operator exposes `<mariadb-name>-primary` and updates it during
+primary changes. Each database pod has its own PVC; replication is managed by
+MariaDB, not by sharing a data directory. Configure node separation, resource
+requests, disruption budgets, replication durability, and automatic failover
+explicitly. Semi-synchronous replication is not a blanket zero-data-loss promise;
+acknowledgment timeouts and fallback behavior must fit the recovery requirements.
 
-## When to reconsider
+The operator recommends MaxScale for production HA routing and failover. It is
+not an assumed Ticketopia dependency; decide whether its operational and licensing
+requirements are warranted when selecting the database topology. Service-based
+primary routing still needs tested connection recovery and uncertain-write handling.
 
-Review the database choice when there is evidence of:
+Pin compatible MariaDB images, operator/CRD/chart versions, and the Go driver
+release when implementing deployment. Provision a database and least-privilege
+runtime/migration users with operator SQL resources, keep credentials in Secrets,
+mount the CA bundle into the application namespace, and restrict network access.
+Keep database checks out of liveness; define bounded readiness behavior for
+database-backed features when they are implemented. The current probes are unchanged.
 
-- Sustained write contention or unacceptable comment, reaction, or job latency
-  after improving indexes, query shapes, and transaction duration.
-- A need for multiple application/worker hosts writing to one shared database.
-- Availability, recovery, storage, or analysis requirements better served by a
-  managed database.
+Schedule consistent operator-managed backups to storage outside the database
+volumes, with explicit retention and recovery objectives. Verify restoration into
+a fresh instance, including credentials, schema, event identities, private data,
+and job state; database replicas are not backups. Rehearse primary failover when
+HA is enabled and verify access from every app replica after recovery. See the
+[deployment guide](../deployment.md#planned-mariadb-persistence) for rollout steps.
 
-Use measured behavior and deployment requirements as the triggers. User count
-or total row count alone is not a capacity threshold.
+## Persistence boundaries and verification
 
-Before a move, establish that the selected engine supports the needed queries
-and constraints. Rehearse data transfer, preserve identities and delivery state,
-and plan a controlled write/worker cutover with recovery options. Saved shows,
-comments, reports, and pending reminders should retain their meaning afterward.
+- Keep MariaDB queries behind application domain services so HTML/API handlers
+  and clients do not depend on SQL rows or driver types. Share ownership and
+  visibility rules between clients.
+- Define types, nullability, uniqueness, timestamp precision, and money explicitly.
+  Keep engine-specific SQL/migrations identifiable; `database/sql` does not make
+  SQL dialects or transaction behavior interchangeable.
+- Verify concurrent upserts/toggles, thread constraints, atomic job claims, and
+  private reads against real MariaDB. Exercise cross-pod read-after-write, app and
+  database restarts, migration serialization, rolling updates, and backup/restore
+  before checking the [persistence milestones](../goals/delivery.md#2-keep-reliable-event-and-application-history).
+- Start with connection/migration support and minimal durable event identity;
+  accounts, saves, and community records build on it. Scheduled observation
+  history remains a later milestone, not a prerequisite for local actions.
 
 ## References
 
-- [SQLite: appropriate uses](https://sqlite.org/whentouse.html)
-- [SQLite: write-ahead logging](https://sqlite.org/wal.html)
-- [PlanetScale database offerings](https://planetscale.com/docs)
+- [go-sql-driver/mysql](https://github.com/go-sql-driver/mysql)
+- [Go database/sql](https://pkg.go.dev/database/sql)
+- [mariadb-operator](https://github.com/mariadb-operator/mariadb-operator)
+- [Operator replication](https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/replication.md)
+- [Operator high availability](https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/high_availability.md)
+- [Operator TLS](https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/tls.md)
+- [Operator physical backups](https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/physical_backup.md)

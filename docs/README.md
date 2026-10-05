@@ -20,8 +20,8 @@ their status; they describe intended work rather than available features.
   and retained later attendance and notification goals.
 - [Radar API](design/radar-api.md): a proposed shared backend for web, mobile,
   and other clients, including community participation.
-- [Database plan](design/database.md): SQLite first, durable application state,
-  and when to consider a migration to PlanetScale.
+- [Database plan](design/database.md): planned MariaDB persistence with
+  `go-sql-driver/mysql`, shared application state, and `mariadb-operator` in Kubernetes.
 - [Venue insights](ideas/venue-insights-and-discovery.md): exploratory uses of
   event history for venue and price analysis.
 - [Discovery games](ideas/discovery-games.md): passport, pick swaps, and other

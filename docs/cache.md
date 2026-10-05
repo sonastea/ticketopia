@@ -32,7 +32,7 @@ city share event results without adding per-visitor event-cache entries.
 
 See [discovery](discovery.md#external-request-budget) for timeouts, cooldowns,
 per-process budget limits, and multi-instance coordination boundaries. These are
-replaceable read caches; [SQLite persistence](design/database.md) is planned for
+replaceable read caches; [MariaDB persistence](design/database.md) is planned for
 durable history, user activity, and jobs.
 
 Set `KV_URL` to use a shared cache:

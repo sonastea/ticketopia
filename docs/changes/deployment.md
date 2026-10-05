@@ -1,5 +1,14 @@
 # Container deployment changes
 
+## 2026-10-05 — Unreleased
+
+- Document the planned `mariadb-operator` deployment for shared MariaDB persistence
+  across three stateless application replicas, with independent database topology,
+  primary routing, Secrets/TLS, migration sequencing, pool budgets, and recovery
+  checks; see [planned MariaDB persistence](../deployment.md#planned-mariadb-persistence).
+- Explicitly distinguish this direction from implemented container/probe behavior:
+  no database runtime, migration command, or operator manifests are delivered yet.
+
 ## 2026-10-04 — Unreleased
 
 - Added a multi-stage, non-root distroless container build with the full frontend

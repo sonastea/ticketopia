@@ -164,6 +164,53 @@ Ticketmaster and geolocation counters/deduplication are per process. Account for
 that before scaling pods; see [discovery budgets](discovery.md#external-request-budget)
 and [geolocation limits](location.md#ip-lookup-and-caching).
 
+### Planned MariaDB persistence
+
+Status: Selected deployment direction, **not implemented**. The current binary
+has no SQL connection configuration or migration command, and this repository
+does not yet include MariaDB/operator manifests. The [database plan](design/database.md)
+selects MariaDB with `database/sql` and `github.com/go-sql-driver/mysql`, operated
+in Kubernetes by [mariadb-operator](https://github.com/mariadb-operator/mariadb-operator).
+
+Three Ticketopia Deployment replicas will share one logical database over TCP;
+application pods do not mount database volumes. Database replica count is a
+separate choice: a standalone MariaDB supports multiple app pods but remains a
+single database availability dependency. HA requires an explicitly configured
+replication or Galera topology, appropriate storage/node placement, and failover
+testing; adding application replicas alone does not provide it.
+
+Before enabling durable features:
+
+1. Pin a compatible MariaDB release, operator/chart/CRD versions, and Go driver.
+   Install the operator and CRDs using its
+   [Helm instructions](https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/helm.md),
+   checking the selected release's Kubernetes and image compatibility.
+2. Provision MariaDB with persistent volumes and the selected availability
+   topology. For replication, route initial application reads and writes through
+   `<mariadb-name>-primary`, not the all-pod or secondary Service. If MaxScale is
+   selected instead, configure primary-only routing for these consistency-sensitive
+   operations; read/write splitting is not assumed.
+3. Provision the database, runtime user, and separate migration user with operator
+   SQL resources. Supply credentials through Secrets, require verified TLS with
+   the operator's CA bundle, plan secret/CA rotation, and restrict database traffic
+   with NetworkPolicies. Do not give the application root or schema-change privileges.
+4. Configure bounded per-pod connection pools/timeouts, including deployment
+   surge and worker/admin connections in the database capacity budget. Run
+   migrations as one serialized deployment Job before rolling compatible app
+   versions; do not run migrations independently from all three replicas.
+5. Coordinate workers and external API budgets across pods. A shared cache or
+   MariaDB connection alone does not make existing per-process budgets global.
+6. Configure scheduled operator backups with off-volume storage and retention.
+   Restore into a fresh instance and verify schema, identities, private activity,
+   and jobs. Rehearse failover if HA is enabled, including pooled-connection
+   recovery and uncertain commit outcomes, before routing public traffic.
+
+Keep liveness dependency-free. Database-backed readiness behavior will be defined
+with the persistence implementation; the existing `/readyz` behavior above has
+not changed. Verify writes through one app pod are visible through another and
+that app restarts and rolling updates do not lose data before checking the
+[delivery milestones](goals/delivery.md#2-keep-reliable-event-and-application-history).
+
 ## Verification
 
 Run `go test -race ./...`, `go vet ./...`, and a Docker build. Container smoke checks

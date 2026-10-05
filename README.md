@@ -30,7 +30,7 @@ goal to implementation work and verification checkpoints.
   stale fallback, and bounded external request usage.
 - [x] Provide a searchable, responsive event list with correct ticket links and
   clear loading, empty, error, and freshness states.
-- [ ] Persist observations and schedule budgeted city/date refreshes in SQLite.
+- [ ] Persist observations and schedule budgeted city/date refreshes in MariaDB.
 - [x] Discover across all Ticketmaster event categories with compatible filters.
 
 ### Personal radar
@@ -99,15 +99,18 @@ goal to implementation work and verification checkpoints.
 - [ ] Manage personal and community activity from another client.
 - [x] Provide an OpenAPI description for implemented endpoints.
 
-### SQLite-first persistence
+### MariaDB persistence
 
 [Database design](docs/design/database.md)
 
 - [ ] Keep preferences, saved events, and event history across restarts.
 - [ ] Persist community activity, moderation records, and notification jobs.
+- [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
 
-PlanetScale remains a later migration option if workload or deployment needs warrant it.
+Planned storage uses MariaDB through Go's `database/sql` and
+`github.com/go-sql-driver/mysql`, with `mariadb-operator` managing the database in
+Kubernetes. Persistence is not implemented yet; see the [database plan](docs/design/database.md).
 
 ### Container deployment
 

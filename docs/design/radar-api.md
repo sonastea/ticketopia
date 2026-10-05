@@ -31,7 +31,7 @@ mobile app, and other apps or scripts. Keep Ticketmaster access and scheduled
 ingestion on the server. Clients work with Ticketopia resources.
 
 ```text
-Ticketmaster -> ingestion/normalization -> SQLite events and observations
+Ticketmaster -> ingestion/normalization -> MariaDB events and observations
                                             |
                                   shared application services
                                     /         |         \
@@ -43,9 +43,10 @@ Ticketmaster -> ingestion/normalization -> SQLite events and observations
 HTML handlers and JSON handlers call the same services. The web server does not
 need to call its own HTTP API. Ranking and notification logic have one owner.
 The KV cache contains replaceable read results, with user-specific cache keys
-where appropriate; durable application state lives in SQLite. The
-[database plan](database.md) covers the initial single-host deployment and a
-possible later migration to PlanetScale.
+where appropriate; planned durable application state lives in MariaDB, accessed
+through `database/sql` and `github.com/go-sql-driver/mysql`. The
+[database plan](database.md) covers shared storage across application replicas,
+with `mariadb-operator` managing MariaDB in Kubernetes.
 
 Ingest city/date batches once and reuse them across users within the upstream
 request budget. Record collection coverage and failures alongside observations.
@@ -244,8 +245,9 @@ or export endpoints once an actual analysis question establishes the needed shap
 
 ## Open implementation choices
 
-SQLite is the initial database. Select its Go driver and migration tooling,
-the pilot city/date horizon, account/token approach, email provider, refresh
-cadence, and initial reminder lead time when the corresponding product goals are
-ready for implementation. Choose a PlanetScale engine if a later migration is
-warranted by the [database plan](database.md).
+MariaDB, `database/sql`, `github.com/go-sql-driver/mysql`, and `mariadb-operator`
+are selected for planned persistence. Select migration tooling, supported pinned
+database/operator versions, and database HA topology before deployment; see the
+[database plan](database.md). Choose the pilot city/date horizon, account/token
+approach, email provider, refresh cadence, and initial reminder lead time when
+the corresponding product goals are ready for implementation.

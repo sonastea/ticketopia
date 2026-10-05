@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 2026-10-05 — MariaDB for shared multi-replica persistence
+
+- Replace the SQLite-first/later-PlanetScale direction with MariaDB accessed via
+  `database/sql` and `github.com/go-sql-driver/mysql`, with `mariadb-operator` for
+  Kubernetes; see the [database plan](../design/database.md).
+- Define shared primary routing for three stateless app replicas, independently
+  selected database HA, bounded pools, verified TLS, serialized migrations,
+  cross-pod job/budget coordination, and backup/restore verification.
+- Align root goals, delivery tasks, API architecture, cache/discovery notes, and deployment
+  guidance. This selects the stack; no SQL runtime or operator manifests are added,
+  and persistence milestones remain unchecked.
+
 ### 2026-10-03 — Local event identity and independent community records
 
 - Extend the [database plan](../design/database.md#planned-event-and-community-model)

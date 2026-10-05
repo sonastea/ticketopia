@@ -211,8 +211,10 @@ refresh work is bounded to ten seconds. Response bodies are limited to 8 MiB.
 Rate pacing, budget accounting, cooldowns, and concurrent-request deduplication
 are **per process** and reset on restart. Shared KV reuses stored results across
 instances but does not provide distributed locking or a shared request budget.
-Use the planned single-host deployment initially; distributed coordination and
-durable scheduled collection belong to the next backend milestone.
+Coordinate global pacing, budgets, cooldowns, and refresh ownership before scaling
+provider-calling pods with one shared key. The [planned MariaDB deployment](design/database.md)
+supports shared durable state across app replicas but does not implement that
+coordination by itself. Durable scheduled collection remains a later milestone.
 
 ## Verification
 
