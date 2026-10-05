@@ -1,0 +1,149 @@
+package persistence
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"sync/atomic"
+
+	"github.com/go-sql-driver/mysql"
+)
+
+const SupportedSchemaVersion = 1
+
+var ErrUnavailable = errors.New("database unavailable")
+
+// safeError intentionally does not wrap the driver error, even via Unwrap.
+func safeError(operation string, err error) error {
+	if errors.Is(err, context.Canceled) {
+		return fmt.Errorf("database %s: %w", operation, context.Canceled)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("database %s: %w", operation, context.DeadlineExceeded)
+	}
+	var server *mysql.MySQLError
+	if errors.As(err, &server) {
+		return fmt.Errorf("database %s: %w (MariaDB code %d)", operation, ErrUnavailable, server.Number)
+	}
+	return fmt.Errorf("database %s: %w", operation, ErrUnavailable)
+}
+
+type Pool struct {
+	db     *sql.DB
+	config Config
+	closed atomic.Bool
+}
+
+func connect(ctx context.Context, c Config) (*sql.DB, error) {
+	d, err := c.driverConfig()
+	if err != nil {
+		return nil, err
+	}
+	connector, err := mysql.NewConnector(d)
+	if err != nil {
+		return nil, safeError("configuration", err)
+	}
+	db := sql.OpenDB(connector)
+	db.SetMaxOpenConns(c.MaxOpen)
+	db.SetMaxIdleConns(c.MaxIdle)
+	db.SetConnMaxLifetime(c.Lifetime)
+	db.SetConnMaxIdleTime(c.IdleTime)
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, safeError("connect", err)
+	}
+	return db, nil
+}
+
+// Open validates an existing schema. It never creates or migrates anything.
+func Open(ctx context.Context, c Config) (*Pool, error) {
+	if err := c.validate(); err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, c.StartupTimeout)
+	defer cancel()
+	db, err := connect(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	p := &Pool{db: db, config: c}
+	if err := p.validateSchema(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return p, nil
+}
+
+func (p *Pool) Close() error {
+	p.closed.Store(true)
+	if err := p.db.Close(); err != nil {
+		return safeError("close", err)
+	}
+	return nil
+}
+
+// Ready uses a short, fresh check so outages recover without restarting the app.
+func (p *Pool) Ready(ctx context.Context) error {
+	if p.closed.Load() {
+		return ErrUnavailable
+	}
+	ctx, cancel := context.WithTimeout(ctx, p.config.ReadyTimeout)
+	defer cancel()
+	if err := p.checkVersion(ctx); err != nil {
+		return err
+	}
+	if p.closed.Load() {
+		return ErrUnavailable
+	}
+	return nil
+}
+
+func (p *Pool) checkVersion(ctx context.Context) error {
+	var dirty bool
+	if err := p.db.QueryRowContext(ctx, `SELECT dirty FROM schema_state WHERE id = 1`).Scan(&dirty); err != nil {
+		return safeError("schema validation", err)
+	}
+	if dirty {
+		return fmt.Errorf("database schema is dirty; inspect and repair the failed migration")
+	}
+	var version int
+	if err := p.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version_id), 0) FROM goose_db_version WHERE is_applied = 1`).Scan(&version); err != nil {
+		return safeError("schema validation", err)
+	}
+	if version != SupportedSchemaVersion {
+		return fmt.Errorf("database schema version %d is unsupported; required version %d", version, SupportedSchemaVersion)
+	}
+	return nil
+}
+
+func (p *Pool) validateSchema(ctx context.Context) error {
+	if err := p.checkVersion(ctx); err != nil {
+		return err
+	}
+	for _, query := range []string{
+		`SELECT ` + eventColumns + ` FROM events LIMIT 0`,
+		`SELECT provider, source_id, event_id FROM event_providers LIMIT 0`,
+	} {
+		rows, err := p.db.QueryContext(ctx, query)
+		if err != nil {
+			return safeError("schema validation", err)
+		}
+		if err := rows.Close(); err != nil {
+			return safeError("schema validation", err)
+		}
+	}
+	var count int
+	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers') AND engine = 'InnoDB'`).Scan(&count)
+	if err != nil {
+		return safeError("schema validation", err)
+	}
+	if count != 4 {
+		return fmt.Errorf("database schema requires InnoDB tables")
+	}
+	return nil
+}
+
+func (p *Pool) Events() *EventRepository {
+	return &EventRepository{db: p.db, timeout: p.config.QueryTimeout}
+}

@@ -1,7 +1,9 @@
 # Database: MariaDB
 
-Status: Selected direction for planned persistence. The current application has
-a KV cache; durable application storage is upcoming work.
+Status: Connection/migration support and minimal durable event identity are
+implemented, opt-in alongside unchanged KV-backed discovery. Broader application
+storage, scheduled observations, deployed multi-pod operation, HA, and verified
+backup/restore remain planned. See the [foundation guide](../persistence.md).
 
 ## Decision
 
@@ -17,8 +19,9 @@ clients access durable state through the application API, never directly through
 database credentials. Use a standalone MariaDB instance for local development
 and test persistence against the deployed MariaDB release, not SQLite.
 
-These are selected technologies, not delivered integrations. The application does
-not yet open a SQL connection, run migrations, or ship operator manifests.
+The foundation uses pinned `go-sql-driver/mysql` and Goose, embedded serialized
+migrations, and standalone operator examples. The examples have not been deployed
+to a cluster; ordinary discovery reads do not ingest events into SQL.
 
 ## What MariaDB owns
 
@@ -34,7 +37,8 @@ Cache expiry or switching cache providers must not lose saved activity or jobs.
 
 ## Planned event and community model
 
-These are logical records and invariants, not a delivered schema. They implement
+Only minimal event/provider identity and identifying metadata are delivered;
+other rows below remain logical records/invariants, not a delivered schema. They implement
 the [interaction distinctions](../design-guidelines.md#interaction-semantics-and-hierarchy).
 
 | Record | Identity / relationship | Required meaning |
@@ -143,15 +147,16 @@ Pin compatible MariaDB images, operator/CRD/chart versions, and the Go driver
 release when implementing deployment. Provision a database and least-privilege
 runtime/migration users with operator SQL resources, keep credentials in Secrets,
 mount the CA bundle into the application namespace, and restrict network access.
-Keep database checks out of liveness; define bounded readiness behavior for
-database-backed features when they are implemented. The current probes are unchanged.
+Keep database checks out of liveness. Enabled persistence now uses bounded
+database/schema readiness checks; disabled discovery remains dependency-free.
 
 Schedule consistent operator-managed backups to storage outside the database
 volumes, with explicit retention and recovery objectives. Verify restoration into
 a fresh instance, including credentials, schema, event identities, private data,
 and job state; database replicas are not backups. Rehearse primary failover when
 HA is enabled and verify access from every app replica after recovery. See the
-[deployment guide](../deployment.md#planned-mariadb-persistence) for rollout steps.
+[foundation guide](../persistence.md#standalone-operator-example-not-deployed) for
+example rollout sequencing; backups/failover still require separate implementation and verification.
 
 ## Persistence boundaries and verification
 

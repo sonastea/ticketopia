@@ -101,16 +101,18 @@ goal to implementation work and verification checkpoints.
 
 ### MariaDB persistence
 
-[Database design](docs/design/database.md)
+[Database foundation/setup](docs/persistence.md) · [Database design](docs/design/database.md)
 
+- [x] Establish MariaDB connections, serialized migrations, and minimal durable event identity.
 - [ ] Keep preferences, saved events, and event history across restarts.
 - [ ] Persist community activity, moderation records, and notification jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
 
-Planned storage uses MariaDB through Go's `database/sql` and
-`github.com/go-sql-driver/mysql`, with `mariadb-operator` managing the database in
-Kubernetes. Persistence is not implemented yet; see the [database plan](docs/design/database.md).
+The optional foundation uses MariaDB through `database/sql` and pinned
+`go-sql-driver/mysql`, with embedded Goose migrations and `mariadb-operator`
+deployment examples. Discovery stays database-free by default; broader durable
+features and exercised multi-pod deployment remain planned.
 
 ### Container deployment
 
@@ -119,6 +121,9 @@ Kubernetes. Persistence is not implemented yet; see the [database plan](docs/des
 - [x] Build and run a non-root container with embedded assets, health checks, and
   graceful shutdown.
 - [x] Identify the deployed source revision in startup logs using runtime `SOURCE_COMMIT`.
+- [x] Publish a private amd64 app image to GHCR with authenticated pulls.
+- [ ] Verify automated GHCR publishing on the self-hosted GitHub Actions runner
+  ([workflow setup](docs/deployment.md#github-actions-on-a-self-hosted-runner)).
 
 ### Optional explorations
 
@@ -149,6 +154,9 @@ toggle and trusted reverse-proxy configuration.
 
 The cache runs in memory by default. Shared backends are optional; see
 [cache configuration](docs/cache.md).
+
+MariaDB is opt-in with `PERSISTENCE_MODE=mariadb`; see the [persistence guide](docs/persistence.md)
+for the local database, verified TLS, separate migration command, and SQL tests.
 
 ## Run in a container
 

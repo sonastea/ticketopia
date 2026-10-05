@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/infra"
 	"github.com/sonastea/ticketopia/internal/logger"
+	"github.com/sonastea/ticketopia/internal/persistence"
 )
 
 func Execute(ctx context.Context) int {
@@ -18,8 +21,28 @@ func Execute(ctx context.Context) int {
 
 	err := godotenv.Load()
 	if err != nil && !os.IsNotExist(err) {
-		logger.Error().Err(err).Msg("Error loading .env file...")
+		logger.Error().Msg("Error loading .env file")
 		return 1
+	}
+	config, err := persistence.ConfigFromEnv(false)
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid persistence configuration")
+		return 1
+	}
+	var options []api.Option
+	if config.Enabled {
+		pool, err := persistence.Open(ctx, config)
+		if err != nil {
+			logger.Error().Err(err).Msg("Persistence initialization failed")
+			return 1
+		}
+		// Execute does not return until HTTP shutdown (or forced close) finishes.
+		defer func() {
+			if err := pool.Close(); err != nil {
+				logger.Error().Err(err).Msg("Error closing database pool")
+			}
+		}()
+		options = append(options, api.WithPersistence(pool.Ready, events.New(pool.Events())))
 	}
 
 	cache := infra.NewCache(ctx, logger)
@@ -29,17 +52,22 @@ func Execute(ctx context.Context) int {
 		}
 	}()
 
-	api, err := api.NewAPI(ctx, logger, cache)
+	api, err := api.NewAPI(ctx, logger, cache, options...)
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid API configuration")
 		return 1
 	}
 	srv := api.Server(8080)
+	return serve(ctx, srv, srv.ListenAndServe, logger)
+}
 
+// serve returns only after HTTP has drained (or has been forcibly closed).
+// Execute's resource defers therefore run after the HTTP lifecycle, not before.
+func serve(ctx context.Context, srv *http.Server, listen func() error, logger zerolog.Logger) int {
 	srvCh := make(chan error, 1)
 
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := listen(); err != nil && err != http.ErrServerClosed {
 			srvCh <- err
 		}
 		close(srvCh)
@@ -56,12 +84,14 @@ func Execute(ctx context.Context) int {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
+			_ = srv.Close()
 			logger.Error().Err(err).Msg("Server shutdown failed...")
 			return 1
 		}
 		logger.Info().Msg("Server stopped gracefully...")
 
 	case err := <-srvCh:
+		_ = srv.Close()
 		logger.Error().Err(err).Msg("Server experienced an error...")
 		return 1
 	}

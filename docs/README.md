@@ -20,8 +20,8 @@ their status; they describe intended work rather than available features.
   and retained later attendance and notification goals.
 - [Radar API](design/radar-api.md): a proposed shared backend for web, mobile,
   and other clients, including community participation.
-- [Database plan](design/database.md): planned MariaDB persistence with
-  `go-sql-driver/mysql`, shared application state, and `mariadb-operator` in Kubernetes.
+- [Database plan](design/database.md): MariaDB foundation and broader planned
+  shared application state with `mariadb-operator` in Kubernetes.
 - [Venue insights](ideas/venue-insights-and-discovery.md): exploratory uses of
   event history for venue and price analysis.
 - [Discovery games](ideas/discovery-games.md): passport, pick swaps, and other
@@ -29,10 +29,13 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [MariaDB foundation](persistence.md): explicit connections, TLS/readiness,
+  serialized migrations/recovery, durable event identity, and local/operator examples.
 - [OpenAPI contract](openapi.md): API specification format, published YAML,
   tooling, and maintenance alongside Go handlers.
 - [Container deployment](deployment.md): Docker builds, Coolify settings, health
-  checks, graceful shutdown, and Kubernetes probes.
+  checks, graceful shutdown, Kubernetes probes, and private GHCR publishing with
+  a self-hosted GitHub Actions runner.
 - [UI components](ui-components.md): shadcn-templ installation, themed primitives,
   Tailwind v4 builds, progressive enhancement, and component updates.
 - [Ticketmaster discovery](discovery.md): event/metadata fetching, JSON API,

@@ -2,12 +2,28 @@
 
 ## 2026-10-05 — Unreleased
 
-- Document the planned `mariadb-operator` deployment for shared MariaDB persistence
+- Run container build tools natively and cross-compile target Go binaries, enabling
+  amd64 images from ARM builders without emulated Go toolchain crashes. Document
+  private GHCR publishing, digest pinning, and separate Kubernetes pull credentials.
+- Publish the tested amd64 MariaDB-foundation image to private GHCR; verify non-root
+  migrations/outage recovery, authenticated pulling, and denied anonymous access.
+  Record its immutable reference in the [deployment guide](../deployment.md#amd64-images-and-private-github-container-registry).
+- Add the clearer app tag `test-amd64-20261005` for the same tested image. Add a
+  SHA-pinned self-hosted Linux/x64 workflow using Go 1.27 and Node 24 validation,
+  repository-token GHCR publishing, `edge`/commit/release tags, and fail-closed
+  private-package checks. Document runner/package access setup; the workflow has
+  not yet run on GitHub. See [CI setup](../deployment.md#github-actions-on-a-self-hosted-runner).
+- Document and supply standalone `mariadb-operator` examples for shared MariaDB persistence
   across three stateless application replicas, with independent database topology,
   primary routing, Secrets/TLS, migration sequencing, pool budgets, and recovery
   checks; see [planned MariaDB persistence](../deployment.md#planned-mariadb-persistence).
-- Explicitly distinguish this direction from implemented container/probe behavior:
-  no database runtime, migration command, or operator manifests are delivered yet.
+- Add shell-free migration execution in the existing non-root image and bounded
+  SQL readiness when persistence is enabled, preserving dependency-free liveness
+  and the disabled discovery mode. Drain HTTP before SQL pool cleanup.
+- Add local TLS MariaDB setup and image smoke checks for explicit migration,
+  outage/recovery probes, app restart, redaction, and graceful shutdown; see the
+  [foundation guide](../persistence.md). Operator examples have not been deployed;
+  three-pod operation, database HA, and backup/restore remain unverified.
 
 ## 2026-10-04 — Unreleased
 

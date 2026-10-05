@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
 )
@@ -33,6 +35,9 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 	cache := kv.NewMemory()
 	defer cache.Close()
 	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "secret", BaseURL: upstream.URL})}
+	// If a discovery route touches durable storage, this disabled service fails.
+	// Reads must keep their existing cache/provider behavior in persistence mode.
+	WithPersistence(func(context.Context) error { return nil }, events.New(failOnDurableRead{t}))(a)
 	routes := a.Routes()
 	query := "city=Boston&start_date=2026-10-02&end_date=2026-10-31&limit=1&category_id=KZFzniwnSyZfZ7v7nJ"
 	request := func(path string, partial bool) *httptest.ResponseRecorder {
@@ -99,6 +104,18 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 	if spec.Code != 200 || !strings.Contains(spec.Body.String(), "openapi: 3.1.0") {
 		t.Fatal("OpenAPI contract unavailable")
 	}
+}
+
+type failOnDurableRead struct{ t *testing.T }
+
+func (f failOnDurableRead) Upsert(context.Context, models.Event) (models.Event, error) {
+	f.t.Error("discovery read attempted an ingestion write")
+	return models.Event{}, events.ErrDisabled
+}
+
+func (f failOnDurableRead) Get(context.Context, string) (models.Event, error) {
+	f.t.Error("discovery read changed to durable metadata")
+	return models.Event{}, events.ErrDisabled
 }
 
 func TestUnavailableResponsesAreVisibleAndRedacted(t *testing.T) {

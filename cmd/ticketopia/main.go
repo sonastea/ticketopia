@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,6 +14,15 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	status := ticketopia.Execute(ctx)
+	var status int
+	switch {
+	case len(os.Args) == 1:
+		status = ticketopia.Execute(ctx)
+	case len(os.Args) == 2 && os.Args[1] == "migrate":
+		status = ticketopia.ExecuteMigrations(ctx)
+	default:
+		fmt.Fprintln(os.Stderr, "usage: ticketopia [migrate]")
+		status = 2
+	}
 	os.Exit(status)
 }

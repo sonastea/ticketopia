@@ -33,3 +33,4 @@ tmp/
 .impeccable/review/
 node_modules/
 bin/
+.local/

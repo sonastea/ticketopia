@@ -1,0 +1,53 @@
+# Run once per release BEFORE rolling compatible application versions. Neither
+# an init container nor an app startup migration. A dirty failure needs repair.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ticketopia-migrate-v1
+  namespace: ticketopia
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 150
+  template:
+    metadata:
+      labels:
+        app: ticketopia-migration
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+      containers:
+        - name: migrate
+          image: YOUR_REGISTRY/ticketopia:YOUR_TAG
+          args: [migrate]
+          envFrom:
+            - configMapRef:
+                name: ticketopia-db-config
+          env:
+            - name: DB_MIGRATION_USER
+              value: ticketopia_migration
+            - name: DB_MIGRATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ticketopia-db-migration
+                  key: password
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: db-ca
+              mountPath: /etc/ticketopia/db
+              readOnly: true
+      volumes:
+        - name: db-ca
+          secret:
+            # Operator-generated public CA bundle; NOT the CA private key.
+            secretName: ticketopia-db-ca-bundle
+            items:
+              - key: ca.crt
+                path: ca.crt

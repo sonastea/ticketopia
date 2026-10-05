@@ -1,10 +1,13 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-bookworm-slim AS node
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS node
 
 # Build the application, embedded browser assets, and health checker.
-FROM golang:1.27-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS build
 WORKDIR /app
+
+ARG TARGETOS
+ARG TARGETARCH
 
 ENV CGO_ENABLED=0 \
     GOFLAGS=-trimpath
@@ -23,8 +26,10 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    npm run build \
-    && go build -o bin/healthcheck healthcheck.go
+    npm run generate \
+    && npm run css \
+    && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o bin/ticketopia ./cmd/ticketopia \
+    && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o bin/healthcheck healthcheck.go
 
 # Includes CA certificates and timezone data, without a shell/package manager.
 FROM gcr.io/distroless/static-debian12:nonroot

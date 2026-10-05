@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/location"
 	"github.com/sonastea/ticketopia/views/assets"
@@ -27,9 +28,18 @@ type api struct {
 	locations   *location.Resolver
 	ipExtractor echo.IPExtractor
 	shutdown    <-chan struct{}
+	ready       func(context.Context) error
+	durable     *events.Service
 }
 
-func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store) (*api, error) {
+type Option func(*api)
+
+// WithPersistence wires shared services without changing read-only discovery.
+func WithPersistence(ready func(context.Context) error, durable *events.Service) Option {
+	return func(a *api) { a.ready, a.durable = ready, durable }
+}
+
+func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store, options ...Option) (*api, error) {
 	budget := 4500
 	if value := os.Getenv("TICKETMASTER_DAILY_BUDGET"); value != "" {
 		parsed, err := strconv.Atoi(value)
@@ -49,13 +59,17 @@ func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store) (*api, e
 			return nil, fmt.Errorf("IP_GEOLOCATION_ENABLED must be true or false")
 		}
 	}
-	return &api{
+	a := &api{
 		logger: logger, ipExtractor: ipExtractor, shutdown: ctx.Done(),
 		events: discovery.New(ctx, cache, logger, discovery.Config{
 			APIKey: os.Getenv("TICKETMASTER_KEY"), DailyBudget: budget,
 		}),
 		locations: location.New(ctx, cache, logger, location.Config{Disabled: !geolocation}),
-	}, nil
+	}
+	for _, option := range options {
+		option(a)
+	}
+	return a, nil
 }
 
 func (a *api) Server(port int) *http.Server {

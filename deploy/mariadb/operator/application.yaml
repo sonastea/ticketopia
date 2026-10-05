@@ -1,0 +1,91 @@
+# Three application replicas, ONE database. Example, not an exercised rollout.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticketopia
+  namespace: ticketopia
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ticketopia
+  template:
+    metadata:
+      labels:
+        app: ticketopia
+    spec:
+      terminationGracePeriodSeconds: 30
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+      containers:
+        - name: ticketopia
+          image: YOUR_REGISTRY/ticketopia:YOUR_TAG
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: ticketopia-db-config
+          env:
+            - name: DB_USER
+              value: ticketopia_runtime
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ticketopia-db-runtime
+                  key: password
+            - name: TICKETMASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ticketopia-provider
+                  key: ticketmaster-key
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 2
+            timeoutSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: db-ca
+              mountPath: /etc/ticketopia/db
+              readOnly: true
+      volumes:
+        - name: db-ca
+          secret:
+            secretName: ticketopia-db-ca-bundle
+            items:
+              - key: ca.crt
+                path: ca.crt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticketopia
+  namespace: ticketopia
+spec:
+  selector:
+    app: ticketopia
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,199 @@
+# Example only. Install pinned operator/CRDs first; replace ALL secret values.
+# One database pod is NOT HA. No backup/restore has been verified here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ticketopia
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ticketopia-db-root
+  namespace: ticketopia
+type: Opaque
+stringData:
+  password: REPLACE_WITH_RANDOM_ROOT_SECRET
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ticketopia-db-runtime
+  namespace: ticketopia
+type: Opaque
+stringData:
+  password: REPLACE_WITH_RANDOM_RUNTIME_SECRET
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ticketopia-db-migration
+  namespace: ticketopia
+type: Opaque
+stringData:
+  password: REPLACE_WITH_DIFFERENT_RANDOM_MIGRATION_SECRET
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: ticketopia-db
+  namespace: ticketopia
+spec:
+  image: mariadb:11.8.6
+  replicas: 1
+  rootPasswordSecretKeyRef:
+    name: ticketopia-db-root
+    key: password
+  storage:
+    size: 5Gi
+    # storageClassName: YOUR_PERSISTENT_STORAGE_CLASS
+  tls:
+    enabled: true
+    required: true
+  myCnf: |
+    [mariadb]
+    default_storage_engine=InnoDB
+    default_time_zone=+00:00
+    character_set_server=utf8mb4
+    collation_server=utf8mb4_unicode_ci
+    sql_mode=STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ZERO_DATE,NO_ZERO_IN_DATE,NO_ENGINE_SUBSTITUTION
+    max_connections=100
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: ticketopia
+  namespace: ticketopia
+spec:
+  mariaDbRef:
+    name: ticketopia-db
+  characterSet: utf8mb4
+  collate: utf8mb4_unicode_ci
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  name: ticketopia-runtime
+  namespace: ticketopia
+spec:
+  name: ticketopia_runtime
+  mariaDbRef:
+    name: ticketopia-db
+  passwordSecretKeyRef:
+    name: ticketopia-db-runtime
+    key: password
+  host: "%"
+  maxUserConnections: 70
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  name: ticketopia-migration
+  namespace: ticketopia
+spec:
+  name: ticketopia_migration
+  mariaDbRef:
+    name: ticketopia-db
+  passwordSecretKeyRef:
+    name: ticketopia-db-migration
+    key: password
+  host: "%"
+  maxUserConnections: 4
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-read
+  namespace: ticketopia
+spec:
+  mariaDbRef:
+    name: ticketopia-db
+  privileges: [SELECT]
+  database: ticketopia
+  table: "*"
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+# These table grants reconcile AFTER migration creates the tables. Wait for
+# their Ready conditions before rolling the app, not before running the Job.
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-events
+  namespace: ticketopia
+spec:
+  mariaDbRef:
+    name: ticketopia-db
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: events
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-mappings
+  namespace: ticketopia
+spec:
+  mariaDbRef:
+    name: ticketopia-db
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: event_providers
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-migration
+  namespace: ticketopia
+spec:
+  mariaDbRef:
+    name: ticketopia-db
+  privileges: [SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES]
+  database: ticketopia
+  table: "*"
+  username: ticketopia_migration
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ticketopia-db-config
+  namespace: ticketopia
+data:
+  PERSISTENCE_MODE: mariadb
+  DB_HOST: ticketopia-db.ticketopia.svc.cluster.local
+  DB_PORT: "3306"
+  DB_NAME: ticketopia
+  DB_TLS_MODE: verify-full
+  DB_TLS_CA_FILE: /etc/ticketopia/db/ca.crt
+  DB_MAX_OPEN: "10"
+  DB_MAX_IDLE: "2"
+  DB_CONN_LIFETIME: 5m
+  DB_CONN_IDLE_TIME: 1m
+  DB_DIAL_TIMEOUT: 3s
+  DB_READ_TIMEOUT: 5s
+  DB_WRITE_TIMEOUT: 5s
+  DB_STARTUP_TIMEOUT: 10s
+  DB_QUERY_TIMEOUT: 3s
+  DB_READY_TIMEOUT: 500ms
+  DB_MIGRATION_TIMEOUT: 2m

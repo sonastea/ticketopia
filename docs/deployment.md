@@ -4,6 +4,8 @@ Ticketopia ships a multi-stage [Dockerfile](../Dockerfile). The builder uses Go
 1.27 and Node.js 24 to install pinned npm dependencies, bundle component scripts,
 generate templ code, compile Tailwind CSS, and build both Go executables. Generated
 assets are embedded, so the runtime does not need the source tree or Node.js.
+Build tools run on the builder's native architecture; Go binaries are cross-compiled
+for the requested target. This avoids emulating Go/Node during amd64 builds on ARM hosts.
 
 The Docker tags track patch updates within these release lines. Local development
 uses the same versions through `go.mod`, the npm engine declaration, and `.nvmrc`;
@@ -31,6 +33,101 @@ inputs and excludes local configuration, databases, dependencies, and binaries.
 Secrets are not build arguments and `.env` is not baked into the image. Supply
 environment variables at runtime; for local testing, `--env-file .env` is also
 supported. Use the deployment platform's secret storage in production.
+
+### amd64 images and private GitHub Container Registry
+
+Authenticate locally with `docker login ghcr.io -u YOUR_GITHUB_USERNAME`, using a
+classic PAT with `write:packages` for publishing. Never put the token in build args,
+the repository, or image layers. Confirm an existing package is **private** before
+pushing; new GHCR packages default to private, independently of repository visibility.
+
+```sh
+docker buildx build --platform linux/amd64 --load \
+  --label org.opencontainers.image.source=https://github.com/sonastea/ticketopia \
+  -t ghcr.io/sonastea/ticketopia:YOUR_TAG .
+docker push ghcr.io/sonastea/ticketopia:YOUR_TAG
+```
+
+Verify package visibility and that anonymous pulls are denied after publishing.
+Use the resulting digest for both application and migration Job images. For
+Kubernetes pulls, create a namespace-local registry Secret with a separate,
+pull-only classic PAT (`read:packages`) and reference it in **both** Pod specs:
+
+```yaml
+imagePullSecrets:
+  - name: ghcr
+```
+
+Do not reuse a publishing/admin token as a cluster pull credential. The
+[publishing workflow](#github-actions-on-a-self-hosted-runner) uses the repository's
+`GITHUB_TOKEN` instead of a stored publishing PAT. Image publication does not deploy
+the app or run database migrations.
+
+Verified test publication (2026-10-05), built from the working tree rather than a
+committed release: **`ghcr.io/sonastea/ticketopia:test-amd64-20261005`**.
+This is the **Ticketopia app**, including its migration subcommand, not the MariaDB
+server. The earlier `mariadb-foundation-amd64-20261005` tag remains a legacy alias
+of the same image; the clearer tag was added without rebuilding or deleting it.
+The package is private, its runtime platform is `linux/amd64`, authenticated pulls
+succeed, and anonymous pull-token requests are denied. Immutable reference:
+
+```text
+ghcr.io/sonastea/ticketopia@sha256:4ce89d6fe7cfb4e774134d5a5eaefbe72a23034b2df386f7e3d4d9bb07e92664
+```
+
+### GitHub Actions on a self-hosted runner
+
+[`.github/workflows/publish-image.yml`](../.github/workflows/publish-image.yml)
+validates and publishes the app on pushes to `main`, pushes of `v*` Git tags, and
+manual runs on those same refs. It does **not** run on pull requests or manually
+selected feature branches. Only trusted source belongs on this runner; protect
+`main` and release tags, and use a dedicated, preferably ephemeral runner without
+production secrets. Docker daemon access is effectively root access to its host.
+
+Before the first run:
+
+1. Register a **Linux amd64** self-hosted runner for this repository under
+   **Settings → Actions → Runners**. Its labels must include `self-hosted`, `linux`,
+   and `x64`. Keep its runner software current (at least **2.327.1** for Node 24
+   actions); Ubuntu 24.04 is a suitable host.
+2. Install Git, Bash, CA certificates, tar/unzip, a C compiler for Go race tests, and
+   Docker with the Buildx plugin. The runner account must be able to run Docker
+   without interactive `sudo`. Allow outbound access to GitHub/GHCR, Go/npm
+   downloads, and the Dockerfile's base registries. Go and Node need not be
+   preinstalled: pinned setup actions select **Go 1.27.x** and **Node 24.x** for
+   asset generation and validation. The Dockerfile uses the same release lines.
+3. In the [private package settings](https://github.com/users/sonastea/packages/container/package/ticketopia),
+   open **Manage Actions access**, add `sonastea/ticketopia`, and grant **Write**.
+   This package was first published locally, so repository-token access must be
+   granted explicitly. Keep package visibility **private**, independently of the
+   public source repository; do not enable public package access. The workflow
+   fails before building if the token cannot see the private package.
+4. Commit and push the workflow and intended app changes when ready. A run builds
+   the **committed checkout**, not this machine's uncommitted working tree. No
+   custom GHCR publishing secret is needed; the job requests `packages: write` for
+   its short-lived `GITHUB_TOKEN`. Repository/organization policy must permit it.
+
+The job runs `npm ci`, `npm run build`, `go test -race ./...`, and `go vet ./...`
+before building/pushing `linux/amd64`. Real MariaDB integration tests are skipped
+without `MARIADB_TEST_ADDR`; this workflow does not provision a database or run
+the local outage smoke script. Buildx uses GitHub Actions layer caching, a
+job-specific temporary Docker config, and automatic registry logout. Actions are
+pinned to reviewed commit SHAs. Package privacy and denied anonymous pulls are
+checked after publication; the run summary records the immutable image digest.
+
+| Trigger | Published app tags |
+| --- | --- |
+| Push/manual run on `main` | `edge`, `sha-<full-commit-sha>` |
+| Push/manual run on a `v*` tag | The Git tag (for example `v1.0.0`), `sha-<full-commit-sha>` |
+
+Non-Docker-safe characters in Git tags are normalized by the metadata action;
+use conventional version tags. `edge` tracks main and is not a stable release.
+No `latest` tag is generated. Deploy by the digest in the run summary, using the
+same digest for the app and its migration Job. Supply the matching Git commit as
+runtime `SOURCE_COMMIT` if desired; CI labels do not set that environment variable.
+
+The workflow has been linted locally but has not run on GitHub; runner registration
+and package Actions access remain setup prerequisites.
 
 The default cache is in memory. Add `-e KV_URL` after exporting a shared backend
 URL, or configure it in the deployment platform. See [cache configuration](cache.md)
@@ -68,7 +165,7 @@ when supplying it manually. Local development can also set it in `.env`.
 | Endpoint | Behavior |
 | --- | --- |
 | `GET /healthz` | `200` with `ok` when the HTTP server responds. No dependency checks. |
-| `GET /readyz` | `200` with `ok` after initialization; `503` with `not ready` if shutdown has begun and the handler is still reachable. |
+| `GET /readyz` | `200` with `ok` after initialization; `503` during shutdown or, with persistence enabled, unavailable/dirty/unsupported MariaDB (bounded check). |
 
 Both responses are plain text with `Cache-Control: no-store`. Startup completes
 before the server begins listening. On SIGTERM or SIGINT, readiness becomes false
@@ -76,14 +173,15 @@ and the server stops accepting connections, with up to **five seconds** to finis
 in-flight requests. Allow a longer container termination grace period (Docker's
 default stop timeout and Kubernetes's default 30 seconds are sufficient).
 
-Probes never call Ticketmaster, geolocation, or the cache. An external API outage
+Probes never call Ticketmaster, geolocation, or the cache. Liveness never calls SQL;
+enabled readiness uses `DB_READY_TIMEOUT` (default 500ms). An external API outage
 should not cause restart loops, and a shared-cache failure can use the local
 fallback. These probes indicate process health, not guaranteed event availability.
 
 Liveness answers whether the process responds; readiness answers whether the
-initialized application can accept traffic. Required dependencies could be added
-to readiness checks if future features cannot work without them; optional caches
-and external providers should not gate readiness for the current application.
+initialized application can accept traffic. Explicit MariaDB mode gates readiness
+on the database/schema; disabled mode remains database-free. Optional caches and
+external providers do not gate readiness.
 Use distinct endpoints rather than changing their meaning for localhost requests.
 Loopback requests do not inherently bypass authentication or rate limiting; if
 middleware is added later, explicitly exempt these lightweight probe endpoints.
@@ -166,49 +264,33 @@ and [geolocation limits](location.md#ip-lookup-and-caching).
 
 ### Planned MariaDB persistence
 
-Status: Selected deployment direction, **not implemented**. The current binary
-has no SQL connection configuration or migration command, and this repository
-does not yet include MariaDB/operator manifests. The [database plan](design/database.md)
-selects MariaDB with `database/sql` and `github.com/go-sql-driver/mysql`, operated
-in Kubernetes by [mariadb-operator](https://github.com/mariadb-operator/mariadb-operator).
+Status: The **connection/migration/identity foundation is implemented**; deployed
+multi-pod operation, broader persistence, HA, and backup/restore remain planned.
+The [persistence guide](persistence.md) covers all configuration, local MariaDB,
+failed-DDL recovery, rolling-update compatibility, pinned operator examples, and
+connection budgeting. See the [database plan](design/database.md) for future state.
 
-Three Ticketopia Deployment replicas will share one logical database over TCP;
-application pods do not mount database volumes. Database replica count is a
-separate choice: a standalone MariaDB supports multiple app pods but remains a
-single database availability dependency. HA requires an explicitly configured
-replication or Galera topology, appropriate storage/node placement, and failover
-testing; adding application replicas alone does not provide it.
+The existing non-root/shell-free image runs explicit migrations using its normal
+entrypoint plus `migrate` arguments. It embeds the same migrations as development;
+it requires migration credentials rather than runtime credentials. Never run this
+subcommand from application startup or init containers on every pod.
 
-Before enabling durable features:
+[`deploy/mariadb/operator`](../deploy/mariadb/operator/) supplies a standalone
+database, Database/User/Grant resources, Secret placeholders, enforced TLS/CA
+mounts, migration Job, and three-application-replica example. All replicas share
+one database endpoint and never mount database volumes. Budget steady, surge,
+terminating, migration, and admin connections; the example budgets 92 of 100.
 
-1. Pin a compatible MariaDB release, operator/chart/CRD versions, and Go driver.
-   Install the operator and CRDs using its
-   [Helm instructions](https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/helm.md),
-   checking the selected release's Kubernetes and image compatibility.
-2. Provision MariaDB with persistent volumes and the selected availability
-   topology. For replication, route initial application reads and writes through
-   `<mariadb-name>-primary`, not the all-pod or secondary Service. If MaxScale is
-   selected instead, configure primary-only routing for these consistency-sensitive
-   operations; read/write splitting is not assumed.
-3. Provision the database, runtime user, and separate migration user with operator
-   SQL resources. Supply credentials through Secrets, require verified TLS with
-   the operator's CA bundle, plan secret/CA rotation, and restrict database traffic
-   with NetworkPolicies. Do not give the application root or schema-change privileges.
-4. Configure bounded per-pod connection pools/timeouts, including deployment
-   surge and worker/admin connections in the database capacity budget. Run
-   migrations as one serialized deployment Job before rolling compatible app
-   versions; do not run migrations independently from all three replicas.
-5. Coordinate workers and external API budgets across pods. A shared cache or
-   MariaDB connection alone does not make existing per-process budgets global.
-6. Configure scheduled operator backups with off-volume storage and retention.
-   Restore into a fresh instance and verify schema, identities, private activity,
-   and jobs. Rehearse failover if HA is enabled, including pooled-connection
-   recovery and uncertain commit outcomes, before routing public traffic.
+These examples were **not deployed to a cluster**. A single MariaDB pod is not HA;
+three application pods do not change that. Before production availability claims,
+select/test any required replication/Galera/MaxScale topology, storage/node placement,
+failover, and pooled-connection/uncertain-write recovery. Independently configure
+off-volume backups, retention, and successful restoration into a fresh instance;
+PVCs/replicas are not backups. Scheduled ingestion and cross-pod external budgets
+are later work, not provided by this foundation.
 
-Keep liveness dependency-free. Database-backed readiness behavior will be defined
-with the persistence implementation; the existing `/readyz` behavior above has
-not changed. Verify writes through one app pod are visible through another and
-that app restarts and rolling updates do not lose data before checking the
+Verify writes through one app pod are visible through another and that app restarts,
+rolling updates, and recovery do not lose data before checking the broader
 [delivery milestones](goals/delivery.md#2-keep-reliable-event-and-application-history).
 
 ## Verification

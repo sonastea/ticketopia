@@ -1,7 +1,8 @@
 # Aligned backend and frontend delivery checklist
 
-Status: All-category discovery, responsive navigation, and basic event previews/
-detail pages are implemented. Account/community outcomes remain planned.
+Status: All-category discovery, responsive navigation, basic event previews/
+detail pages, and the MariaDB connection/migration/identity foundation are implemented.
+Account/community outcomes and broader persistence remain planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -83,9 +84,12 @@ Focused commands and manual checks: [discovery verification](../discovery.md#ver
 Aligns with [MariaDB persistence](../design/database.md), reminder change
 detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
 
-- [ ] MVP foundation: Connect to MariaDB through `database/sql` and
+- [x] MVP foundation: Connect to MariaDB through `database/sql` and
   `github.com/go-sql-driver/mysql`; choose migration tooling and run versioned
   migrations as a serialized deployment step with separate migration credentials.
+- [x] Backend foundation: Provide a minimal durable event/provider repository with
+  case-sensitive identity, atomic concurrent upserts, category references, and
+  cache-independent metadata; verify against real MariaDB. See [setup/recovery](../persistence.md).
 - [ ] Backend: Persist events, artists, venues, provider-ID mappings, and dated
   observations with first/last-seen and change times.
 - [ ] Backend: Schedule city/date collection within the request budget; record
