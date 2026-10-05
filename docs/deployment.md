@@ -28,6 +28,16 @@ export TICKETMASTER_KEY=your-api-key
 docker run --rm --name ticketopia -p 8080:8080 -e TICKETMASTER_KEY ticketopia:local
 ```
 
+To build assets and run Go race tests/vet with the container toolchain (including
+GCC and C headers), without installing development tools on the host:
+
+```sh
+docker buildx build --target validate --no-cache-filter validate .
+```
+
+The validation target runs on the builder's native architecture. The final runtime
+stage remains separate: normal image builds do not run tests or ship validation tools.
+
 Open <http://localhost:8080>. The [.dockerignore](../.dockerignore) allowlists build
 inputs and excludes local configuration, databases, dependencies, and binaries.
 Secrets are not build arguments and `.env` is not baked into the image. Supply
@@ -93,13 +103,11 @@ Before the first run:
 2. Install Git, Bash, CA certificates, tar/unzip, and
    Docker with the Buildx plugin. The runner account must be able to run Docker
    without interactive `sudo`. Allow outbound access to GitHub/GHCR, Go/npm
-   downloads, and the Dockerfile's base registries. Go and Node need not be
-   preinstalled: pinned setup actions select **Go 1.27.x** and **Node 24.x** for
-   asset generation and validation. The Dockerfile uses the same release lines.
-   Go race tests require GCC and C development headers. If GCC is missing, the
-   workflow installs `build-essential` using `apt-get`; this requires root or
-   passwordless `sudo`. On other distributions or locked-down runners, preinstall
-   the compiler and development headers instead.
+   downloads, and the Dockerfile's base registries. Go, Node, GCC, and C development
+   headers need not be installed on the host: asset generation and validation use
+   the Dockerfile's **Go 1.27 Bookworm** builder with **Node 24**, which includes GCC
+   and C headers. The workflow does not run `apt-get` or require passwordless `sudo`
+   for package installation.
 3. In the [private package settings](https://github.com/users/sonastea/packages/container/package/ticketopia),
    open **Manage Actions access**, add `sonastea/ticketopia`, and grant **Write**.
    This package was first published locally, so repository-token access must be
@@ -111,15 +119,20 @@ Before the first run:
    custom GHCR publishing secret is needed; the job requests `packages: write` for
    its short-lived `GITHUB_TOKEN`. Repository/organization policy must permit it.
 
-The job runs `npm ci`, `npm run build`, `go test -race ./...`, and `go vet ./...`
-before building/pushing `linux/amd64`. The validation step explicitly sets
-`CGO_ENABLED=1` and `CC=gcc` for the race detector, overriding runner defaults;
-the preceding step ensures GCC is available. Real MariaDB integration tests are skipped
-without `MARIADB_TEST_ADDR`; this workflow does not provision a database or run
-the local outage smoke script. Buildx uses GitHub Actions layer caching, a
-job-specific temporary Docker config, and automatic registry logout. Actions are
-pinned to reviewed commit SHAs. Package privacy and denied anonymous pulls are
-checked after publication; the run summary records the immutable image digest.
+The job builds embedded assets and Go binaries with the Dockerfile's asset pipeline,
+then runs `go test -race -count=1 ./...` and `go vet ./...` in its `validate` target
+before publishing `linux/amd64`. That target sets `CGO_ENABLED=1` and `CC=gcc` for
+the race detector, independently of runner defaults. Buildx bypasses the validation
+layer cache on each run, while reusing dependency and build layers. The runtime
+image still uses CGO-disabled binaries and contains no compiler or test tools.
+Real MariaDB integration tests are skipped without `MARIADB_TEST_ADDR`; this
+workflow does not provision a database or pass database credentials into the
+builder, nor does it run the local outage smoke script. Buildx uses GitHub Actions
+layer caching, a job-specific temporary Docker config, and automatic registry
+logout. Buildx handles Docker initialization; runner labels select Linux/x64.
+Actions are pinned to reviewed commit SHAs. Package privacy and denied
+anonymous pulls are checked after publication; the run summary records the
+immutable image digest.
 
 | Trigger | Published app tags |
 | --- | --- |
@@ -132,9 +145,10 @@ No `latest` tag is generated. Deploy by the digest in the run summary, using the
 same digest for the app and its migration Job. Supply the matching Git commit as
 runtime `SOURCE_COMMIT` if desired; CI labels do not set that environment variable.
 
-GitHub runs exposed disabled CGO and missing GCC during validation. The workflow
-now explicitly enables CGO and ensures GCC is available, but a successful
-end-to-end publication with these fixes remains unverified.
+GitHub runs exposed disabled CGO, missing GCC, and password-required `sudo` during
+host validation. Validation now uses the container's compiler with CGO enabled;
+local container race tests/vet and the amd64 runtime build passed on 2026-10-05.
+A successful end-to-end GitHub Actions publication with this fix remains unverified.
 
 The default cache is in memory. Add `-e KV_URL` after exporting a shared backend
 URL, or configure it in the deployment platform. See [cache configuration](cache.md)

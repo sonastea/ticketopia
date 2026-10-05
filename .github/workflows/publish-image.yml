@@ -18,13 +18,12 @@ jobs:
     # Never execute pull requests or manually selected feature branches here.
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: [self-hosted, linux, x64]
-    timeout-minutes: 45
+    timeout-minutes: 5
+
     permissions:
       contents: read
       packages: write
-    defaults:
-      run:
-        shell: bash
+
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,72 +39,46 @@ jobs:
             const { data: repository } = await github.rest.repos.get({ owner, repo });
             const namespace = repository.owner.type === 'Organization' ? 'orgs' : 'users';
             const path = `/${namespace}/${owner}/packages/container/${repo.toLowerCase()}`;
+
             let pkg;
             try {
               ({ data: pkg } = await github.request(`GET ${path}`));
             } catch (error) {
               if (error.status === 404) {
-                throw new Error('The private GHCR package must exist and grant this repository Write access under Manage Actions access.');
+                throw new Error(
+                  'The private GHCR package must exist and grant this repository ' +
+                  'Write access under Manage Actions access.'
+                );
               }
               throw error;
             }
+
             if (pkg.visibility !== 'private') {
               throw new Error('Refusing to publish: the GHCR package is not private.');
             }
+
             core.setOutput('path', path);
             core.setOutput('image', `ghcr.io/${owner.toLowerCase()}/${repo.toLowerCase()}`);
 
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: "1.27.x"
-          cache: true
-
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24.x"
-          cache: npm
-
-      - name: Ensure GCC is available for Go race tests
-        run: |
-          if ! command -v gcc > /dev/null 2>&1; then
-            if ! command -v apt-get > /dev/null 2>&1; then
-              echo "Install GCC and C development headers on this runner; automatic installation requires apt-get." >&2
-              exit 1
-            fi
-            elevate=()
-            if [ "$(id -u)" -ne 0 ]; then
-              elevate=(sudo -n)
-            fi
-            "${elevate[@]}" apt-get update
-            "${elevate[@]}" apt-get install -y --no-install-recommends build-essential
-          fi
-          gcc --version
-
-      - name: Build assets and validate Go
-        env:
-          # The race detector requires CGO, even if the runner disables it by default.
-          CGO_ENABLED: "1"
-          CC: gcc
-        run: |
-          npm ci
-          npm run build
-          go test -race ./...
-          go vet ./...
-
-      - name: Prepare Docker
-        env:
-          # Keep registry credentials out of the runner account's normal Docker config.
-          DOCKER_CONFIG: ${{ runner.temp }}/ticketopia-docker-${{ github.run_id }}-${{ github.run_attempt }}
-        run: |
-          test "$(uname -m)" = x86_64
-          mkdir -p "$DOCKER_CONFIG"
-          printf 'DOCKER_CONFIG=%s\n' "$DOCKER_CONFIG" >> "$GITHUB_ENV"
-          docker info > /dev/null
+            // Isolate registry credentials from the runner account's Docker config.
+            core.exportVariable(
+              'DOCKER_CONFIG',
+              require('fs').mkdtempSync(`${process.env.RUNNER_TEMP}/ticketopia-docker-`)
+            );
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build assets and validate Go in Docker
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: validate
+          platforms: linux/amd64
+          # Always run the tests; reuse cached dependency and asset build layers.
+          no-cache-filters: validate
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -130,7 +103,6 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          file: ./Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
@@ -151,30 +123,45 @@ jobs:
             if (pkg.visibility !== 'private') {
               throw new Error('The published GHCR package is not private.');
             }
+
             const repository = process.env.IMAGE.slice('ghcr.io/'.length);
             const url = new URL('https://ghcr.io/token');
             url.searchParams.set('service', 'ghcr.io');
             url.searchParams.set('scope', `repository:${repository}:pull`);
+
             const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
             let status = response.status;
+
             if (status === 200) {
               const body = await response.json();
               const token = body.token || body.access_token;
-              if (!token) throw new Error('Anonymous pull check returned no token.');
-              const manifest = await fetch(`https://ghcr.io/v2/${repository}/manifests/${process.env.DIGEST}`, {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  Accept: 'application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json'
-                },
-                signal: AbortSignal.timeout(30000)
-              });
+              if (!token) {
+                throw new Error('Anonymous pull check returned no token.');
+              }
+
+              const manifest = await fetch(
+                `https://ghcr.io/v2/${repository}/manifests/${process.env.DIGEST}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/vnd.oci.image.index.v1+json, ' +
+                      'application/vnd.docker.distribution.manifest.list.v2+json'
+                  },
+                  signal: AbortSignal.timeout(30000)
+                }
+              );
               status = manifest.status;
             }
+
             if (![401, 403].includes(status)) {
               throw new Error(`Anonymous pulls were not verified as denied (HTTP ${status}).`);
             }
+
             await core.summary
               .addHeading('Ticketopia app image')
-              .addCodeBlock(`${process.env.IMAGE}@${process.env.DIGEST}\n${process.env.IMAGE_TAGS}`, 'text')
+              .addCodeBlock(
+                `${process.env.IMAGE}@${process.env.DIGEST}\n${process.env.IMAGE_TAGS}`,
+                'text'
+              )
               .addRaw('Platform: linux/amd64. Package visibility: private. Anonymous pulls: denied.\n')
               .write();

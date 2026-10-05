@@ -31,6 +31,15 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o bin/ticketopia ./cmd/ticketopia \
     && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o bin/healthcheck healthcheck.go
 
+# CI validation uses the builder's GCC/headers, not packages on the runner host.
+FROM build AS validate
+ENV CGO_ENABLED=1 \
+    CC=gcc
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go test -race -count=1 ./... \
+    && go vet ./...
+
 # Includes CA certificates and timezone data, without a shell/package manager.
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app

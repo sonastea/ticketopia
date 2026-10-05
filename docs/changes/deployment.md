@@ -13,11 +13,17 @@
   repository-token GHCR publishing, `edge`/commit/release tags, and fail-closed
   private-package checks. Document runner/package access setup.
   See [CI setup](../deployment.md#github-actions-on-a-self-hosted-runner).
-- Explicitly enable CGO in the validation step after a GitHub run failed because
-  `go test -race` requires it. After a subsequent missing-compiler failure, ensure
-  GCC is available, installing `build-essential` with apt-get when needed, and
-  select `CC=gcc`. Document root/passwordless sudo or preinstallation requirements.
-  Successful end-to-end publication with these fixes remains unverified.
+- Resolve disabled CGO, missing GCC, and password-required sudo failures by moving
+  asset builds and Go validation into the Dockerfile's Go/Node builder. Its separate
+  `validate` target enables CGO and uses included GCC/headers for race tests/vet,
+  with fresh tests on every CI run and no host package installation. Preserve the
+  full test suite by allowing root health-check tests into the build context, and
+  retain the CGO-disabled, compiler-free runtime image. Document validation in
+  [CI setup](../deployment.md#github-actions-on-a-self-hosted-runner).
+  Verify local container race tests/vet, workflow lint, and the amd64 runtime build.
+  Successful end-to-end GitHub Actions publication with this fix remains unverified.
+- Simplify publishing by initializing isolated Docker configuration in the preflight and using Buildx initialization,
+  removing the redundant preparation step and default Docker build inputs.
 - Document and supply standalone `mariadb-operator` examples for shared MariaDB persistence
   across three stateless application replicas, with independent database topology,
   primary routing, Secrets/TLS, migration sequencing, pool budgets, and recovery

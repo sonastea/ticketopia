@@ -6,6 +6,7 @@
 !package-lock.json
 !components.json
 !healthcheck.go
+!healthcheck_test.go
 !cmd/
 !cmd/**
 !internal/
