@@ -188,7 +188,11 @@ helm install mariadb-operator oci://ghcr.io/mariadb-operator/charts/mariadb-oper
 These are instructions/examples only; **no cluster deployment was performed**.
 Review release-specific Kubernetes compatibility/storage classes first. Replace
 Secret placeholders using your secret manager, add a `ticketopia-provider` Secret
-with `ticketmaster-key`, and use the same immutable release image in Job/apps.
+with `ticketmaster-key`, and provision the namespace-local `ghcr` pull Secret.
+Job/apps use the moving `edge` tag with `imagePullPolicy: Always`. Follow the
+[production-style staging rollout](deployment.md#production-style-staging-rollout)
+for explicit rollout and manual recovery. Avoid changing `edge` between migration
+and app rollout; pin both to the same digest when identical artifacts are required.
 Provision database/users/migration grants; wait for those resources to be Ready,
 then run the Job. Wait for Job success **and** runtime table-grant reconciliation
 before rolling applications. Use a new Job name per release; `backoffLimit: 0`

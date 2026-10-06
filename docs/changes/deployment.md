@@ -2,6 +2,11 @@
 
 ## 2026-10-05 — Unreleased
 
+- Use `edge` with `imagePullPolicy: Always` in operator application/migration
+  manifests, with private GHCR pull-secret references and amd64 scheduling.
+  Document production-style staging, explicit rollout, and manual fix/rollback;
+  cluster rollout and production readiness remain unverified. See the
+  [rollout guide](../deployment.md#production-style-staging-rollout).
 - Run container build tools natively and cross-compile target Go binaries, enabling
   amd64 images from ARM builders without emulated Go toolchain crashes. Document
   private GHCR publishing, digest pinning, and separate Kubernetes pull credentials.

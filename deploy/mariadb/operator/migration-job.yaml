@@ -15,13 +15,19 @@ spec:
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr
+      nodeSelector:
+        kubernetes.io/arch: amd64
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
         runAsGroup: 65532
       containers:
         - name: migrate
-          image: YOUR_REGISTRY/ticketopia:YOUR_TAG
+          # Avoid moving edge between the migration and application rollout.
+          image: ghcr.io/sonastea/ticketopia:edge
+          imagePullPolicy: Always
           args: [migrate]
           envFrom:
             - configMapRef:

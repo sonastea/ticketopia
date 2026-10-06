@@ -21,13 +21,19 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr
+      nodeSelector:
+        kubernetes.io/arch: amd64
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
         runAsGroup: 65532
       containers:
         - name: ticketopia
-          image: YOUR_REGISTRY/ticketopia:YOUR_TAG
+          # Moving main build; publishing alone does not trigger a rollout.
+          image: ghcr.io/sonastea/ticketopia:edge
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

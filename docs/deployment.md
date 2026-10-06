@@ -59,8 +59,10 @@ docker push ghcr.io/sonastea/ticketopia:YOUR_TAG
 ```
 
 Verify package visibility and that anonymous pulls are denied after publishing.
-Use the resulting digest for both application and migration Job images. For
-Kubernetes pulls, create a namespace-local registry Secret with a separate,
+For a pinned deployment, use the resulting digest for both application and migration
+Job images; the operator manifests instead use the moving `edge` tag with explicit
+rollout/recovery steps [below](#production-style-staging-rollout). For Kubernetes
+pulls, create a namespace-local registry Secret with a separate,
 pull-only classic PAT (`read:packages`) and reference it in **both** Pod specs:
 
 ```yaml
@@ -141,9 +143,11 @@ immutable image digest.
 
 Non-Docker-safe characters in Git tags are normalized by the metadata action;
 use conventional version tags. `edge` tracks main and is not a stable release.
-No `latest` tag is generated. Deploy by the digest in the run summary, using the
-same digest for the app and its migration Job. Supply the matching Git commit as
-runtime `SOURCE_COMMIT` if desired; CI labels do not set that environment variable.
+No `latest` tag is generated. The operator manifests deploy `edge` with
+`imagePullPolicy: Always`; publication does not trigger a cluster rollout. For
+reproducible deployments or recovery, pin the digest from the run summary in both
+the app and its migration Job. Supply the matching Git commit as runtime
+`SOURCE_COMMIT` if desired; CI labels do not set that environment variable.
 
 GitHub runs exposed disabled CGO, missing GCC, and password-required `sudo` during
 host validation. Validation now uses the container's compiler with CGO enabled;
@@ -301,6 +305,58 @@ database, Database/User/Grant resources, Secret placeholders, enforced TLS/CA
 mounts, migration Job, and three-application-replica example. All replicas share
 one database endpoint and never mount database volumes. Budget steady, surge,
 terminating, migration, and admin connections; the example budgets 92 of 100.
+
+### Production-style staging rollout
+
+Use the same manifests and migration sequence in staging and production, with
+separate environment credentials/data. The operator application and migration
+manifests use `ghcr.io/sonastea/ticketopia:edge` with `imagePullPolicy: Always`, select
+amd64 nodes, and reference the namespace-local `ghcr` pull Secret. Each container
+start resolves the current tag; existing running containers are not updated by
+publication. This intentionally accepts a moving main build and manual recovery,
+not immutable promotion of a tested staging artifact.
+
+1. Confirm the intended Kubernetes context and provision the pinned operator/CRDs,
+   namespace, storage, database resources, and real secrets following the
+   [persistence guide](persistence.md#standalone-operator-example-not-deployed).
+   Provision `ghcr` as a `kubernetes.io/dockerconfigjson` Secret in `ticketopia` using
+   a pull-only `read:packages` PAT with access to the private package; keep its
+   credentials out of committed YAML. Also provision `ticketopia-provider` with
+   `ticketmaster-key`. Do not apply the database Secret placeholders unchanged.
+2. Wait for a successful `main` publication of `edge`. Use a new migration Job name
+   per rollout; an existing completed Job will not rerun just because `edge` changed.
+   Avoid publishing another build between migration and app rollout: matching tag
+   names do not guarantee matching digests. Wait for database/users/migration grants
+   to be Ready, then apply the migration Job and wait for completion. Do not roll
+   out the app if migration fails; investigate rather than retry blindly.
+3. Wait for runtime table grants to reconcile, then apply the application manifest:
+
+   ```sh
+   kubectl apply -f deploy/mariadb/operator/application.yaml
+   kubectl -n ticketopia rollout status deployment/ticketopia --timeout=180s
+   kubectl -n ticketopia port-forward service/ticketopia 8080:80
+   ```
+
+4. Test the app at <http://localhost:8080>, readiness, cross-pod persistence, and
+   restart/rolling-update behavior before using the same procedure in production.
+
+For subsequent `edge` publications, complete the migration/grant checks first,
+then explicitly restart the Deployment; applying an unchanged manifest alone
+does not start a new rollout:
+
+```sh
+kubectl -n ticketopia rollout restart deployment/ticketopia
+kubectl -n ticketopia rollout status deployment/ticketopia --timeout=180s
+```
+
+Build/test failure stops CI before publication, leaving the previous `edge` image.
+With `maxUnavailable: 0`, unready replacement pods normally leave the old ready pods
+serving traffic, but there is no automatic rollback and readiness does not catch
+every bug. Publish a fix and restart the rollout, or manually pin a known-good
+digest for recovery. `rollout undo` alone cannot restore the previous image when
+both revisions reference the same moving tag. Any rollback must be compatible with
+the current database schema; reverting an image does not undo migrations. Keep
+environment credentials/data separate even when both clusters use `ticketopia`.
 
 These examples were **not deployed to a cluster**. A single MariaDB pod is not HA;
 three application pods do not change that. Before production availability claims,
