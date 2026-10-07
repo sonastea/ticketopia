@@ -247,7 +247,7 @@ func (a *api) savePage(c echo.Context) error {
 			Saved bool   `json:"saved"`
 		}{id, c.FormValue("action") == "save"})
 	}
-	return c.Redirect(303, safeInterestReturn(c.FormValue("return_to")))
+	return c.Redirect(303, safeRecommendationReturn(c.FormValue("return_to")))
 }
 func safeSaveReturn(raw string) string {
 	u, err := url.Parse(raw)

@@ -19,6 +19,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/location"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/assets"
 )
@@ -27,17 +28,18 @@ import (
 var openAPI []byte
 
 type api struct {
-	logger      zerolog.Logger
-	events      *discovery.Service
-	locations   *location.Resolver
-	ipExtractor echo.IPExtractor
-	shutdown    <-chan struct{}
-	ready       func(context.Context) error
-	durable     *events.Service
-	accounts    *accounts.Service
-	authConfig  accounts.Config
-	saved       *saved.Service
-	interests   *interests.Service
+	logger          zerolog.Logger
+	events          *discovery.Service
+	locations       *location.Resolver
+	ipExtractor     echo.IPExtractor
+	shutdown        <-chan struct{}
+	ready           func(context.Context) error
+	durable         *events.Service
+	accounts        *accounts.Service
+	authConfig      accounts.Config
+	saved           *saved.Service
+	interests       *interests.Service
+	recommendations *recommendations.Service
 }
 
 type Option func(*api)
@@ -49,6 +51,10 @@ func (d interestDetails) Detail(ctx context.Context, id string) (models.EventDet
 }
 func WithEventInterests(repository interests.Repository) Option {
 	return func(a *api) { a.interests = interests.New(repository, interestDetails{a}) }
+}
+
+func WithEventRecommendations(repository recommendations.Repository) Option {
+	return func(a *api) { a.recommendations = recommendations.New(repository, interestDetails{a}) }
 }
 
 func WithSavedEvents(repository saved.Repository) Option {
@@ -125,7 +131,7 @@ func (a *api) Routes() *echo.Echo {
 	e.GET("/events/:event_id", a.eventPageHandler)
 	a.savedRoutes(e)
 	a.interestRoutes(e)
-	e.GET("/community", destinationHandler("community", "Community"))
+	a.recommendationRoutes(e)
 	a.accountRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler)

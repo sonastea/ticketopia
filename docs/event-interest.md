@@ -1,6 +1,7 @@
 # Interested in events
 
-Implemented with opt-in [Google accounts](accounts.md) and MariaDB schema **4**.
+Introduced with opt-in [Google accounts](accounts.md) and MariaDB schema **4**;
+the current binary requires schema **5** with [public recommendations](event-recommendations.md).
 Mark an event Interested in discovery, its preview, Saved, or the event page;
 manage your choices at `/me/interests`. Interest is independent of private saves,
 category preferences, recommendations, ticket ownership, and attendance. It does
@@ -12,11 +13,11 @@ There is no new feature flag. Enable accounts and apply migrations and grants.
 For local development, `make db-setup` prepares the local database, migrates it,
 and verifies runtime privileges. See [persistence](persistence.md).
 
-This binary requires clean schema **4 only**. Before upgrading an existing v3
-deployment, drain/stop v3 apps, preserve a backup, run `ticketopia migrate` with
-migration credentials, reapply/reconcile the runtime table grants, and start v4
-apps. The additive migration preserves accounts, sessions, preferences, event
-snapshots, and bookmarks. It does not turn existing saves into interest. No
+This binary requires clean schema **5 only**. Follow the current
+[recommendation upgrade](event-recommendations.md#setup-and-upgrade), draining older
+apps before applying all pending migrations and runtime grants. Additive migrations
+preserve accounts, sessions, preferences, snapshots, saves, and interest; existing
+saves never become interest and interest never becomes a recommendation. No
 automatic startup migration or zero-downtime cross-version rollout is claimed.
 Runtime needs SELECT plus INSERT/UPDATE/DELETE on `event_interests`, and the existing
 event/provider/snapshot write privileges. Operator examples include these grants.

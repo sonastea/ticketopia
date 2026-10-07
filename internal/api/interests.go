@@ -261,7 +261,7 @@ func (a *api) interestPage(c echo.Context) error {
 			State interests.State `json:"state"`
 		}{id, states[id]})
 	}
-	return c.Redirect(303, safeInterestReturn(c.FormValue("return_to")))
+	return c.Redirect(303, safeRecommendationReturn(c.FormValue("return_to")))
 }
 func safeInterestReturn(raw string) string {
 	u, err := url.Parse(raw)

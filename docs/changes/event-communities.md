@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### 2026-10-06 — Interested with explicit identity visibility
+### 2026-10-06 — Interested visibility and public recommendations
 
 - Implement durable, reversible event interest independently from saves, category
   preferences, endorsements and attendance. Keep identity private by default;
@@ -14,7 +14,7 @@
   refresh after visibility revocation. Preserve private saves and retained details.
 - Verify ownership/CSRF/validation, concurrency/rollback, privacy/keysets, migration
   preservation/restarts, Chromium desktop/tablet/mobile/native/error journeys and
-  automated accessibility. Recommendations/discussions/moderation remain planned.
+  automated accessibility. Discussions/moderation remain planned.
 - Resolve the independent review's label-in-name and participant-return findings;
   verify 54 Chromium checks and seven zero-violation accessibility captures, the
   full Go race suite with real MariaDB, vet, production build, and OpenAPI lint.
@@ -26,6 +26,20 @@
 - Verify the refinement with 84 Chromium checks/ten zero-violation axe captures,
   targeted view/API race tests and vet, production build, and in-thread responsive
   inspection. Only pre-existing detector notices remain.
+- Deliver public recommendations independently of Save/Interested: one per
+  account/event, optional 500-character reason, stable publication/edit times,
+  ownership/CSRF, and retry-safe edit/withdrawal. See [recommendations](../event-recommendations.md).
+- Add event/public-profile attribution, explicit counts, recent city/category
+  browsing, native/enhanced forms with preserved drafts, and paginated event/return
+  context. Keep discussions/moderation truthful and require moderation before a pilot.
+- Verify SQL/API race tests, concurrency/rollback, migration preservation/restarts,
+  scoped keysets/privacy, and 62 Chromium checks with eight accessibility scans
+  across desktop/tablet/phone/200% text. Fix enlarged-text recommendation wrapping.
+- Address the independent review's direct-open, native credential-failure draft,
+  and obsolete-availability findings; verify rejected writes remain unapplied and
+  native credential recovery retains safe event/return context. The reviewer scores
+  all four listed fixes resolved; existing ticket-button clipping at 200% remains
+  outside that scoped verdict.
 
 ### 2026-10-03 — Distinct social signals and responsive participation
 

@@ -16,12 +16,14 @@ templ Base(title string) {
 			@components.Scripts()
 			<script src="/assets/app.js" defer></script>
 			<script src="/assets/interests.js" defer></script>
+			<script src="/assets/recommendations.js" defer></script>
 			<title>{ title } · Ticketopia</title>
 		</head>
 		<body>
 			<a href="#main" class="skip-link">Skip to content</a>
 			{ children... }
 			<p class="sr-only" role="status" aria-atomic="true" data-interest-status></p>
+			<p class="sr-only" role="status" aria-atomic="true" data-recommendation-status></p>
 		</body>
 	</html>
 }

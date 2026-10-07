@@ -3,9 +3,10 @@
 Implemented: explicit SQL connection lifecycle, serialized embedded migrations,
 schema validation/readiness, minimal durable event/provider identity, accounts,
 credentials/private preferences, schema-v3 [private saves/snapshots](saved-events.md),
-and schema-v4 [event interest](event-interest.md). Discovery
+schema-v4 [event interest](event-interest.md), and schema-v5
+[public recommendations](event-recommendations.md). Discovery
 still reads its existing cache/provider services and does **not** write SQL. There
-are no community mutations, ingestion scheduler, global provider
+are no discussions/moderation, ingestion scheduler, global provider
 budgets, database HA, or verified production backup/restore in this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
@@ -264,16 +265,17 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 4 only**. Versions 0–3 and 5+ are rejected;
+This binary supports **clean schema version 5 only**. Versions 0–4 and 6+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous save binary supports version 3 only.
-For the v3-to-v4 interest upgrade, stop/drain v3 traffic, preserve a backup, apply the
-v4 migration with the v4 image, reapply/reconcile runtime table grants, then start
-v4 apps. Do not leave v3 pods serving after migration; they will fail readiness.
+old binaries are gone. The previous interest binary supports version 4 only.
+For the v4-to-v5 recommendation upgrade, stop/drain v4 traffic, preserve a backup,
+apply the v5 migration with the v5 image, reapply/reconcile runtime table grants,
+then start v5 apps. Do not leave v4 pods serving after migration; they will fail
+readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
@@ -308,6 +310,11 @@ Schema v4 adds independent `event_interests` with one row per account/event,
 private-by-default visibility, stable interest timestamps, and owner/public/event
 pagination indexes. Runtime can INSERT/UPDATE/DELETE interest without changing saves.
 Interest composes the same event/snapshot transaction and retained-detail fallback.
+Schema v5 adds independent public `event_recommendations`, unique per account/event,
+with a bounded reason, original publication/edit times, and recent/owner/event
+pagination indexes. Runtime can INSERT/UPDATE/DELETE recommendations without changing
+saves or interest. Publication composes the event/snapshot transaction; editing
+and withdrawal work without provider calls. See [recommendations](event-recommendations.md).
 
 Upserts lock the stable event key and insert its provider mapping in one short
 InnoDB transaction. Deadlocks/lock-wait timeouts before commit get at most three

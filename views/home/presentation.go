@@ -9,6 +9,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
 
@@ -29,6 +30,7 @@ type SearchPage struct {
 	Interests             InterestView
 	Participants          interests.Participants
 	ParticipantsError     string
+	Recommendations       RecommendationView
 	ActionReturnURL       string
 }
 
@@ -41,6 +43,7 @@ type EventPage struct {
 	Interests         InterestView
 	Participants      interests.Participants
 	ParticipantsError string
+	Recommendations   RecommendationView
 	ActionReturnURL   string
 }
 
@@ -51,6 +54,90 @@ type SaveView struct {
 	States   map[string]bool
 	Error    string
 }
+
+type RecommendationView struct {
+	Enabled, SignedIn, Open          bool
+	CSRF, ViewerID, Error, ListError string
+	Own                              *recommendations.Item
+	List                             recommendations.List
+}
+
+func (v RecommendationView) reason() string {
+	if v.Own != nil {
+		return v.Own.Reason
+	}
+	return ""
+}
+
+type CommunityPage struct {
+	Enabled               bool
+	Filters               recommendations.Query
+	List                  recommendations.List
+	Categories            []models.Category
+	CategoriesUnavailable bool
+	ReturnURL, Error      string
+}
+
+func recommendationAction(id string) string { return "/recommendations/" + url.PathEscape(id) }
+func recommendationListURL(id, origin string) string {
+	path := "/events/" + url.PathEscape(id) + "/recommendations"
+	if origin != "" && origin != "/" {
+		path += "?" + url.Values{"return_to": {origin}}.Encode()
+	}
+	return path
+}
+func profileRecommendationNextURL(raw string, cursor *string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "/"
+	}
+	values := u.Query()
+	if cursor != nil {
+		values.Set("recommendation_cursor", *cursor)
+	}
+	u.RawQuery = values.Encode()
+	return u.String()
+}
+func isCommunityURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && u.Path == "/community"
+}
+func isProfileURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && strings.HasPrefix(u.Path, "/users/")
+}
+func recommendationCountLabel(count int) string {
+	if count == 1 {
+		return "recommendation"
+	}
+	return "recommendations"
+}
+func (p CommunityPage) hasCategory() bool {
+	for _, category := range p.Categories {
+		if category.ID == p.Filters.CategoryID {
+			return true
+		}
+	}
+	return false
+}
+func returnOrigin(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "/"
+	}
+	if strings.HasPrefix(u.Path, "/events/") {
+		if origin := u.Query().Get("return_to"); origin != "" {
+			return origin
+		}
+		return "/"
+	}
+	values := u.Query()
+	values.Del("selected_event")
+	values.Del("section")
+	u.RawQuery = values.Encode()
+	return u.String()
+}
+
 type SavedPage struct {
 	List      saved.List
 	Saves     SaveView
@@ -211,6 +298,13 @@ func eventURL(id, section, returnURL string) string {
 
 func sectionURL(page EventPage, section string) string {
 	return eventURL(page.Detail.Item.ID, section, page.ReturnURL)
+}
+func recommendURL(page EventPage) string {
+	u, _ := url.Parse(sectionURL(page, "community"))
+	values := u.Query()
+	values.Set("recommend", "true")
+	u.RawQuery = values.Encode()
+	return u.String()
 }
 
 func datePart(start models.EventStart, format string) string {

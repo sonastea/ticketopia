@@ -8,8 +8,8 @@ with editable filters, image-led results, contextual event previews, dedicated e
 pagination. Cached event data is shared by the responsive web UI and JSON API.
 
 Discovery includes category-aware genre filters for music, sports, arts, and more.
-The planned MVP connects events to private saves, social interest, recommendations,
-and asynchronous discussions. See the [design guidelines](docs/design-guidelines.md)
+Private saves, Interested, and public recommendations connect people to events;
+asynchronous discussions and moderation remain planned. See the [design guidelines](docs/design-guidelines.md)
 for desktop, tablet, and mobile direction and the
 [MVP boundary](docs/goals/delivery.md#mvp-release-boundary) for release scope.
 
@@ -62,8 +62,9 @@ goal to implementation work and verification checkpoints.
 
 - [x] Mark an event Interested and change or remove that choice.
 - [x] Choose public interest visibility; keep interest identity private by default.
-- [ ] Recommend an event publicly, optionally explain why, and edit or withdraw it.
-- [ ] Browse local/category recommendations and event conversations.
+- [x] Recommend an event publicly, optionally explain why, and edit or withdraw it.
+- [x] Browse public recommendations by city/category and on events/profiles.
+- [ ] Browse event conversations alongside recommendations.
 - [ ] Later: Mark an event Going and choose participation visibility.
 - [ ] Post a question, tip, or comment on an event.
 - [ ] Reply to another person's contribution.
@@ -108,6 +109,7 @@ goal to implementation work and verification checkpoints.
 - [x] Keep accounts, credentials, and private preferences across restarts.
 - [x] Keep saved events and last-known event details across restarts.
 - [x] Keep event interest and its visibility across restarts.
+- [x] Keep public recommendations, reasons, and original publication times across restarts.
 - [ ] Keep dated event observation history across restarts.
 - [ ] Persist community activity, moderation records, and notification jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
@@ -121,6 +123,8 @@ features and exercised multi-pod deployment remain planned. Opt-in
 [private saves](docs/saved-events.md) retain bookmarks and last-known event details.
 [Interested](docs/event-interest.md) keeps separate choices, private-by-default identities,
 aggregate counts, and explicitly public participant/profile activity.
+[Public recommendations](docs/event-recommendations.md) provide separate endorsements,
+optional reasons, edit/withdrawal, public attribution, and city/category browsing.
 
 ### Container deployment
 
@@ -177,8 +181,8 @@ it does not start containers or apply runtime grants.
 
 Accounts are separately opt-in with `AUTH_ENABLED=true`, `AUTH_BASE_URL`,
 `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`; see [Google sign-in setup](docs/accounts.md).
-Discovery stays public. Private saves are available with accounts enabled;
-community participation remains planned.
+Discovery stays public. Private saves, Interested, and public recommendations are
+available with accounts enabled; discussions and moderation remain planned.
 
 ## Run in a container
 

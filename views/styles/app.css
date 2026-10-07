@@ -2083,6 +2083,30 @@ summary::-webkit-details-marker {
   }
 }
 
+.community-page { max-width: 75rem; }
+.community-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 2rem 0; }
+.community-filters .field { flex: 1 1 12rem; min-width: 0; }
+.recommendation-editor { margin: 1rem 0 1.5rem; }
+.recommendation-editor > summary { display: flex; align-items: center; gap: .5rem; width: fit-content; max-width: 100%; min-height: 2.75rem; padding: .5rem .75rem; border: 1px solid var(--control-line); border-radius: .5rem; color: var(--brand); cursor: pointer; font-size: .875rem; font-weight: 700; }
+.recommendation-editor > summary:hover { background: var(--brand-soft); }
+.recommendation-editor .account-form { margin-top: 1rem; }
+.recommendation-editor .account-actions > button { max-width: 100%; }
+.recommendation-editor [data-recommendation-error] { color: var(--error); }
+.recommendation-list { list-style: none; padding: 0; margin: 1rem 0 1.5rem; }
+.recommendation-list > li { border-top: 1px solid var(--line); padding: 1.25rem 0; }
+.recommendation-copy { min-width: 0; }
+.recommendation-copy h3 { margin: .5rem 0; font-size: 1.125rem; line-height: 1.4; font-weight: 750; }
+.recommendation-copy h3 a { font: inherit; }
+.recommendation-copy .event-summary { margin-top: .75rem; }
+.recommendation-attribution { margin-top: .75rem; }
+.recommendation-reason { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 70ch; margin: .5rem 0; }
+.recommendation-event { display: grid; gap: 1rem; }
+.recommendation-editor [aria-busy="true"] { opacity: .7; }
+@media (min-width: 40rem) {
+  .recommendation-event { grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; }
+  .recommendation-event .event-image { aspect-ratio: 1; }
+}
+
 /* Ticketopia's theme adaptations of the installed shadcn-templ primitives. */
 [data-slot="button"] {
   height: auto;

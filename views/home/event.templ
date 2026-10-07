@@ -16,6 +16,10 @@ templ Event(page EventPage) {
 					Back to Saved
 				} else if isInterestsURL(page.ReturnURL) {
 					Back to Interests
+				} else if isCommunityURL(page.ReturnURL) {
+					Back to Community
+				} else if isProfileURL(page.ReturnURL) {
+					Back to profile
 				} else if page.ReturnURL != "/" {
 					Back to results
 				} else {
@@ -92,6 +96,12 @@ templ EventFacts(event models.Event) {
 templ EventParticipation(page EventPage, noteID string) {
 	@EventActions(page.Detail.Item.ID, page.Detail.Item.Name, page.Saves, page.ActionReturnURL) {
 		@InterestControl(page.Detail.Item.ID, page.Detail.Item.Name, page.Interests, page.ActionReturnURL)
+		if page.Section != "community" {
+			@button.Button(button.Props{Href:recommendURL(page),Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"data-panel-link":true}}) {
+				@layouts.Icon("community")
+				Recommend
+			}
+		}
 	}
 	@InterestDetails(page.Detail.Item.ID, page.Interests, page.ActionReturnURL)
 	<p id={ noteID } class="participation-note">
@@ -125,10 +135,9 @@ templ EventSectionContent(page EventPage) {
 				}
 			case "community":
 				<h2 id="event-section-heading">Good events are worth sharing</h2>
+				@RecommendationPanel(page.Detail.Item.ID,page.Recommendations,page.ActionReturnURL)
+				<h3>Public interest</h3>
 				@PublicParticipants(page)
-				<p>Public recommendations are in development.</p>
-				@ParticipationButton("community", "Recommend", "recommend-note")
-				<p id="recommend-note" class="participation-note">Recommending an event is not available yet.</p>
 			default:
 				<h2 id="event-section-heading">About the event</h2>
 				if page.Detail.Item.Info != "" {

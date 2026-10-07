@@ -27,5 +27,8 @@ DELETE FROM saved_events WHERE FALSE;
 INSERT INTO event_interests SELECT * FROM event_interests WHERE FALSE;
 UPDATE event_interests SET visibility = visibility WHERE FALSE;
 DELETE FROM event_interests WHERE FALSE;
+INSERT INTO event_recommendations SELECT * FROM event_recommendations WHERE FALSE;
+UPDATE event_recommendations SET reason = reason WHERE FALSE;
+DELETE FROM event_recommendations WHERE FALSE;
 
 ROLLBACK;

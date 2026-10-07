@@ -23,8 +23,10 @@ Opt-in Google accounts provide MariaDB-backed sessions, profiles/privacy default
 private preferences, API credentials, and durable private event saves with
 last-known metadata. Independent Interested choices provide private-by-default
 identities, public counts, and explicitly public participant/profile activity.
-Recommendations and discussions remain planned; their UI must communicate
-availability truthfully rather than simulate successful participation.
+Public recommendations provide optional short reasons, edit/withdrawal, event/profile
+attribution, and city/category browsing independently of private interest.
+Discussions and moderation remain planned; their UI must communicate availability
+truthfully rather than simulate successful participation. Moderation gates a public pilot.
 
 ## Product Purpose
 

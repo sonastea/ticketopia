@@ -2,9 +2,9 @@
 
 Status: All-category discovery, responsive navigation, basic event previews/
 detail pages, the MariaDB connection/migration/identity foundation, and opt-in
-Google accounts/profiles/private preferences, durable private saves, and Interested
-with privacy controls/counts/public-opt-in activity are implemented. Recommendations,
-discussions/moderation and broader persistence remain planned.
+Google accounts/profiles/private preferences, durable private saves, Interested
+with privacy controls/counts/public-opt-in activity, and public recommendations are
+implemented. Discussions/moderation and broader persistence remain planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -14,8 +14,8 @@ does not complete a UI outcome, and a cache does not complete durable storage.
 
 The updated release combines location-based discovery across **all Ticketmaster
 event categories** with event-centered community participation. Category-aware
-discovery, account/profile/preferences, private saves, and Interested are implemented;
-recommendations, discussions, and moderation remain planned.
+discovery, account/profile/preferences, private saves, Interested, and public
+recommendations are implemented; discussions and moderation remain planned.
 The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
 Section numbers below group capabilities; they do not force reminders/ranking
 to ship before community work.
@@ -109,6 +109,8 @@ detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
   data. See [private saves](../saved-events.md).
 - [ ] MVP community foundation: Preserve conversations without provider/cache data.
   Basic event details must ship without waiting for historical change detection.
+- [x] MVP recommendation foundation: Preserve public endorsements and their event
+  snapshots across restarts/provider loss without merging save or interest state.
 - [ ] Deployment: Provision shared MariaDB with `mariadb-operator`; configure
   persistent database volumes, primary routing, Secrets/TLS, connection limits,
   backups, and the selected database availability topology independently of app replicas.
@@ -160,10 +162,14 @@ Build backend/API and UI together for each small outcome:
 - [x] Frontend: Let people toggle interest, control its visibility, and distinguish
   their own selected state from aggregate counts. See [event interest](../event-interest.md)
   for own collections, public-opt-in participants/profile activity, and verification.
-- [ ] Backend: Persist one public recommendation per user/event with optional
+- [x] Backend: Persist one public recommendation per user/event with optional
   reason; support editing/withdrawal and paginated city/category discovery.
-- [ ] Frontend: Offer Recommend as a secondary action, disclose public attribution,
-  and browse simple community recommendations and active event conversations.
+- [x] Frontend: Offer Recommend as a secondary action, disclose public attribution,
+  edit/withdraw, and browse public event/profile and city/category recommendations.
+  See [recommendations](../event-recommendations.md) for API/UI and verification.
+- [x] Verification: Exercise native/enhanced writes, failures/drafts, public privacy,
+  paginated return context, offline persistence, compact/200% text, and accessibility.
+- [ ] Frontend: Browse active event conversations alongside recommendation discovery.
 - [ ] Backend: Persist comments, replies, edits/removals, and positive Helpful
   reactions, enforcing ownership and preserving removed reply context.
 - [ ] Frontend: Provide readable threads, composing/replying/editing/removal, and
@@ -182,8 +188,8 @@ Build backend/API and UI together for each small outcome:
 
 ## 6. Responsive discovery-to-discussion experience
 
-The read-only discovery subset below is delivered. Community layout and writing
-journeys remain planned; the discovery work does not establish their completion.
+The discovery subset and recommendation writing/browsing are delivered. Discussion
+layout and writing journeys remain planned; earlier work does not establish their completion.
 
 - [x] Frontend: Responsive global navigation, image-led discovery, and selected
   event metadata previews with dedicated event pages on compact screens.

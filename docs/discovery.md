@@ -5,7 +5,8 @@ later personal/community features is tracked in the [aligned checklist](goals/de
 
 The [responsive UX guide](design-guidelines.md) describes the discovery shell,
 selected-event previews, dedicated event pages, and all-category discovery.
-Community participation remains planned. [DESIGN.md](../DESIGN.md) records the
+[Interested](event-interest.md) and [public recommendations](event-recommendations.md)
+provide independent participation; discussions remain planned. [DESIGN.md](../DESIGN.md) records the
 implemented visual system.
 
 ## Fetch once, reuse across clients
@@ -88,8 +89,10 @@ A new form submission starts at the first page.
   the preview on direct entry or reload; these are HTML-only parameters.
 - Event pages use `section=overview|discussion|community` and a validated local
   `return_to` URL. Overview shows supplied descriptions, venue information, prices,
-  status, separate sale dates, freshness, and the Ticketmaster link. Discussion
-  and Community explain their current unavailable state without invented counts.
+  status, separate sale dates, freshness, and the Ticketmaster link. Community shows
+  public recommendations and opted-in interest identities. Discussion explains
+  its unavailable state without invented counts. HTML-only `recommend=true` opens
+  the composer in Community; it is not a discovery/API filter.
 - Back restores previous selection; loaded result pages, focus, and scroll are
   retained in browser history across the event's full-page section links. A
   one-use, same-tab session-storage handoff carries the originating history entry;
@@ -102,8 +105,10 @@ A new form submission starts at the first page.
 - Opt-in [accounts](accounts.md) provide profiles/private preferences and
   [private saves](saved-events.md). `/saved` is an owner-only collection with
   durable last-known details; Save/Remove work from rows, previews and event pages.
-  Disabled accounts explain configuration requirements. `/community`, Interested
-  and Recommend remain unavailable and explicitly explained.
+  Disabled accounts explain configuration requirements. Interested has independent
+  privacy/counts; `/community` browses public recommendations. Discussion remains
+  unavailable and explicitly explained. Recommend is a secondary link to
+  the Community composer, with explicit public attribution and independent state.
 - Detail reads can fall back to durable last-known snapshots when current provider
   data is unavailable. Public metadata never includes private bookmark state.
 

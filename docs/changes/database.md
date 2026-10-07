@@ -18,6 +18,11 @@
   without merging save/interest records; verify migration preservation, rollback,
   independent pools, keysets and provider-free restart. See [interest](../event-interest.md).
   Require draining v3 apps before migration; the current development database is unchanged.
+- Add schema v5 public recommendations with unique account/event keys, stable
+  publication/edit times, bounded reasons, and scoped runtime/operator grants/probes.
+  Verify atomic writes/rollback, independent pools, offline edits/restarts, filtered
+  binary keysets, and v4 activity/session preservation; drain v4 apps before upgrading.
+  Leave the running development database unchanged; see [recommendations](../event-recommendations.md).
 - Add local `make db-setup` (originally `make migrate`) to prepare TLS/Compose/users,
   run current-source migrations, reapply runtime grants and verify runtime access
   with zero-row write probes.

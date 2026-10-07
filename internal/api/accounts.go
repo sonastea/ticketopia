@@ -16,6 +16,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/interests"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/account"
 	"github.com/sonastea/ticketopia/views/home"
@@ -74,6 +75,12 @@ func (a *api) cookie(c echo.Context, kind, raw string, lifetime time.Duration) {
 // Only a local, known page may be resumed. Never redirect to an auth endpoint,
 // encoded slash/backslash, external origin, or user-controlled fragment.
 func safeAuthReturn(raw string) string {
+	if strings.HasPrefix(raw, "/community") {
+		return safeCommunityReturn(raw)
+	}
+	if strings.HasPrefix(raw, "/users/") {
+		return safeProfileReturn(raw)
+	}
 	if len(raw) > 4096 || strings.ContainsAny(raw, "\\\r\n\x00") {
 		return "/me"
 	}
@@ -238,12 +245,14 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 400, "invalid_sign_in", "Sign-in expired or could not be verified. Please start again.", nil
 	case errors.Is(err, accounts.ErrNotFound):
 		return 404, "account_not_found", "This profile could not be found.", nil
-	case errors.Is(err, discovery.ErrNotFound), errors.Is(err, saved.ErrNotFound), errors.Is(err, interests.ErrNotFound):
+	case errors.Is(err, discovery.ErrNotFound), errors.Is(err, saved.ErrNotFound), errors.Is(err, interests.ErrNotFound), errors.Is(err, recommendations.ErrNotFound):
 		return 404, "event_not_found", "This event could not be found. Return to discovery and try another event.", nil
 	case errors.Is(err, saved.ErrUnavailable):
 		return 503, "saved_events_unavailable", "We couldn't load or change your saved events. Please try again shortly.", nil
 	case errors.Is(err, interests.ErrUnavailable):
 		return 503, "event_interests_unavailable", "We couldn't load or change event interest. Please try again shortly.", nil
+	case errors.Is(err, recommendations.ErrUnavailable):
+		return 503, "event_recommendations_unavailable", "We couldn't load or change recommendations. Please try again shortly.", nil
 	case errors.Is(err, accounts.ErrLimited):
 		return 429, "rate_limited", "Too many attempts. Try again in ten minutes.", nil
 	case errors.Is(err, accounts.ErrCredentialLimit):
@@ -696,14 +705,33 @@ func (a *api) publicProfilePage(c echo.Context) error {
 		return a.accountPageError(c, err)
 	}
 	list := interests.List{Items: []interests.Item{}}
+	values := c.QueryParams()
+	recommendationValues := url.Values{}
+	if raw, ok := values["recommendation_cursor"]; ok {
+		recommendationValues["cursor"] = raw
+		values.Del("recommendation_cursor")
+	}
+	if raw, ok := values["limit"]; ok {
+		recommendationValues["limit"] = raw
+	}
+	recommended := recommendations.List{Items: []recommendations.Item{}}
+	recommendationError := ""
+	if a.recommendations != nil {
+		recommended, err = a.recommendations.Public(c.Request().Context(), p.ID, recommendationValues)
+		if err != nil {
+			return a.accountPageError(c, err)
+		}
+	} else {
+		recommendationError = "Public recommendations are unavailable on this server."
+	}
 	message := ""
 	if a.interests != nil {
-		list, err = a.interests.List(c.Request().Context(), p.ID, true, c.QueryParams())
+		list, err = a.interests.List(c.Request().Context(), p.ID, true, values)
 		if err != nil {
 			return a.accountPageError(c, err)
 		}
 	} else {
 		message = "Public event interest is unavailable on this server."
 	}
-	return render(c, 200, account.Public(p, list, c.Request().URL.RequestURI(), message))
+	return render(c, 200, account.Public(p, list, c.Request().URL.RequestURI(), message, recommended, recommendationError))
 }

@@ -1,7 +1,7 @@
 # Database: MariaDB
 
 Status: Connection/migration support, accounts/private preferences/credentials,
-private bookmarks/last-known snapshots, independent event interest/visibility,
+private bookmarks/last-known snapshots, independent event interest/visibility, public recommendations,
 and minimal durable event identity are
 implemented, opt-in alongside KV-backed discovery and durable detail fallback. Broader application
 storage, scheduled observations, deployed multi-pod operation, HA, and verified

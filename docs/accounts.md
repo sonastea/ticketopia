@@ -2,14 +2,15 @@
 
 Implemented, opt-in: direct Google authorization-code sign-in, durable accounts,
 browser sessions, public profiles/private preferences, personal API tokens, and
-[private event saves](saved-events.md) and [Interested](event-interest.md).
-Accounts require MariaDB; there is no memory fallback. Recommendations, discussions,
+[private event saves](saved-events.md), [Interested](event-interest.md), and
+[public recommendations](event-recommendations.md).
+Accounts require MariaDB; there is no memory fallback. Discussions,
 personalization, and notification delivery remain planned.
 
 ## Enable accounts
 
 First follow the [MariaDB setup](persistence.md#repeatable-local-development), apply
-schema version **4**, and reapply the runtime grants. Discovery remains usable with
+schema version **5**, and reapply the runtime grants. Discovery remains usable with
 `AUTH_ENABLED` unset/false. When enabled, missing/invalid configuration or SQL
 startup failures stop the server before it listens.
 

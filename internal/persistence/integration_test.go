@@ -114,7 +114,7 @@ func (f mariaFixture) migrate(t *testing.T) {
 	for _, table := range []string{"events", "event_providers"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
 	}
-	for table, privileges := range map[string]string{"accounts": "INSERT, UPDATE", "account_identities": "INSERT", "account_credentials": "INSERT, DELETE", "auth_flows": "INSERT, DELETE", "auth_rate_limits": "INSERT, UPDATE, DELETE", "event_snapshots": "INSERT, UPDATE", "saved_events": "INSERT, DELETE", "event_interests": "INSERT, UPDATE, DELETE"} {
+	for table, privileges := range map[string]string{"accounts": "INSERT, UPDATE", "account_identities": "INSERT", "account_credentials": "INSERT, DELETE", "auth_flows": "INSERT, DELETE", "auth_rate_limits": "INSERT, UPDATE, DELETE", "event_snapshots": "INSERT, UPDATE", "saved_events": "INSERT, DELETE", "event_interests": "INSERT, UPDATE, DELETE", "event_recommendations": "INSERT, UPDATE, DELETE"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
 	}
 }

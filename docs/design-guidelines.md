@@ -2,8 +2,8 @@
 
 The implemented UI supports all-category discovery, read-only event details, and
 opt-in [Google accounts/profile/privacy/preferences](accounts.md) and
-[private event saves](saved-events.md) and [Interested](event-interest.md).
-Recommendations and discussions remain planned.
+[private event saves](saved-events.md), [Interested](event-interest.md), and
+[public recommendations](event-recommendations.md). Discussions remain planned.
 
 ## Sources of truth
 
@@ -23,9 +23,9 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Destination | Route | Current behavior |
 | --- | --- | --- |
 | Discover | `/` | City, keyword, dates, category/genre filters, event results, pagination |
-| Event | `/events/{event_id}` | Details, Save/Interested and per-event privacy; Community lists public participants; discussions/recommendations explain planned availability |
+| Event | `/events/{event_id}` | Details, Save/Interested and per-event privacy; Community shows public recommendations and public-opt-in participants; discussions explain planned availability |
 | Saved | `/saved` | Owner-only newest-saved-first collection, last-known details, and pagination; sign-in or configuration explanation when unavailable |
-| Community | `/community` | Planned recommendations and conversations; availability explanation |
+| Community | `/community` | Public recent endorsements with city/country/category filters and pagination; conversations remain planned |
 | Interests | `/me/interests` | Paginated own event interest and per-event visibility, followed by separate private category preferences |
 | Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
 | Preferences | `/me/preferences` | Private default city, time zone, and future notification preferences |
@@ -94,18 +94,23 @@ Interest editing stays behind **Change visibility** beside the count, with only 
 editor open at a time. Saving closes the editor. Confirmed controls provide success
 feedback rather than persistent status paragraphs; pending/success announcements
 remain available to assistive technology, and errors are single, dismissible, and
-cleared by retry or a new action. Recommend
-is disabled in Community. Do not fabricate engagement counts or successful actions.
+cleared by retry or a new action. Secondary **Recommend** opens a native disclosure
+composer in Community and explains public attribution before publishing. Authors
+can edit or withdraw without changing Save/Interested; reasons are optional and
+bounded. Confirmed writes close the editor and restore focus; failed writes retain
+drafts, including native session/CSRF recovery. See [recommendations](event-recommendations.md).
+Do not fabricate engagement counts or successful actions.
 
 External ticket links name Ticketmaster and do not imply ticket ownership or
 guaranteed availability. Section links use ordinary navigation semantics, not
 partial ARIA-tab behavior. Discussion and Community preserve the event identity
-while explaining their current availability.
+while explaining their current availability. Community lists explicit endorsements
+separately from opted-in interest identities; only Discussion remains unavailable.
 
 ## Interaction semantics and hierarchy
 
 The following participation semantics are product requirements. Private Save
-and Interested are implemented; the other mutations remain planned:
+and Interested and Recommend are implemented; discussion/Helpful remain planned:
 
 | Interaction | Meaning and visibility | Feedback and aggregate information |
 | --- | --- | --- |
@@ -121,7 +126,7 @@ fields, feeds, or count drill-downs; aggregate counts do not guarantee anonymity
 in small groups. Recommending must not implicitly save, mark interest, or post.
 
 Keep decision-critical event facts ahead of participation. Future event controls
-should keep Save and Interested compact, Discuss contextual, and Recommend
+keep Save and Interested compact, Discuss contextual, and Recommend
 secondary. Within conversations, Reply leads, Helpful is secondary, and editing
 and reporting use a labeled action menu.
 
@@ -142,6 +147,9 @@ entry without return context provides a Discover link.
 - Keep loading and errors local to the preview; offer Retry, Open event, and
   return navigation while preserving usable results.
 - Ordinary links/forms provide the no-JavaScript search and pagination baseline.
+- Recommendation links preserve filtered community/profile pages and event
+  pagination origins. Explicit Recommend intent opens the composer without a
+  second click; generic Community navigation keeps the disclosure secondary.
 
 Future discussion/thread routes must retain the same event and return context.
 Drafts survive validation/network failures and responsive transitions. Load only

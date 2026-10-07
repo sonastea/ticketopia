@@ -121,6 +121,9 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			_, page.SelectionError = errorMessage(selectionErr)
 		} else {
 			page.Selected = &detail
+			if section == "community" {
+				page.Recommendations = a.recommendationView(c, selectedID)
+			}
 			if a.interestEnabled() && section == "community" {
 				page.Participants, selectionErr = a.interests.Participants(c.Request().Context(), selectedID, nil)
 				if selectionErr != nil {

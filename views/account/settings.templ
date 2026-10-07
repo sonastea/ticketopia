@@ -3,6 +3,7 @@ package account
 import "net/url"
 import "github.com/sonastea/ticketopia/internal/accounts"
 import "github.com/sonastea/ticketopia/internal/interests"
+import "github.com/sonastea/ticketopia/internal/recommendations"
 import "github.com/sonastea/ticketopia/views/home"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
@@ -122,7 +123,7 @@ templ Profile(p Page) {
 				<p class="field-note">No bio added.</p>
 			}
 			<a href={ templ.URL("/users/" + p.Account.ID) } class="text-link">Open your public profile</a>
-			<p class="field-note">Your email, city, category preferences, notification settings, saves, and private event interest are not part of this public view. Only event interest you mark Public appears.</p>
+			<p class="field-note">Your email, city, category preferences, notification settings, saves, and private event interest are not part of this public view. Public event interest and separately published recommendations appear.</p>
 		</aside>
 	</div>
 	<section class="account-section" aria-labelledby="sign-in-heading">
@@ -241,7 +242,7 @@ templ Interests(p Page) {
 	</form>
 }
 
-templ Public(p accounts.PublicProfile, list interests.List, returnURL string, message string) {
+templ Public(p accounts.PublicProfile, list interests.List, returnURL string, message string, recommended recommendations.List, recommendationError string) {
 	@layouts.App("profile", p.DisplayName) {
 		<main id="main" class="destination-page account-page">
 			<div class="account-public"><h1>{ p.DisplayName }</h1>
@@ -258,6 +259,7 @@ templ Public(p accounts.PublicProfile, list interests.List, returnURL string, me
 			} else {
 				@home.PublicInterestEvents(list, returnURL)
 			}
+			@home.PublicRecommendationEvents(recommended,returnURL,recommendationError)
 		</main>
 	}
 }

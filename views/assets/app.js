@@ -517,10 +517,11 @@
     }
     workspace.classList.toggle('has-selection', Boolean(id));
   };
-  const detailURL = (id, section = 'overview') => {
+  const detailURL = (id, section = 'overview', recommend = false) => {
     const url = new URL('/events/' + encodeURIComponent(id), location.origin);
     url.searchParams.set('return_to', workspace.dataset.resultsUrl);
     if (section !== 'overview') url.searchParams.set('section', section);
+    if (recommend) url.searchParams.set('recommend', 'true');
     return url;
   };
   const rememberResults = () => {
@@ -572,7 +573,7 @@
     const link = context.querySelector('[data-preview-open]');
     link.href = url.href;
   };
-  const select = async (id, section, push = true) => {
+  const select = async (id, section, push = true, recommend = false) => {
     const panelHadFocus = context.contains(document.activeElement);
     request?.abort();
     request = new AbortController();
@@ -585,10 +586,12 @@
       next.searchParams.set('selected_event', id);
       if (section !== 'overview') next.searchParams.set('section', section);
       else next.searchParams.delete('section');
+      if (recommend) next.searchParams.set('recommend', 'true');
+      else next.searchParams.delete('recommend');
       history.pushState({ ...history.state }, '', next);
     }
     markSelection(id);
-    const url = detailURL(id, section);
+    const url = detailURL(id, section, recommend);
     context.setAttribute('aria-busy', 'true');
     context.replaceChildren(previewTemplate('loading'));
     status.textContent = 'Loading event preview.';
@@ -600,11 +603,12 @@
       if (turn !== generation) return;
       context.innerHTML = html;
       context.scrollTop = 0;
-      if (panelHadFocus) context.querySelector('.section-nav a[aria-current="page"]')?.focus({ preventScroll: true });
+      if (recommend) context.querySelector('[data-recommendation-form] textarea')?.focus();
+      else if (panelHadFocus) context.querySelector('.section-nav a[aria-current="page"]')?.focus({ preventScroll: true });
       status.textContent = 'Event preview loaded: ' + context.querySelector('.context-heading h2').textContent;
     } catch {
       if (turn === generation) {
-        showError(url, () => select(id, section, false));
+        showError(url, () => select(id, section, false, recommend));
         if (panelHadFocus) context.querySelector('button')?.focus({ preventScroll: true });
         status.textContent = 'Event preview could not be loaded.';
       }
@@ -621,6 +625,7 @@
       const url = new URL(location.href);
       url.searchParams.delete('selected_event');
       url.searchParams.delete('section');
+      url.searchParams.delete('recommend');
       history.pushState({ ...history.state }, '', url);
     }
     markSelection('');
@@ -655,12 +660,12 @@
       return;
     }
     event.preventDefault();
-    select(id, url.searchParams.get('section') || 'overview');
+    select(id, url.searchParams.get('section') || 'overview', true, url.searchParams.get('recommend') === 'true');
   });
   addEventListener('popstate', () => {
     const params = new URL(location.href).searchParams;
     const id = params.get('selected_event');
-    if (id) select(id, params.get('section') || 'overview', false);
+    if (id) select(id, params.get('section') || 'overview', false, params.get('recommend') === 'true');
     else closeContext(false);
   });
   desktop.addEventListener('change', () => {

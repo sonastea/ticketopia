@@ -68,12 +68,14 @@ func TestReturnContextCannotNavigateOutsideDiscovery(t *testing.T) {
 	}
 }
 
-func TestPlannedDestinationsRemainTruthful(t *testing.T) {
+func TestDisabledDestinationsRemainTruthful(t *testing.T) {
 	a := &api{}
 	for _, path := range []string{"/saved", "/community", "/me", "/me/interests"} {
 		availability := "In development"
 		if path == "/me" || path == "/me/interests" || path == "/saved" {
 			availability = "Accounts not enabled"
+		} else if path == "/community" {
+			availability = "require accounts to be enabled"
 		}
 		rec := httptest.NewRecorder()
 		a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))

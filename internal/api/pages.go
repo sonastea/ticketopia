@@ -18,7 +18,10 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 		filters[key] = value
 	}
 	id, section := filters.Get("selected_event"), filters.Get("section")
-	for _, key := range []string{"selected_event", "section"} {
+	if values, ok := filters["recommend"]; ok && (len(values) != 1 || values[0] != "true" || id == "" || section != "community") {
+		return nil, "", "", &discovery.ValidationError{Field: "recommend", Message: "open recommendations for a selected event's community section"}
+	}
+	for _, key := range []string{"selected_event", "section", "recommend"} {
 		if len(filters[key]) > 1 {
 			return nil, "", "", &discovery.ValidationError{Field: key, Message: "use one value"}
 		}
@@ -48,6 +51,12 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 }
 
 func safeReturnURL(raw string) string {
+	if strings.HasPrefix(raw, "/community") {
+		return safeCommunityReturn(raw)
+	}
+	if strings.HasPrefix(raw, "/users/") {
+		return safeProfileReturn(raw)
+	}
 	if strings.HasPrefix(raw, "/me/interests") {
 		if result := safeInterestReturn(raw); strings.HasPrefix(result, "/me/interests") {
 			return result
@@ -84,7 +93,7 @@ func (a *api) eventPageHandler(c echo.Context) error {
 	id, err := url.PathUnescape(c.Param("event_id"))
 	if err == nil {
 		for key, values := range c.QueryParams() {
-			if (key != "section" && key != "return_to") || len(values) != 1 {
+			if (key != "section" && key != "return_to" && key != "recommend") || len(values) != 1 {
 				err = &discovery.ValidationError{Field: key, Message: "use one value for a supported event parameter"}
 				break
 			}
@@ -96,11 +105,17 @@ func (a *api) eventPageHandler(c echo.Context) error {
 			err = &discovery.ValidationError{Field: "section", Message: "choose overview, discussion, or community"}
 		}
 	}
+	if values, ok := c.QueryParams()["recommend"]; ok && (len(values) != 1 || values[0] != "true" || page.Section != "community") {
+		err = &discovery.ValidationError{Field: "recommend", Message: "open recommendations in this event's community section"}
+	}
 	if err == nil {
 		page.Detail, err = a.eventDetail(c.Request().Context(), id)
 		if err == nil {
 			page.Saves = a.saveView(c, []string{id})
 			page.Interests = a.interestView(c, []string{id})
+			if page.Section == "community" {
+				page.Recommendations = a.recommendationView(c, id)
+			}
 			if a.interestEnabled() && page.Section == "community" {
 				page.Participants, err = a.interests.Participants(c.Request().Context(), id, nil)
 				if err != nil {

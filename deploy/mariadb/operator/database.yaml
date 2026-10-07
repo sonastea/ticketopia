@@ -296,6 +296,21 @@ spec:
   grantOption: false
   cleanupPolicy: Skip
 ---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-event-recommendations
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE, DELETE]
+  database: ticketopia
+  table: event_recommendations
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:

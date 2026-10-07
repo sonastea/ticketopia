@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.4.0
+  version: 1.5.0
   license:
     name: MIT
     identifier: MIT
@@ -11,7 +11,7 @@ info:
     Category and genre IDs are Ticketmaster
     taxonomy IDs. Data is cached, not a live inventory or durable event history.
     Opt-in Google authentication provides MariaDB-backed profiles and private
-    preferences, private durable event saves, and independent event interest.
+    preferences, private durable event saves, independent event interest, and public event recommendations.
     Interest identity is private by default; counts include private choices but
     participant lists and profile activity include only explicitly public choices.
     Account APIs use a browser session or a user-scoped API token;
@@ -201,7 +201,7 @@ paths:
     patch:
       operationId: updateOwnProfile
       summary: Update your profile and interest privacy default
-      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes do not need CSRF. Changing this default does not create event interest or publish private preferences. Event interest itself remains unimplemented.
+      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes do not need CSRF. Changing this default affects new interest choices only and does not publish private preferences or hide public recommendations.
       security: [{sessionCookie: []}, {bearerToken: []}]
       parameters: [{$ref: '#/components/parameters/CSRFToken'}]
       requestBody:
@@ -699,6 +699,167 @@ paths:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
         '503': {$ref: '#/components/responses/InterestsUnavailable'}
+  /api/v1/recommendations:
+    get:
+      operationId: listCommunityRecommendations
+      summary: Browse public recommendations by city and category
+      description: |
+        Public endorsements, one per account/event, with optional plain-text reasons
+        and allowlisted profiles. Multiple people can independently endorse the same
+        event. Ordered by original recommended_at, then binary event ID and account
+        ID descending; edits do not bump publication ordering. Filters use retained
+        event snapshots, not provider requests. No private saves, interest identities,
+        email or preferences appear. All responses are private, no-store, so withdrawal
+        affects subsequent reads. Only the listed parameters, each once, are accepted.
+      parameters:
+        - {name: city, in: query, description: 'Case-insensitive exact city name, trimmed; no wildcard matching.', schema: {type: string, maxLength: 120}}
+        - {name: country, in: query, description: Optional two-letter country code., schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
+        - {name: category_id, in: query, description: Event segment ID; all or omission removes this filter., schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/RecommendationCursor'}
+      responses:
+        '200':
+          description: Recent public endorsements, or an empty array.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventRecommendationList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+  /api/v1/me/event-recommendations:
+    get:
+      operationId: listOwnEventRecommendations
+      summary: List your published recommendations
+      description: Original publication ordering and last-known event snapshots. Recommendations are public even when your interest is private. Cursors are owner-bound. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/RecommendationCursor'}
+      responses:
+        '200':
+          description: Your endorsements, or an empty array.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventRecommendationList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+  /api/v1/me/event-recommendations/{event_id}:
+    parameters:
+      - {name: event_id, in: path, required: true, schema: {type: string, pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'}}
+    get:
+      operationId: getOwnEventRecommendation
+      summary: Read your recommendation for an event
+      description: No query parameters. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Your public recommendation and retained event snapshot.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventRecommendation'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/RecommendationNotFound'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+    put:
+      operationId: setOwnEventRecommendation
+      summary: Publish a public recommendation or replace its optional reason
+      description: |
+        Explicitly publishes your display name/profile and optional reason on the
+        event, community collection and public profile. Does not change Save,
+        Interested, attendance or posts. Omitted reason or an empty string clears
+        the reason; null, repeated/unknown fields, client owner/metadata/visibility
+        and query parameters are rejected. Reasons use valid UTF-8 plain text up
+        to 500 Unicode characters, with surrounding whitespace trimmed. New
+        identity/snapshot/recommendation commit atomically. Edits/retries preserve
+        recommended_at; unchanged reasons also preserve updated_at. Existing edits
+        need no provider call. Cookie writes require CSRF and same-origin checks;
+        bearer writes do not use ambient cookies. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason: {type: string, maxLength: 500, default: ''}
+      responses:
+        '201':
+          description: Public recommendation created.
+          headers:
+            Location: {description: Own recommendation resource., schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventRecommendation'}
+        '200':
+          description: Existing recommendation, with its optional reason replaced.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventRecommendation'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/RecommendationNotFound'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+    delete:
+      operationId: withdrawOwnEventRecommendation
+      summary: Withdraw your recommendation without changing other activity
+      description: Empty body and no query parameters. Owner-only, idempotent 204 even when absent. Retains shared metadata and other accounts' recommendations, saves and interest. Cookie writes require CSRF and same-origin checks. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '204': {description: Recommendation withdrawn or already absent.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+  /api/v1/events/{event_id}/recommendations:
+    get:
+      operationId: listEventRecommendations
+      summary: Read public event recommendations and their count
+      description: Count means explicit recommendations, not interest or Helpful. Unknown valid event IDs return zero and an empty array without provider calls. Ordered by original publication and binary IDs descending. All responses are private, no-store.
+      parameters:
+        - {name: event_id, in: path, required: true, schema: {type: string, pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/RecommendationCursor'}
+      responses:
+        '200':
+          description: Public recommendations and total explicit endorsements for this event.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: '#/components/schemas/EventRecommendationList'}
+                  - {type: object, required: [count]}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+  /api/v1/users/{user_id}/event-recommendations:
+    get:
+      operationId: listPublicProfileRecommendations
+      summary: Read an account's public recommendations
+      description: Public endorsements independently of interest privacy. Only allowlisted public profile fields are included. Original publication ordering, retained snapshots, and public-account-bound cursors. All responses are private, no-store.
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {$ref: '#/components/schemas/AccountID'}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/RecommendationCursor'}
+      responses:
+        '200':
+          description: This account's public recommendations, or an empty array.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventRecommendationList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '404':
+          description: Account not found, including an invalid account ID.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
   /api/v1/openapi.yaml:
     get:
       operationId: getOpenAPI
@@ -722,6 +883,11 @@ components:
       scheme: bearer
       description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
   parameters:
+    RecommendationCursor:
+      name: cursor
+      in: query
+      description: Opaque next_cursor bound to this collection, owner/public audience, event and normalized community filters.
+      schema: {type: string, maxLength: 1024}
     InterestLimit:
       name: limit
       in: query
@@ -737,6 +903,16 @@ components:
       description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
       schema: {type: string}
   responses:
+    RecommendationNotFound:
+      description: This owner has no recommendation, or the event cannot be resolved for first publication.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    RecommendationsUnavailable:
+      description: Accounts/recommendations are disabled, storage is unavailable, or event data cannot be resolved. No fabricated count or in-memory fallback.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     InterestNotFound:
       description: Event cannot be resolved for a new choice, or this owner has no interest in it.
       content:
@@ -799,6 +975,25 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    EventRecommendation:
+      type: object
+      additionalProperties: false
+      required: [event, profile, reason, recommended_at, updated_at, meta]
+      properties:
+        event: {$ref: '#/components/schemas/Event'}
+        profile: {$ref: '#/components/schemas/PublicProfile'}
+        reason: {type: string, maxLength: 500, description: 'Optional reason as plain text, never trusted HTML.'}
+        recommended_at: {type: string, format: date-time, description: Original publication time; edits and retries preserve ordering.}
+        updated_at: {type: string, format: date-time, description: Last reason change; unchanged retries preserve this time.}
+        meta: {$ref: '#/components/schemas/Freshness'}
+    EventRecommendationList:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/EventRecommendation'}}
+        next_cursor: {type: [string, 'null']}
+        count: {type: integer, minimum: 0, description: 'Total endorsements for the event; present only on event-scoped reads, independently of pagination.'}
     EventInterest:
       type: object
       required: [event, interested_at, visibility, meta]

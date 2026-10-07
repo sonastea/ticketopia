@@ -1,0 +1,224 @@
+package home
+
+import "fmt"
+import "github.com/sonastea/ticketopia/internal/models"
+import "github.com/sonastea/ticketopia/internal/recommendations"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/input"
+import "github.com/sonastea/ticketopia/views/components/label"
+import selectcomp "github.com/sonastea/ticketopia/views/components/select"
+import "github.com/sonastea/ticketopia/views/components/alert"
+
+templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
+	<div data-event-recommendations={ id } data-recommendation-viewer={ v.ViewerID }>
+		if !v.Enabled {
+			<p class="field-note">Recommendations require accounts to be enabled on this server.</p>
+		} else {
+			if v.Error != "" {
+				<p class="field-note" role="status">{ v.Error }</p>
+			} else if !v.SignedIn {
+				@button.Button(button.Props{Href:signInURL(returnURL),Variant:button.VariantOutline,Class:"button-quiet"}) {
+					Sign in to recommend
+				}
+				<p class="field-note">Recommendations are public, with your display name and profile link.</p>
+			} else {
+				<details class="recommendation-editor" data-recommendation-editor open?={ v.Open }>
+					<summary>
+						@layouts.Icon("community")
+						if v.Own != nil {
+							Edit your recommendation
+						} else {
+							Recommend this event
+						}
+					</summary>
+					<form action={ recommendationAction(id) } method="post" class="account-form" data-recommendation-form data-recommendation-id={ id }>
+						<input type="hidden" name="csrf_token" value={ v.CSRF }/>
+						<input type="hidden" name="return_to" value={ returnURL }/>
+						<p class="field-note">Your display name, profile link, and reason will be public on this event, in Community, and on your profile. Interest privacy does not hide recommendations.</p>
+						<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span>
+							<textarea name="reason" rows="3" maxlength="500" data-recommendation-reason autofocus?={ v.Open }>{ v.reason() }</textarea>
+						</label>
+						<div class="account-actions">
+							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
+								if v.Own != nil {
+									Save recommendation
+								} else {
+									Publish recommendation
+								}
+							}
+							if v.Own != nil {
+								@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantLink,Class:"text-link",Attributes:templ.Attributes{"name":"action","value":"remove","formnovalidate":true}}) {
+									Withdraw recommendation
+								}
+							}
+						</div>
+						<p class="field-note" role="alert" data-recommendation-error hidden></p>
+					</form>
+				</details>
+			}
+			<h3>Public recommendations</h3>
+			if v.List.Count != nil {
+				<p class="field-note"><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
+			}
+			if v.ListError != "" {
+				<p class="field-note" role="status">{ v.ListError }</p>
+			} else {
+				@RecommendationList(v.List,false,returnURL)
+				if v.List.NextCursor != nil {
+					<a href={ templ.URL(recommendationListURL(id,returnOrigin(returnURL))) } class="text-link">See all recommendations</a>
+				}
+			}
+		}
+	</div>
+}
+
+templ RecommendationList(list recommendations.List,showEvent bool,returnURL string) {
+	if len(list.Items)==0 {
+		<p class="field-note">No recommendations on this page. Open an event to share one you recommend.</p>
+	} else {
+		<ul class="recommendation-list">
+			for _,item := range list.Items {
+				<li class={ templ.KV("recommendation-event",showEvent) }>
+					if showEvent {
+						<div class="event-art">
+							@EventImage(item.Event,false)
+							<div class="date-marker" aria-hidden="true"><span>{ datePart(item.Event.Start,"Jan") }</span><strong>{ datePart(item.Event.Start,"2") }</strong></div>
+						</div>
+					}
+					<div class="recommendation-copy">
+						if showEvent {
+							<p class="event-date">{ startLabel(item.Event.Start) }</p>
+							<h3><a href={ templ.URL(eventURL(item.Event.ID,"community",returnURL)) } class="text-link">{ item.Event.Name }</a></h3>
+							<p class="event-venue">{ venueLabel(item.Event) }</p>
+							@EventFacts(item.Event)
+						}
+						<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event</p>
+						if item.Reason!="" {
+							<p class="recommendation-reason">{ item.Reason }</p>
+						}
+						<p class="field-note"><time datetime={ item.RecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>Published { item.RecommendedAt.UTC().Format("Jan 2, 2006") }</time>
+							if !item.UpdatedAt.Equal(item.RecommendedAt) {
+								<span> · Edited</span>
+							}
+						</p>
+						if showEvent && !item.Meta.DataAsOf.IsZero() {
+							<p class="freshness">Last-known event details updated { freshnessLabel(item.Meta.DataAsOf) }.</p>
+						}
+					</div>
+				</li>
+			}
+		</ul>
+	}
+}
+
+templ Community(p CommunityPage) {
+	@layouts.App("community","Community recommendations") {
+		<main id="main" class="destination-page community-page">
+			<header><h1>Recommended by the community</h1><p class="intro">Public event recommendations, with the people and reasons behind them.</p></header>
+			if !p.Enabled {
+				<p>Community recommendations require accounts to be enabled on this server. You can still discover events.</p>
+				<a href="/" class="text-link">Discover events</a>
+			} else {
+				<form action="/community" method="get" class="community-filters">
+					@label.Label(label.Props{For:"community-city",Class:"field"}) {
+						City <span>(optional)</span>
+						@input.Input(input.Props{ID:"community-city",Name:"city",Value:p.Filters.City,Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
+					}
+					@label.Label(label.Props{For:"community-country",Class:"field"}) {
+						Country code <span>(optional)</span>
+						@input.Input(input.Props{ID:"community-country",Name:"country",Value:p.Filters.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}"}})
+					}
+					@label.Label(label.Props{For:"community-category",Class:"field"}) {
+						Category
+						@selectcomp.Native(selectcomp.NativeProps{ID:"community-category",Name:"category_id"}) {
+							<option value="all">All categories</option>
+							if p.Filters.CategoryID!="" && !p.hasCategory() {
+								<option value={ p.Filters.CategoryID } selected>{ p.Filters.CategoryID }</option>
+							}
+							for _,category := range p.Categories {
+								<option value={ category.ID } selected?={ category.ID==p.Filters.CategoryID }>{ category.Name }</option>
+							}
+						}
+					}
+					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+						Apply filters
+					}
+				</form>
+				if p.CategoriesUnavailable {
+					<p class="field-note">Category options couldn't refresh. Recommendations and your selected filter are still available.</p>
+				}
+				if p.Error!="" {
+					@alert.Alert(alert.Props{Class:"feedback error-state",Variant:alert.VariantDestructive}) {
+						<h2>Recommendations couldn't load</h2><p>{ p.Error }</p><a href="/community" class="text-link">Reset filters and retry</a>
+					}
+				} else {
+					<div class="results-heading"><h2>Recent recommendations</h2><span class="sort-label">Newest published first</span></div>
+					@RecommendationList(p.List,true,p.ReturnURL)
+					if p.List.NextCursor != nil {
+						@button.Button(button.Props{Href:CollectionNextURL(p.ReturnURL,p.List.NextCursor),Variant:button.VariantOutline,Class:"action action-secondary"}) {
+							More recommendations
+						}
+					}
+				}
+				<p class="participation-note">Recommendations don't confirm attendance, ticket ownership, or current ticket availability. Event discussions are not available yet.</p>
+			}
+		</main>
+	}
+}
+
+templ PublicRecommendationEvents(list recommendations.List,returnURL string,message string) {
+	<section class="account-section" aria-labelledby="profile-recommendations-heading">
+		<h2 id="profile-recommendations-heading">Public recommendations</h2>
+		if message!="" {
+			<p class="field-note" role="status">{ message }</p>
+		} else {
+			@RecommendationList(list,true,returnURL)
+			if list.NextCursor!=nil {
+				<a href={ templ.URL(profileRecommendationNextURL(returnURL,list.NextCursor)) } class="text-link">More public recommendations</a>
+			}
+		}
+	</section>
+}
+
+templ RecommendationFailure(id,reason,csrf,returnURL,message string,withdraw,signIn bool) {
+	@layouts.App("community","Recommendation wasn't saved") {
+		<main id="main" class="destination-page account-page">
+			<h1>Recommendation wasn't saved</h1><p role="alert">{ message }</p>
+			<form action={ recommendationAction(id) } method="post" class="account-form">
+				<input type="hidden" name="csrf_token" value={ csrf }/><input type="hidden" name="return_to" value={ returnURL }/>
+				<p class="field-note">Publishing makes your display name, profile link, and reason public. Saved and Interested remain separate.</p>
+				<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span><textarea name="reason" rows="4" maxlength="500">{ reason }</textarea></label>
+				if csrf == "" {
+					<p class="field-note">Your draft is kept above. After signing in or refreshing the event, copy your reason into the recommendation form to retry.</p>
+					if signIn {
+						<a href={ templ.URL(signInURL(returnURL)) } class="text-link">Sign in to continue</a>
+					}
+				} else if withdraw {
+					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"remove","formnovalidate":true}}) {
+						Retry withdrawal
+					}
+				} else {
+					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
+						Retry recommendation
+					}
+				}
+				<p class="field-note" role="alert" data-recommendation-error hidden></p>
+			</form>
+			<a href={ templ.URL(returnURL) } class="text-link">Back to event</a>
+		</main>
+	}
+}
+
+templ EventRecommendations(event models.Event,list recommendations.List,paginationURL,origin string) {
+	@layouts.App("community","Recommendations for "+event.Name) {
+		<main id="main" class="destination-page account-page">
+			<a href={ templ.URL(eventURL(event.ID,"community",origin)) } class="text-link">Back to event</a>
+			<h1>Recommendations for { event.Name }</h1><p class="event-date">{ startLabel(event.Start) }</p><p class="event-venue">{ venueLabel(event) }</p>
+			@RecommendationList(list,false,origin)
+			if list.NextCursor!=nil {
+				<a href={ templ.URL(CollectionNextURL(paginationURL,list.NextCursor)) } class="text-link">More recommendations</a>
+			}
+		</main>
+	}
+}

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### 2026-10-06 — Account/save/interest contract v1.4.0
+### 2026-10-06 — Account/save/interest/recommendation contract v1.5.0
 
 - Add own/public profiles, private preferences, browser-only API credential
   management, and current-session/token revocation to the implemented contract.
@@ -15,6 +15,10 @@
 - Add independent interest collections/resources/batched states, explicit visibility
   and new-choice defaults, public count/participant/activity reads, scoped keysets,
   and owner-only mutations. See [event interest](../event-interest.md).
+- Add public city/category/event/profile recommendations, explicit counts, own
+  collections/resources, strict optional-reason replacement, stable publication
+  ordering, scoped cursors, and owner-only withdrawal with CSRF/privacy boundaries.
+  Correct the obsolete unimplemented-interest note; see [recommendations](../event-recommendations.md).
 
 ### 2026-10-04 — OpenAPI guide
 
