@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### 2026-10-06 — Account/save schemas, runtime grants, and server version
+### 2026-10-06 — Account/save schemas, runtime grants, and server configuration
 
 - Add schema v2 for accounts/issuer-subject identities, hashed credentials,
   browser-bound one-time flows, and shared rate counters, with scoped local/operator
@@ -33,6 +33,12 @@
   TLS/schema/readiness, and the full race suite on port 3307. Domain tables were
   empty; populated-data/production restores remain unverified. See the
   [local cutover](../persistence.md#local-1186-to-1302-cutover).
+- Add requested local Compose memory, connection, durability, and I/O settings;
+  encode fractional MiB sizes as whole bytes and identify two removed, ignored
+  compatibility flags. Verify Compose syntax, isolated 13.0.2 startup, and all
+  active tuning values with engine rounding; do not restart the existing database.
+  Keep the operator budget unchanged; see
+  [local development](../persistence.md#repeatable-local-development).
 
 ### 2026-10-05 — MariaDB direction and connection/migration/identity foundation
 

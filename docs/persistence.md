@@ -68,6 +68,15 @@ are disposable public development fixtures, **not** production secrets. The serv
 For an existing older-version volume, read [server upgrades](#server-version-upgrades)
 before starting the updated Compose image.
 
+Compose sets a 512 MiB InnoDB buffer pool, 128 MiB redo log, 60-connection limit,
+and explicit buffer/I/O tuning in [`compose.yaml`](../deploy/mariadb/compose.yaml).
+MariaDB's `M` suffix means MiB; fractional sizes use whole bytes and can be rounded
+to the engine's allocation granularity. `innodb_buffer_pool_instances=1` and
+`innodb_thread_concurrency=0` are retained as compatibility flags, but MariaDB
+13.0.2 warns that they are removed and ignores them. Per-session buffers can
+multiply across connections; these settings are **not** a total server memory cap.
+The standalone operator example retains its separate 100-connection budget.
+
 ```sh
 make migrate
 export PERSISTENCE_MODE=mariadb DB_HOST=localhost DB_PORT=3307 DB_NAME=ticketopia
