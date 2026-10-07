@@ -1,5 +1,6 @@
 # Example only. Install pinned operator/CRDs first; replace ALL secret values.
 # One database pod is NOT HA. No backup/restore has been verified here.
+# Review server upgrade/restore compatibility before changing an existing database image.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -38,7 +39,7 @@ metadata:
   name: ticketopia-db
   namespace: ticketopia
 spec:
-  image: mariadb:11.8.6
+  image: mariadb:13.0.2
   replicas: 1
   rootPasswordSecretKeyRef:
     name: ticketopia-db-root
@@ -170,6 +171,81 @@ spec:
   database: ticketopia
   table: "*"
   username: ticketopia_migration
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-accounts
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: accounts
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-identities
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT]
+  database: ticketopia
+  table: account_identities
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-credentials
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, DELETE]
+  database: ticketopia
+  table: account_credentials
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-auth-flows
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, DELETE]
+  database: ticketopia
+  table: auth_flows
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-auth-rate-limits
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE, DELETE]
+  database: ticketopia
+  table: auth_rate_limits
+  username: ticketopia_runtime
   host: "%"
   grantOption: false
   cleanupPolicy: Skip

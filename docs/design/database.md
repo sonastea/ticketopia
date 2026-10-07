@@ -1,9 +1,13 @@
 # Database: MariaDB
 
-Status: Connection/migration support and minimal durable event identity are
+Status: Connection/migration support, accounts/private preferences/credentials,
+and minimal durable event identity are
 implemented, opt-in alongside unchanged KV-backed discovery. Broader application
 storage, scheduled observations, deployed multi-pod operation, HA, and verified
 backup/restore remain planned. See the [foundation guide](../persistence.md).
+
+The [account guide](../accounts.md) describes the delivered schema-v2 identity,
+sessions, privacy projection, rate counters, and credential lifecycle.
 
 ## Decision
 

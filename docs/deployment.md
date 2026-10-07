@@ -44,6 +44,20 @@ Secrets are not build arguments and `.env` is not baked into the image. Supply
 environment variables at runtime; for local testing, `--env-file .env` is also
 supported. Use the deployment platform's secret storage in production.
 
+### Optional Google accounts
+
+Follow [account setup](accounts.md#enable-accounts): use the schema-v2 image and
+migrations/runtime grants, then provide `AUTH_ENABLED=true`, an HTTPS
+`AUTH_BASE_URL`, `GOOGLE_CLIENT_ID`, and secret `GOOGLE_CLIENT_SECRET` at runtime.
+Register `AUTH_BASE_URL/auth/google/callback` in the Google Web application client.
+Do not bake OAuth credentials into images or send them to the browser. In
+Kubernetes, add a separately managed auth Secret/ConfigMap to the application's
+`envFrom`; the example database manifests do not enable auth automatically.
+Never enable auth with `PERSISTENCE_MODE=disabled`. The
+[v1-to-v2 compatibility boundary](persistence.md#rolling-update-compatibility)
+requires draining old v1 binaries before applying this migration; the generic
+same-schema rolling strategy does not make that upgrade zero-downtime.
+
 ### amd64 images and private GitHub Container Registry
 
 Authenticate locally with `docker login ghcr.io -u YOUR_GITHUB_USERNAME`, using a

@@ -29,6 +29,8 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Google sign-in and accounts](accounts.md): provider setup, profiles/privacy,
+  durable preferences, browser sessions, and revocable personal API tokens.
 - [MariaDB foundation](persistence.md): explicit connections, TLS/readiness,
   serialized migrations/recovery, durable event identity, and local/operator examples.
 - [OpenAPI contract](openapi.md): API specification format, published YAML,

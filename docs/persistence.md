@@ -1,10 +1,11 @@
 # MariaDB foundation
 
 Implemented: explicit SQL connection lifecycle, serialized embedded migrations,
-schema validation/readiness, and minimal durable event/provider identity. Discovery
+schema validation/readiness, minimal durable event/provider identity, and schema-v2
+[accounts/credentials/private preferences](accounts.md). Discovery
 still reads its existing cache/provider services and does **not** write SQL. There
-are no accounts, saves, community mutations, ingestion scheduler, global provider
-budgets, database HA, or verified backup/restore in this slice.
+are no saves, community mutations, ingestion scheduler, global provider
+budgets, database HA, or verified production backup/restore in this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
 [`internal/persistence`](../internal/persistence/), shared durable services in
@@ -62,7 +63,10 @@ forced HTTP close on timeout), not at the beginning of SIGTERM handling.
 
 Requires Docker Compose and OpenSSL. These credentials/certificates are disposable
 public development fixtures, **not** production secrets. The server binds only
-`127.0.0.1:3307`, uses MariaDB **11.8.6**, and stores its data in a named volume.
+`127.0.0.1:3307`, uses MariaDB **13.0.2**, and stores its data in the versioned
+`<compose-project>_data-v13` volume (normally `ticketopia-db_data-v13`).
+For an existing older-version volume, read [server upgrades](#server-version-upgrades)
+before starting the updated Compose image.
 
 ```sh
 sh scripts/mariadb-certs.sh
@@ -82,8 +86,10 @@ Initialization SQL runs only on a **new** MariaDB volume. Reapplying
 `deploy/mariadb/init.sql` as the local admin is safe if user provisioning was
 interrupted. The final table-level grants intentionally run **after** migration:
 MariaDB refuses them while those tables are absent. Runtime can select the schema
-and events, and insert/update only events/mappings; it cannot perform DDL, delete
-events, or modify migration state. Migration privileges are limited to this database,
+and events, and modify only explicitly granted domain tables. Account identity
+mappings are insert-only; credentials and short-lived auth rows allow deletion for
+revocation/cleanup. Runtime cannot perform DDL, delete accounts/events, or modify
+migration state. Migration privileges are limited to this database,
 without user administration or grant option.
 
 Repeat migration/grant commands safely. `docker compose ... stop` keeps data; do
@@ -91,6 +97,82 @@ not use `down -v` unless you deliberately want to erase this local database.
 Certificates last 30 days. To renew local fixtures, replace the three generated
 certificate/key files intentionally, rerun the script, and restart MariaDB/apps.
 Only `ca.crt`, never CA private keys, belongs in application mounts.
+
+## Server-version upgrades
+
+Compose and operator examples pin **MariaDB 13.0.2**, a
+[stable rolling release](https://mariadb.com/docs/release-notes/community-server/13.0/13.0.2).
+MariaDB 13.1.1 is a release candidate, not stable; its Docker tag is
+`13.1.1-rc`, so it is not used here. The versioned local volume prevents this image
+from opening the old `ticketopia-db_data` directory. Without an explicit restore,
+starting it creates a **separate empty database**, not an automatic data migration.
+Engine upgrades are separate from Ticketopia's schema-v2 application migration.
+
+Before changing an existing 11.8 server or PVC, preserve a backup and rehearse
+the [MariaDB server upgrade path](https://mariadb.com/docs/server/server-management/install-and-upgrade-mariadb/upgrading/mariadb-community-server-upgrade-paths)
+and any required `mariadb-upgrade`/system-table work on a separate copy. Do not
+assume changing the image alone is safe or that an older image can reopen an
+upgraded data directory. For local development, a fresh separate Compose project
+and volume can leave the old database intact; a logical export/import also needs
+compatibility checks. Never erase the existing volume simply to change versions.
+
+In Kubernetes, review the pinned operator's compatibility and server upgrade
+procedure, test storage/restore and readiness in staging, and plan any required
+downtime before updating the database resource. The full Go race suite, TLS-enabled
+SQL integration tests, migration CLI/repeat run, and local runtime grants were
+verified on an isolated fresh 13.0.2 server. This does not establish an in-place
+engine upgrade, a cluster rollout, or a production restore.
+
+### Local 11.8.6 to 13.0.2 cutover
+
+The local Compose server was upgraded on 2026-10-06 using a logical export/restore,
+not an in-place data-directory upgrade:
+
+1. Check the source version, database inventory, clean schema, and active writers.
+   Pause application writes/migrations; source `read_only=ON` also blocks ordinary
+   runtime users, but does not block administrative writers or replace draining.
+2. Keep a private `mariadb-dump --single-transaction --routines --events --triggers
+   --hex-blob --databases ticketopia` export. Preserve application users' `SHOW CREATE
+   USER` and `SHOW GRANTS` separately; they contain credential hashes and need the
+   same protection as account data. Do **not** import old MariaDB system tables or
+   internal users into the new engine.
+3. Restore into a fresh 13.0.2 volume/server on a separate loopback port. Compare
+   all table row counts and deterministic content hashes, application grants, TLS,
+   schema validation, and runtime readiness before switching.
+4. Stop both servers, then start normal Compose with `data-v13` on port **3307**.
+   Recheck version, writable status, restored contents, runtime readiness, and tests.
+   If abandoning preparation, restore the source's prior writable status.
+
+The completed local restore matched all nine tables and both application users'
+grants; the full Go race suite passed against the upgraded server. The seven domain
+tables were empty at export, so this does **not** establish a populated-account
+restore or production backup policy. The original `ticketopia-db_data` volume is
+retained unchanged and is not mounted by normal Compose.
+
+Private local artifacts live in a dated directory under `.local/mariadb/backups/`:
+`ticketopia.sql`, `application-users.sql`, comparison metadata, and `rollback.yaml`.
+SQL/metadata files are owner-only, the directory is owner-only, and `.local/` is
+Git-ignored. Keep the backup and old volume until satisfied with the new server.
+
+To check the running version:
+
+```sh
+docker compose -f deploy/mariadb/compose.yaml ps
+docker compose -f deploy/mariadb/compose.yaml exec -T -e MYSQL_PWD=local-root-only mariadb mariadb -uroot -e 'SELECT VERSION(), @@read_only;'
+```
+
+For rollback, **pause writers first** and set `BACKUP` to the successful upgrade's
+directory. The saved override selects the original 11.8.6 image and volume:
+
+```sh
+BACKUP=.local/mariadb/backups/YOUR_UPGRADE_DIRECTORY
+docker compose -f deploy/mariadb/compose.yaml -f "$BACKUP/rollback.yaml" config --quiet
+docker compose -f deploy/mariadb/compose.yaml -f "$BACKUP/rollback.yaml" up -d --wait
+```
+
+This restores the **pre-cutover snapshot** only: writes made on 13.0.2 will not be
+present. Preserve/export those separately before deciding to roll back. Do not
+point 11.8 at the new volume or remove either volume with `down -v`/volume pruning.
 
 ## Explicit migrations and failed-DDL recovery
 
@@ -105,7 +187,7 @@ goroutines in one app. Runtime startup only validates; no DDL is issued.
 
 `schema_state` is an InnoDB guard, separate from `goose_db_version`. Before Goose
 applies pending migrations, the command durably sets `dirty=true` and the target
-version; only complete success clears it. Migration 1 explicitly uses `NO
+version; only complete success clears it. Migrations explicitly use `NO
 TRANSACTION` because MariaDB commits DDL implicitly. A failed command or interruption
 can leave tables/columns created **even though Goose has not recorded that version**.
 Both subsequent migration commands and runtime startup refuse a dirty schema.
@@ -132,14 +214,17 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 1 only**. Versions 0 and 2+ are rejected;
+This binary supports **clean schema version 2 only**. Versions 0–1 and 3+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. Do not migrate to version 2 with these version-1-only
-binaries still serving; they will fail readiness. Keep a known-compatible app
+old binaries are gone. The previous foundation binary supports version 1 only.
+For this first v1-to-v2 upgrade, stop/drain v1 traffic, preserve a backup, apply the
+v2 migration with the v2 image, reapply/reconcile runtime table grants, then start
+v2 apps. Do not leave v1 pods serving after migration; they will fail readiness.
+This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
 
@@ -177,7 +262,7 @@ only an explicit supplied status can record cancellation.
 
 [`deploy/mariadb/operator`](../deploy/mariadb/operator/) contains database/PVC,
 Database/User/Grant CRs, Secret placeholders, enforced TLS, CA mounts, a migration
-Job, and a three-replica application example. It targets MariaDB **11.8.6** and
+Job, and a three-replica application example. It targets MariaDB **13.0.2** and
 `mariadb-operator` / CRD charts **26.10.1**:
 
 ```sh

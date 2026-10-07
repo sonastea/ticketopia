@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: Ticketopia Discovery API
-  version: 1.1.0
+  title: Ticketopia API
+  version: 1.2.0
   license:
     name: MIT
     identifier: MIT
@@ -10,6 +10,9 @@ info:
     web UI. Event, artist, and venue IDs are provider-scoped (ticketmaster:SOURCE_ID).
     Category and genre IDs are Ticketmaster
     taxonomy IDs. Data is cached, not a live inventory or durable event history.
+    Opt-in Google authentication provides MariaDB-backed profiles and private
+    preferences. Account APIs use a browser session or a user-scoped API token;
+    discovery remains public. Account APIs return 503 when accounts are disabled.
 servers:
   - url: /
 security: []
@@ -157,6 +160,219 @@ paths:
                   meta: {$ref: '#/components/schemas/Freshness'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/me:
+    get:
+      operationId: getOwnAccount
+      summary: Read your private account and browser CSRF token
+      description: Requires Google sign-in through /auth/sign-in or an API token created in your profile. Cookie responses include csrf_token for subsequent writes; bearer responses omit it. Private responses are never cached.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Your account, including private email and preferences.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item]
+                properties:
+                  item: {$ref: '#/components/schemas/Account'}
+                  csrf_token: {type: string}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/profile:
+    get:
+      operationId: getOwnProfile
+      summary: Read your profile and interest privacy default
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Your editable profile.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OwnProfile'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+    patch:
+      operationId: updateOwnProfile
+      summary: Update your profile and interest privacy default
+      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes do not need CSRF. Changing this default does not create event interest or publish private preferences. Event interest itself remains unimplemented.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                display_name: {type: string, minLength: 1, maxLength: 80}
+                bio: {type: string, maxLength: 500}
+                interest_visibility: {type: string, enum: [private, public]}
+      responses:
+        '200':
+          description: Updated profile. Omitted fields remain unchanged; null values are rejected.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OwnProfile'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/preferences:
+    get:
+      operationId: getOwnPreferences
+      summary: Read your private preferences
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Private location, category, time-zone, and future notification preferences.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Preferences'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+    patch:
+      operationId: updateOwnPreferences
+      summary: Update your private preferences
+      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes do not need CSRF. Omitted fields remain unchanged; null is rejected. Empty category_ids clears choices. Notification choices are stored only; no reminder or digest is delivered yet.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                city: {type: string, maxLength: 120, description: 'Normalized whitespace; at most 120 UTF-8 bytes, matching discovery filters.'}
+                country: {type: string, pattern: '^([A-Za-z]{2})?$'}
+                timezone: {type: string, minLength: 1, maxLength: 64, description: 'IANA time zone (not Local). UTC is supported.'}
+                category_ids: {type: array, maxItems: 16, items: {type: string, pattern: '^[A-Za-z0-9_-]{1,128}$'}, description: 'Category IDs from the discovery catalog, sorted and deduplicated when stored.'}
+                email_reminders: {type: boolean}
+                weekly_digest: {type: boolean}
+                notifications_paused: {type: boolean}
+      responses:
+        '200':
+          description: Updated private preferences.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Preferences'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/users/{user_id}:
+    get:
+      operationId: getPublicProfile
+      summary: Read a public profile without private account fields
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {$ref: '#/components/schemas/AccountID'}}
+      responses:
+        '200':
+          description: Public ID, display name, and bio only. Never contains email, location, preferences, credentials, or private activity.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicProfile'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '404':
+          description: Profile not found, including invalid account IDs.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/tokens:
+    get:
+      operationId: listOwnAPITokens
+      summary: List your active API tokens (never their secret values)
+      description: Token management requires a browser session; an API token cannot manage credentials. At most ten active API tokens per account.
+      security: [{sessionCookie: []}]
+      responses:
+        '200':
+          description: Bounded list of active API credentials, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, maxItems: 10, items: {$ref: '#/components/schemas/Credential'}}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+    post:
+      operationId: createOwnAPIToken
+      summary: Create a 30-day user-scoped API token
+      description: Requires a browser session and CSRF token. The secret is returned only once and only its SHA-256 hash is stored. Token can read/update own profile/preferences and revoke itself, but cannot manage other credentials. At most ten active tokens; creations are limited to 20 per ten minutes per account across replicas.
+      security: [{sessionCookie: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 80}
+      responses:
+        '201':
+          description: New credential metadata and one-time secret.
+          headers:
+            Location: {schema: {type: string}, description: 'The credential path used for revocation.'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [item, token]
+                properties:
+                  item: {$ref: '#/components/schemas/Credential'}
+                  token: {type: string, description: 'Use as Authorization: Bearer TOKEN.'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '409':
+          description: Ten active API tokens already exist. Revoke one first.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '429': {$ref: '#/components/responses/AccountRateLimited'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/tokens/{credential_id}:
+    delete:
+      operationId: revokeOwnAPIToken
+      summary: Revoke an own credential
+      description: Requires a browser session and CSRF token. Missing or another owner's credential is an idempotent no-op and reveals no ownership information.
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: credential_id, in: path, required: true, schema: {$ref: '#/components/schemas/AccountID'}}
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '204': {description: Credential revoked or already absent.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/session:
+    delete:
+      operationId: revokeCurrentCredential
+      summary: Revoke the current browser session or API token
+      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes revoke that API token without CSRF. Subsequent requests using a revoked credential return 401.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      responses:
+        '204': {description: Current credential revoked. Browser session cookie is also cleared.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
   /api/v1/openapi.yaml:
     get:
       operationId: getOpenAPI
@@ -169,7 +385,50 @@ paths:
               schema: {type: string}
         '400': {$ref: '#/components/responses/BadRequest'}
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-ticketopia_session
+      description: 'HttpOnly, Secure, SameSite=Lax cookie issued after Google sign-in. Local HTTP development uses ticketopia_session instead.'
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
+  parameters:
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
+      schema: {type: string}
   responses:
+    AccountBadRequest:
+      description: Unsupported query, invalid JSON/form fields or values, or a request body exceeding 16 KiB.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unauthenticated:
+      description: Missing, expired, revoked, wrong-kind, or invalid credentials. Credential management requires a browser session.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    CSRFRejected:
+      description: Invalid or missing CSRF token, or a cross-origin cookie write.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    AccountsUnavailable:
+      description: Accounts are disabled or durable account storage is unavailable. No in-memory authentication fallback.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    AccountRateLimited:
+      description: Shared authentication or credential-creation rate limit exceeded.
+      headers:
+        Retry-After: {schema: {type: integer, const: 600}, description: Wait ten minutes before retrying.}
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     BadRequest:
       description: Invalid query or ID, or filters rejected by Ticketmaster. Local validation failures make no provider request.
       content:
@@ -185,6 +444,57 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    AccountID:
+      type: string
+      pattern: '^[0-9a-f]{32}$'
+    PublicProfile:
+      type: object
+      additionalProperties: false
+      required: [id, display_name, bio]
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        display_name: {type: string, minLength: 1, maxLength: 80}
+        bio: {type: string, maxLength: 500}
+    OwnProfile:
+      type: object
+      required: [id, display_name, bio, interest_visibility]
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        display_name: {type: string, minLength: 1, maxLength: 80}
+        bio: {type: string, maxLength: 500}
+        interest_visibility: {type: string, enum: [private, public], default: private}
+    Preferences:
+      type: object
+      required: [city, country, timezone, category_ids, email_reminders, weekly_digest, notifications_paused]
+      properties:
+        city: {type: string, maxLength: 120, description: 'At most 120 UTF-8 bytes.'}
+        country: {type: string, pattern: '^([A-Z]{2})?$'}
+        timezone: {type: string, maxLength: 64, default: UTC}
+        category_ids: {type: array, maxItems: 16, uniqueItems: true, items: {type: string}}
+        email_reminders: {type: boolean, default: false}
+        weekly_digest: {type: boolean, default: false}
+        notifications_paused: {type: boolean, default: true}
+    Account:
+      type: object
+      required: [id, display_name, bio, interest_visibility, email, preferences, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        display_name: {type: string}
+        bio: {type: string}
+        interest_visibility: {type: string, enum: [private, public]}
+        email: {type: string, description: Private email from the verified Google identity; never used to link accounts.}
+        preferences: {$ref: '#/components/schemas/Preferences'}
+        created_at: {type: string, format: date-time}
+    Credential:
+      type: object
+      additionalProperties: false
+      required: [id, kind, name, created_at, expires_at]
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        kind: {type: string, const: api}
+        name: {type: string, maxLength: 80}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
     ResourceID:
       type: string
       pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'
@@ -326,6 +636,6 @@ components:
         type: {type: string, const: 'about:blank'}
         title: {type: string}
         status: {type: integer}
-        code: {type: string, enum: [invalid_query, event_not_found, provider_unavailable]}
+        code: {type: string, enum: [invalid_query, event_not_found, provider_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable]}
         detail: {type: string}
         fields: {type: object, additionalProperties: {type: string}}

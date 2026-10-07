@@ -3,13 +3,15 @@
 Status: Core product direction. [City/date/category/genre discovery](../discovery.md) is
 implemented with cached Ticketmaster events and metadata. Saves, follows,
 personalized matches, reminders, and human pilot checkpoints remain upcoming work.
+Google accounts, profiles/privacy defaults, and private category/location/
+notification preferences are [implemented, opt-in](../accounts.md).
 The [delivery checklist](delivery.md) aligns backend and frontend tasks.
 Discovery now starts with a chosen, remembered, or approximate IP-based city;
 see [location behavior](../location.md).
 
-Discovery supports all Ticketmaster event categories. Private saved events and
-category preferences are planned for the first release alongside community interest
-and recommendations. Follows, personalized ranking, and reminders remain agreed
+Discovery supports all Ticketmaster event categories. Private category preferences
+are stored now; private saved events remain planned for the first release alongside
+community interest and recommendations. Follows, personalized ranking, and reminders remain agreed
 subsequent goals, not prerequisites for the responsive community MVP. See the
 [release boundary](delivery.md#mvp-release-boundary) and
 [design guidelines](../design-guidelines.md) for the current delivery direction.

@@ -12,6 +12,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
@@ -30,9 +31,15 @@ type api struct {
 	shutdown    <-chan struct{}
 	ready       func(context.Context) error
 	durable     *events.Service
+	accounts    *accounts.Service
+	authConfig  accounts.Config
 }
 
 type Option func(*api)
+
+func WithAccounts(config accounts.Config, service *accounts.Service) Option {
+	return func(a *api) { a.authConfig, a.accounts = config, service }
+}
 
 // WithPersistence wires shared services without changing read-only discovery.
 func WithPersistence(ready func(context.Context) error, durable *events.Service) Option {
@@ -69,6 +76,12 @@ func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store, options 
 	for _, option := range options {
 		option(a)
 	}
+	if err := a.authConfig.Validate(); err != nil {
+		return nil, err
+	}
+	if a.authConfig.Enabled && a.accounts == nil {
+		return nil, fmt.Errorf("authentication requires an account service")
+	}
 	return a, nil
 }
 
@@ -94,8 +107,7 @@ func (a *api) Routes() *echo.Echo {
 	e.GET("/events/:event_id", a.eventPageHandler)
 	e.GET("/saved", destinationHandler("saved", "Saved events"))
 	e.GET("/community", destinationHandler("community", "Community"))
-	e.GET("/me", destinationHandler("profile", "Your profile"))
-	e.GET("/me/interests", destinationHandler("interests", "Your interests"))
+	a.accountRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler)
 	e.GET("/api/v1/events/:event_id", a.eventHandler)

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### 2026-10-06 — Account schema, runtime grants, and server version
+
+- Add schema v2 for accounts/issuer-subject identities, hashed credentials,
+  browser-bound one-time flows, and shared rate counters, with scoped local/operator
+  grants and full startup schema checks; see [accounts](../accounts.md).
+- Document the required v1 traffic drain before migration and v2 restart, rather
+  than claiming overlapping schema support or a zero-downtime upgrade.
+- Pin local/operator MariaDB images to stable **13.0.2**, after confirming that
+  requested 13.1.1 is RC and receiving the user's stable-version choice. Distinguish
+  server upgrades from app migrations and preserve existing volumes; see
+  [server upgrade guidance](../persistence.md#server-version-upgrades).
+- Verify `go test -race -count=1 ./...` against an isolated TLS-enabled 13.0.2
+  server, the migration CLI/repeat run, runtime grants, and Compose configuration.
+  Initially leave the 11.8.6 instance/data untouched; no in-place or cluster upgrade
+  is claimed.
+- Upgrade the local Compose server to 13.0.2 through a private logical backup and
+  verified restore into `data-v13`, preserving the old volume and rollback override.
+  Match all nine tables and application grants, then verify writable state, runtime
+  TLS/schema/readiness, and the full race suite on port 3307. Domain tables were
+  empty; populated-data/production restores remain unverified. See the
+  [local cutover](../persistence.md#local-1186-to-1302-cutover).
+
 ### 2026-10-05 — MariaDB direction and connection/migration/identity foundation
 
 - Replace the SQLite-first/later-PlanetScale direction with MariaDB accessed via

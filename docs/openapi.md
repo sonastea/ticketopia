@@ -8,10 +8,11 @@ contract. It tells developers and tools which URLs/methods exist, what parameter
 they accept, and what response bodies, status codes, and headers to expect.
 
 Ticketopia's source contract is [internal/api/openapi.yaml](../internal/api/openapi.yaml).
-It describes the implemented discovery API, its own contract-download route, and
-the `/healthz` and `/readyz` probes. It does not describe HTML pages or implement
-planned account/community APIs. See [discovery](discovery.md#json-api) for usage
-and [deployment](deployment.md#health-and-shutdown) for probe semantics.
+It describes implemented discovery and [account APIs](accounts.md#sessions-and-api-clients),
+its own contract-download route, and the `/healthz` and `/readyz` probes. It does
+not describe HTML pages or planned save/community APIs. See
+[discovery](discovery.md#json-api) for public reads and
+[deployment](deployment.md#health-and-shutdown) for probe semantics.
 
 For example, the event-search contract documents `limit` as an integer from 1 to
 100, the paginated `items`/`next_cursor` response, freshness metadata, and structured
@@ -22,13 +23,15 @@ For example, the event-search contract documents `limit` as an integer from 1 to
 - `openapi: 3.1.0` identifies the **OpenAPI specification format**, not the Go or
   Node version.
 - `info` describes the API's title, description, license, and contract version
-  (currently `1.1.0`). That version is distinct from the `/api/v1` URL namespace.
+  (currently `1.2.0`). That version is distinct from the `/api/v1` URL namespace.
 - `servers` identifies the API base URL; `/` makes it relative to the serving host.
 - `paths` lists routes, methods, parameters, response codes, and media types.
 - `components` holds reusable schemas and error responses. `$ref` links reuse
   those definitions rather than repeating them at each endpoint.
-- `security: []` describes the current public API without client authentication.
-  The server-side `TICKETMASTER_KEY` is an upstream credential, not a client token
+- Top-level `security: []` keeps discovery public. Account operations override it
+  with browser-session and/or bearer-token schemes. Cookie writes require CSRF;
+  token management is browser-only. See the account guide for credential issuance.
+- The server-side `TICKETMASTER_KEY` is an upstream credential, not a client token
   to put in this document.
 
 ## How Ticketopia serves it

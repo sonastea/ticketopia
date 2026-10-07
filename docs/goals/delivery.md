@@ -1,8 +1,9 @@
 # Aligned backend and frontend delivery checklist
 
 Status: All-category discovery, responsive navigation, basic event previews/
-detail pages, and the MariaDB connection/migration/identity foundation are implemented.
-Account/community outcomes and broader persistence remain planned.
+detail pages, the MariaDB connection/migration/identity foundation, and opt-in
+Google accounts/profiles/private preferences are implemented. Saves/community
+outcomes and broader persistence remain planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -12,7 +13,8 @@ does not complete a UI outcome, and a cache does not complete durable storage.
 
 The updated release combines location-based discovery across **all Ticketmaster
 event categories** with event-centered community participation. Category-aware
-discovery is implemented; account and community participation remain planned.
+discovery and account/profile/preferences are implemented; saves and community
+participation remain planned.
 The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
 Section numbers below group capabilities; they do not force reminders/ranking
 to ship before community work.
@@ -116,12 +118,14 @@ detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
 Aligns with [personal radar, steps 2–3 and 5](personal-radar.md#small-goals-one-at-a-time)
 and [cross-client continuity](../design/radar-api.md#shared-backend).
 
-- [ ] Backend: Establish accounts, verified web/API credentials, ownership, and
+- [x] Backend: Establish accounts, verified web/API credentials, ownership, and
   durable location, interest, time-zone, and notification preferences.
-- [ ] MVP Backend: Provide own/public profiles, private-by-default interest
-  visibility, private category preferences, and owner-only bookmark reads/writes.
-- [ ] MVP Frontend: Provide sign-in return to the pending event task, profile and
-  public-view preview, privacy controls, and a private Saved collection.
+- [x] MVP Backend: Provide own/public profiles, private-by-default future interest
+  visibility, and private category preferences; see [accounts](../accounts.md).
+- [ ] MVP Backend: Provide owner-only bookmark reads/writes.
+- [x] MVP Frontend: Provide sign-in with local task return, profile/public-view
+  preview, privacy-default controls, and private preference forms.
+- [ ] MVP Frontend: Provide a private Saved collection.
 - [ ] MVP Backend: Add idempotent save/unsave APIs backed by durable bookmarks.
 - [ ] Later Backend: Add artist/venue follow APIs and search backed by cached
   provider or stored metadata; rank radar matches with understandable reasons.

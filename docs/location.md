@@ -9,8 +9,9 @@ The HTML search uses:
 
 1. **The city in the URL/form**, including an explicitly chosen country.
 2. **A remembered city**, when no location was supplied in the URL.
-3. **An approximate IP-based city**, when neither of the above is available.
-4. **A city-entry prompt**, when location is unavailable.
+3. **An authenticated account's default city**, when set and neither of the above is available.
+4. **An approximate IP-based city**, when no saved/default choice is available.
+5. **A city-entry prompt**, when location is unavailable.
 
 Explicitly blank city inputs and country-only searches ask for a city. They do
 not silently restore a different location. Venue-filtered links already identify
@@ -50,8 +51,10 @@ the resolved city/country in its URL and does not update the remembered choice.
 Resetting search filters keeps the remembered city.
 
 Cookie values are treated as user input and validated on each read. This is a
-browser preference; account-based location and cross-device synchronization
-belong to the planned preferences milestone.
+browser preference; it does not modify your account. Set the private cross-device
+default under [account preferences](accounts.md#profiles-privacy-and-preferences).
+If account storage is unavailable, discovery falls back to the ordinary IP hint
+or manual-city prompt rather than requiring a working sign-in service.
 
 ## IP lookup and caching
 

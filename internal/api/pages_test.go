@@ -71,9 +71,13 @@ func TestReturnContextCannotNavigateOutsideDiscovery(t *testing.T) {
 func TestPlannedDestinationsRemainTruthful(t *testing.T) {
 	a := &api{}
 	for _, path := range []string{"/saved", "/community", "/me", "/me/interests"} {
+		availability := "In development"
+		if path == "/me" || path == "/me/interests" {
+			availability = "Accounts not enabled"
+		}
 		rec := httptest.NewRecorder()
 		a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
-		if rec.Code != 200 || !strings.Contains(rec.Body.String(), "In development") || !strings.Contains(rec.Body.String(), "Discover events") {
+		if rec.Code != 200 || !strings.Contains(rec.Body.String(), availability) || !strings.Contains(rec.Body.String(), "Discover events") {
 			t.Errorf("planned destination %s is missing its availability/recovery state", path)
 		}
 	}

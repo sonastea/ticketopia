@@ -1,5 +1,16 @@
 # Container deployment changes
 
+## 2026-10-06 — Unreleased
+
+- Document optional runtime-only Google credentials, exact HTTPS callback,
+  separately managed Kubernetes auth configuration, and the schema-v1 drain
+  required before the account migration; see [deployment](../deployment.md#optional-google-accounts).
+- Extend operator runtime grants for account/auth tables without enabling auth,
+  broadening credential privileges, or claiming a cluster rollout.
+- Update local/operator database images to MariaDB **13.0.2** stable, with warnings
+  against treating a major-version image change as a verified existing-volume upgrade;
+  see [server upgrades](../persistence.md#server-version-upgrades).
+
 ## 2026-10-05 — Unreleased
 
 - Use `edge` with `imagePullPolicy: Always` in operator application/migration

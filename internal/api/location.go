@@ -54,6 +54,12 @@ func (a *api) locateSearch(c echo.Context, query *discovery.Query) (string, erro
 		query.City, query.Country = city.Name, city.Country
 		return "saved", nil
 	}
+	if a.enabled() {
+		if principal, err := a.browserPrincipal(c); err == nil && principal.Account.Preferences.City != "" {
+			query.City, query.Country = principal.Account.Preferences.City, principal.Account.Preferences.Country
+			return "account", nil
+		}
+	}
 	if city, ok := a.locations.Lookup(c.Request().Context(), c.RealIP()); ok {
 		query.City, query.Country = city.Name, city.Country
 		return "ip", nil

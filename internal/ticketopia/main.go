@@ -9,6 +9,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/api"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/infra"
@@ -30,6 +31,15 @@ func Execute(ctx context.Context) int {
 		return 1
 	}
 	var options []api.Option
+	authConfig, err := accounts.ConfigFromEnv()
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid authentication configuration")
+		return 1
+	}
+	if authConfig.Enabled && !config.Enabled {
+		logger.Error().Msg("Authentication requires PERSISTENCE_MODE=mariadb")
+		return 1
+	}
 	if config.Enabled {
 		pool, err := persistence.Open(ctx, config)
 		if err != nil {
@@ -43,6 +53,9 @@ func Execute(ctx context.Context) int {
 			}
 		}()
 		options = append(options, api.WithPersistence(pool.Ready, events.New(pool.Events())))
+		if authConfig.Enabled {
+			options = append(options, api.WithAccounts(authConfig, accounts.New(pool.Accounts(), accounts.NewGoogle(ctx, authConfig))))
+		}
 	}
 
 	cache := infra.NewCache(ctx, logger)

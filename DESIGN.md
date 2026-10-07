@@ -321,6 +321,10 @@ Headings balance lines, and headings/paragraphs can wrap anywhere to handle long
 
 **The One Family, Clear Roles Rule.** Use Manrope's size, weight, leading, and spacing to distinguish headings, facts, and controls; keep dates tabular and long event names able to wrap.
 
+**Provider-brand exception:** only the Google sign-in CTA uses self-hosted Google
+Sans Medium (500) at .875rem/1.25rem, following Google's branding requirements.
+Manrope remains the family for all surrounding account and application UI.
+
 ## Layout
 
 The centered application shell stops at 100rem and fills at least the dynamic viewport height. Main content uses normal document scrolling. Reused spacing primitives are the source's `space-1` through `space-7`; component-specific insets remain explicit rather than becoming another spacing scale.
@@ -366,6 +370,15 @@ Compact, confident, plainly labeled controls. Primary actions pair plum with whi
 
 Quiet participation controls use a transparent fill, quiet border, quiet-action typography, and the same minimum target height. Shipped Save, Interested, and Recommend controls are disabled, use muted text, and have nearby explanatory copy. Their appearance does not establish working participation. Underlined text links offer navigation and small utility actions; the preview-close icon has a 2.75rem target.
 
+The Google sign-in CTA is a scoped provider-brand exception using Google's
+documented filled-blue treatment: #0b57d0 fill/border, white text, .25rem corners,
+and a 20px current gradient G centered in a 36px white tile with a .625rem label
+gap. Compact .1875rem insets frame the tile; .875rem trailing padding balances
+the label. Hover/pressed fills darken to #0842a0/#062e6f rather than adopting plum.
+It retains the app's 44px minimum target, plum focus outline, flat depth, and a
+no-JavaScript OAuth link. Logo/font sources and licensing are recorded in
+[`views/assets/fonts/README.md`](views/assets/fonts/README.md).
+
 Action background changes, sidebar width changes, and disclosure-chevron rotation use 160ms; result selection uses 180ms. These use the source's `cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms standard easing for color/fill changes only. Reduced-motion mode sets transition and animation durations to zero and scroll behavior to auto. No loading shimmer is part of the system.
 
 ### Inputs / Fields
@@ -392,13 +405,15 @@ Small neutral rectangles with light-stone fill, muted text, a quiet one-pixel bo
 
 The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is pale plum; the title and Details remain real event links. The dusty-rose date marker overlays the lower-left image corner on compact rows, then becomes a horizontal index beneath square artwork. Its short date is decorative beside the full readable date; unknown dates say TBA.
 
-Photos are live external Ticketmaster assets retained in normalized `Event.Images`; presentation chooses an available width close to the requested size. No authored shipping raster belongs to this system. Local styles, JavaScript, htmx, and Manrope are Go-embedded assets; SVG supplies the icons. The sidecar demonstrates the shipped image fallback rather than copying provider photography into documentation assets.
+Photos are live external Ticketmaster assets retained in normalized `Event.Images`; presentation chooses an available width close to the requested size. No authored shipping raster belongs to this system; the sole local provider raster is Google's unmodified gradient G for sign-in. Local styles, JavaScript, htmx, fonts, and that provider logo are Go-embedded assets; SVG supplies the app icons. The sidecar demonstrates the shipped image fallback rather than copying provider photography into documentation assets.
 
 ### Cards / Containers
 
 Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale data explains its source state.
 
-Keep event price and sale status ahead of unavailable participation. Search and pagination retain ordinary links/forms without JavaScript. Discussion/community sections and account destinations currently explain planned availability; they do not render invented engagement. Selection and return strategy remain in the linked UX guide and surface contract.
+Keep event price and sale status ahead of unavailable participation. Search and pagination retain ordinary links/forms without JavaScript. Discussion/community sections still explain planned availability without invented engagement. Opt-in Google account destinations now provide profiles/privacy defaults and private preferences; disabled deployments explain that accounts are not enabled. Saves, event activity, personalization, and notification delivery remain planned. Selection and return strategy remain in the linked UX guide and surface contract.
+
+Account forms inherit the same type, colors, corners, and controls. A separate white, bordered public preview sits beside profile editing on wide screens and stacks below it on compact screens. Real Profile/Preferences/Interests links use the section-link current state. Security follows the form; native disclosure keeps API controls secondary. Google sign-in alone follows the provider-brand exception above; no new global tokens are introduced. See [accounts](docs/accounts.md) and the [account surface contract](.impeccable/surfaces/views-account-settings-templ.md).
 
 ## Do's and Don'ts
 
@@ -413,7 +428,7 @@ Keep event price and sale status ahead of unavailable participation. Search and 
 ### Don't:
 - Don't add cast shadows, glass effects, or raised hover cards to this flat, border-defined system.
 - Don't force provider photographs into monochrome or substitute decorative stock imagery for event identity.
-- Don't style planned accounts, saves, interest, recommendations, or discussions as completed actions or fabricate participation counts.
+- Don't imply saves, event interest, recommendations, discussions, personalization, or reminder delivery work merely because accounts and preference forms are implemented; don't fabricate participation counts.
 - Don't use promotional clutter or manufactured urgency to compete with practical event information.
 - Don't promote route-specific composition or synthesized sidecar tonal ramps into new global design tokens.
 - Don't reuse date paper for selected rows, current navigation, availability labels, caret, or focus.

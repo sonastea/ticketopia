@@ -34,6 +34,8 @@ templ Index(page SearchPage) {
 						<p class="location-source">Estimated from your IP address</p>
 					} else if page.LocationSource == "saved" {
 						<p class="location-source">Your remembered city</p>
+					} else if page.LocationSource == "account" {
+						<p class="location-source">Your account's default city</p>
 					}
 					<h1>Find your next event</h1>
 					<p class="intro">Explore music, sports, arts, and more in your city.</p>

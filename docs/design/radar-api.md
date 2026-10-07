@@ -1,6 +1,7 @@
 # Radar API
 
-Status: The [discovery read API](../discovery.md#json-api) is implemented.
+Status: The [discovery read API](../discovery.md#json-api) and
+[own/public account APIs](../accounts.md#sessions-and-api-clients) are implemented.
 Personal radar, durable ingestion, reminders, and community endpoints below remain
 draft designs. Track backend and frontend delivery in the
 [aligned checklist](../goals/delivery.md).
@@ -12,12 +13,9 @@ The HTML search and `/api/v1/events`, `/api/v1/events/{event_id}`, and
 [OpenAPI contract](../../internal/api/openapi.yaml) documents the current API.
 Event/artist/venue IDs are stable provider-scoped IDs, not title groups.
 
-The current discovery implementation filters the Music segment. All-category
-discovery is now planned MVP scope: add category/segment metadata and an optional
-category filter with an all-categories choice; apply genre filters only within a
-compatible category. Preserve existing music/genre query behavior and IDs, and
-specify the expanded contract in OpenAPI when implemented. The current contract
-does not yet advertise category filters or the resources proposed below.
+Discovery now supports all Ticketmaster segments with an optional category filter
+and compatible genre filters. The current OpenAPI contract also documents the
+implemented account slice; resources explicitly labeled planned below remain proposals.
 
 Current pagination wraps provider pages in filter-bound cursors; it does not yet
 offer a stored snapshot or an ID tie-breaker across upstream pages. Freshness is
@@ -60,10 +58,10 @@ actual concert start dates, statuses, source event URLs, and optional price rang
 | GET | `/api/v1/events` | Implemented: filter events by city, date window, artist, venue, or genre. |
 | GET | `/api/v1/events/{event_id}` | Implemented: normalized event with source and freshness information. |
 | GET | `/api/v1/genres` | Implemented: cached music genre/subgenre catalog. |
-| GET | `/api/v1/categories` | Planned MVP: supported Ticketmaster segments/categories for all-category discovery. |
+| GET | `/api/v1/categories` | Implemented: Ticketmaster segments/categories for all-category discovery. |
 | GET | `/api/v1/artists` | Search artists to follow. |
 | GET | `/api/v1/venues` | Search venues to follow. |
-| GET, PATCH | `/api/v1/me/preferences` | Read/update location, interests, time zone, and email/digest preferences. |
+| GET, PATCH | `/api/v1/me/preferences` | Implemented: private location, category, time-zone, and future notification preferences. |
 | GET | `/api/v1/me/radar` | Get ranked events with structured match reasons. |
 | GET | `/api/v1/me/follows` | List artist and venue follows. |
 | PUT, DELETE | `/api/v1/me/follows/{kind}/{id}` | Follow/unfollow an `artist` or `venue`. |
@@ -80,8 +78,8 @@ it does not imply that a notification has been delivered.
 
 Personal routes use the identity established by verified credentials. Mobile
 and other API clients use user-scoped bearer credentials; the browser may use a
-session mapped to the same identity. The authentication provider and token
-  issuance/revocation flow need a concrete design before personal endpoints ship.
+session mapped to the same identity. Direct Google sign-in and expiring opaque
+API credentials are implemented; see [issuance/revocation](../accounts.md).
 
 ## Response conventions
 
@@ -149,14 +147,14 @@ review remain required before the public community pilot.
 
 ### Proposed MVP community resources
 
-All routes below are **unimplemented proposals** under `/api/v1`. Existing saved
+Except the marked own/public profiles, routes below are **unimplemented proposals** under `/api/v1`. Proposed saved
 event routes above retain their owner-only semantics. Public reads return only
 permitted fields; writes require verified identity and ownership/role checks.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET, PATCH | `/me/profile` | Own profile and privacy settings; allowlisted writable fields |
-| GET | `/users/{user_id}` | Public profile, excluding saved events/private interests/account fields |
+| GET, PATCH | `/me/profile` | Implemented: own profile and future interest privacy default; allowlisted writes |
+| GET | `/users/{user_id}` | Implemented: ID, display name, bio only; no private account fields/activity |
 | GET | `/users/{user_id}/activity` | Paginated public contributions, recommendations, opted-in interests; not a personalized feed |
 | GET | `/me/event-interests` | Owner's interest collection, including private entries |
 | PUT, DELETE | `/me/event-interests/{event_id}` | Set/remove interest; PUT carries explicit visibility, initially private |

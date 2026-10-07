@@ -19,9 +19,10 @@ The Go/Echo, templ, htmx, shadcn-templ, and Tailwind web app provides all-catego
 discovery, city/date/category/genre search, and cached event list/detail reads.
 The [responsive UX guide](docs/design-guidelines.md) describes the implemented
 navigation and interaction contract.
-Accounts, durable saves, interest, recommendations, and discussions remain
-planned; their UI must communicate availability truthfully rather than simulate
-successful participation.
+Opt-in Google accounts provide MariaDB-backed sessions, profiles/privacy defaults,
+private preferences, and API credentials. Durable saves, event interest,
+recommendations, and discussions remain planned; their UI must communicate
+availability truthfully rather than simulate successful participation.
 
 ## Product Purpose
 

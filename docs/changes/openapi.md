@@ -1,6 +1,16 @@
 # OpenAPI contract changes
 
-## 2026-10-04 — Unreleased
+## Unreleased
+
+### 2026-10-06 — Account contract v1.2.0
+
+- Add own/public profiles, private preferences, browser-only API credential
+  management, and current-session/token revocation to the implemented contract.
+- Document cookies/bearer credentials, CSRF/origin rules, private projections,
+  validation limits, expiration/revocation, and disabled/unavailable account errors;
+  keep discovery public. See [accounts](../accounts.md) and [OpenAPI](../openapi.md).
+
+### 2026-10-04 — OpenAPI guide
 
 - Added an [OpenAPI guide](../openapi.md) explaining the YAML contract, version
   fields, supported endpoints, embedding/publication, tooling, and manual upkeep.

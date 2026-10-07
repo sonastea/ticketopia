@@ -1,7 +1,8 @@
 # Responsive UX and interaction guidelines
 
-The implemented UI supports all-category discovery and read-only event details.
-Accounts, saves, interest, recommendations, and discussions remain planned.
+The implemented UI supports all-category discovery, read-only event details, and
+opt-in [Google accounts/profile/privacy/preferences](accounts.md). Saves, event
+interest, recommendations, and discussions remain planned.
 
 ## Sources of truth
 
@@ -24,8 +25,9 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Event | `/events/{event_id}` | Overview, Discussion, and Community section links; the latter two explain planned availability |
 | Saved | `/saved` | Planned private collection; availability explanation |
 | Community | `/community` | Planned recommendations and conversations; availability explanation |
-| Interests | `/me/interests` | Planned category preferences; availability explanation |
-| Profile | `/me` | Planned accounts and privacy controls; link to Interests |
+| Interests | `/me/interests` | Private category preferences, with clear catalog-failure retention |
+| Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
+| Preferences | `/me/preferences` | Private default city, time zone, and future notification preferences |
 
 The shell uses a labeled sidebar from **72rem**, a compact rail and list/context
 layout from **62rem**, and a single-column layout with **Discover / Saved /
@@ -68,6 +70,13 @@ independently, with keyboard access and visible focus. Reserve bottom-navigation
 space and safe-area insets on compact screens.
 
 ## Event presentation
+
+Account sections use ordinary links and native forms within the same shell.
+Profile editing leads with an adjacent wide-screen public preview, stacked on
+compact screens. Email and preferences stay private. Invalid writes retain input
+and explain that changes were not saved; settings for future participation and
+notifications do not claim those features are available. Disabled accounts show
+truthful configuration/recovery states. See [accounts](accounts.md).
 
 Event dates, titles, venues, sale status, known prices, and source freshness lead.
 Unknown prices never mean free. Distinguish event dates from ticket-sale dates.

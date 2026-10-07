@@ -66,6 +66,15 @@ Source: https://github.com/google/fonts/tree/main/ofl/manrope
 
 ---
 
+Google Sans Medium is distributed under the SIL Open Font License in fonts/google-sans-OFL.txt.
+Source: https://github.com/google/fonts/tree/main/ofl/googlesans
+
+The Google G logo is a Google brand asset, used for the sign-in CTA under:
+https://developers.google.com/identity/branding-guidelines
+Source: https://developers.google.com/static/identity/images/g-logo.png
+
+---
+
 shadcn-templ v2.0.0-beta.10
 Source: https://github.com/axadrn/shadcn-templ
 Copyright (c) 2023 Axel Adrian

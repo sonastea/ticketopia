@@ -1,0 +1,255 @@
+package account
+
+import "net/url"
+import "github.com/sonastea/ticketopia/internal/accounts"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/input"
+import "github.com/sonastea/ticketopia/views/components/label"
+import "github.com/sonastea/ticketopia/views/components/alert"
+import selectcomp "github.com/sonastea/ticketopia/views/components/select"
+
+templ SignIn(enabled bool, returnTo string, message string) {
+	@layouts.App("profile", "Sign in") {
+		<main id="main" class="destination-page account-page">
+			<div class="account-sign-in">
+				<h1>Your event life, your space.</h1>
+				if message != "" {
+					<p role="status" class="account-notice">{ message }</p>
+				}
+				if enabled {
+					<p>Sign in to create your Ticketopia profile and keep your preferences across visits and devices.</p>
+					@button.Button(button.Props{Href: "/auth/google/start?return_to=" + url.QueryEscape(returnTo), Class: "google-sign-in"}) {
+						<span class="google-sign-in-logo" aria-hidden="true">
+							<img src="/assets/google-g.png" width="20" height="20" alt="" aria-hidden="true"/>
+						</span>
+						<span>Sign in with Google</span>
+					}
+					<p class="field-note">Google handles sign-in. Ticketopia never receives your Google password. We only request your account identity and email—not your contacts, calendar, or Gmail.</p>
+					<p class="field-note">Your email and preferences stay private. Your display name and bio are public; you can choose a name that isn't your real name.</p>
+				} else {
+					<p>Accounts aren't enabled on this server. You can still discover events without signing in.</p>
+				}
+				<a href="/" class="text-link">Discover without signing in</a>
+			</div>
+		</main>
+	}
+}
+
+templ Failure(message string) {
+	@layouts.App("profile", "Account request couldn't finish") {
+		<main id="main" class="destination-page account-page">
+			@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+				<h1>Account request couldn't finish</h1><p>{ message }</p>
+				<a href="/me" class="text-link">Return to your profile</a>
+				<a href="/auth/sign-in" class="text-link">Start sign-in again</a>
+			}
+			<a href="/" class="text-link">Discover events without signing in</a>
+		</main>
+	}
+}
+
+templ CSRF(token string) {
+	<input type="hidden" name="csrf_token" value={ token }/>
+}
+
+templ Settings(p Page) {
+	@layouts.App(p.Active(), p.Title()) {
+		<main id="main" class="destination-page account-page">
+			<header class="account-heading"><h1>{ p.Title() }</h1><p class="intro">Make this space feel like yours. Your email and preferences stay private.</p></header>
+			<nav class="account-nav" aria-label="Account sections">
+				<a href="/me" aria-current={ layouts.CurrentPage(p.Section == "profile") }>Profile &amp; privacy</a>
+				<a href="/me/preferences" aria-current={ layouts.CurrentPage(p.Section == "preferences") }>Preferences</a>
+				<a href="/me/interests" aria-current={ layouts.CurrentPage(p.Section == "interests") }>Interests</a>
+			</nav>
+			if p.Error != "" {
+				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+					<h2>Changes weren't saved</h2><p>{ p.Error }</p>
+				}
+			}
+			if p.Notice != "" {
+				<p class="account-notice" role="status">{ p.Notice }</p>
+			}
+			switch p.Section {
+				case "preferences":
+					@Preferences(p)
+				case "interests":
+					@Interests(p)
+				default:
+					@Profile(p)
+			}
+		</main>
+	}
+}
+
+templ Profile(p Page) {
+	<div class="account-profile-layout">
+		<form action="/me/profile" method="post" class="account-form" aria-labelledby="profile-heading">
+			@CSRF(p.CSRF)
+			<h2 id="profile-heading">Your public profile</h2>
+			<p class="field-note">Your display name and bio are visible to anyone with your profile link. You don't need to use your real name.</p>
+			@label.Label(label.Props{For: "display-name", Class: "field"}) {
+				Display name
+				@input.Input(input.Props{ID:"display-name",Name:"display_name",Value:p.Account.DisplayName,Required:true,Attributes:templ.Attributes{"maxlength":"80","autocomplete":"nickname"}})
+			}
+			@label.Label(label.Props{For: "bio", Class: "field"}) {
+				Bio <span>(optional, up to 500 characters)</span><textarea id="bio" name="bio" rows="4" maxlength="500">{ p.Account.Bio }</textarea>
+			}
+			<h2>Interest privacy</h2>
+			@label.Label(label.Props{For:"interest-visibility",Class:"field"}) {
+				Default visibility for event interest
+				@selectcomp.Native(selectcomp.NativeProps{ID:"interest-visibility",Name:"interest_visibility",Attributes:templ.Attributes{"aria-describedby":"interest-privacy-help"}}) {
+					<option value="private" selected?={ p.Account.InterestVisibility != "public" }>Private</option>
+					<option value="public" selected?={ p.Account.InterestVisibility == "public" }>Public</option>
+				}
+			}
+			<p id="interest-privacy-help" class="field-note">Event interest isn't available yet. This records your preference for when it arrives. It does not publish preferences or create event activity. Recommendations and posts will have their own public disclosure.</p>
+			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
+				Save profile &amp; privacy
+			}
+		</form>
+		<aside class="account-preview" aria-labelledby="public-preview-heading">
+			<h2 id="public-preview-heading">What others can see</h2>
+			if p.Error != "" {
+				<p class="field-note">The changes shown here haven't been saved. Your public profile is unchanged.</p>
+			}
+			<p class="account-display-name">{ p.Account.DisplayName }</p>
+			if p.Account.Bio != "" {
+				<p class="account-bio">{ p.Account.Bio }</p>
+			} else {
+				<p class="field-note">No bio added.</p>
+			}
+			<a href={ templ.URL("/users/" + p.Account.ID) } class="text-link">Open your public profile</a>
+			<p class="field-note">Your email, city, category preferences, and notification settings are not part of this public view. Saving isn't available yet; future saves will stay private.</p>
+		</aside>
+	</div>
+	<section class="account-section" aria-labelledby="sign-in-heading">
+		<h2 id="sign-in-heading">Sign-in &amp; security</h2>
+		<p>Signed in with Google as <strong class="account-email">{ p.Account.Email }</strong>.</p>
+		<p class="field-note">Only you can see this email here. Signing out of Ticketopia does not sign you out of Google.</p>
+		<div class="account-actions">
+			<form action="/auth/logout" method="post">
+				@CSRF(p.CSRF)
+				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+					Sign out
+				}
+			</form>
+			<form action="/auth/logout-all" method="post">
+				@CSRF(p.CSRF)
+				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+					Sign out everywhere &amp; revoke API tokens
+				}
+			</form>
+		</div>
+		<details class="account-token-details" open?={ p.NewToken != "" }>
+			<summary>API access <span class="field-note">For your own apps and scripts</span></summary>
+			<p class="field-note">API tokens can read and change your profile and private preferences. They expire after 30 days and cannot create other tokens. Treat them like passwords.</p>
+			if p.NewToken != "" {
+				@label.Label(label.Props{For:"new-token",Class:"field"}) {
+					Copy your new API token now
+					@input.Input(input.Props{ID:"new-token",Value:p.NewToken,ReadOnly:true,Attributes:templ.Attributes{"autocomplete":"off","spellcheck":"false"}})
+				}
+			}
+			<form action="/me/tokens" method="post" class="account-form">
+				@CSRF(p.CSRF)
+				@label.Label(label.Props{For:"token-name",Class:"field"}) {
+					Token name
+					@input.Input(input.Props{ID:"token-name",Name:"name",Required:true,Attributes:templ.Attributes{"maxlength":"80"}})
+				}
+				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+					Create API token
+				}
+			</form>
+			if len(p.Tokens) == 0 {
+				<p class="field-note">You have no active API tokens.</p>
+			} else {
+				<ul class="account-token-list">
+					for _, token := range p.Tokens {
+						<li><div><strong>{ token.Name }</strong><p class="field-note">Expires <time datetime={ token.ExpiresAt.Format("2006-01-02T15:04:05Z07:00") }>{ token.ExpiresAt.Format("2 Jan 2006, 15:04 MST") }</time></p></div>
+							<form action={ templ.URL("/me/tokens/" + token.ID + "/revoke") } method="post">
+								@CSRF(p.CSRF)
+								@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"aria-label":"Revoke " + token.Name}}) {
+									Revoke
+								}
+							</form>
+						</li>
+					}
+				</ul>
+			}
+		</details>
+	</section>
+}
+
+templ Preferences(p Page) {
+	<form action="/me/preferences" method="post" class="account-form account-preferences" aria-labelledby="preferences-heading">
+		@CSRF(p.CSRF)
+		<h2 id="preferences-heading">Your default location</h2>
+		<p class="field-note">Used when discovery has no city selected or remembered in this browser. You can always search somewhere else.</p>
+		<div class="account-field-grid">
+			@label.Label(label.Props{For:"preferred-city",Class:"field"}) {
+				City <span>(optional)</span>
+				@input.Input(input.Props{ID:"preferred-city",Name:"city",Value:p.Account.Preferences.City,Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
+			}
+			@label.Label(label.Props{For:"preferred-country",Class:"field"}) {
+				Country code <span>(optional)</span>
+				@input.Input(input.Props{ID:"preferred-country",Name:"country",Value:p.Account.Preferences.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","autocomplete":"country"}})
+			}
+		</div>
+		@label.Label(label.Props{For:"timezone",Class:"field"}) {
+			Time zone
+			@input.Input(input.Props{ID:"timezone",Name:"timezone",Value:p.Account.Preferences.Timezone,Required:true,Attributes:templ.Attributes{"maxlength":"64","aria-describedby":"timezone-help"}})
+		}
+		<p id="timezone-help" class="field-note">Use an IANA time zone such as America/Chicago or Europe/Berlin. Event times still use the venue's time zone.</p>
+		<fieldset class="account-checkboxes"><legend>Future notification preferences</legend>
+			<p class="field-note">Reminders and digests aren't delivered yet. These preferences are stored privately for when those features are available.</p>
+			<label><input type="checkbox" name="email_reminders" checked?={ p.Account.Preferences.EmailReminders }/><span>Public on-sale and meaningful event-change emails</span></label>
+			<label><input type="checkbox" name="weekly_digest" checked?={ p.Account.Preferences.WeeklyDigest }/><span>Weekly discovery digest</span></label>
+			<label><input type="checkbox" name="notifications_paused" checked?={ p.Account.Preferences.NotificationsPaused }/><span>Pause all notifications</span></label>
+		</fieldset>
+		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
+			Save preferences
+		}
+	</form>
+}
+
+templ Interests(p Page) {
+	<form action="/me/preferences" method="post" class="account-form account-preferences" aria-labelledby="interests-heading">
+		@CSRF(p.CSRF)<input type="hidden" name="section" value="interests"/>
+		<h2 id="interests-heading">What catches your interest?</h2>
+		<p>Choose categories you enjoy. These preferences stay private and are separate from marking an individual event Interested.</p>
+		<p class="field-note">Personalized matches aren't available yet. Discovery still lets you explore every category.</p>
+		if p.CategoriesUnavailable {
+			<p class="account-notice" role="status">Category options couldn't be refreshed. Existing choices are retained below; try this page again shortly for the complete catalog.</p>
+		}
+		<fieldset class="account-checkboxes"><legend>Event categories</legend>
+			for _, category := range p.Categories {
+				<label><input type="checkbox" name="category_ids" value={ category.ID } checked?={ p.Selected(category.ID) }/><span>{ category.Name }</span></label>
+			}
+			for _, id := range p.MissingCategories() {
+				<label><input type="checkbox" name="category_ids" value={ id } checked/><span>Previously selected category: { id }</span></label>
+			}
+			if len(p.Categories) == 0 && len(p.Account.Preferences.CategoryIDs) == 0 {
+				<p class="field-note">No category options are available right now.</p>
+			}
+		</fieldset>
+		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
+			Save interests
+		}
+	</form>
+}
+
+templ Public(p accounts.PublicProfile) {
+	@layouts.App("profile", p.DisplayName) {
+		<main id="main" class="destination-page account-page">
+			<div class="account-public"><h1>{ p.DisplayName }</h1>
+				if p.Bio != "" {
+					<p class="account-bio">{ p.Bio }</p>
+				} else {
+					<p class="intro">No bio added.</p>
+				}
+				<p class="field-note">Public profile. Email, location, and personal preferences are private. Community activity isn't available yet.</p>
+				<a href="/" class="text-link">Discover events</a>
+			</div>
+		</main>
+	}
+}

@@ -87,9 +87,16 @@ func Destination(active string, title string) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "In development")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
+					if active == "profile" || active == "interests" {
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "Accounts not enabled")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+					} else {
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "In development")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
 					}
 					return nil
 				})
@@ -97,33 +104,33 @@ func Destination(active string, title string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				switch active {
 				case "saved":
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<h2>Your own list of good nights.</h2><p>Saved events will be your private collection, separate from public recommendations and event interest.</p><p>Saving and accounts aren't available yet. You can explore events and open their Ticketmaster pages today.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<h2>Your own list of good nights.</h2><p>Saved events will be your private collection, separate from public recommendations and event interest.</p><p>Saving isn't available yet. You can explore events and open their Ticketmaster pages today.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				case "community":
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<h2>Local knowledge, shared around an event.</h2><p>This will be a place to find recommended events and useful conversations in your city.</p><p>Recommendations, discussions, and replies aren't available yet. For now, explore an event to get its dates, venue, and ticket details.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<h2>Local knowledge, shared around an event.</h2><p>This will be a place to find recommended events and useful conversations in your city.</p><p>Recommendations, discussions, and replies aren't available yet. For now, explore an event to get its dates, venue, and ticket details.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				case "interests":
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<h2>More of what you love.</h2><p>Category preferences will help you describe your interests. They're separate from marking a particular event Interested.</p><p>Personal preferences aren't available yet. You can already narrow discovery by category, genre, dates, and keywords.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2>More of what you love.</h2><p>Category preferences will help you describe your interests. They're separate from marking a particular event Interested.</p><p>Accounts aren't enabled on this server. You can still narrow discovery by category, genre, dates, and keywords.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				default:
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2>A place for your event life.</h2><p>Accounts and profiles are in development. Sign-in, privacy controls, and personal collections aren't available yet.</p><p>Discovery is open to everyone. Start with a city and see what catches your ear.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<h2>A place for your event life.</h2><p>Accounts aren't enabled on this server. Sign-in, profiles, and private preferences require Google and MariaDB configuration.</p><p>Discovery is open to everyone. Start with a city and see what catches your ear.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -139,7 +146,7 @@ func Destination(active string, title string) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<span>Discover events</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span>Discover events</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -176,7 +183,7 @@ func Destination(active string, title string) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " <span>Interests <small>About your future category preferences</small></span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " <span>Interests <small>About your private category preferences</small></span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -191,7 +198,7 @@ func Destination(active string, title string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</main>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</main>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

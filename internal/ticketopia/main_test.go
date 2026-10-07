@@ -72,6 +72,17 @@ func TestShutdownDrainsBeforeResourceCleanup(t *testing.T) {
 	<-finished
 }
 
+func TestAuthenticationRequiresDurablePersistenceBeforeListening(t *testing.T) {
+	t.Setenv("PERSISTENCE_MODE", "disabled")
+	t.Setenv("AUTH_ENABLED", "true")
+	t.Setenv("AUTH_BASE_URL", "https://events.example")
+	t.Setenv("GOOGLE_CLIENT_ID", "test-client")
+	t.Setenv("GOOGLE_CLIENT_SECRET", "test-secret")
+	if status := Execute(t.Context()); status != 1 {
+		t.Fatalf("auth without MariaDB returned %d", status)
+	}
+}
+
 func TestInvalidPersistenceFailsBeforeHTTPStartup(t *testing.T) {
 	t.Setenv("PERSISTENCE_MODE", "invalid")
 	if status := Execute(t.Context()); status != 1 {

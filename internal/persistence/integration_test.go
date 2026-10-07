@@ -114,6 +114,9 @@ func (f mariaFixture) migrate(t *testing.T) {
 	for _, table := range []string{"events", "event_providers"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
 	}
+	for table, privileges := range map[string]string{"accounts": "INSERT, UPDATE", "account_identities": "INSERT", "account_credentials": "INSERT, DELETE", "auth_flows": "INSERT, DELETE", "auth_rate_limits": "INSERT, UPDATE, DELETE"} {
+		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
+	}
 }
 
 func (f mariaFixture) open(t *testing.T) *Pool {
@@ -254,15 +257,15 @@ func TestMariaDBRuntimePrivilegesAndStartupFailures(t *testing.T) {
 		t.Fatal("startup failure was not bounded")
 	}
 	var versionRow int
-	if err := p.db.QueryRowContext(t.Context(), `SELECT id FROM goose_db_version WHERE version_id=1`).Scan(&versionRow); err != nil {
+	if err := p.db.QueryRowContext(t.Context(), `SELECT id FROM goose_db_version WHERE version_id=2`).Scan(&versionRow); err != nil {
 		t.Fatal(err)
 	}
-	for _, version := range []int{0, 2} {
+	for _, version := range []int{0, 3} {
 		execSQL(t, f.admin, "UPDATE "+f.runtime.Database+".goose_db_version SET version_id=? WHERE id=?", version, versionRow)
 		if _, err := Open(t.Context(), f.runtime); err == nil {
 			t.Fatal("unsupported schema version accepted")
 		}
-		execSQL(t, f.admin, "UPDATE "+f.runtime.Database+".goose_db_version SET version_id=1 WHERE id=?", versionRow)
+		execSQL(t, f.admin, "UPDATE "+f.runtime.Database+".goose_db_version SET version_id=2 WHERE id=?", versionRow)
 	}
 	// A clean marker cannot hide a missing table (for example a botched repair).
 	execSQL(t, f.admin, "RENAME TABLE "+f.runtime.Database+".event_providers TO "+f.runtime.Database+".missing_mapping")

@@ -1,8 +1,9 @@
 # Disposable local development only; no HA or backup/restore guarantee.
+# Versioned volume keeps older engine data intact; see docs/persistence.md.
 name: ticketopia-db
 services:
   mariadb:
-    image: mariadb:11.8.6
+    image: mariadb:13.0.2
     environment:
       MARIADB_ROOT_PASSWORD: local-root-only
     ports:
@@ -17,7 +18,7 @@ services:
       - --ssl-cert=/certs/server.crt
       - --ssl-key=/certs/server.key
     volumes:
-      - data:/var/lib/mysql
+      - data-v13:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/01-users.sql:ro
       - ../../.local/mariadb/certs:/certs:ro
     healthcheck:
@@ -26,4 +27,4 @@ services:
       timeout: 2s
       retries: 30
 volumes:
-  data:
+  data-v13:

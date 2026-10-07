@@ -42,7 +42,8 @@ goal to implementation work and verification checkpoints.
   and choose a city when detection is unavailable.
 - [ ] Validate relevance with people in a pilot city.
 - [ ] Save an event and find it again on a later visit.
-- [ ] Sign in, manage a profile/privacy preferences, and keep saved events private.
+- [x] Sign in with Google and manage a profile, privacy defaults, and private preferences.
+- [ ] Keep saved events private.
 - [ ] Follow artists and venues.
 - [ ] See personalized matches with understandable reasons.
 
@@ -104,7 +105,8 @@ goal to implementation work and verification checkpoints.
 [Database foundation/setup](docs/persistence.md) · [Database design](docs/design/database.md)
 
 - [x] Establish MariaDB connections, serialized migrations, and minimal durable event identity.
-- [ ] Keep preferences, saved events, and event history across restarts.
+- [x] Keep accounts, credentials, and private preferences across restarts.
+- [ ] Keep saved events and event history across restarts.
 - [ ] Persist community activity, moderation records, and notification jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
@@ -112,7 +114,8 @@ goal to implementation work and verification checkpoints.
 The optional foundation uses MariaDB through `database/sql` and pinned
 `go-sql-driver/mysql`, with embedded Goose migrations and `mariadb-operator`
 deployment examples. Discovery stays database-free by default; broader durable
-features and exercised multi-pod deployment remain planned.
+features and exercised multi-pod deployment remain planned. Opt-in
+[Google accounts](docs/accounts.md) now store profiles, preferences, and credentials.
 
 ### Container deployment
 
@@ -157,6 +160,10 @@ The cache runs in memory by default. Shared backends are optional; see
 
 MariaDB is opt-in with `PERSISTENCE_MODE=mariadb`; see the [persistence guide](docs/persistence.md)
 for the local database, verified TLS, separate migration command, and SQL tests.
+
+Accounts are separately opt-in with `AUTH_ENABLED=true`, `AUTH_BASE_URL`,
+`GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`; see [Google sign-in setup](docs/accounts.md).
+Discovery stays public. Private saves and community participation are not yet implemented.
 
 ## Run in a container
 
