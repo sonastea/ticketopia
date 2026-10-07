@@ -39,6 +39,17 @@
   active tuning values with engine rounding; do not restart the existing database.
   Keep the operator budget unchanged; see
   [local development](../persistence.md#repeatable-local-development).
+- Switch local/operator image pins to **12.3.3**, the latest stable 12.3 LTS patch.
+  Retain local tuning and use a separate `data-v12-3` volume to preserve 13.0 data.
+  Require a verified logical restore for the engine downgrade; do not restart or
+  migrate the running database. Verify isolated TLS-enabled 12.3.3 startup/tuning,
+  migrations/repeat run, runtime grants, the full Go race suite, vet, and YAML.
+  Preserve the earlier cutover as history; see
+  [server-version guidance](../persistence.md#server-version-upgrades).
+- Revise local Compose tuning to the requested integer `M` values (`102M`, `51M`,
+  `10M`) and remove both obsolete compatibility flags. Verify Compose and all
+  17 exact tuning values on isolated 12.3.3; see
+  [local development](../persistence.md#repeatable-local-development).
 
 ### 2026-10-05 — MariaDB direction and connection/migration/identity foundation
 

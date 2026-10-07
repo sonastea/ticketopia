@@ -1,6 +1,7 @@
 # Example only. Install pinned operator/CRDs first; replace ALL secret values.
 # One database pod is NOT HA. No backup/restore has been verified here.
 # Review server upgrade/restore compatibility before changing an existing database image.
+# Never downgrade an existing PVC; use fresh storage and a verified logical restore.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -39,7 +40,7 @@ metadata:
   name: ticketopia-db
   namespace: ticketopia
 spec:
-  image: mariadb:13.0.2
+  image: mariadb:12.3.3
   replicas: 1
   rootPasswordSecretKeyRef:
     name: ticketopia-db-root

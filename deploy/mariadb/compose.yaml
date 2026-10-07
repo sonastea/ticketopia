@@ -1,9 +1,9 @@
 # Disposable local development only; no HA or backup/restore guarantee.
-# Versioned volume keeps older engine data intact; see docs/persistence.md.
+# Separate 12.3 volume preserves existing 13.0 data; see docs/persistence.md.
 name: ticketopia-db
 services:
   mariadb:
-    image: mariadb:13.0.2
+    image: mariadb:12.3.3
     environment:
       MARIADB_ROOT_PASSWORD: local-root-only
     ports:
@@ -14,19 +14,17 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --innodb-buffer-pool-size=512M
-      - --innodb-buffer-pool-instances=1 # Compatibility-only; ignored by MariaDB 13.0.
       - --max-connections=60
-      - --key-buffer-size=107374182 # Approximately 102.4 MiB, in whole bytes.
+      - --key-buffer-size=102M
       - --innodb-log-file-size=128M
-      - --tmp-table-size=53687091 # Approximately 51.2 MiB, in whole bytes.
-      - --innodb-log-buffer-size=10737418 # Approximately 10.24 MiB, in whole bytes.
+      - --tmp-table-size=51M
+      - --innodb-log-buffer-size=10M
       - --innodb-flush-log-at-trx-commit=1
       - --innodb-flush-method=O_DIRECT
       - --innodb-file-per-table=1
       - --innodb-io-capacity=100
       - --innodb-read-io-threads=4
       - --innodb-write-io-threads=4
-      - --innodb-thread-concurrency=0 # Compatibility-only; ignored by MariaDB 13.0.
       - --sort-buffer-size=8M
       - --read-buffer-size=4M
       - --read-rnd-buffer-size=8M
@@ -36,7 +34,7 @@ services:
       - --ssl-cert=/certs/server.crt
       - --ssl-key=/certs/server.key
     volumes:
-      - data-v13:/var/lib/mysql
+      - data-v12-3:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/01-users.sql:ro
       - ../../.local/mariadb/certs:/certs:ro
     healthcheck:
@@ -45,4 +43,4 @@ services:
       timeout: 2s
       retries: 30
 volumes:
-  data-v13:
+  data-v12-3:

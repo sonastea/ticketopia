@@ -63,18 +63,18 @@ forced HTTP close on timeout), not at the beginning of SIGTERM handling.
 
 Requires Make, Go 1.27+, Docker Compose and OpenSSL. These credentials/certificates
 are disposable public development fixtures, **not** production secrets. The server binds only
-`127.0.0.1:3307`, uses MariaDB **13.0.2**, and stores its data in the versioned
-`<compose-project>_data-v13` volume (normally `ticketopia-db_data-v13`).
-For an existing older-version volume, read [server upgrades](#server-version-upgrades)
+`127.0.0.1:3307`, uses MariaDB **12.3.3 LTS**, and stores its data in the versioned
+`<compose-project>_data-v12-3` volume (normally `ticketopia-db_data-v12-3`).
+For an existing 11.8 or 13.0 database, read [server upgrades](#server-version-upgrades)
 before starting the updated Compose image.
 
 Compose sets a 512 MiB InnoDB buffer pool, 128 MiB redo log, 60-connection limit,
 and explicit buffer/I/O tuning in [`compose.yaml`](../deploy/mariadb/compose.yaml).
-MariaDB's `M` suffix means MiB; fractional sizes use whole bytes and can be rounded
-to the engine's allocation granularity. `innodb_buffer_pool_instances=1` and
-`innodb_thread_concurrency=0` are retained as compatibility flags, but MariaDB
-13.0.2 warns that they are removed and ignores them. Per-session buffers can
-multiply across connections; these settings are **not** a total server memory cap.
+MariaDB's `M` suffix means MiB. Key, temporary-table, and InnoDB log buffers use
+`102M`, `51M`, and `10M` respectively. Removed compatibility-only settings
+`innodb_buffer_pool_instances` and `innodb_thread_concurrency` are not passed.
+Per-session buffers can multiply across connections; these settings are **not**
+a total server memory cap.
 The standalone operator example retains its separate 100-connection budget.
 
 ```sh
@@ -121,13 +121,21 @@ Only `ca.crt`, never CA private keys, belongs in application mounts.
 
 ## Server-version upgrades
 
-Compose and operator examples pin **MariaDB 13.0.2**, a
-[stable rolling release](https://mariadb.com/docs/release-notes/community-server/13.0/13.0.2).
-MariaDB 13.1.1 is a release candidate, not stable; its Docker tag is
-`13.1.1-rc`, so it is not used here. The versioned local volume prevents this image
-from opening the old `ticketopia-db_data` directory. Without an explicit restore,
-starting it creates a **separate empty database**, not an automatic data migration.
-Engine upgrades are separate from Ticketopia's application schema migrations.
+Compose and operator examples pin **MariaDB 12.3.3**, the latest stable patch of
+the [12.3 LTS series](https://mariadb.com/docs/release-notes/community-server/12.3/mariadb-12.3-changes-and-improvements),
+maintained until June 2029. The separate `data-v12-3` local volume prevents this
+image from opening either `ticketopia-db_data` (11.8) or `ticketopia-db_data-v13`
+(13.0). Without an explicit restore, starting updated Compose creates a
+**separate empty database**, not an automatic data migration. Engine changes are
+separate from Ticketopia's application schema migrations.
+
+Moving from 13.0 to 12.3 is an **engine downgrade**. Never mount a 13.0 data
+directory or PVC in 12.3. Preserve a backup and drain writers before a logical
+export of application data; restore into fresh 12.3 storage and check SQL feature
+compatibility, contents, grants, TLS, schema validation, and readiness before
+cutover. Provision users separately; do not import the newer engine's system
+tables. Keep the 13.0 volume intact until the restore is verified. The 12.3 change
+updates configuration only; the running 13.0 server was not stopped or migrated.
 
 Before changing an existing 11.8 server or PVC, preserve a backup and rehearse
 the [MariaDB server upgrade path](https://mariadb.com/docs/server/server-management/install-and-upgrade-mariadb/upgrading/mariadb-community-server-upgrade-paths)
@@ -141,13 +149,16 @@ In Kubernetes, review the pinned operator's compatibility and server upgrade
 procedure, test storage/restore and readiness in staging, and plan any required
 downtime before updating the database resource. The full Go race suite, TLS-enabled
 SQL integration tests, migration CLI/repeat run, and local runtime grants were
-verified on an isolated fresh 13.0.2 server. This does not establish an in-place
+verified on an isolated fresh 12.3.3 server. This does not establish an in-place
 engine upgrade, a cluster rollout, or a production restore.
 
 ### Local 11.8.6 to 13.0.2 cutover
 
 The local Compose server was upgraded on 2026-10-06 using a logical export/restore,
-not an in-place data-directory upgrade:
+not an in-place data-directory upgrade.
+
+This is a historical cutover record. Current Compose targets 12.3.3 and does not
+mount the retained 13.0 volume; these steps describe the earlier 13.0 configuration:
 
 1. Check the source version, database inventory, clean schema, and active writers.
    Pause application writes/migrations; source `read_only=ON` also blocks ordinary
@@ -160,7 +171,8 @@ not an in-place data-directory upgrade:
 3. Restore into a fresh 13.0.2 volume/server on a separate loopback port. Compare
    all table row counts and deterministic content hashes, application grants, TLS,
    schema validation, and runtime readiness before switching.
-4. Stop both servers, then start normal Compose with `data-v13` on port **3307**.
+4. Stop both servers, then start the 13.0.2 Compose configuration with `data-v13`
+   on port **3307**.
    Recheck version, writable status, restored contents, runtime readiness, and tests.
    If abandoning preparation, restore the source's prior writable status.
 
@@ -182,8 +194,9 @@ docker compose -f deploy/mariadb/compose.yaml ps
 docker compose -f deploy/mariadb/compose.yaml exec -T -e MYSQL_PWD=local-root-only mariadb mariadb -uroot -e 'SELECT VERSION(), @@read_only;'
 ```
 
-For rollback, **pause writers first** and set `BACKUP` to the successful upgrade's
-directory. The saved override selects the original 11.8.6 image and volume:
+For rollback of that historical cutover, **pause writers first** and set `BACKUP`
+to the successful upgrade's directory. The saved override selects the original
+11.8.6 image and volume:
 
 ```sh
 BACKUP=.local/mariadb/backups/YOUR_UPGRADE_DIRECTORY
@@ -191,9 +204,9 @@ docker compose -f deploy/mariadb/compose.yaml -f "$BACKUP/rollback.yaml" config 
 docker compose -f deploy/mariadb/compose.yaml -f "$BACKUP/rollback.yaml" up -d --wait
 ```
 
-This restores the **pre-cutover snapshot** only: writes made on 13.0.2 will not be
-present. Preserve/export those separately before deciding to roll back. Do not
-point 11.8 at the new volume or remove either volume with `down -v`/volume pruning.
+This restores the **pre-cutover snapshot** only: later writes on 13.0.2 or 12.3.3
+will not be present. Preserve/export those separately before deciding to roll back.
+Do not point 11.8 at either newer volume or remove volumes with `down -v`/pruning.
 
 ## Explicit migrations and failed-DDL recovery
 
@@ -287,7 +300,7 @@ only an explicit supplied status can record cancellation.
 
 [`deploy/mariadb/operator`](../deploy/mariadb/operator/) contains database/PVC,
 Database/User/Grant CRs, Secret placeholders, enforced TLS, CA mounts, a migration
-Job, and a three-replica application example. It targets MariaDB **13.0.2** and
+Job, and a three-replica application example. It targets MariaDB **12.3.3 LTS** and
 `mariadb-operator` / CRD charts **26.10.1**:
 
 ```sh
