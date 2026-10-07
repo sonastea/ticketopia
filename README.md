@@ -60,8 +60,8 @@ goal to implementation work and verification checkpoints.
 
 [Community goals](docs/goals/event-communities.md)
 
-- [ ] Mark an event Interested and change or remove that choice.
-- [ ] Choose public interest visibility; keep interest identity private by default.
+- [x] Mark an event Interested and change or remove that choice.
+- [x] Choose public interest visibility; keep interest identity private by default.
 - [ ] Recommend an event publicly, optionally explain why, and edit or withdraw it.
 - [ ] Browse local/category recommendations and event conversations.
 - [ ] Later: Mark an event Going and choose participation visibility.
@@ -107,6 +107,7 @@ goal to implementation work and verification checkpoints.
 - [x] Establish MariaDB connections, serialized migrations, and minimal durable event identity.
 - [x] Keep accounts, credentials, and private preferences across restarts.
 - [x] Keep saved events and last-known event details across restarts.
+- [x] Keep event interest and its visibility across restarts.
 - [ ] Keep dated event observation history across restarts.
 - [ ] Persist community activity, moderation records, and notification jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
@@ -118,6 +119,8 @@ deployment examples. Discovery stays database-free by default; broader durable
 features and exercised multi-pod deployment remain planned. Opt-in
 [Google accounts](docs/accounts.md) store profiles, preferences, and credentials;
 [private saves](docs/saved-events.md) retain bookmarks and last-known event details.
+[Interested](docs/event-interest.md) keeps separate choices, private-by-default identities,
+aggregate counts, and explicitly public participant/profile activity.
 
 ### Container deployment
 
@@ -166,9 +169,11 @@ The cache runs in memory by default. Shared backends are optional; see
 
 MariaDB is opt-in with `PERSISTENCE_MODE=mariadb`; see the [persistence guide](docs/persistence.md)
 for the local database, verified TLS, separate migration command, and SQL tests.
-Run `make migrate` to prepare local MariaDB, apply migrations and runtime grants,
+Run `make db-setup` to prepare local MariaDB, apply migrations and runtime grants,
 and verify required permissions. It is safe to rerun after migration changes;
-normal app restarts do not require it.
+normal app restarts do not require it. `make migrate` applies only schema migrations
+to an existing database using your environment/`.env` settings and migration credentials;
+it does not start containers or apply runtime grants.
 
 Accounts are separately opt-in with `AUTH_ENABLED=true`, `AUTH_BASE_URL`,
 `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`; see [Google sign-in setup](docs/accounts.md).

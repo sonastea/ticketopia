@@ -2,8 +2,9 @@
 
 Status: All-category discovery, responsive navigation, basic event previews/
 detail pages, the MariaDB connection/migration/identity foundation, and opt-in
-Google accounts/profiles/private preferences and durable private saves are
-implemented. Community outcomes and broader persistence remain planned.
+Google accounts/profiles/private preferences, durable private saves, and Interested
+with privacy controls/counts/public-opt-in activity are implemented. Recommendations,
+discussions/moderation and broader persistence remain planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -13,8 +14,8 @@ does not complete a UI outcome, and a cache does not complete durable storage.
 
 The updated release combines location-based discovery across **all Ticketmaster
 event categories** with event-centered community participation. Category-aware
-discovery, account/profile/preferences, and private saves are implemented;
-community participation remains planned.
+discovery, account/profile/preferences, private saves, and Interested are implemented;
+recommendations, discussions, and moderation remain planned.
 The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
 Section numbers below group capabilities; they do not force reminders/ranking
 to ship before community work.
@@ -154,10 +155,11 @@ Aligns with the [reminder promises](personal-radar.md#reminder-promises).
 Aligns with [all core community goals](event-communities.md#small-goals-one-at-a-time).
 Build backend/API and UI together for each small outcome:
 
-- [ ] Backend: Persist Interested independently from bookmarks, recommendations,
+- [x] Backend: Persist Interested independently from bookmarks, recommendations,
   and later attendance states; default identity visibility to private.
-- [ ] Frontend: Let people toggle interest, control its visibility, and distinguish
-  their own selected state from aggregate counts.
+- [x] Frontend: Let people toggle interest, control its visibility, and distinguish
+  their own selected state from aggregate counts. See [event interest](../event-interest.md)
+  for own collections, public-opt-in participants/profile activity, and verification.
 - [ ] Backend: Persist one public recommendation per user/event with optional
   reason; support editing/withdrawal and paginated city/category discovery.
 - [ ] Frontend: Offer Recommend as a secondary action, disclose public attribution,

@@ -14,6 +14,8 @@ templ Event(page EventPage) {
 				@layouts.Icon("back")
 				if isSavedURL(page.ReturnURL) {
 					Back to Saved
+				} else if isInterestsURL(page.ReturnURL) {
+					Back to Interests
 				} else if page.ReturnURL != "/" {
 					Back to results
 				} else {
@@ -89,13 +91,14 @@ templ EventFacts(event models.Event) {
 
 templ EventParticipation(page EventPage, noteID string) {
 	@EventActions(page.Detail.Item.ID, page.Detail.Item.Name, page.Saves, page.ActionReturnURL) {
-		@ParticipationButton("interests", "Interested", noteID)
+		@InterestControl(page.Detail.Item.ID, page.Detail.Item.Name, page.Interests, page.ActionReturnURL)
 	}
+	@InterestDetails(page.Detail.Item.ID, page.Interests, page.ActionReturnURL)
 	<p id={ noteID } class="participation-note">
 		if page.Saves.Enabled {
-			Saves are private. Interested is not available yet.
+			Saves stay private. Interested doesn't confirm attendance or ticket ownership.
 		} else {
-			Saving requires accounts to be enabled. Interested is not available yet.
+			Saving and Interested require accounts to be enabled.
 		}
 	</p>
 	if page.Saves.Error != "" {
@@ -122,7 +125,8 @@ templ EventSectionContent(page EventPage) {
 				}
 			case "community":
 				<h2 id="event-section-heading">Good events are worth sharing</h2>
-				<p>Public recommendations and community interest are in development. No participation counts are available for this event.</p>
+				@PublicParticipants(page)
+				<p>Public recommendations are in development.</p>
 				@ParticipationButton("community", "Recommend", "recommend-note")
 				<p id="recommend-note" class="participation-note">Recommending an event is not available yet.</p>
 			default:

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.3.0
+  version: 1.4.0
   license:
     name: MIT
     identifier: MIT
@@ -11,7 +11,10 @@ info:
     Category and genre IDs are Ticketmaster
     taxonomy IDs. Data is cached, not a live inventory or durable event history.
     Opt-in Google authentication provides MariaDB-backed profiles and private
-    preferences and private durable event saves. Account APIs use a browser session or a user-scoped API token;
+    preferences, private durable event saves, and independent event interest.
+    Interest identity is private by default; counts include private choices but
+    participant lists and profile activity include only explicitly public choices.
+    Account APIs use a browser session or a user-scoped API token;
     discovery remains public. Account APIs return 503 when accounts are disabled.
 servers:
   - url: /
@@ -498,6 +501,204 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/CSRFRejected'}
         '503': {$ref: '#/components/responses/SavesUnavailable'}
+  /api/v1/me/event-interests:
+    get:
+      operationId: listOwnEventInterests
+      summary: List your event interest, including private choices
+      description: |
+        Last-known event snapshots without provider calls, ordered by interested_at
+        then binary event ID descending. Cursors are owner- and audience-bound.
+        New choices appear on refresh; removals and visibility changes can shorten
+        later pages. Unknown/repeated parameters are rejected. Responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/InterestCursor'}
+      responses:
+        '200':
+          description: Your event interest, or an empty array.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventInterestList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
+  /api/v1/me/event-interests/states:
+    get:
+      operationId: getOwnEventInterestStates
+      summary: Read aggregate counts and your own choices in a bounded batch
+      description: |
+        Repeat event_id up to 101 times; no other parameters or provider calls.
+        Counts include private and public choices. Interested/visibility belong
+        only to the authenticated owner; no other account identities are returned.
+        Browser responses include csrf_token; bearer responses omit it.
+        default_visibility applies to new choices only. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - name: event_id
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 101
+            items: {$ref: '#/components/schemas/ResourceID'}
+      responses:
+        '200':
+          description: A state for each requested ID; unknown IDs have count zero and interested false.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [states, default_visibility]
+                properties:
+                  states: {type: object, additionalProperties: {$ref: '#/components/schemas/EventInterestState'}}
+                  csrf_token: {type: string}
+                  default_visibility: {type: string, enum: [private, public]}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
+  /api/v1/me/event-interests/{event_id}:
+    parameters:
+      - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+    get:
+      operationId: getOwnEventInterest
+      summary: Read your interest in an event
+      description: Owner-only. No query parameters. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Your choice and retained event metadata.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventInterest'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/InterestNotFound'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
+    put:
+      operationId: setOwnEventInterest
+      summary: Mark Interested or change the visibility of your choice
+      description: |
+        A JSON object is required; send {} or {"visibility":"private"} or
+        {"visibility":"public"}. Omission preserves an existing choice, or uses
+        the account's private-by-default profile setting for a new choice.
+        Public choices disclose your public profile on event participant lists
+        and the event on your public profile. Changing the profile default never
+        changes existing choices. No query parameters or client-supplied owner or metadata.
+        Identity, snapshot, and first interest commit atomically. Repeated PUT
+        preserves interested_at and needs no provider call for an existing choice.
+        Separate from saves, recommendations, tickets, and attendance.
+        Cookie writes require CSRF and same-origin checks; bearer writes do not.
+        All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                visibility: {type: string, enum: [private, public]}
+      responses:
+        '201':
+          description: Interest created.
+          headers:
+            Location: {description: Owner-only interest resource., schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventInterest'}
+        '200':
+          description: Existing interest, retaining its original interested_at.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventInterest'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/InterestNotFound'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
+    delete:
+      operationId: removeOwnEventInterest
+      summary: Remove your event interest without changing your save
+      description: Empty body and no query parameters. Owner-only and idempotent, including when absent. Retains shared event metadata and other users' interest. Cookie writes require CSRF and same-origin checks. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      responses:
+        '204': {description: Interest removed or already absent.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
+  /api/v1/events/{event_id}/interest:
+    get:
+      operationId: getEventInterestCount
+      summary: Read an event's aggregate interest count without identities
+      description: Public read including private choices. No query parameters or provider calls. Unknown event IDs have count zero. All responses are private, no-store, so visibility changes take effect on the next read.
+      parameters:
+        - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200':
+          description: Aggregate only; no personal state or identity.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                additionalProperties: false
+                properties:
+                  count: {type: integer, minimum: 0}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
+  /api/v1/events/{event_id}/interested-users:
+    get:
+      operationId: listPublicInterestedUsers
+      summary: List only explicitly public interest identities for an event
+      description: |
+        Public allowlisted profiles only, never email or private choices. Ordered
+        by interested_at then binary account ID descending. Cursors are bound to
+        this event. No provider calls; unknown events return an empty array.
+        Removals/visibility changes can shorten pages. All responses are private, no-store.
+      parameters:
+        - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/InterestCursor'}
+      responses:
+        '200':
+          description: Public profiles with their interest timestamps, or an empty array.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InterestParticipants'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
+  /api/v1/users/{user_id}/event-interests:
+    get:
+      operationId: listPublicProfileEventInterests
+      summary: List an account's explicitly public event interest
+      description: |
+        Public event activity only; private choices and saves are never included,
+        even for the owner. Last-known snapshots require no provider calls. Ordered
+        by interested_at then binary event ID descending. Cursors are account-
+        and audience-bound. All responses are private, no-store.
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {$ref: '#/components/schemas/AccountID'}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/InterestCursor'}
+      responses:
+        '200':
+          description: Only public interest, with visibility always public.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventInterestList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '404':
+          description: Account not found, including an invalid account ID.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/InterestsUnavailable'}
   /api/v1/openapi.yaml:
     get:
       operationId: getOpenAPI
@@ -521,12 +722,31 @@ components:
       scheme: bearer
       description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
   parameters:
+    InterestLimit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    InterestCursor:
+      name: cursor
+      in: query
+      description: Opaque next_cursor from this collection and audience.
+      schema: {type: string, maxLength: 512}
     CSRFToken:
       name: X-CSRF-Token
       in: header
       description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
       schema: {type: string}
   responses:
+    InterestNotFound:
+      description: Event cannot be resolved for a new choice, or this owner has no interest in it.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    InterestsUnavailable:
+      description: Accounts or interest are disabled, durable storage is unavailable, or a new event cannot be resolved and no snapshot exists. No in-memory fallback.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     SavedEventNotFound:
       description: This event cannot be resolved for saving, or is not saved by the authenticated owner for a bookmark read.
       content:
@@ -579,6 +799,41 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    EventInterest:
+      type: object
+      required: [event, interested_at, visibility, meta]
+      properties:
+        event: {$ref: '#/components/schemas/Event'}
+        interested_at: {type: string, format: date-time, description: 'Original choice time, preserved by retries and visibility changes.'}
+        visibility: {type: string, enum: [private, public]}
+        meta: {$ref: '#/components/schemas/Freshness'}
+    EventInterestList:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/EventInterest'}}
+        next_cursor: {type: [string, 'null']}
+    EventInterestState:
+      type: object
+      required: [count, interested]
+      additionalProperties: false
+      properties:
+        count: {type: integer, minimum: 0}
+        interested: {type: boolean}
+        visibility: {type: string, enum: [private, public], description: Present only when this owner is interested.}
+    InterestParticipants:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [profile, interested_at]
+            properties:
+              profile: {$ref: '#/components/schemas/PublicProfile'}
+              interested_at: {type: string, format: date-time}
+        next_cursor: {type: [string, 'null']}
     SavedEvent:
       type: object
       required: [event, saved_at, meta]

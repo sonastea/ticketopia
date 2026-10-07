@@ -191,7 +191,7 @@ func Saved(page SavedPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -318,6 +318,10 @@ func EventActions(eventID string, name string, view SaveView, returnURL string) 
 				return templ_7745c5c3_Err
 			}
 		}
+		templ_7745c5c3_Err = InterestFeedback().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -410,7 +414,7 @@ func SaveControl(eventID string, name string, view SaveView, returnURL string) t
 			var templ_7745c5c3_Var15 templ.SafeURL
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(saveAction(eventID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 75, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 76, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -423,7 +427,7 @@ func SaveControl(eventID string, name string, view SaveView, returnURL string) t
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(eventID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 75, Col: 108}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 76, Col: 108}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 			if templ_7745c5c3_Err != nil {
@@ -436,7 +440,7 @@ func SaveControl(eventID string, name string, view SaveView, returnURL string) t
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 75, Col: 133}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 76, Col: 133}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 			if templ_7745c5c3_Err != nil {
@@ -449,7 +453,7 @@ func SaveControl(eventID string, name string, view SaveView, returnURL string) t
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(view.CSRF)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 76, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 77, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 			if templ_7745c5c3_Err != nil {
@@ -462,7 +466,7 @@ func SaveControl(eventID string, name string, view SaveView, returnURL string) t
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 77, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 78, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
@@ -475,7 +479,7 @@ func SaveControl(eventID string, name string, view SaveView, returnURL string) t
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(saveVerb(view.States[eventID]))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 78, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 79, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -508,7 +512,7 @@ func SaveControl(eventID string, name string, view SaveView, returnURL string) t
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(saveLabel(view.States[eventID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 80, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 81, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {

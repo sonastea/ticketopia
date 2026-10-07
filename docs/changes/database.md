@@ -1,5 +1,7 @@
 # Database and persistence changes
 
+[Older history](archive/database/).
+
 ## Unreleased
 
 ### 2026-10-06 — Account/save schemas, runtime grants, and server configuration
@@ -11,12 +13,23 @@
   identity/activity writes, scoped local/operator grants and startup validation.
   Verify v2 account/credential/event preservation in isolated migration tests;
   require draining v2 apps before migration. See [private saves](../saved-events.md).
-- Add local `make migrate` to prepare TLS/Compose/users, run current-source migrations,
-  reapply runtime grants and verify runtime access with zero-row write probes.
+- Add schema v4 independent event interest with private/public visibility, scoped
+  runtime/operator grants and write probes. Share transactional event snapshots
+  without merging save/interest records; verify migration preservation, rollback,
+  independent pools, keysets and provider-free restart. See [interest](../event-interest.md).
+  Require draining v3 apps before migration; the current development database is unchanged.
+- Add local `make db-setup` (originally `make migrate`) to prepare TLS/Compose/users,
+  run current-source migrations, reapply runtime grants and verify runtime access
+  with zero-row write probes.
   Pin migration connection settings to local fixtures; stop on any failed step.
   Verify repeat runs locally, fail-fast ordering/configuration isolation tests,
   missing-grant detection in isolated MariaDB, the full Go race suite and vet.
   See [local development](../persistence.md#repeatable-local-development).
+- Make `make migrate` migrations-only using existing environment/`.env` settings;
+  move the combined local workflow to `make db-setup` and `mariadb-setup.sh`.
+  Test configured connection preservation without Docker/OpenSSL, migration failure
+  propagation, and combined setup ordering/fail-fast behavior; see
+  [local development](../persistence.md#repeatable-local-development).
 - Document the required v1 traffic drain before migration and v2 restart, rather
   than claiming overlapping schema support or a zero-downtime upgrade.
 - Pin local/operator MariaDB images to stable **13.0.2**, after confirming that
@@ -78,22 +91,3 @@
   readiness failures/recovery, shutdown, and redaction; see the [foundation guide](../persistence.md).
 - Pass `go test -race ./...` with real MariaDB, `go vet ./...`, `npm run build`,
   the Docker build, and non-root/read-only migration/application image smoke checks.
-
-### 2026-10-03 — Local event identity and independent community records
-
-- Extend the [database plan](../design/database.md#planned-event-and-community-model)
-  with bookmark/interest/recommendation/post-reaction separation, thread ancestry,
-  visibility, retry-safe uniqueness, and durable event references across cache or
-  provider loss. Preserve SQLite-first, single-host, and later migration decisions.
-
-### 2026-10-02 — SQLite first, with a later PlanetScale option
-
-- Select SQLite as the initial database for planned radar, community, event
-  history, and notification state.
-- Document a single-host operating model, durable storage, and migration-aware
-  persistence boundaries in the [database plan](../design/database.md).
-- Record PlanetScale as a later option, with workload/deployment triggers and
-  an explicit engine and data migration rather than a connection-URL swap.
-- Align the API draft and project overview with the database decision.
-
-The older entries record design history, not delivered account/community storage.

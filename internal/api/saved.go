@@ -198,6 +198,11 @@ func (a *api) savedPage(c echo.Context) error {
 	for _, item := range page.List.Items {
 		page.Saves.States[item.Event.ID] = true
 	}
+	ids := []string{}
+	for _, item := range page.List.Items {
+		ids = append(ids, item.Event.ID)
+	}
+	page.Interests = a.interestView(c, ids)
 	return render(c, status, home.Saved(page))
 }
 func (a *api) savePage(c echo.Context) error {
@@ -242,7 +247,7 @@ func (a *api) savePage(c echo.Context) error {
 			Saved bool   `json:"saved"`
 		}{id, c.FormValue("action") == "save"})
 	}
-	return c.Redirect(303, safeSaveReturn(c.FormValue("return_to")))
+	return c.Redirect(303, safeInterestReturn(c.FormValue("return_to")))
 }
 func safeSaveReturn(raw string) string {
 	u, err := url.Parse(raw)

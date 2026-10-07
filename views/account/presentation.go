@@ -3,6 +3,7 @@ package account
 import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/views/home"
 	"slices"
 )
 
@@ -12,6 +13,7 @@ type Page struct {
 	Tokens                                 []accounts.Credential
 	Categories                             []models.Category
 	CategoriesUnavailable                  bool
+	EventInterests                         home.InterestCollectionPage
 }
 
 func (p Page) Active() string {

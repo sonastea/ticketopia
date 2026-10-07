@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/account"
 	"github.com/sonastea/ticketopia/views/home"
@@ -91,6 +92,9 @@ func safeAuthReturn(raw string) string {
 		return u.String()
 	}
 	if u.Path == "/me" || u.Path == "/me/preferences" || u.Path == "/me/interests" || u.Path == "/saved" {
+		if u.Path == "/me/interests" && u.RawQuery != "" {
+			return safeInterestReturn(raw)
+		}
 		if u.RawQuery != "" {
 			return "/me"
 		}
@@ -234,10 +238,12 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 400, "invalid_sign_in", "Sign-in expired or could not be verified. Please start again.", nil
 	case errors.Is(err, accounts.ErrNotFound):
 		return 404, "account_not_found", "This profile could not be found.", nil
-	case errors.Is(err, discovery.ErrNotFound), errors.Is(err, saved.ErrNotFound):
+	case errors.Is(err, discovery.ErrNotFound), errors.Is(err, saved.ErrNotFound), errors.Is(err, interests.ErrNotFound):
 		return 404, "event_not_found", "This event could not be found. Return to discovery and try another event.", nil
 	case errors.Is(err, saved.ErrUnavailable):
 		return 503, "saved_events_unavailable", "We couldn't load or change your saved events. Please try again shortly.", nil
+	case errors.Is(err, interests.ErrUnavailable):
+		return 503, "event_interests_unavailable", "We couldn't load or change event interest. Please try again shortly.", nil
 	case errors.Is(err, accounts.ErrLimited):
 		return 429, "rate_limited", "Too many attempts. Try again in ten minutes.", nil
 	case errors.Is(err, accounts.ErrCredentialLimit):
@@ -501,6 +507,26 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 		}
 	}
 	if section == "interests" {
+		values := c.QueryParams()
+		values.Del("saved")
+		page.EventInterests.ReturnURL = c.Request().URL.RequestURI()
+		var err error = interests.ErrUnavailable
+		if a.interests != nil {
+			page.EventInterests.List, err = a.interests.List(c.Request().Context(), p.Account.ID, false, values)
+		}
+		if err != nil {
+			if status < 400 {
+				status, _, page.EventInterests.Error, _ = accountError(err)
+			} else {
+				_, _, page.EventInterests.Error, _ = accountError(err)
+			}
+		}
+		ids := []string{}
+		for _, item := range page.EventInterests.List.Items {
+			ids = append(ids, item.Event.ID)
+		}
+		page.EventInterests.Saves = a.saveView(c, ids)
+		page.EventInterests.Interests = a.interestView(c, ids)
 		if a.events != nil {
 			catalog, err := a.events.Categories(c.Request().Context())
 			page.Categories = catalog.Items
@@ -669,5 +695,15 @@ func (a *api) publicProfilePage(c echo.Context) error {
 	if err != nil {
 		return a.accountPageError(c, err)
 	}
-	return render(c, 200, account.Public(p))
+	list := interests.List{Items: []interests.Item{}}
+	message := ""
+	if a.interests != nil {
+		list, err = a.interests.List(c.Request().Context(), p.ID, true, c.QueryParams())
+		if err != nil {
+			return a.accountPageError(c, err)
+		}
+	} else {
+		message = "Public event interest is unavailable on this server."
+	}
+	return render(c, 200, account.Public(p, list, c.Request().URL.RequestURI(), message))
 }

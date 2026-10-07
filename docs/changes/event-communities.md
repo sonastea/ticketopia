@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### 2026-10-06 — Interested with explicit identity visibility
+
+- Implement durable, reversible event interest independently from saves, category
+  preferences, endorsements and attendance. Keep identity private by default;
+  profile defaults affect only new choices. See [event interest](../event-interest.md).
+- Deliver shared owner APIs, public aggregate counts, own collection/visibility
+  management, and public-opt-in participants/profile activity with bounded keysets.
+- Add native/enhanced discovery, preview, Saved and event controls with distinct
+  selected state/counts, pending/error feedback, and immediate initiating-panel
+  refresh after visibility revocation. Preserve private saves and retained details.
+- Verify ownership/CSRF/validation, concurrency/rollback, privacy/keysets, migration
+  preservation/restarts, Chromium desktop/tablet/mobile/native/error journeys and
+  automated accessibility. Recommendations/discussions/moderation remain planned.
+- Resolve the independent review's label-in-name and participant-return findings;
+  verify 54 Chromium checks and seven zero-violation accessibility captures, the
+  full Go race suite with real MariaDB, vet, production build, and OpenAPI lint.
+- Simplify repeated interest state: keep privacy on the button, place **Change
+  visibility** beside a more readable count, and close the editor after saving.
+  Announce success without lingering paragraphs; show one dismissible error and
+  clear stale feedback on retry/new actions/history restore. Preserve native forms,
+  per-event visibility, private defaults, and focus continuity.
+- Verify the refinement with 84 Chromium checks/ten zero-violation axe captures,
+  targeted view/API race tests and vet, production build, and in-thread responsive
+  inspection. Only pre-existing detector notices remain.
+
 ### 2026-10-03 — Distinct social signals and responsive participation
 
 - Align [community goals](../goals/event-communities.md) with separate private
@@ -25,4 +50,4 @@
 - Align the radar goals, optional game ideas, and shared API direction with the
   core community experience.
 
-This change documents the product direction; runtime features remain planned.
+The older entries document product direction, not delivered discussions/moderation.

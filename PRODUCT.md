@@ -21,8 +21,9 @@ The [responsive UX guide](docs/design-guidelines.md) describes the implemented
 navigation and interaction contract.
 Opt-in Google accounts provide MariaDB-backed sessions, profiles/privacy defaults,
 private preferences, API credentials, and durable private event saves with
-last-known metadata. Event interest,
-recommendations, and discussions remain planned; their UI must communicate
+last-known metadata. Independent Interested choices provide private-by-default
+identities, public counts, and explicitly public participant/profile activity.
+Recommendations and discussions remain planned; their UI must communicate
 availability truthfully rather than simulate successful participation.
 
 ## Product Purpose

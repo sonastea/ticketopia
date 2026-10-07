@@ -9,7 +9,8 @@ related_targets: ["views/home/index.templ", "views/home/event.templ", "views/hom
 
 Mode: Operate. Extend the incumbent event rows and shared responsive shell.
 Confirmed scope: private Save/Remove controls, newest-saved-first collection,
-durable snapshots and API continuity; Interested and reminders stay planned.
+durable snapshots and API continuity. Interested now ships independently;
+reminders remain planned. Saving never creates or publishes event interest.
 
 ## Direction contract
 
@@ -24,6 +25,21 @@ live beside Details and in the preview/full event. The empty collection leads to
 Discover; signed-out visitors resume their task through existing Google sign-in.
 **FORM:** Code-led extension of the incumbent composition, seed `6b2b9e52`.
 **FINISH:** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+## Interested extension / finish record — 2026-10-06
+
+- Shared Saved rows now include independent Interested controls and visibility
+  disclosure. Marking/removing interest does not create/remove a save; Saved stays
+  private, newest-saved-first, with its existing last-known-details/return behavior.
+- The [shared Interested finish record](views-home-index-templ.md#interested-extension--finish-record--2026-10-06)
+  records 54 fixture checks/seven zero-violation axe captures and the handoff's
+  race/vet/build/OpenAPI results. Reviewer **ship** is only for visible-label
+  accessible names and participant return continuity; it does not broaden the
+  earlier three-fix Save verdict below or approve the whole application.
+- Shared row/control templates and CSS retain Manrope, existing quiet controls,
+  plum selection/focus, flat borders, and image/date indexing. DESIGN.md corrects
+  stale Interested availability only; all frontmatter values/aesthetics and
+  `.impeccable/design.json` are preserved. No new tokens, fonts, or raster assets.
 
 ## Finish record — 2026-10-06
 

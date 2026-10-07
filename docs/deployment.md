@@ -68,7 +68,7 @@ production, use runtime secret/environment storage, not build arguments:
    deployed image's `migrate` subcommand, then apply/reconcile runtime grants before
    starting the app. Do not pass migration/root credentials to application containers.
    Follow [schema compatibility and rollout](persistence.md#rolling-update-compatibility)
-   when upgrading an existing database; `make migrate` is local-only.
+   when upgrading an existing database; the combined `make db-setup` is local-only.
 4. Configure a Google **Web application** client, set **`AUTH_BASE_URL`** to the
    public HTTPS origin, and supply **`GOOGLE_CLIENT_ID`** and secret
    **`GOOGLE_CLIENT_SECRET`**. Register that origin plus `/auth/google/callback`

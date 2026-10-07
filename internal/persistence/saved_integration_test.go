@@ -211,6 +211,16 @@ func TestMariaDBSavedBrowserReview(t *testing.T) {
 	if script == "" {
 		t.Skip("set SAVED_BROWSER_SCRIPT for browser verification")
 	}
+	runActivityBrowser(t, script)
+}
+func TestMariaDBInterestBrowserReview(t *testing.T) {
+	script := os.Getenv("INTEREST_BROWSER_SCRIPT")
+	if script == "" {
+		t.Skip("set INTEREST_BROWSER_SCRIPT for browser verification")
+	}
+	runActivityBrowser(t, script)
+}
+func runActivityBrowser(t *testing.T, script string) {
 	t.Setenv("TICKETMASTER_KEY", "")
 	t.Setenv("IP_GEOLOCATION_ENABLED", "false")
 	f := newMaria(t)
@@ -258,7 +268,7 @@ func TestMariaDBSavedBrowserReview(t *testing.T) {
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
 		options := []api.Option{}
 		if enabled {
-			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()))
+			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()))
 		}
 		app, err := api.NewAPI(t.Context(), zerolog.Nop(), store, options...)
 		if err != nil {

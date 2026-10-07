@@ -6,7 +6,7 @@ cd "$root"
 
 for tool in docker go openssl; do
   if ! command -v "$tool" >/dev/null 2>&1; then
-    echo "make migrate requires $tool" >&2
+    echo "make db-setup requires $tool" >&2
     exit 1
   fi
 done

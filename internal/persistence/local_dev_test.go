@@ -10,7 +10,77 @@ import (
 
 // Exercise the real Makefile/wrapper with external tools replaced by fixtures.
 // No local or shared database is contacted by these workflow tests.
-func TestLocalMigrateWorkflow(t *testing.T) {
+func TestMigrateOnlyWorkflow(t *testing.T) {
+	makePath, err := exec.LookPath("make")
+	if err != nil {
+		t.Skip("make is required for local workflow tests")
+	}
+	makefile, err := os.ReadFile("../../Makefile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, failure := range []string{"", "migrations"} {
+		name := failure
+		if name == "" {
+			name = "success"
+		}
+		t.Run(name, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "configured project")
+			tools := filepath.Join(root, "tools")
+			if err := os.MkdirAll(tools, 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, "Makefile"), makefile, 0644); err != nil {
+				t.Fatal(err)
+			}
+			// Only Go is on PATH: migration must not require Docker or OpenSSL.
+			goFixture := `#!/bin/sh
+set -eu
+test "$*" = 'run ./cmd/ticketopia migrate'
+test "$PERSISTENCE_MODE" = mariadb
+test "$DB_HOST" = configured.invalid
+test "$DB_PORT" = 3310
+test "$DB_NAME" = configured
+test "$DB_USER" = configured_runtime
+test "$DB_PASSWORD" = configured-runtime-password-canary
+test "$DB_MIGRATION_USER" = configured_migration
+test "$DB_MIGRATION_PASSWORD" = configured-migration-password-canary
+test "$DB_TLS_MODE" = verify-full
+test "$DB_TLS_CA_FILE" = /configured/ca.crt
+printf '%s\n' migrations >> "$WORKFLOW_LOG"
+if [ "$FAIL_STEP" = migrations ]; then exit 9; fi
+`
+			if err := os.WriteFile(filepath.Join(tools, "go"), []byte(goFixture), 0755); err != nil {
+				t.Fatal(err)
+			}
+			log := filepath.Join(root, "workflow.log")
+			command := exec.Command(makePath, "migrate")
+			command.Dir = root
+			command.Env = append(os.Environ(),
+				"PATH="+tools, "WORKFLOW_LOG="+log, "FAIL_STEP="+failure,
+				"PERSISTENCE_MODE=mariadb", "DB_HOST=configured.invalid", "DB_PORT=3310", "DB_NAME=configured",
+				"DB_USER=configured_runtime", "DB_PASSWORD=configured-runtime-password-canary",
+				"DB_MIGRATION_USER=configured_migration", "DB_MIGRATION_PASSWORD=configured-migration-password-canary",
+				"DB_TLS_MODE=verify-full", "DB_TLS_CA_FILE=/configured/ca.crt")
+			output, err := command.CombinedOutput()
+			if (err != nil) != (failure != "") {
+				t.Fatalf("migrations-only failure=%q: %v\n%s", failure, err, output)
+			}
+			data, err := os.ReadFile(log)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(data) != "migrations\n" {
+				t.Fatalf("migrations-only performed unexpected steps: %q", data)
+			}
+			if strings.Contains(string(output), "password-canary") {
+				t.Fatal("configured credentials appeared in output")
+			}
+		})
+	}
+}
+
+func TestLocalDatabaseSetupWorkflow(t *testing.T) {
 	if _, err := exec.LookPath("make"); err != nil {
 		t.Skip("make is required for local workflow tests")
 	}
@@ -36,7 +106,7 @@ func TestLocalMigrateWorkflow(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			for _, name := range []string{"Makefile", "scripts/mariadb-migrate.sh"} {
+			for _, name := range []string{"Makefile", "scripts/mariadb-setup.sh"} {
 				data, err := os.ReadFile(filepath.Join(source, name))
 				if err != nil {
 					t.Fatal(err)
@@ -77,7 +147,7 @@ printf '%s\n' migrations >> "$WORKFLOW_LOG"
 if [ "$FAIL_STEP" = migrations ]; then exit 9; fi
 `, 0755)
 			log := filepath.Join(root, "workflow.log")
-			command := exec.Command("make", "migrate")
+			command := exec.Command("make", "db-setup")
 			command.Dir = root
 			command.Env = append(os.Environ(),
 				"PATH="+filepath.Join(root, "tools")+string(os.PathListSeparator)+os.Getenv("PATH"),

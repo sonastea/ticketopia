@@ -8,3 +8,4 @@ GRANT INSERT, DELETE ON ticketopia.auth_flows TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE, DELETE ON ticketopia.auth_rate_limits TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE ON ticketopia.event_snapshots TO 'ticketopia_runtime'@'%';
 GRANT INSERT, DELETE ON ticketopia.saved_events TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE, DELETE ON ticketopia.event_interests TO 'ticketopia_runtime'@'%';

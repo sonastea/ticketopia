@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
@@ -25,16 +26,22 @@ type SearchPage struct {
 	SelectionError        string
 	Section               string
 	Saves                 SaveView
+	Interests             InterestView
+	Participants          interests.Participants
+	ParticipantsError     string
 	ActionReturnURL       string
 }
 
 type EventPage struct {
-	Detail          models.EventDetail
-	Section         string
-	ReturnURL       string
-	Error           string
-	Saves           SaveView
-	ActionReturnURL string
+	Detail            models.EventDetail
+	Section           string
+	ReturnURL         string
+	Error             string
+	Saves             SaveView
+	Interests         InterestView
+	Participants      interests.Participants
+	ParticipantsError string
+	ActionReturnURL   string
 }
 
 type SaveView struct {
@@ -47,6 +54,7 @@ type SaveView struct {
 type SavedPage struct {
 	List      saved.List
 	Saves     SaveView
+	Interests InterestView
 	ReturnURL string
 	Error     string
 }
@@ -83,6 +91,86 @@ func saveLabel(isSaved bool) string {
 	return "Save"
 }
 func isSavedURL(raw string) bool { u, err := url.Parse(raw); return err == nil && u.Path == "/saved" }
+
+type InterestView struct {
+	Enabled, SignedIn              bool
+	CSRF, Error, DefaultVisibility string
+	States                         map[string]interests.State
+}
+
+func (v InterestView) visibility(id string) string {
+	if state := v.States[id]; state.Interested {
+		return state.Visibility
+	}
+	if v.DefaultVisibility == "public" {
+		return "public"
+	}
+	return "private"
+}
+func interestLabel(visibility string) string {
+	if visibility == "public" {
+		return "Public"
+	}
+	return "Private"
+}
+func interestVerb(selected bool) string {
+	if selected {
+		return "remove"
+	}
+	return "set"
+}
+func interestActionLabel(selected bool) string {
+	if selected {
+		return "Remove"
+	}
+	return "Mark"
+}
+func interestCountLabel(count int) string {
+	if count == 1 {
+		return "person interested"
+	}
+	return "people interested"
+}
+func interestAction(id string) string { return "/interests/" + url.PathEscape(id) }
+func participantsURL(id, origin string) string {
+	path := "/events/" + url.PathEscape(id) + "/interested-users"
+	if origin != "" && origin != "/" {
+		path += "?" + url.Values{"return_to": {origin}}.Encode()
+	}
+	return path
+}
+func isInterestsURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && u.Path == "/me/interests"
+}
+func CollectionNextURL(raw string, cursor *string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "/"
+	}
+	values := u.Query()
+	if cursor != nil {
+		values.Set("cursor", *cursor)
+	}
+	values.Del("saved")
+	u.RawQuery = values.Encode()
+	return u.String()
+}
+
+type InterestCollectionPage struct {
+	List             interests.List
+	Saves            SaveView
+	Interests        InterestView
+	ReturnURL, Error string
+}
+
+func (p InterestCollectionPage) events() []models.Event {
+	items := make([]models.Event, 0, len(p.List.Items))
+	for _, item := range p.List.Items {
+		items = append(items, item.Event)
+	}
+	return items
+}
 func SelectionURL(returnURL, id, section string) string {
 	u, err := url.Parse(returnURL)
 	if err != nil || u.Path != "/" {

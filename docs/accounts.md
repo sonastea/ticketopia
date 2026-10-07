@@ -2,13 +2,14 @@
 
 Implemented, opt-in: direct Google authorization-code sign-in, durable accounts,
 browser sessions, public profiles/private preferences, personal API tokens, and
-[private event saves](saved-events.md). Accounts require MariaDB; there is no memory fallback. Event interest,
-community activity, personalization, and notification delivery remain planned.
+[private event saves](saved-events.md) and [Interested](event-interest.md).
+Accounts require MariaDB; there is no memory fallback. Recommendations, discussions,
+personalization, and notification delivery remain planned.
 
 ## Enable accounts
 
 First follow the [MariaDB setup](persistence.md#repeatable-local-development), apply
-schema version **3**, and reapply the runtime grants. Discovery remains usable with
+schema version **4**, and reapply the runtime grants. Discovery remains usable with
 `AUTH_ENABLED` unset/false. When enabled, missing/invalid configuration or SQL
 startup failures stop the server before it listens.
 
@@ -41,17 +42,19 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
 
 ## Profiles, privacy, and preferences
 
-- `/me`: edit display name/bio, set the **future** event-interest visibility default,
+- `/me`: edit display name/bio, set the visibility default for **new** event interest,
   preview/open the public profile, sign out, and manage API access.
-- `/users/{id}`: public ID, display name, and bio only. A new account starts as
+- `/users/{id}`: public ID, display name, bio, and explicitly public event interest.
+  The profile JSON resource still contains only ID/name/bio; activity has its own API.
+  A new account starts as
   **Event explorer**; Google real names/photos are not imported. Your email,
   location, categories, notifications, and credentials never enter this projection.
 - `/me/preferences`: private city/country, IANA time zone, and future notification
   choices. Notifications start paused with email/digest choices off; no delivery
   occurs in this release. Venue-local event times are unchanged.
-- `/me/interests`: private category choices, separate from event interest. Catalog
-  failures retain selected IDs rather than erasing choices. These do not filter or
-  rank discovery automatically.
+- `/me/interests`: paginated own event interest with per-event visibility/removal,
+  followed by separate private category choices. Catalog failures retain selected
+  IDs rather than erasing choices. Categories do not filter or rank discovery automatically.
 - Discovery location precedence is explicit search, remembered browser city,
   authenticated account default city, then IP hint. An explicit empty city still
   asks for a location. Sidebar customization remains browser-local.
@@ -96,6 +99,8 @@ Private responses use `private, no-store`; cross-origin CORS access is not enabl
 Personal tokens also manage private bookmarks through `/api/v1/me/saved-events`.
 The web UI offers Save/Remove in discovery/previews/event pages and `/saved` for
 the owner-only collection. See [saving and verification](saved-events.md).
+They also manage independent interest through `/api/v1/me/event-interests`;
+see [interest APIs and verification](event-interest.md).
 
 ## Security and verification
 

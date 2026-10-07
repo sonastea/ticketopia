@@ -48,6 +48,12 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 }
 
 func safeReturnURL(raw string) string {
+	if strings.HasPrefix(raw, "/me/interests") {
+		if result := safeInterestReturn(raw); strings.HasPrefix(result, "/me/interests") {
+			return result
+		}
+		return "/"
+	}
 	if strings.HasPrefix(raw, "/saved") {
 		if result := safeSaveReturn(raw); strings.HasPrefix(result, "/saved") {
 			return result
@@ -94,6 +100,14 @@ func (a *api) eventPageHandler(c echo.Context) error {
 		page.Detail, err = a.eventDetail(c.Request().Context(), id)
 		if err == nil {
 			page.Saves = a.saveView(c, []string{id})
+			page.Interests = a.interestView(c, []string{id})
+			if a.interestEnabled() && page.Section == "community" {
+				page.Participants, err = a.interests.Participants(c.Request().Context(), id, nil)
+				if err != nil {
+					page.ParticipantsError = "Public participants couldn't load. Refresh to try again."
+					err = nil
+				}
+			}
 		}
 	}
 	if err != nil {

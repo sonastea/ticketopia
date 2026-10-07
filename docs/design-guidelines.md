@@ -2,8 +2,8 @@
 
 The implemented UI supports all-category discovery, read-only event details, and
 opt-in [Google accounts/profile/privacy/preferences](accounts.md) and
-[private event saves](saved-events.md). Event
-interest, recommendations, and discussions remain planned.
+[private event saves](saved-events.md) and [Interested](event-interest.md).
+Recommendations and discussions remain planned.
 
 ## Sources of truth
 
@@ -23,10 +23,10 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Destination | Route | Current behavior |
 | --- | --- | --- |
 | Discover | `/` | City, keyword, dates, category/genre filters, event results, pagination |
-| Event | `/events/{event_id}` | Overview, Discussion, and Community section links; the latter two explain planned availability |
+| Event | `/events/{event_id}` | Details, Save/Interested and per-event privacy; Community lists public participants; discussions/recommendations explain planned availability |
 | Saved | `/saved` | Owner-only newest-saved-first collection, last-known details, and pagination; sign-in or configuration explanation when unavailable |
 | Community | `/community` | Planned recommendations and conversations; availability explanation |
-| Interests | `/me/interests` | Private category preferences, with clear catalog-failure retention |
+| Interests | `/me/interests` | Paginated own event interest and per-event visibility, followed by separate private category preferences |
 | Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
 | Preferences | `/me/preferences` | Private default city, time zone, and future notification preferences |
 
@@ -87,7 +87,14 @@ Event titles and Details are real event links. Desktop selection highlights the
 matching row and opens its preview; ordinary compact-screen selection opens the
 event page. Save/Remove work through private, CSRF-protected forms with row/preview
 state synchronization; signed-out visitors resume through Google sign-in. Interested
-is disabled with explanatory copy. Recommend
+has a separate selected state, visible Private/Public disclosure, aggregate count,
+and native per-event visibility control; only public identities appear in participant
+lists and profile activity. Changing the profile default affects new choices only.
+Interest editing stays behind **Change visibility** beside the count, with only one
+editor open at a time. Saving closes the editor. Confirmed controls provide success
+feedback rather than persistent status paragraphs; pending/success announcements
+remain available to assistive technology, and errors are single, dismissible, and
+cleared by retry or a new action. Recommend
 is disabled in Community. Do not fabricate engagement counts or successful actions.
 
 External ticket links name Ticketmaster and do not imply ticket ownership or
@@ -97,8 +104,8 @@ while explaining their current availability.
 
 ## Interaction semantics and hierarchy
 
-The following participation semantics are product requirements. Private Save is
-implemented; the other mutations remain planned:
+The following participation semantics are product requirements. Private Save
+and Interested are implemented; the other mutations remain planned:
 
 | Interaction | Meaning and visibility | Feedback and aggregate information |
 | --- | --- | --- |

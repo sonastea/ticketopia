@@ -29,6 +29,8 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Event interest](event-interest.md): independent Interested choices, private-by-default
+  visibility, aggregate counts, own collections, and public-opt-in participants/profile activity.
 - [Private saved events](saved-events.md): durable owner-only bookmarks, web/API
   save/remove controls, paginated Saved collection, and last-known event snapshots.
 - [Google sign-in and accounts](accounts.md): provider setup, profiles/privacy,

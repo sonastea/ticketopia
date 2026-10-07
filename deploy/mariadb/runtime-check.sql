@@ -24,5 +24,8 @@ INSERT INTO event_snapshots SELECT * FROM event_snapshots WHERE FALSE;
 UPDATE event_snapshots SET snapshot = snapshot WHERE FALSE;
 INSERT INTO saved_events SELECT * FROM saved_events WHERE FALSE;
 DELETE FROM saved_events WHERE FALSE;
+INSERT INTO event_interests SELECT * FROM event_interests WHERE FALSE;
+UPDATE event_interests SET visibility = visibility WHERE FALSE;
+DELETE FROM event_interests WHERE FALSE;
 
 ROLLBACK;

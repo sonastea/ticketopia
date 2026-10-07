@@ -7,9 +7,10 @@ related_targets: ["views/home/event.templ","views/layouts/base.templ","views/hom
 
 # Discovery and event views
 
-Mode: Operate. Scope: responsive web UI on the existing read-only discovery backend.
-The user confirmed docs/design-guidelines.md, current product truth, and truthful
-unavailable states for accounts and community features.
+Mode: Operate. Scope: responsive web UI on the existing read-only discovery backend,
+with opt-in accounts, private saves, and independent durable Interested choices.
+The user confirmed public opt-in participant lists/profile event activity and
+preservation of the incumbent UI. Remaining unavailable capabilities stay explicit.
 
 ## Direction contract
 
@@ -23,6 +24,7 @@ People plan in daylight and on phones outdoors; the reading surface stays light.
 
 **STORY:** Choose a city, refine discovery across event categories, compare dates and venues,
 select an event, inspect its real details, and return to the same results.
+Save privately or mark Interested independently; public identity is opt-in.
 Unavailable participation is explicit, never fabricated.
 
 **FIRST VIEWPORT:** A 14rem grouped, labeled sidebar, dominant results column with
@@ -44,14 +46,50 @@ Code-led; DESIGN.md owns visuals and the UX guide owns behavior.
 ## Boundaries
 
 Keep GET search and no-JavaScript pagination. Use the shared event detail cache.
-No invented engagement, sign-in, account persistence, sorting, or event categories.
-Sidebar preferences alone persist locally in this browser; they do not sync
+Provider discovery remains read-only; opt-in accounts persist saves and event
+interest separately. Public identities appear only for choices marked Public;
+private choices contribute to public counts without naming anyone. No invented
+engagement, sorting, or event categories. Sidebar preferences persist locally in
+this browser; they do not sync
 across devices or change the default homepage. Done commits edits, Cancel
 restores the previous order, and Reset restores a cancellable default draft.
 Keyboard move controls complement drag handles. Profile stays fixed.
 Event section links and selected-event URLs survive direct entry and resize.
 Provider images remain sourced from normalized Ticketmaster data; no new raster
 assets are authored. Account/community destinations explain their current state.
+
+## Interested extension / finish record — 2026-10-06
+
+- Subsequent user-requested refinement removes redundant state paragraphs and
+  disclosure labels. Keep Private/Public on the action only, with an emphasized
+  count and compact **Change visibility** beside it. One native editor opens at a
+  time and closes after save; pending/success use assistive announcements, while
+  one dismissible error is replaced/cleared rather than accumulating. No new
+  palette, typography tokens, assets, or layout system; Save remains independent.
+- The refinement's in-thread inspection covers compact/open layouts, an actionable
+  error, and desktop/tablet/mobile/200% text. The updated browser report records
+  84 passing checks and ten zero-violation axe captures; targeted view/API race
+  tests, vet, and production build pass. Fixed the desktop open-editor wrap so the
+  form sits below, not alongside, the count. Prior independent verdicts below keep
+  their original scope; no new whole-application or certification claim is made.
+- Ordinary extension, not a redesign: independent Interested, visible Private/Public
+  action disclosure, separate `aria-pressed`/count, native per-event visibility,
+  and public opt-in participants/profile activity. Existing Save stays independent.
+- Reviewer `ses_eeb5cd683ffeGH4yR1PRlcHuHM` returned **ship for the two scored fixes
+  only**: accessible names include visible action labels, and participant pagination
+  plus Back to event preserves the originating collection cursor. Earlier verdict
+  scopes below are unchanged; this is not whole-application approval or certification.
+- [interest-checks.json](../review/interest-checks.json) records 54 checks, seven
+  zero-violation axe captures (desktop, tablet, 390px, 320px, 200% text, own collection),
+  and no browser runtime errors. These use isolated SQL/provider fixtures, not
+  production or live Google consent. The implementation handoff reports the full
+  real-MariaDB Go race suite, vet/build, and OpenAPI lint passing, with two existing
+  health-probe warnings; this documentation pass did not rerun them.
+- Templates, `views/styles/app.css`, and recorded desktop/320px/own-collection
+  captures retain Manrope, plum quiet controls, 44px targets, existing corners/focus,
+  flat borders, and image/date-indexed rows. `DESIGN.md` changes availability prose
+  only; all frontmatter values and aesthetics remain intact. No new tokens, fonts,
+  palette, shape/spacing system, or raster assets; sidecar drift stays untouched.
 
 ## Finish record — 2026-10-04
 

@@ -2,7 +2,8 @@
 
 Implemented: explicit SQL connection lifecycle, serialized embedded migrations,
 schema validation/readiness, minimal durable event/provider identity, accounts,
-credentials/private preferences, and schema-v3 [private saves/snapshots](saved-events.md). Discovery
+credentials/private preferences, schema-v3 [private saves/snapshots](saved-events.md),
+and schema-v4 [event interest](event-interest.md). Discovery
 still reads its existing cache/provider services and does **not** write SQL. There
 are no community mutations, ingestion scheduler, global provider
 budgets, database HA, or verified production backup/restore in this slice.
@@ -78,7 +79,7 @@ a total server memory cap.
 The standalone operator example retains its separate 100-connection budget.
 
 ```sh
-make migrate
+make db-setup
 export PERSISTENCE_MODE=mariadb DB_HOST=localhost DB_PORT=3307 DB_NAME=ticketopia
 export DB_TLS_CA_FILE="$PWD/.local/mariadb/certs/ca.crt"
 export DB_USER=ticketopia_runtime DB_PASSWORD=local-runtime-only
@@ -86,7 +87,20 @@ export TICKETMASTER_KEY=your-api-key
 go run ./cmd/ticketopia
 ```
 
-`make migrate` runs [`scripts/mariadb-migrate.sh`](../scripts/mariadb-migrate.sh):
+`make migrate` runs `go run ./cmd/ticketopia migrate` only. It uses the existing
+environment/`.env` connection and TLS settings, requires `PERSISTENCE_MODE=mariadb`
+and separate `DB_MIGRATION_USER`/`DB_MIGRATION_PASSWORD`, and expects an already
+provisioned, reachable database. It does **not** create TLS fixtures, start/recreate
+containers, provision users, apply runtime grants, or check runtime access. Reapply
+the relevant grants separately after adding tables. For this local setup, with the
+connection settings above exported:
+
+```sh
+export DB_MIGRATION_USER=ticketopia_migration DB_MIGRATION_PASSWORD=local-migration-only
+make migrate
+```
+
+`make db-setup` runs [`scripts/mariadb-setup.sh`](../scripts/mariadb-setup.sh):
 prepare local TLS fixtures, start/wait for Compose MariaDB (up to 60 seconds),
 reapply local database/user provisioning, run the current-source migration CLI,
 apply all runtime grants, then check TLS/read access and every required write
@@ -94,9 +108,10 @@ permission as the runtime user. The [`runtime check`](../deploy/mariadb/runtime-
 uses zero-row writes in a rolled-back transaction; it creates no application data.
 Any failed step stops the command without reporting readiness.
 
-This target is deliberately pinned to `localhost:3307/ticketopia` and the public
-Compose credentials, overriding inherited and `.env` database connection settings
-for migrations. It is **local development only**, not a production deployment tool.
+The combined `db-setup` target is deliberately pinned to `localhost:3307/ticketopia`
+and the public Compose credentials, overriding inherited and `.env` database
+connection settings for migrations. It is **local development only**, not a
+production deployment tool.
 It does not reset data, rotate existing credentials/certificates, stop the app, or
 configure the app's runtime environment. Stop/drain the app before schema-changing
 migrations; follow [upgrade compatibility](#rolling-update-compatibility). Rerunning
@@ -113,7 +128,8 @@ revocation/cleanup. Runtime cannot perform DDL, delete accounts/events, or modif
 migration state. Migration privileges are limited to this database,
 without user administration or grant option.
 
-Repeat `make migrate` safely. `docker compose ... stop` keeps data; do
+Repeat `make db-setup` safely. It can recreate the container when Compose changes,
+but retains the configured volume. `docker compose ... stop` keeps data; do
 not use `down -v` unless you deliberately want to erase this local database.
 Certificates last 30 days. To renew local fixtures, replace the three generated
 certificate/key files intentionally, rerun the script, and restart MariaDB/apps.
@@ -248,16 +264,16 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 3 only**. Versions 0–2 and 4+ are rejected;
+This binary supports **clean schema version 4 only**. Versions 0–3 and 5+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous account binary supports version 2 only.
-For the v2-to-v3 save upgrade, stop/drain v2 traffic, preserve a backup, apply the
-v3 migration with the v3 image, reapply/reconcile runtime table grants, then start
-v3 apps. Do not leave v2 pods serving after migration; they will fail readiness.
+old binaries are gone. The previous save binary supports version 3 only.
+For the v3-to-v4 interest upgrade, stop/drain v3 traffic, preserve a backup, apply the
+v4 migration with the v4 image, reapply/reconcile runtime table grants, then start
+v4 apps. Do not leave v3 pods serving after migration; they will fail readiness.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
@@ -288,6 +304,10 @@ last-known DTO in `event_snapshots`, including price/image/sale/description fiel
 with its collection time. Image URLs, not image binaries, are stored. Owner-only
 `saved_events` reference that snapshot and the account; runtime gets INSERT/DELETE
 but not UPDATE on bookmarks, and no DELETE on shared snapshots/events.
+Schema v4 adds independent `event_interests` with one row per account/event,
+private-by-default visibility, stable interest timestamps, and owner/public/event
+pagination indexes. Runtime can INSERT/UPDATE/DELETE interest without changing saves.
+Interest composes the same event/snapshot transaction and retained-detail fallback.
 
 Upserts lock the stable event key and insert its provider mapping in one short
 InnoDB transaction. Deadlocks/lock-wait timeouts before commit get at most three

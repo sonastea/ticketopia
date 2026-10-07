@@ -2,8 +2,9 @@
 
 Status: The [discovery read API](../discovery.md#json-api) and
 [own/public account APIs](../accounts.md#sessions-and-api-clients) and
-[private saved-event APIs](../saved-events.md#api) are implemented.
-Personal radar, durable ingestion, reminders, and community endpoints below remain
+[private saved-event APIs](../saved-events.md#api) and
+[event-interest APIs](../event-interest.md#api) are implemented.
+Personal radar, durable ingestion, reminders, and other community endpoints below remain
 draft designs. Track backend and frontend delivery in the
 [aligned checklist](../goals/delivery.md).
 
@@ -149,21 +150,24 @@ review remain required before the public community pilot.
 
 ### Proposed MVP community resources
 
-Except the marked own/public profiles, routes below are **unimplemented proposals** under `/api/v1`. Saved
+Except the marked profiles/interest routes, routes below are **unimplemented proposals** under `/api/v1`. Saved
 event routes above are implemented with owner-only semantics. Public reads return only
 permitted fields; writes require verified identity and ownership/role checks.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET, PATCH | `/me/profile` | Implemented: own profile and future interest privacy default; allowlisted writes |
+| GET, PATCH | `/me/profile` | Implemented: own profile and new-interest privacy default; allowlisted writes |
 | GET | `/users/{user_id}` | Implemented: ID, display name, bio only; no private account fields/activity |
 | GET | `/users/{user_id}/activity` | Paginated public contributions, recommendations, opted-in interests; not a personalized feed |
-| GET | `/me/event-interests` | Owner's interest collection, including private entries |
-| PUT, DELETE | `/me/event-interests/{event_id}` | Set/remove interest; PUT carries explicit visibility, initially private |
+| GET | `/me/event-interests` | Implemented: owner's interest collection, including private entries |
+| GET, PUT, DELETE | `/me/event-interests/{event_id}` | Implemented: read/set/remove interest; explicit visibility or new-choice default, initially private |
+| GET | `/me/event-interests/states` | Implemented: batched counts and owner-only state, without provider calls |
+| GET | `/users/{user_id}/event-interests` | Implemented: public-opt-in event activity only |
+| GET | `/events/{event_id}/interest` | Implemented: aggregate count including private choices, no identities |
 | GET | `/me/event-recommendations` | Owner's endorsements for management |
 | PUT, DELETE | `/me/event-recommendations/{event_id}` | Publish/update/withdraw one public endorsement with optional reason |
 | GET | `/events/{event_id}/community` | Aggregate counts and a separately scoped viewer state when authenticated |
-| GET | `/events/{event_id}/participants` | Paginated public-opt-in interested identities only |
+| GET | `/events/{event_id}/interested-users` | Implemented: paginated public-opt-in interested identities only |
 | GET | `/events/{event_id}/recommendations` | Public endorsements, authors, and optional reasons |
 | GET, POST | `/events/{event_id}/discussions` | List visible root posts / create a root post |
 | GET | `/events/{event_id}/discussions/{discussion_id}` | Root post and event reference for direct-link context |

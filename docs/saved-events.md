@@ -1,6 +1,7 @@
 # Private saved events
 
-Implemented with opt-in [Google accounts](accounts.md) and MariaDB schema **3**.
+Introduced with opt-in [Google accounts](accounts.md) and MariaDB schema **3**;
+the current binary requires schema **4** with independent [event interest](event-interest.md).
 Save an event from discovery, its preview, or the full event page, then find it at
 `/saved` on a later visit or another authenticated client. Saved events are always
 private: there are no public save counts, saver lists, visibility switches, or
@@ -9,12 +10,13 @@ tickets, or schedule reminders.
 
 ## Setup and upgrade
 
-There is no additional feature flag. For local development, `make migrate` prepares
+There is no additional feature flag. For local development, `make db-setup` prepares
 MariaDB, applies migrations and all grants, then verifies runtime access. Configure
 accounts and follow the
 [schema upgrade procedure](persistence.md#rolling-update-compatibility): drain
-schema-v2 apps, preserve a backup, run `ticketopia migrate` with migration
+apps that support only the previous schema, preserve a backup, run `ticketopia migrate` with migration
 credentials, reapply `deploy/mariadb/runtime-grants.sql`, then start the new app.
+For the current v3-to-v4 upgrade, follow the [interest upgrade](event-interest.md#setup-and-upgrade).
 The additive migration retains existing accounts, sessions, preferences and events.
 It does not migrate the running database automatically. Database-free discovery
 remains available; disabled deployments explain that saving requires accounts.
@@ -22,13 +24,13 @@ remains available; disabled deployments explain that saving requires accounts.
 ### Save fails after a schema upgrade
 
 If sign-in and discovery work but Save returns “We couldn't complete this account
-request,” check the runtime grants as well as schema version 3. Startup verifies
+request,” check the runtime grants as well as the current schema version 4. Startup verifies
 read access and schema shape, not mutation privileges. The runtime user needs
 `INSERT, UPDATE` on `event_snapshots` and `INSERT, DELETE` on `saved_events`.
 For the local Compose database, run the combined migration/grants/access-check target:
 
 ```sh
-make migrate
+make db-setup
 ```
 
 Then retry Save; restoring these table grants does not require an application restart.

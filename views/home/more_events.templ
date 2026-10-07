@@ -8,12 +8,12 @@ import "github.com/sonastea/ticketopia/views/components/collapsible"
 
 templ MoreEventsList(page SearchPage) {
 	<ul hx-swap-oob="beforeend:#event-list">
-		@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL)
+		@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests)
 	</ul>
 	@Pagination(page)
 }
 
-templ EventRows(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string) {
+templ EventRows(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView) {
 	for _, event := range events {
 		<li class="event-row" data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
 			<div class="event-art">
@@ -44,14 +44,13 @@ templ EventRows(events []models.Event, returnURL string, selectedID string, save
 					}
 				}
 				@EventActions(event.ID, event.Name, saves, actionReturnURL) {
-					if !isSavedURL(returnURL) {
-						@ParticipationButton("interests", "Interested", "participation-note")
-					}
+					@InterestControl(event.ID, event.Name, interests, actionReturnURL)
 					@button.Button(button.Props{Href: eventURL(event.ID, "overview", returnURL), Variant: button.VariantLink, Class: "detail-link", Attributes: templ.Attributes{"data-event-link": true, "data-id": event.ID, "aria-label": "Details for " + event.Name}}) {
 						<span>Details</span>@layouts.Icon("arrow")
 					}
 				}
-				if !isSavedURL(returnURL) {
+				@InterestDetails(event.ID, interests, actionReturnURL)
+				if !isSavedURL(returnURL) && !isInterestsURL(returnURL) {
 					@button.Button(button.Props{Href: "#event-context", Variant: button.VariantLink, Class: "context-jump text-link"}) {
 						Jump to event preview
 					}

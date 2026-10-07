@@ -2,6 +2,8 @@ package account
 
 import "net/url"
 import "github.com/sonastea/ticketopia/internal/accounts"
+import "github.com/sonastea/ticketopia/internal/interests"
+import "github.com/sonastea/ticketopia/views/home"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 import "github.com/sonastea/ticketopia/views/components/input"
@@ -103,7 +105,7 @@ templ Profile(p Page) {
 					<option value="public" selected?={ p.Account.InterestVisibility == "public" }>Public</option>
 				}
 			}
-			<p id="interest-privacy-help" class="field-note">Event interest isn't available yet. This records your preference for when it arrives. It does not publish preferences or create event activity. Recommendations and posts will have their own public disclosure.</p>
+			<p id="interest-privacy-help" class="field-note">Applies only to new event interest. Changing this default does not change existing choices. Private interest contributes to counts without naming you; Public shows your profile on the event and the event on your profile. You can change each event's visibility separately.</p>
 			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
 				Save profile &amp; privacy
 			}
@@ -120,7 +122,7 @@ templ Profile(p Page) {
 				<p class="field-note">No bio added.</p>
 			}
 			<a href={ templ.URL("/users/" + p.Account.ID) } class="text-link">Open your public profile</a>
-			<p class="field-note">Your email, city, category preferences, and notification settings are not part of this public view. Saving isn't available yet; future saves will stay private.</p>
+			<p class="field-note">Your email, city, category preferences, notification settings, saves, and private event interest are not part of this public view. Only event interest you mark Public appears.</p>
 		</aside>
 	</div>
 	<section class="account-section" aria-labelledby="sign-in-heading">
@@ -213,6 +215,7 @@ templ Preferences(p Page) {
 }
 
 templ Interests(p Page) {
+	@home.InterestCollection(p.EventInterests)
 	<form action="/me/preferences" method="post" class="account-form account-preferences" aria-labelledby="interests-heading">
 		@CSRF(p.CSRF)<input type="hidden" name="section" value="interests"/>
 		<h2 id="interests-heading">What catches your interest?</h2>
@@ -233,12 +236,12 @@ templ Interests(p Page) {
 			}
 		</fieldset>
 		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
-			Save interests
+			Save category preferences
 		}
 	</form>
 }
 
-templ Public(p accounts.PublicProfile) {
+templ Public(p accounts.PublicProfile, list interests.List, returnURL string, message string) {
 	@layouts.App("profile", p.DisplayName) {
 		<main id="main" class="destination-page account-page">
 			<div class="account-public"><h1>{ p.DisplayName }</h1>
@@ -247,9 +250,14 @@ templ Public(p accounts.PublicProfile) {
 				} else {
 					<p class="intro">No bio added.</p>
 				}
-				<p class="field-note">Public profile. Email, location, and personal preferences are private. Community activity isn't available yet.</p>
+				<p class="field-note">Public profile. Email, location, saves, private interest, and personal preferences are private.</p>
 				<a href="/" class="text-link">Discover events</a>
 			</div>
+			if message != "" {
+				<p class="field-note" role="status">{ message }</p>
+			} else {
+				@home.PublicInterestEvents(list, returnURL)
+			}
 		</main>
 	}
 }

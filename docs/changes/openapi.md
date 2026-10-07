@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### 2026-10-06 — Account/save contract v1.3.0
+### 2026-10-06 — Account/save/interest contract v1.4.0
 
 - Add own/public profiles, private preferences, browser-only API credential
   management, and current-session/token revocation to the implemented contract.
@@ -12,6 +12,9 @@
 - Add owner-only saved collections/resources/batched state, bounded owner-bound
   cursors, empty-body retry-safe writes and durable snapshot freshness; document
   public detail fallback without bookmark state. See [private saves](../saved-events.md).
+- Add independent interest collections/resources/batched states, explicit visibility
+  and new-choice defaults, public count/participant/activity reads, scoped keysets,
+  and owner-only mutations. See [event interest](../event-interest.md).
 
 ### 2026-10-04 — OpenAPI guide
 

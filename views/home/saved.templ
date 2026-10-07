@@ -32,7 +32,7 @@ templ Saved(page SavedPage) {
 			} else {
 				<p class="participation-note">Last-known event details are kept with your saves. Check the event or ticket page for current availability.</p>
 				<ul id="event-list" class="event-list">
-					@EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL)
+					@EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests)
 				</ul>
 				<div class="pagination">
 					if page.List.NextCursor != nil {
@@ -59,6 +59,7 @@ templ EventActions(eventID string, name string, view SaveView, returnURL string)
 		if view.Enabled && view.SignedIn && view.Error == "" {
 			<p class="save-message" data-save-feedback hidden></p>
 		}
+		@InterestFeedback()
 	</div>
 }
 

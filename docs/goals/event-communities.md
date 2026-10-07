@@ -1,8 +1,9 @@
 # Positive event communities
 
-Status: Core planned product feature, alongside
-[personal radar and reminders](personal-radar.md). These are user-outcome goals
-for upcoming work.
+Status: [Interested](../event-interest.md) is implemented with private-by-default
+identity visibility, public counts, and public-opt-in participants/profile activity.
+Recommendations, discussions, Helpful reactions, reporting and moderation remain
+planned, alongside [personal radar and reminders](personal-radar.md).
 
 ## Goal
 

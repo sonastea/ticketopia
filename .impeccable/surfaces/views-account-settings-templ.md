@@ -20,7 +20,9 @@ flat surfaces, labeled native forms, responsive shell, and visible focus.
 
 **STORY:** Sign in with Google, return to the original local task, choose a public
 display name/bio, inspect the public projection, save private preferences, and
-sign out or revoke credentials. No Google real name is imported by default.
+manage event interest above private category preferences on `/me/interests`.
+Set visibility for new choices or change an individual choice; sign out or revoke
+credentials. No Google real name is imported by default.
 
 **FIRST VIEWPORT:** Existing global navigation around a clear heading and real
 Profile/Preferences/Interests links. Profile editing leads, with a distinct public
@@ -34,9 +36,26 @@ Google-only implementation, inherited seed `6b2b9e52`, code-led.
 
 ## Boundaries
 
-MariaDB owns accounts and hashed credentials. Interest identity defaults private.
-Preferences do not create event interest, personalization, or delivered reminders.
-Public profiles contain only the local ID, display name, and bio. No new global
-design tokens ship. Google sign-in is a scoped provider-brand exception using
+MariaDB owns accounts, hashed credentials, and independent durable event interest.
+Interest identity starts private; the profile default affects NEW choices only.
+Each selected event has a native visibility disclosure. Private category preferences
+do not create event interest, personalization, or delivered reminders. Public
+profiles expose the local ID, display name, bio, and explicitly public event
+interest; email, saves, private interest, and preferences remain private. No new
+global design tokens ship. Google sign-in is a scoped provider-brand exception using
 Google's unmodified gradient G raster and self-hosted Google Sans Medium; the
 surrounding account UI retains Manrope and the incumbent world.
+
+## Interested extension / finish record — 2026-10-06
+
+- The own paginated collection now leads `/me/interests`, above unchanged private
+  category preferences. Profile privacy explains NEW-choice defaults; public
+  profiles list only opt-in public event activity. Native and enhanced forms remain.
+- The [shared Interested finish record](views-home-index-templ.md#interested-extension--finish-record--2026-10-06)
+  records 54 fixture checks/seven zero-violation axe captures and the handoff's
+  race/vet/build/OpenAPI results. Reviewer **ship** applies only to visible-label
+  accessible names and participant return continuity, not whole-surface approval.
+- Account/home templates, CSS, and desktop/compact collection captures retain
+  Manrope, existing account links/forms, image/date rows, flat borders, plum states,
+  and visible focus. DESIGN.md frontmatter and all aesthetics remain unchanged;
+  no new tokens or raster assets, and `.impeccable/design.json` is not regenerated.

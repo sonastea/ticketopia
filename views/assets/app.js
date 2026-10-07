@@ -554,6 +554,7 @@
     window.htmx?.process(list);
     window.htmx?.process(document.getElementById('pagination'));
     refreshSavedState();
+    document.dispatchEvent(new Event('ticketopia:state-restored'));
     markSelection(new URL(location.href).searchParams.get('selected_event'));
     requestAnimationFrame(() => {
       scrollTo(0, saved.scroll);

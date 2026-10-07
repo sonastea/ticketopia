@@ -108,6 +108,7 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		ids = append(ids, selectedID)
 	}
 	page.Saves = a.saveView(c, ids)
+	page.Interests = a.interestView(c, ids)
 	if partial {
 		if page.NeedsLocation {
 			return c.String(http.StatusBadRequest, "Choose a city before loading events.")
@@ -120,6 +121,12 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			_, page.SelectionError = errorMessage(selectionErr)
 		} else {
 			page.Selected = &detail
+			if a.interestEnabled() && section == "community" {
+				page.Participants, selectionErr = a.interests.Participants(c.Request().Context(), selectedID, nil)
+				if selectionErr != nil {
+					page.ParticipantsError = "Public participants couldn't load. Refresh to try again."
+				}
+			}
 		}
 	}
 	return render(c, status, home.Index(page))

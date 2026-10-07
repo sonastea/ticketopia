@@ -911,6 +911,99 @@ summary::-webkit-details-marker {
   height: 1rem;
 }
 
+.interest-button[aria-pressed="true"] {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.interest-button:hover {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+.interest-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 1rem;
+}
+
+.interest-count {
+  font-size: .875rem;
+  color: var(--ink);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.interest-count strong {
+  font-weight: 750;
+}
+
+.interest-privacy {
+  font-size: .8125rem;
+}
+
+.interest-privacy[open] {
+  flex-basis: 100%;
+}
+
+.interest-privacy summary {
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  flex-wrap: wrap;
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: .2em;
+  cursor: pointer;
+}
+
+.interest-privacy form {
+  padding-block: .5rem 1rem;
+  max-width: 32rem;
+}
+
+.interest-privacy button {
+  margin-top: .75rem;
+}
+
+.interest-feedback {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: .75rem;
+  color: var(--error);
+  font-size: .875rem;
+  margin-top: .5rem;
+  max-width: 32rem;
+}
+
+.interest-feedback p {
+  flex: 1 1 20ch;
+  margin: 0;
+}
+
+.interest-feedback .interest-dismiss {
+  min-height: 2.75rem;
+  margin: 0;
+}
+
+.public-interest-list {
+  list-style: none;
+  padding: 0;
+}
+
+.public-interest-list li {
+  padding-block: .75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.public-interest-list .field-note {
+  margin-top: .25rem;
+}
+
 .detail-link {
   display: inline-flex;
   align-items: center;

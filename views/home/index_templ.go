@@ -311,12 +311,12 @@ func Index(page SearchPage) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					if page.Saves.Enabled {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "Saves are private. Interested is not available yet.")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "Saves are private. Interest counts include private choices; only public choices show your profile.")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "Saving requires accounts to be enabled. Interested is not available yet.")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "Saving and Interested require accounts to be enabled.")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -349,7 +349,7 @@ func Index(page SearchPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -407,7 +407,7 @@ func Index(page SearchPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else if page.Selected != nil {
-				templ_7745c5c3_Err = EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL, Saves: page.Saves, ActionReturnURL: page.ActionReturnURL}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL, Saves: page.Saves, Interests: page.Interests, Participants: page.Participants, ParticipantsError: page.ParticipantsError, ActionReturnURL: page.ActionReturnURL}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
