@@ -20,7 +20,8 @@ discovery, city/date/category/genre search, and cached event list/detail reads.
 The [responsive UX guide](docs/design-guidelines.md) describes the implemented
 navigation and interaction contract.
 Opt-in Google accounts provide MariaDB-backed sessions, profiles/privacy defaults,
-private preferences, and API credentials. Durable saves, event interest,
+private preferences, API credentials, and durable private event saves with
+last-known metadata. Event interest,
 recommendations, and discussions remain planned; their UI must communicate
 availability truthfully rather than simulate successful participation.
 

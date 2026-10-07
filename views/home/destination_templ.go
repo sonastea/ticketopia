@@ -87,7 +87,7 @@ func Destination(active string, title string) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					if active == "profile" || active == "interests" {
+					if active == "profile" || active == "interests" || active == "saved" {
 						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "Accounts not enabled")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -110,7 +110,7 @@ func Destination(active string, title string) templ.Component {
 				}
 				switch active {
 				case "saved":
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<h2>Your own list of good nights.</h2><p>Saved events will be your private collection, separate from public recommendations and event interest.</p><p>Saving isn't available yet. You can explore events and open their Ticketmaster pages today.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<h2>Your own list of good nights.</h2><p>Saved events are private, separate from public recommendations and event interest.</p><p>Accounts aren't enabled on this server. Saving requires Google sign-in and MariaDB configuration; discovery is still open to everyone.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

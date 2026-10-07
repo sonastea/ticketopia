@@ -29,6 +29,8 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Private saved events](saved-events.md): durable owner-only bookmarks, web/API
+  save/remove controls, paginated Saved collection, and last-known event snapshots.
 - [Google sign-in and accounts](accounts.md): provider setup, profiles/privacy,
   durable preferences, browser sessions, and revocable personal API tokens.
 - [MariaDB foundation](persistence.md): explicit connections, TLS/readiness,

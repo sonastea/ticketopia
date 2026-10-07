@@ -17,6 +17,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/location"
+	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/assets"
 )
 
@@ -33,9 +34,14 @@ type api struct {
 	durable     *events.Service
 	accounts    *accounts.Service
 	authConfig  accounts.Config
+	saved       *saved.Service
 }
 
 type Option func(*api)
+
+func WithSavedEvents(repository saved.Repository) Option {
+	return func(a *api) { a.saved = saved.New(repository, a.events) }
+}
 
 func WithAccounts(config accounts.Config, service *accounts.Service) Option {
 	return func(a *api) { a.authConfig, a.accounts = config, service }
@@ -105,7 +111,7 @@ func (a *api) Routes() *echo.Echo {
 	e.GET("/readyz", a.readinessHandler)
 	e.GET("/", a.retrieveEventsHandler)
 	e.GET("/events/:event_id", a.eventPageHandler)
-	e.GET("/saved", destinationHandler("saved", "Saved events"))
+	a.savedRoutes(e)
 	e.GET("/community", destinationHandler("community", "Community"))
 	a.accountRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))

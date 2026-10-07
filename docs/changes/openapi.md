@@ -2,13 +2,16 @@
 
 ## Unreleased
 
-### 2026-10-06 — Account contract v1.2.0
+### 2026-10-06 — Account/save contract v1.3.0
 
 - Add own/public profiles, private preferences, browser-only API credential
   management, and current-session/token revocation to the implemented contract.
 - Document cookies/bearer credentials, CSRF/origin rules, private projections,
   validation limits, expiration/revocation, and disabled/unavailable account errors;
   keep discovery public. See [accounts](../accounts.md) and [OpenAPI](../openapi.md).
+- Add owner-only saved collections/resources/batched state, bounded owner-bound
+  cursors, empty-body retry-safe writes and durable snapshot freshness; document
+  public detail fallback without bookmark state. See [private saves](../saved-events.md).
 
 ### 2026-10-04 — OpenAPI guide
 

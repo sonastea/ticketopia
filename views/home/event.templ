@@ -12,7 +12,9 @@ templ Event(page EventPage) {
 		<main id="main" class="event-page">
 			@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "text-link back-link", Attributes: templ.Attributes{"data-return-results": true}}) {
 				@layouts.Icon("back")
-				if page.ReturnURL != "/" {
+				if isSavedURL(page.ReturnURL) {
+					Back to Saved
+				} else if page.ReturnURL != "/" {
 					Back to results
 				} else {
 					Discover events
@@ -31,10 +33,14 @@ templ Event(page EventPage) {
 						@EventImage(page.Detail.Item, true)
 						<div class="event-heading">
 							<div class="date-marker" aria-hidden="true"><span>{ datePart(page.Detail.Item.Start, "Jan") }</span><strong>{ datePart(page.Detail.Item.Start, "2") }</strong></div>
-							<div><h1>{ page.Detail.Item.Name }</h1><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)
+							<div><h1>{ page.Detail.Item.Name }</h1><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
+								if page.Detail.Meta.Stale {
+									@Freshness(page.Detail.Meta)
+								}
+								@EventFacts(page.Detail.Item)
 </div>
 						</div>
-						@EventParticipation("event-participation-note")
+						@EventParticipation(page, "event-participation-note")
 						@EventSections(page)
 						@EventSectionContent(page)
 					</article>
@@ -46,6 +52,7 @@ templ Event(page EventPage) {
 					}
 				</div>
 			}
+			<p id="save-feedback" class="sr-only" role="status"></p>
 		</main>
 	}
 }
@@ -57,12 +64,16 @@ templ EventContext(page EventPage) {
 }
 </div>
 		@EventImage(page.Detail.Item, true)
-		<div class="context-heading"><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>@EventFacts(page.Detail.Item)
+		<div class="context-heading"><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
+			if page.Detail.Meta.Stale {
+				@Freshness(page.Detail.Meta)
+			}
+			@EventFacts(page.Detail.Item)
 </div>
 		@button.Button(button.Props{Href: sectionURL(page, page.Section), Variant: button.VariantLink, Class: "text-link open-event"}) {
 			<span>Open full event details</span>@layouts.Icon("arrow")
 		}
-		@EventParticipation("context-participation-note")
+		@EventParticipation(page, "context-participation-note")
 		@EventSections(page)
 		@EventSectionContent(page)
 		@TicketDetails(page.Detail.Item)
@@ -76,11 +87,20 @@ templ EventFacts(event models.Event) {
 	<p class="genre-label">{ classificationLabel(event) }</p>
 }
 
-templ EventParticipation(noteID string) {
-	<div class="participation-actions">@ParticipationButton("saved", "Save", noteID)
-@ParticipationButton("interests", "Interested", noteID)
-</div>
-	<p id={ noteID } class="participation-note">Save and Interested are not available yet.</p>
+templ EventParticipation(page EventPage, noteID string) {
+	@EventActions(page.Detail.Item.ID, page.Detail.Item.Name, page.Saves, page.ActionReturnURL) {
+		@ParticipationButton("interests", "Interested", noteID)
+	}
+	<p id={ noteID } class="participation-note">
+		if page.Saves.Enabled {
+			Saves are private. Interested is not available yet.
+		} else {
+			Saving requires accounts to be enabled. Interested is not available yet.
+		}
+	</p>
+	if page.Saves.Error != "" {
+		<p class="field-note" role="status">{ page.Saves.Error }</p>
+	}
 }
 
 templ EventSections(page EventPage) {

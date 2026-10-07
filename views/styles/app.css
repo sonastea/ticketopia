@@ -336,6 +336,10 @@ h3 {
   min-height: 3.25rem;
   padding: .35rem .1rem;
   font-size: .6875rem;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .bottom-nav .nav-link[aria-current="page"] {
@@ -495,6 +499,20 @@ input::placeholder {
   background: var(--brand-soft);
 }
 
+.save-form { display: inline-flex; flex-direction: column; align-items: flex-start; max-width: 100%; }
+.save-message { font-size: .8125rem; color: var(--muted); max-width: 32ch; margin-top: .35rem; }
+.save-message[data-error="true"] { color: var(--error); }
+.save-button { white-space: normal; max-width: 100%; height: auto; flex-shrink: 1; }
+.save-button span { min-width: 0; }
+.save-button[data-saved="true"] { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
+.save-button:hover:not(:disabled) { background: var(--brand-soft); color: var(--brand-dark); }
+.save-form[aria-busy="true"] .save-button { color: var(--brand); background: var(--brand-soft); }
+.saved-page { max-width: 70rem; }
+.saved-page > .sort-label { margin: 1.5rem 0 .75rem; }
+.saved-page .pagination [data-slot="button"] { white-space: normal; max-width: 100%; height: auto; }
+.saved-page .event-row { grid-template-columns: none; }
+@media (min-width: 40rem) { .saved-page .event-row { grid-template-columns: 8rem minmax(0, 1fr); } }
+
 /* Google's filled-blue treatment; retain the app's 44px target/focus. */
 .google-sign-in {
   gap: .625rem;
@@ -570,6 +588,8 @@ summary::-webkit-details-marker {
 }
 
 .filter-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-weight: 500;
   font-size: .8125rem;
@@ -853,12 +873,17 @@ summary::-webkit-details-marker {
   margin-bottom: .5rem;
 }
 
-.event-actions, .participation-actions {
+.event-action-group {
+  margin-top: .5rem;
+  min-width: 0;
+}
+
+/* Only controls participate in alignment; dynamic feedback is a sibling row. */
+.event-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: .35rem;
-  margin-top: .5rem;
 }
 
 .button-quiet {
@@ -920,7 +945,8 @@ summary::-webkit-details-marker {
 }
 
 .pagination .action {
-  min-width: 12rem;
+  min-width: min(12rem, 100%);
+  max-width: 100%;
 }
 
 .loading-label {
@@ -1068,6 +1094,7 @@ summary::-webkit-details-marker {
 
 .section-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: .75rem;
   border-bottom: 1px solid var(--line);
   margin-top: 1.5rem;

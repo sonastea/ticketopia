@@ -67,10 +67,19 @@ templ Index(page SearchPage) {
 }
 							}
 						} else {
-							<p id="participation-note" class="participation-note">Save and Interested are not available yet.</p>
+							<p id="participation-note" class="participation-note">
+								if page.Saves.Enabled {
+									Saves are private. Interested is not available yet.
+								} else {
+									Saving requires accounts to be enabled. Interested is not available yet.
+								}
+							</p>
+							if page.Saves.Error != "" {
+								<p class="field-note" role="status">{ page.Saves.Error }</p>
+							}
 						}
 						<ul id="event-list" class="event-list">
-							@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID)
+							@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL)
 						</ul>
 						@Pagination(page)
 					</section>
@@ -87,7 +96,7 @@ templ Index(page SearchPage) {
 				if page.SelectionError != "" {
 					@PreviewError(page.SelectionError, eventURL(page.SelectedID, page.Section, page.ReturnURL), page.ReturnURL)
 				} else if page.Selected != nil {
-					@EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL})
+					@EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL, Saves: page.Saves, ActionReturnURL: page.ActionReturnURL})
 				} else {
 					@EmptyContext()
 				}
@@ -99,6 +108,7 @@ templ Index(page SearchPage) {
 			<template id="preview-empty-template">@EmptyContext()
 </template>
 			<p id="selection-status" class="sr-only" role="status"></p>
+			<p id="save-feedback" class="sr-only" role="status"></p>
 		</main>
 	}
 }

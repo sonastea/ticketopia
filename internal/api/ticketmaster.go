@@ -33,7 +33,7 @@ func (a *api) eventHandler(c echo.Context) error {
 	if err != nil {
 		return problem(c, &discovery.ValidationError{Field: "event_id", Message: "invalid URL encoding"})
 	}
-	data, err := a.events.Event(c.Request().Context(), id)
+	data, err := a.eventDetail(c.Request().Context(), id)
 	if err != nil {
 		return problem(c, err)
 	}
@@ -65,8 +65,10 @@ func (a *api) categoriesHandler(c echo.Context) error {
 func (a *api) retrieveEventsHandler(c echo.Context) error {
 	// IP- and cookie-derived defaults must not be shared by an HTTP intermediary.
 	c.Response().Header().Set("Cache-Control", "private, no-store")
+	privateAccountResponse(c)
 	filters, selectedID, section, err := webSearch(c.QueryParams())
 	page := home.SearchPage{SelectedID: selectedID, Section: section}
+	page.ActionReturnURL = c.Request().URL.RequestURI()
 	if err == nil {
 		page.Filters, err = discovery.ParseQuery(filters, time.Now())
 	}
@@ -98,6 +100,14 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			return c.String(status, page.Error)
 		}
 	}
+	ids := make([]string, 0, len(page.Events.Items)+1)
+	for _, event := range page.Events.Items {
+		ids = append(ids, event.ID)
+	}
+	if selectedID != "" {
+		ids = append(ids, selectedID)
+	}
+	page.Saves = a.saveView(c, ids)
 	if partial {
 		if page.NeedsLocation {
 			return c.String(http.StatusBadRequest, "Choose a city before loading events.")
@@ -105,7 +115,7 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		return render(c, status, home.MoreEventsList(page))
 	}
 	if err == nil && selectedID != "" {
-		detail, selectionErr := a.events.Event(c.Request().Context(), selectedID)
+		detail, selectionErr := a.eventDetail(c.Request().Context(), selectedID)
 		if selectionErr != nil {
 			_, page.SelectionError = errorMessage(selectionErr)
 		} else {

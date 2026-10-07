@@ -8,6 +8,7 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/saved"
 )
 
 type SearchPage struct {
@@ -23,13 +24,79 @@ type SearchPage struct {
 	Selected              *models.EventDetail
 	SelectionError        string
 	Section               string
+	Saves                 SaveView
+	ActionReturnURL       string
 }
 
 type EventPage struct {
-	Detail    models.EventDetail
-	Section   string
+	Detail          models.EventDetail
+	Section         string
+	ReturnURL       string
+	Error           string
+	Saves           SaveView
+	ActionReturnURL string
+}
+
+type SaveView struct {
+	Enabled  bool
+	SignedIn bool
+	CSRF     string
+	States   map[string]bool
+	Error    string
+}
+type SavedPage struct {
+	List      saved.List
+	Saves     SaveView
 	ReturnURL string
 	Error     string
+}
+
+func (page SavedPage) events() []models.Event {
+	items := make([]models.Event, 0, len(page.List.Items))
+	for _, item := range page.List.Items {
+		items = append(items, item.Event)
+	}
+	return items
+}
+func (page SavedPage) nextURL() string {
+	u, _ := url.Parse(page.ReturnURL)
+	values := u.Query()
+	if page.List.NextCursor != nil {
+		values.Set("cursor", *page.List.NextCursor)
+	}
+	return "/saved?" + values.Encode()
+}
+func saveAction(id string) string { return "/saved/" + url.PathEscape(id) }
+func signInURL(returnURL string) string {
+	return "/auth/sign-in?return_to=" + url.QueryEscape(returnURL)
+}
+func saveVerb(isSaved bool) string {
+	if isSaved {
+		return "remove"
+	}
+	return "save"
+}
+func saveLabel(isSaved bool) string {
+	if isSaved {
+		return "Remove from Saved"
+	}
+	return "Save"
+}
+func isSavedURL(raw string) bool { u, err := url.Parse(raw); return err == nil && u.Path == "/saved" }
+func SelectionURL(returnURL, id, section string) string {
+	u, err := url.Parse(returnURL)
+	if err != nil || u.Path != "/" {
+		return returnURL
+	}
+	values := u.Query()
+	values.Set("selected_event", id)
+	if section != "overview" {
+		values.Set("section", section)
+	} else {
+		values.Del("section")
+	}
+	u.RawQuery = values.Encode()
+	return u.String()
 }
 
 func eventPageTitle(page EventPage) string {

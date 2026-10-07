@@ -62,6 +62,15 @@ and route semantics remain app-owned; see [DESIGN.md](../DESIGN.md).
   Loading actions use plum text on pale plum to retain readable contrast.
 - JavaScript preview states clone server-rendered component templates, keeping
   initial pages, fetched fragments, loading, errors, and retry consistent.
+- Event actions use `home.EventActions`: pass sibling controls as children and
+  keep dynamic save feedback outside its wrapping controls row. Do not place
+  status/help text inside a form being aligned alongside other buttons; align
+  controls at the top when wrapping labels make their heights differ. Reuse this
+  separation for future inline action feedback instead of offsets or fixed heights.
+  Event-section links also wrap, and pagination action minimum widths are capped
+  at the available width, rather than overflowing when text is enlarged.
+  Filter-summary metadata can shrink and break long words without pushing its
+  disclosure icon outside the control.
 
 Ordinary headings, content links, semantic landmarks, lists, and provider images
 remain HTML; they are not interactive widget substitutes.

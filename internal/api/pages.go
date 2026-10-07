@@ -48,6 +48,12 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 }
 
 func safeReturnURL(raw string) string {
+	if strings.HasPrefix(raw, "/saved") {
+		if result := safeSaveReturn(raw); strings.HasPrefix(result, "/saved") {
+			return result
+		}
+		return "/"
+	}
 	u, err := url.Parse(raw)
 	if err != nil || len(raw) > 4096 || u.IsAbs() || u.Host != "" || u.Path != "/" || u.Fragment != "" {
 		return "/"
@@ -66,6 +72,8 @@ func (a *api) eventPageHandler(c echo.Context) error {
 	c.Response().Header().Set("Cache-Control", "private, no-store")
 	c.Response().Header().Set("Vary", "X-Ticketopia-Panel")
 	page := home.EventPage{ReturnURL: safeReturnURL(c.QueryParam("return_to")), Section: "overview"}
+	privateAccountResponse(c)
+	page.ActionReturnURL = c.Request().URL.RequestURI()
 	status := http.StatusOK
 	id, err := url.PathUnescape(c.Param("event_id"))
 	if err == nil {
@@ -83,7 +91,10 @@ func (a *api) eventPageHandler(c echo.Context) error {
 		}
 	}
 	if err == nil {
-		page.Detail, err = a.events.Event(c.Request().Context(), id)
+		page.Detail, err = a.eventDetail(c.Request().Context(), id)
+		if err == nil {
+			page.Saves = a.saveView(c, []string{id})
+		}
 	}
 	if err != nil {
 		status, page.Error = errorMessage(err)
@@ -93,6 +104,7 @@ func (a *api) eventPageHandler(c echo.Context) error {
 		}
 	}
 	if c.Request().Header.Get("X-Ticketopia-Panel") == "true" {
+		page.ActionReturnURL = home.SelectionURL(page.ReturnURL, id, page.Section)
 		return render(c, status, home.EventContext(page))
 	}
 	return render(c, status, home.Event(page))

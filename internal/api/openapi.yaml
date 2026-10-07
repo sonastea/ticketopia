@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.2.0
+  version: 1.3.0
   license:
     name: MIT
     identifier: MIT
@@ -11,7 +11,7 @@ info:
     Category and genre IDs are Ticketmaster
     taxonomy IDs. Data is cached, not a live inventory or durable event history.
     Opt-in Google authentication provides MariaDB-backed profiles and private
-    preferences. Account APIs use a browser session or a user-scoped API token;
+    preferences and private durable event saves. Account APIs use a browser session or a user-scoped API token;
     discovery remains public. Account APIs return 503 when accounts are disabled.
 servers:
   - url: /
@@ -91,6 +91,7 @@ paths:
     get:
       operationId: getEvent
       summary: Read an event and its embedded metadata
+      description: Prefers provider/cache data. With saves enabled, retained SQL metadata is served with stale=true when current data is unavailable. No private bookmark state is included.
       parameters:
         - name: event_id
           in: path
@@ -98,7 +99,7 @@ paths:
           schema: {$ref: '#/components/schemas/ResourceID'}
       responses:
         '200':
-          description: Event data reused from a search or fetched on demand.
+          description: Event data reused from a search, fetched on demand, or retained as last-known SQL metadata.
           content:
             application/json:
               schema:
@@ -373,6 +374,130 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/CSRFRejected'}
         '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/saved-events:
+    get:
+      operationId: listSavedEvents
+      summary: List your private saved events
+      description: |
+        Owner-only last-known event snapshots, newest saved first with a binary
+        event-ID tie-breaker. No provider requests are made. Repeated saves keep
+        saved_at unchanged. Cursors are bound to the owner; pass next_cursor to
+        continue. New saves appear on refresh; removals can shorten later pages.
+        Unknown/repeated parameters are rejected. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
+      responses:
+        '200':
+          description: Your saved collection, including an empty array when no events are saved.
+          headers:
+            Cache-Control: {description: Private responses must not be stored., schema: {type: string, const: 'private, no-store'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/SavedEvent'}}
+                  next_cursor: {type: [string, 'null']}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/SavesUnavailable'}
+  /api/v1/me/saved-events/states:
+    get:
+      operationId: getSavedEventStates
+      summary: Read your saved state for a bounded batch of events
+      description: |
+        Owner-only state without provider requests or metadata. Only event_id is
+        accepted; repeat it for up to 101 entries. Absent keys in states mean not
+        saved. Browser responses include the current CSRF token to revalidate
+        restored controls; bearer responses omit it. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - name: event_id
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 101
+            items: {$ref: '#/components/schemas/ResourceID'}
+      responses:
+        '200':
+          description: Only the authenticated owner's bookmark state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [states]
+                properties:
+                  states: {type: object, additionalProperties: {type: boolean}}
+                  csrf_token: {type: string}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/SavesUnavailable'}
+  /api/v1/me/saved-events/{event_id}:
+    parameters:
+      - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+    get:
+      operationId: getSavedEvent
+      summary: Read one of your private saved events
+      description: No query parameters. Returns 404 for an event not saved by you, regardless of another account's saves. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Your bookmark and its last-known event snapshot.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SavedEvent'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/SavedEventNotFound'}
+        '503': {$ref: '#/components/responses/SavesUnavailable'}
+    put:
+      operationId: saveEvent
+      summary: Save an event privately
+      description: |
+        Empty body and no query parameters. Resolve server-owned metadata, then
+        atomically store event identity, a full last-known snapshot and an owner-only
+        bookmark. Retry-safe: repeated PUT preserves saved_at and needs no provider
+        call once saved. A retained snapshot can be saved during an outage.
+        Does not publish interest, recommendations or attendance or reserve tickets.
+        Cookie writes require X-CSRF-Token and same-origin checks; bearer writes do not.
+        All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      responses:
+        '201':
+          description: Bookmark created.
+          headers:
+            Location: {description: Owner-only bookmark resource., schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SavedEvent'}
+        '200':
+          description: Existing bookmark, with its original saved_at.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SavedEvent'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/SavedEventNotFound'}
+        '503': {$ref: '#/components/responses/SavesUnavailable'}
+    delete:
+      operationId: removeSavedEvent
+      summary: Remove an event from your private collection
+      description: Empty body and no query parameters. Idempotent and owner-only; absent bookmarks are successful no-ops. Does not remove durable event metadata. Cookie writes require CSRF and same-origin checks. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      responses:
+        '204': {description: Bookmark removed or already absent.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/SavesUnavailable'}
   /api/v1/openapi.yaml:
     get:
       operationId: getOpenAPI
@@ -402,6 +527,16 @@ components:
       description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
       schema: {type: string}
   responses:
+    SavedEventNotFound:
+      description: This event cannot be resolved for saving, or is not saved by the authenticated owner for a bookmark read.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    SavesUnavailable:
+      description: Accounts/saves are disabled, durable storage is unavailable, or provider data cannot be resolved and no last-known snapshot exists. No in-memory fallback.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     AccountBadRequest:
       description: Unsupported query, invalid JSON/form fields or values, or a request body exceeding 16 KiB.
       content:
@@ -444,6 +579,16 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    SavedEvent:
+      type: object
+      required: [event, saved_at, meta]
+      properties:
+        event: {$ref: '#/components/schemas/Event'}
+        saved_at: {type: string, format: date-time, description: 'Original bookmark creation time, unchanged by repeated saves.'}
+        meta:
+          allOf:
+            - {$ref: '#/components/schemas/Freshness'}
+          description: Snapshot collection time. stale is always true for stored bookmark reads; no current-provider freshness is implied.
     AccountID:
       type: string
       pattern: '^[0-9a-f]{32}$'

@@ -8,12 +8,12 @@ import "github.com/sonastea/ticketopia/views/components/collapsible"
 
 templ MoreEventsList(page SearchPage) {
 	<ul hx-swap-oob="beforeend:#event-list">
-		@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID)
+		@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL)
 	</ul>
 	@Pagination(page)
 }
 
-templ EventRows(events []models.Event, returnURL string, selectedID string) {
+templ EventRows(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string) {
 	for _, event := range events {
 		<li class="event-row" data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
 			<div class="event-art">
@@ -43,15 +43,18 @@ templ EventRows(events []models.Event, returnURL string, selectedID string) {
 						}
 					}
 				}
-				<div class="event-actions">
-					@ParticipationButton("saved", "Save", "participation-note")
-					@ParticipationButton("interests", "Interested", "participation-note")
+				@EventActions(event.ID, event.Name, saves, actionReturnURL) {
+					if !isSavedURL(returnURL) {
+						@ParticipationButton("interests", "Interested", "participation-note")
+					}
 					@button.Button(button.Props{Href: eventURL(event.ID, "overview", returnURL), Variant: button.VariantLink, Class: "detail-link", Attributes: templ.Attributes{"data-event-link": true, "data-id": event.ID, "aria-label": "Details for " + event.Name}}) {
 						<span>Details</span>@layouts.Icon("arrow")
 					}
-				</div>
-				@button.Button(button.Props{Href: "#event-context", Variant: button.VariantLink, Class: "context-jump text-link"}) {
-					Jump to event preview
+				}
+				if !isSavedURL(returnURL) {
+					@button.Button(button.Props{Href: "#event-context", Variant: button.VariantLink, Class: "context-jump text-link"}) {
+						Jump to event preview
+					}
 				}
 			</div>
 		</li>
@@ -76,7 +79,7 @@ templ Freshness(meta models.Freshness) {
 	if !meta.DataAsOf.IsZero() {
 		<p class={ "freshness", templ.KV("is-stale", meta.Stale) }>
 			if meta.Stale {
-				<strong>Showing saved results while Ticketmaster is unavailable.</strong><span></span>
+					<strong>Showing last-known details. Current provider data is unavailable.</strong><span></span>
 			}
 			Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
 		</p>

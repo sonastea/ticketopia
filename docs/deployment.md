@@ -44,9 +44,52 @@ Secrets are not build arguments and `.env` is not baked into the image. Supply
 environment variables at runtime; for local testing, `--env-file .env` is also
 supported. Use the deployment platform's secret storage in production.
 
+### Environment template
+
+The root [`.env.example`](../.env.example) lists all supported application and
+migration settings, with secret placeholders and optional tuning defaults. It
+enables MariaDB, Google accounts/private saves, and IP-based city hints; shared
+caching is optional and has examples for Redis, Valkey, DragonflyDB, and NATS.
+Planned reminders/digests and community participation are not enabled by any
+environment setting. No SMTP or session-signing secret is currently required.
+
+For a new local configuration, copy the template without overwriting an existing
+`.env`, then replace its placeholders. Keep populated files out of Git. For
+production, use runtime secret/environment storage, not build arguments:
+
+1. Obtain a **`TICKETMASTER_KEY`** from Ticketmaster.
+2. Provision MariaDB and separate runtime/migration users. Set the runtime
+   **`DB_HOST`**, **`DB_NAME`**, **`DB_USER`**, and secret **`DB_PASSWORD`**. Keep
+   **`DB_TLS_MODE=verify-full`** and mount a readable public PEM CA bundle at
+   **`DB_TLS_CA_FILE`**; the certificate must match `DB_HOST`. Container paths and
+   service hostnames must be reachable inside the container, not just on the host.
+3. Supply the commented **`DB_MIGRATION_USER`** and **`DB_MIGRATION_PASSWORD`**
+   only to a separate migration job with the same database/TLS settings. Run the
+   deployed image's `migrate` subcommand, then apply/reconcile runtime grants before
+   starting the app. Do not pass migration/root credentials to application containers.
+   Follow [schema compatibility and rollout](persistence.md#rolling-update-compatibility)
+   when upgrading an existing database; `make migrate` is local-only.
+4. Configure a Google **Web application** client, set **`AUTH_BASE_URL`** to the
+   public HTTPS origin, and supply **`GOOGLE_CLIENT_ID`** and secret
+   **`GOOGLE_CLIENT_SECRET`**. Register that origin plus `/auth/google/callback`
+   exactly as described in [account setup](accounts.md#enable-accounts).
+5. Behind a reverse proxy, set **`TRUSTED_PROXY_CIDRS`** to its actual connecting
+   ranges and configure forwarded headers as described in [location setup](location.md#configuration).
+   The empty template value deliberately trusts no forwarded client IPs.
+6. Optionally set **`KV_URL`** to one shared cache endpoint; URL credentials are
+   secrets. An empty value uses memory without losing user-facing features. See
+   [cache configuration](cache.md) for backend requirements and fallback behavior.
+
+For Docker, pass the completed runtime file with `--env-file .env`; in Coolify,
+configure the same variables as runtime settings. Kubernetes requires explicit
+ConfigMaps/Secrets and the CA mount; it does not load `.env.example` automatically.
+Registry publishing/pull credentials and database provisioning secrets belong to
+their respective infrastructure, not this app's runtime environment. Development
+and integration-test variables are intentionally excluded from the template.
+
 ### Optional Google accounts
 
-Follow [account setup](accounts.md#enable-accounts): use the schema-v2 image and
+Follow [account setup](accounts.md#enable-accounts): use the schema-v3 image and
 migrations/runtime grants, then provide `AUTH_ENABLED=true`, an HTTPS
 `AUTH_BASE_URL`, `GOOGLE_CLIENT_ID`, and secret `GOOGLE_CLIENT_SECRET` at runtime.
 Register `AUTH_BASE_URL/auth/google/callback` in the Google Web application client.

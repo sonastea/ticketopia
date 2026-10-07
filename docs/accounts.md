@@ -1,14 +1,14 @@
 # Google sign-in and accounts
 
 Implemented, opt-in: direct Google authorization-code sign-in, durable accounts,
-browser sessions, public profiles/private preferences, and personal API tokens.
-Accounts require MariaDB; there is no memory fallback. Saves, event interest,
+browser sessions, public profiles/private preferences, personal API tokens, and
+[private event saves](saved-events.md). Accounts require MariaDB; there is no memory fallback. Event interest,
 community activity, personalization, and notification delivery remain planned.
 
 ## Enable accounts
 
 First follow the [MariaDB setup](persistence.md#repeatable-local-development), apply
-schema version **2**, and reapply the runtime grants. Discovery remains usable with
+schema version **3**, and reapply the runtime grants. Discovery remains usable with
 `AUTH_ENABLED` unset/false. When enabled, missing/invalid configuration or SQL
 startup failures stop the server before it listens.
 
@@ -92,6 +92,10 @@ public `/api/v1/users/{id}`, token management, and current-credential revocation
 Cookie writes require a same-origin request and `X-CSRF-Token` from `GET /api/v1/me`
 (HTML forms carry a hidden token). Bearer writes do not use ambient cookies/CSRF.
 Private responses use `private, no-store`; cross-origin CORS access is not enabled.
+
+Personal tokens also manage private bookmarks through `/api/v1/me/saved-events`.
+The web UI offers Save/Remove in discovery/previews/event pages and `/saved` for
+the owner-only collection. See [saving and verification](saved-events.md).
 
 ## Security and verification
 

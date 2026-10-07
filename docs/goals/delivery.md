@@ -2,8 +2,8 @@
 
 Status: All-category discovery, responsive navigation, basic event previews/
 detail pages, the MariaDB connection/migration/identity foundation, and opt-in
-Google accounts/profiles/private preferences are implemented. Saves/community
-outcomes and broader persistence remain planned.
+Google accounts/profiles/private preferences and durable private saves are
+implemented. Community outcomes and broader persistence remain planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -13,8 +13,8 @@ does not complete a UI outcome, and a cache does not complete durable storage.
 
 The updated release combines location-based discovery across **all Ticketmaster
 event categories** with event-centered community participation. Category-aware
-discovery and account/profile/preferences are implemented; saves and community
-participation remain planned.
+discovery, account/profile/preferences, and private saves are implemented;
+community participation remains planned.
 The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
 Section numbers below group capabilities; they do not force reminders/ranking
 to ship before community work.
@@ -103,8 +103,10 @@ detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
   freshness, cancellation, and postponement information from durable observations.
 - [x] Frontend foundation: Read current event metadata, venue, status, prices,
   source freshness, and ticket links on a dedicated event page using cached reads.
-- [ ] MVP foundation: Upsert durable event/provider identity before local writes;
-  preserve conversations and saved events when provider/cache data disappears.
+- [x] MVP save foundation: Atomically upsert durable event/provider identity and
+  last-known snapshots before bookmarks; retain saved events without provider/cache
+  data. See [private saves](../saved-events.md).
+- [ ] MVP community foundation: Preserve conversations without provider/cache data.
   Basic event details must ship without waiting for historical change detection.
 - [ ] Deployment: Provision shared MariaDB with `mariadb-operator`; configure
   persistent database volumes, primary routing, Secrets/TLS, connection limits,
@@ -122,16 +124,16 @@ and [cross-client continuity](../design/radar-api.md#shared-backend).
   durable location, interest, time-zone, and notification preferences.
 - [x] MVP Backend: Provide own/public profiles, private-by-default future interest
   visibility, and private category preferences; see [accounts](../accounts.md).
-- [ ] MVP Backend: Provide owner-only bookmark reads/writes.
+- [x] MVP Backend: Provide owner-only bookmark reads/writes.
 - [x] MVP Frontend: Provide sign-in with local task return, profile/public-view
   preview, privacy-default controls, and private preference forms.
-- [ ] MVP Frontend: Provide a private Saved collection.
-- [ ] MVP Backend: Add idempotent save/unsave APIs backed by durable bookmarks.
+- [x] MVP Frontend: Provide a private Saved collection.
+- [x] MVP Backend: Add idempotent save/unsave APIs backed by durable bookmarks.
 - [ ] Later Backend: Add artist/venue follow APIs and search backed by cached
   provider or stored metadata; rank radar matches with understandable reasons.
 - [ ] Later Frontend: Provide artist/venue search and follow controls, and a radar
   with match explanations alongside the MVP profile/preferences and saved list.
-- [ ] Verification: Save an event, leave, return, and find it again; confirm the
+- [x] Verification: Save an event, leave, return, and find it again; confirm the
   same preferences and choices are available to another authenticated client.
 
 ## 4. Receive useful reminders

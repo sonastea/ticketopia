@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 2
+const SupportedSchemaVersion = 3
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -129,6 +129,8 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT ` + credentialColumns + ` FROM account_credentials LIMIT 0`,
 		`SELECT state_hash, browser_hash, verifier, nonce, return_to, expires_at FROM auth_flows LIMIT 0`,
 		`SELECT bucket_hash, attempts, expires_at FROM auth_rate_limits LIMIT 0`,
+		`SELECT event_id, snapshot, data_as_of FROM event_snapshots LIMIT 0`,
+		`SELECT account_id, event_id, saved_at FROM saved_events LIMIT 0`,
 	} {
 		rows, err := p.db.QueryContext(ctx, query)
 		if err != nil {
@@ -139,11 +141,11 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		}
 	}
 	var count int
-	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits') AND engine = 'InnoDB'`).Scan(&count)
+	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events') AND engine = 'InnoDB'`).Scan(&count)
 	if err != nil {
 		return safeError("schema validation", err)
 	}
-	if count != 9 {
+	if count != 11 {
 		return fmt.Errorf("database schema requires InnoDB tables")
 	}
 	return nil

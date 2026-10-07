@@ -48,7 +48,7 @@ func TestSelectedEventFailureDoesNotReplaceResults(t *testing.T) {
 		}
 		if tc.path == "/events/ticketmaster:available" {
 			body := rec.Body.String()
-			actions := strings.Index(body, `class="participation-actions"`)
+			actions := strings.Index(body, `data-event-actions`)
 			if price := strings.Index(body, "USD 20"); price < 0 || price >= actions || strings.Index(body, "Canceled") >= actions {
 				t.Fatal("decision-critical price/cancellation must precede participation controls")
 			}
@@ -72,7 +72,7 @@ func TestPlannedDestinationsRemainTruthful(t *testing.T) {
 	a := &api{}
 	for _, path := range []string{"/saved", "/community", "/me", "/me/interests"} {
 		availability := "In development"
-		if path == "/me" || path == "/me/interests" {
+		if path == "/me" || path == "/me/interests" || path == "/saved" {
 			availability = "Accounts not enabled"
 		}
 		rec := httptest.NewRecorder()

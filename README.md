@@ -41,9 +41,9 @@ goal to implementation work and verification checkpoints.
 - [x] Start with an approximate IP-based or remembered city, change it easily,
   and choose a city when detection is unavailable.
 - [ ] Validate relevance with people in a pilot city.
-- [ ] Save an event and find it again on a later visit.
+- [x] Save an event and find it again on a later visit.
 - [x] Sign in with Google and manage a profile, privacy defaults, and private preferences.
-- [ ] Keep saved events private.
+- [x] Keep saved events private.
 - [ ] Follow artists and venues.
 - [ ] See personalized matches with understandable reasons.
 
@@ -106,7 +106,8 @@ goal to implementation work and verification checkpoints.
 
 - [x] Establish MariaDB connections, serialized migrations, and minimal durable event identity.
 - [x] Keep accounts, credentials, and private preferences across restarts.
-- [ ] Keep saved events and event history across restarts.
+- [x] Keep saved events and last-known event details across restarts.
+- [ ] Keep dated event observation history across restarts.
 - [ ] Persist community activity, moderation records, and notification jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
@@ -115,7 +116,8 @@ The optional foundation uses MariaDB through `database/sql` and pinned
 `go-sql-driver/mysql`, with embedded Goose migrations and `mariadb-operator`
 deployment examples. Discovery stays database-free by default; broader durable
 features and exercised multi-pod deployment remain planned. Opt-in
-[Google accounts](docs/accounts.md) now store profiles, preferences, and credentials.
+[Google accounts](docs/accounts.md) store profiles, preferences, and credentials;
+[private saves](docs/saved-events.md) retain bookmarks and last-known event details.
 
 ### Container deployment
 
@@ -143,7 +145,11 @@ go run ./cmd/ticketopia
 ```
 
 Open <http://localhost:8080>. Environment variables can also be placed in an
-optional `.env` file.
+optional `.env` file. [`.env.example`](.env.example) documents deployment settings
+for all implemented features; it enables MariaDB and Google accounts, so replace
+its placeholders and complete the [deployment setup](docs/deployment.md#environment-template)
+before using it. For database-free discovery, set `PERSISTENCE_MODE=disabled` and
+`AUTH_ENABLED=false`.
 
 JSON reads start at `/api/v1/events`, `/api/v1/categories`, and `/api/v1/genres`.
 The [OpenAPI contract](docs/openapi.md) describes the HTTP API's routes, parameters,
@@ -160,10 +166,14 @@ The cache runs in memory by default. Shared backends are optional; see
 
 MariaDB is opt-in with `PERSISTENCE_MODE=mariadb`; see the [persistence guide](docs/persistence.md)
 for the local database, verified TLS, separate migration command, and SQL tests.
+Run `make migrate` to prepare local MariaDB, apply migrations and runtime grants,
+and verify required permissions. It is safe to rerun after migration changes;
+normal app restarts do not require it.
 
 Accounts are separately opt-in with `AUTH_ENABLED=true`, `AUTH_BASE_URL`,
 `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`; see [Google sign-in setup](docs/accounts.md).
-Discovery stays public. Private saves and community participation are not yet implemented.
+Discovery stays public. Private saves are available with accounts enabled;
+community participation remains planned.
 
 ## Run in a container
 

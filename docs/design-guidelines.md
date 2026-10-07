@@ -1,7 +1,8 @@
 # Responsive UX and interaction guidelines
 
 The implemented UI supports all-category discovery, read-only event details, and
-opt-in [Google accounts/profile/privacy/preferences](accounts.md). Saves, event
+opt-in [Google accounts/profile/privacy/preferences](accounts.md) and
+[private event saves](saved-events.md). Event
 interest, recommendations, and discussions remain planned.
 
 ## Sources of truth
@@ -23,7 +24,7 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | --- | --- | --- |
 | Discover | `/` | City, keyword, dates, category/genre filters, event results, pagination |
 | Event | `/events/{event_id}` | Overview, Discussion, and Community section links; the latter two explain planned availability |
-| Saved | `/saved` | Planned private collection; availability explanation |
+| Saved | `/saved` | Owner-only newest-saved-first collection, last-known details, and pagination; sign-in or configuration explanation when unavailable |
 | Community | `/community` | Planned recommendations and conversations; availability explanation |
 | Interests | `/me/interests` | Private category preferences, with clear catalog-failure retention |
 | Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
@@ -84,7 +85,9 @@ Provider images retain a fixed-ratio fallback when missing or broken.
 
 Event titles and Details are real event links. Desktop selection highlights the
 matching row and opens its preview; ordinary compact-screen selection opens the
-event page. Save and Interested are disabled with explanatory copy. Recommend
+event page. Save/Remove work through private, CSRF-protected forms with row/preview
+state synchronization; signed-out visitors resume through Google sign-in. Interested
+is disabled with explanatory copy. Recommend
 is disabled in Community. Do not fabricate engagement counts or successful actions.
 
 External ticket links name Ticketmaster and do not imply ticket ownership or
@@ -94,8 +97,8 @@ while explaining their current availability.
 
 ## Interaction semantics and hierarchy
 
-The following participation semantics are product requirements for future work,
-not implemented mutations:
+The following participation semantics are product requirements. Private Save is
+implemented; the other mutations remain planned:
 
 | Interaction | Meaning and visibility | Feedback and aggregate information |
 | --- | --- | --- |

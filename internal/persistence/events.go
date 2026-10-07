@@ -106,29 +106,35 @@ func (r *EventRepository) upsertOnce(ctx context.Context, event models.Event, ar
 		return retryable(err), err
 	}
 	defer tx.Rollback()
-	_, err = tx.ExecContext(ctx, `INSERT INTO events (`+eventColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	if err := upsertEventTx(ctx, tx, event, args); err != nil {
+		return retryable(err), err
+	}
+	// A transport failure during COMMIT is uncertain. Do not automatically retry.
+	return false, tx.Commit()
+}
+
+func upsertEventTx(ctx context.Context, tx *sql.Tx, event models.Event, args []any) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO events (`+eventColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE name=VALUES(name), source_url=VALUES(source_url), start_utc=VALUES(start_utc),
 local_date=VALUES(local_date), local_time=VALUES(local_time), timezone=VALUES(timezone), date_tba=VALUES(date_tba),
 date_tbd=VALUES(date_tbd), time_tba=VALUES(time_tba), no_specific_time=VALUES(no_specific_time), status=VALUES(status),
 venues=VALUES(venues), artists=VALUES(artists), classifications=VALUES(classifications), place=VALUES(place), updated_at=UTC_TIMESTAMP(6)`, args...)
 	if err != nil {
-		return retryable(err), err
+		return err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO event_providers (provider, source_id, event_id) VALUES (?, ?, ?)
 ON DUPLICATE KEY UPDATE event_id=event_id`, event.Source.Provider, event.Source.ID, event.ID)
 	if err != nil {
-		return retryable(err), err
+		return err
 	}
 	var mapped string
 	if err := tx.QueryRowContext(ctx, `SELECT event_id FROM event_providers WHERE provider=? AND source_id=?`, event.Source.Provider, event.Source.ID).Scan(&mapped); err != nil {
-		return retryable(err), err
+		return err
 	}
 	if mapped != event.ID {
-		return false, fmt.Errorf("provider mapping cannot change identity")
+		return fmt.Errorf("provider mapping cannot change identity")
 	}
-	// A transport failure during COMMIT is uncertain. Do not automatically retry;
-	// callers can resolve the stable identity before deciding to repeat this upsert.
-	return false, tx.Commit()
+	return nil
 }
 
 func (r *EventRepository) Get(ctx context.Context, id string) (models.Event, error) {

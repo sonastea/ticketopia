@@ -1,7 +1,8 @@
 # Personal radar and reminders
 
 Status: Core product direction. [City/date/category/genre discovery](../discovery.md) is
-implemented with cached Ticketmaster events and metadata. Saves, follows,
+implemented with cached Ticketmaster events and metadata. [Private saves](../saved-events.md)
+retain bookmarks and last-known details. Follows,
 personalized matches, reminders, and human pilot checkpoints remain upcoming work.
 Google accounts, profiles/privacy defaults, and private category/location/
 notification preferences are [implemented, opt-in](../accounts.md).

@@ -1,10 +1,10 @@
 # MariaDB foundation
 
 Implemented: explicit SQL connection lifecycle, serialized embedded migrations,
-schema validation/readiness, minimal durable event/provider identity, and schema-v2
-[accounts/credentials/private preferences](accounts.md). Discovery
+schema validation/readiness, minimal durable event/provider identity, accounts,
+credentials/private preferences, and schema-v3 [private saves/snapshots](saved-events.md). Discovery
 still reads its existing cache/provider services and does **not** write SQL. There
-are no saves, community mutations, ingestion scheduler, global provider
+are no community mutations, ingestion scheduler, global provider
 budgets, database HA, or verified production backup/restore in this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
@@ -61,26 +61,38 @@ forced HTTP close on timeout), not at the beginning of SIGTERM handling.
 
 ## Repeatable local development
 
-Requires Docker Compose and OpenSSL. These credentials/certificates are disposable
-public development fixtures, **not** production secrets. The server binds only
+Requires Make, Go 1.27+, Docker Compose and OpenSSL. These credentials/certificates
+are disposable public development fixtures, **not** production secrets. The server binds only
 `127.0.0.1:3307`, uses MariaDB **13.0.2**, and stores its data in the versioned
 `<compose-project>_data-v13` volume (normally `ticketopia-db_data-v13`).
 For an existing older-version volume, read [server upgrades](#server-version-upgrades)
 before starting the updated Compose image.
 
 ```sh
-sh scripts/mariadb-certs.sh
-docker compose -f deploy/mariadb/compose.yaml up -d --wait
+make migrate
 export PERSISTENCE_MODE=mariadb DB_HOST=localhost DB_PORT=3307 DB_NAME=ticketopia
 export DB_TLS_CA_FILE="$PWD/.local/mariadb/certs/ca.crt"
-export DB_MIGRATION_USER=ticketopia_migration DB_MIGRATION_PASSWORD=local-migration-only
-go run ./cmd/ticketopia migrate
-docker compose -f deploy/mariadb/compose.yaml exec -T -e MYSQL_PWD=local-root-only mariadb mariadb -uroot < deploy/mariadb/runtime-grants.sql
 export DB_USER=ticketopia_runtime DB_PASSWORD=local-runtime-only
-unset DB_MIGRATION_PASSWORD
 export TICKETMASTER_KEY=your-api-key
 go run ./cmd/ticketopia
 ```
+
+`make migrate` runs [`scripts/mariadb-migrate.sh`](../scripts/mariadb-migrate.sh):
+prepare local TLS fixtures, start/wait for Compose MariaDB (up to 60 seconds),
+reapply local database/user provisioning, run the current-source migration CLI,
+apply all runtime grants, then check TLS/read access and every required write
+permission as the runtime user. The [`runtime check`](../deploy/mariadb/runtime-check.sql)
+uses zero-row writes in a rolled-back transaction; it creates no application data.
+Any failed step stops the command without reporting readiness.
+
+This target is deliberately pinned to `localhost:3307/ticketopia` and the public
+Compose credentials, overriding inherited and `.env` database connection settings
+for migrations. It is **local development only**, not a production deployment tool.
+It does not reset data, rotate existing credentials/certificates, stop the app, or
+configure the app's runtime environment. Stop/drain the app before schema-changing
+migrations; follow [upgrade compatibility](#rolling-update-compatibility). Rerunning
+the target is safe on a clean schema and repairs missing grants even when no
+migrations are pending. Run it after pulling/adding migrations, not every restart.
 
 Initialization SQL runs only on a **new** MariaDB volume. Reapplying
 `deploy/mariadb/init.sql` as the local admin is safe if user provisioning was
@@ -92,7 +104,7 @@ revocation/cleanup. Runtime cannot perform DDL, delete accounts/events, or modif
 migration state. Migration privileges are limited to this database,
 without user administration or grant option.
 
-Repeat migration/grant commands safely. `docker compose ... stop` keeps data; do
+Repeat `make migrate` safely. `docker compose ... stop` keeps data; do
 not use `down -v` unless you deliberately want to erase this local database.
 Certificates last 30 days. To renew local fixtures, replace the three generated
 certificate/key files intentionally, rerun the script, and restart MariaDB/apps.
@@ -106,7 +118,7 @@ MariaDB 13.1.1 is a release candidate, not stable; its Docker tag is
 `13.1.1-rc`, so it is not used here. The versioned local volume prevents this image
 from opening the old `ticketopia-db_data` directory. Without an explicit restore,
 starting it creates a **separate empty database**, not an automatic data migration.
-Engine upgrades are separate from Ticketopia's schema-v2 application migration.
+Engine upgrades are separate from Ticketopia's application schema migrations.
 
 Before changing an existing 11.8 server or PVC, preserve a backup and rehearse
 the [MariaDB server upgrade path](https://mariadb.com/docs/server/server-management/install-and-upgrade-mariadb/upgrading/mariadb-community-server-upgrade-paths)
@@ -214,16 +226,16 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 2 only**. Versions 0–1 and 3+ are rejected;
+This binary supports **clean schema version 3 only**. Versions 0–2 and 4+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous foundation binary supports version 1 only.
-For this first v1-to-v2 upgrade, stop/drain v1 traffic, preserve a backup, apply the
-v2 migration with the v2 image, reapply/reconcile runtime table grants, then start
-v2 apps. Do not leave v1 pods serving after migration; they will fail readiness.
+old binaries are gone. The previous account binary supports version 2 only.
+For the v2-to-v3 save upgrade, stop/drain v2 traffic, preserve a backup, apply the
+v3 migration with the v3 image, reapply/reconcile runtime table grants, then start
+v3 apps. Do not leave v2 pods serving after migration; they will fail readiness.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
@@ -231,11 +243,11 @@ a claim that a three-pod rollout was exercised.
 ## Durable identity boundary
 
 `events.Service.EnsureDurable` explicitly persists a normalized occurrence for
-future local actions; `Get` resolves it independently of cache/provider availability.
-There is deliberately no HTTP mutation endpoint or automatic ingestion hook.
-Existing discovery lists/details, cache expiry, provider absence, and public IDs
-are unchanged. Future local writes must compose identity and activity transactions
-where atomic activity semantics require it; no such activity records exist yet.
+local actions; `Get` resolves it independently of cache/provider availability.
+Private saves compose identity, provider mapping, snapshot and bookmark in one
+transaction; discovery reads still do not write SQL or run ingestion. Detail reads
+can fall back to a stored snapshot during provider/cache loss without exposing
+bookmark state. See [private saves](saved-events.md) for the HTTP/API boundary.
 
 `events.event_id` keeps the existing `ticketmaster:SOURCE_ID` public identity.
 `event_providers` has a binary primary key `(provider, source_id)`, an indexed
@@ -248,8 +260,12 @@ Metadata includes name/source URL, known UTC instant, local date/time/time-zone 
 TBA/TBD flags, explicit provider status, venue/place snapshots, optional artists,
 and every classification's category/genre/subgenre references. JSON fields hold
 the shared normalized model's small arrays/place, not raw provider responses.
-This is a minimal durable identity snapshot, **not** dated observation history,
-independent artist/venue catalogs, or full price/image/sale archival.
+This minimal identity record is **not** dated observation history or independent
+artist/venue catalogs. Schema v3 additionally stores a complete normalized
+last-known DTO in `event_snapshots`, including price/image/sale/description fields,
+with its collection time. Image URLs, not image binaries, are stored. Owner-only
+`saved_events` reference that snapshot and the account; runtime gets INSERT/DELETE
+but not UPDATE on bookmarks, and no DELETE on shared snapshots/events.
 
 Upserts lock the stable event key and insert its provider mapping in one short
 InnoDB transaction. Deadlocks/lock-wait timeouts before commit get at most three

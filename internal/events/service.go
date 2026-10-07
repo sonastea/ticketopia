@@ -1,5 +1,5 @@
 // Package events is the shared boundary for durable event identity. Discovery
-// remains read-only; future local actions must explicitly ensure an identity.
+// remains read-only; local actions explicitly ensure an identity.
 package events
 
 import (
@@ -21,8 +21,8 @@ type Service struct{ repository Repository }
 
 func New(repository Repository) *Service { return &Service{repository: repository} }
 
-// EnsureDurable is explicit, not called by discovery reads. Future activity
-// transactions will build on this identity; no local activities exist yet.
+// EnsureDurable is explicit, not called by discovery reads. Bookmark writes use
+// the same repository identity operations inside their activity transaction.
 func (s *Service) EnsureDurable(ctx context.Context, event models.Event) (models.Event, error) {
 	if s.repository == nil {
 		return models.Event{}, ErrDisabled

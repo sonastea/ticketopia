@@ -1,0 +1,84 @@
+package home
+
+import "fmt"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/alert"
+import "github.com/sonastea/ticketopia/views/components/empty"
+
+templ Saved(page SavedPage) {
+	@layouts.App("saved", "Saved events") {
+		<main id="main" class="destination-page saved-page">
+			<h1>Saved events</h1>
+			<p class="intro">Your private collection. Saving doesn't publish your interest or reserve tickets.</p>
+			<p id="saved-notice" class="field-note" role="status"></p>
+			<p class="sort-label">Newest saved first</p>
+			if page.Error != "" {
+				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+					<h2>Saved events couldn't load</h2>
+					<p>{ page.Error }</p>
+					@button.Button(button.Props{Href: page.ReturnURL, Class: "action"}) { Try again }
+				}
+			} else if len(page.List.Items) == 0 {
+				@empty.Empty(empty.Props{Class: "destination-state"}) {
+					@layouts.Icon("saved")
+					<h2>Keep something worth coming back to.</h2>
+					<p>Save an event while discovering. You'll find it here on your next visit, on any device you sign into.</p>
+					@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }
+					if page.ReturnURL != "/saved" {
+						@button.Button(button.Props{Href: "/saved", Variant: button.VariantLink, Class: "text-link"}) { Back to newest saves }
+					}
+				}
+			} else {
+				<p class="participation-note">Last-known event details are kept with your saves. Check the event or ticket page for current availability.</p>
+				<ul id="event-list" class="event-list">
+					@EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL)
+				</ul>
+				<div class="pagination">
+					if page.List.NextCursor != nil {
+						@button.Button(button.Props{Href: page.nextURL(), Variant: button.VariantOutline, Class: "action action-secondary"}) { More saved events }
+					}
+					if page.ReturnURL != "/saved" {
+						@button.Button(button.Props{Href: "/saved", Variant: button.VariantLink, Class: "text-link"}) { Back to newest saves }
+					}
+				</div>
+			}
+			<p id="save-feedback" class="sr-only" role="status"></p>
+			@SourceFooter()
+		</main>
+	}
+}
+
+// Keep feedback outside the controls row so its size cannot move any action.
+templ EventActions(eventID string, name string, view SaveView, returnURL string) {
+	<div class="event-action-group" data-event-actions>
+		<div class="event-actions">
+			@SaveControl(eventID, name, view, returnURL)
+			{ children... }
+		</div>
+		if view.Enabled && view.SignedIn && view.Error == "" {
+			<p class="save-message" data-save-feedback hidden></p>
+		}
+	</div>
+}
+
+templ SaveControl(eventID string, name string, view SaveView, returnURL string) {
+	if !view.Enabled {
+		@ParticipationButton("saved", "Save", "")
+	} else if view.Error != "" {
+		@button.Button(button.Props{Variant: button.VariantOutline, Class: "button-quiet", Disabled: true, Attributes: templ.Attributes{"aria-label": "Saved state unavailable for " + name}}) { Saved unavailable }
+	} else if !view.SignedIn {
+		@button.Button(button.Props{Href: signInURL(returnURL), Variant: button.VariantOutline, Class: "button-quiet save-button", Attributes: templ.Attributes{"aria-label": "Sign in to save " + name}}) {
+			@layouts.Icon("saved")<span>Sign in to save</span>
+		}
+	} else {
+		<form method="post" action={ saveAction(eventID) } class="save-form" data-save-form data-save-id={ eventID } data-event-name={ name }>
+			<input type="hidden" name="csrf_token" value={ view.CSRF }/>
+			<input type="hidden" name="return_to" value={ returnURL }/>
+			<input type="hidden" name="action" value={ saveVerb(view.States[eventID]) }/>
+			@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantOutline, Class: "button-quiet save-button", Attributes: templ.Attributes{"data-saved": fmt.Sprint(view.States[eventID]), "aria-label": saveLabel(view.States[eventID]) + " — " + name}}) {
+				@layouts.Icon("saved")<span>{ saveLabel(view.States[eventID]) }</span>
+			}
+		</form>
+	}
+}

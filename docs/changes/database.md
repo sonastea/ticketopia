@@ -2,11 +2,21 @@
 
 ## Unreleased
 
-### 2026-10-06 — Account schema, runtime grants, and server version
+### 2026-10-06 — Account/save schemas, runtime grants, and server version
 
 - Add schema v2 for accounts/issuer-subject identities, hashed credentials,
   browser-bound one-time flows, and shared rate counters, with scoped local/operator
   grants and full startup schema checks; see [accounts](../accounts.md).
+- Add schema v3 last-known event snapshots and owner-only bookmarks, transactional
+  identity/activity writes, scoped local/operator grants and startup validation.
+  Verify v2 account/credential/event preservation in isolated migration tests;
+  require draining v2 apps before migration. See [private saves](../saved-events.md).
+- Add local `make migrate` to prepare TLS/Compose/users, run current-source migrations,
+  reapply runtime grants and verify runtime access with zero-row write probes.
+  Pin migration connection settings to local fixtures; stop on any failed step.
+  Verify repeat runs locally, fail-fast ordering/configuration isolation tests,
+  missing-grant detection in isolated MariaDB, the full Go race suite and vet.
+  See [local development](../persistence.md#repeatable-local-development).
 - Document the required v1 traffic drain before migration and v2 restart, rather
   than claiming overlapping schema support or a zero-downtime upgrade.
 - Pin local/operator MariaDB images to stable **13.0.2**, after confirming that

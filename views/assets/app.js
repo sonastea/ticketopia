@@ -32,6 +32,129 @@
     if (image.complete && !image.naturalWidth) image.hidden = true;
   }
 
+  // Ordinary forms remain the fallback. Enhanced saves preserve selection,
+  // filters, focus and loaded results while synchronizing every visible control.
+  const saveFeedback = (message, id, origin, error = false) => {
+    const forms = saveForms(id);
+    forms.forEach((form, index) => {
+      const target = form.closest('[data-event-actions]')?.querySelector('[data-save-feedback]');
+      if (!target) return;
+      target.hidden = false;
+      target.textContent = message;
+      target.dataset.error = String(error);
+      const announce = origin ? form === origin : index === 0;
+      if (announce) target.setAttribute('role', 'status');
+      else target.removeAttribute('role');
+      target.setAttribute('aria-live', announce ? 'polite' : 'off');
+    });
+    if (!forms.length) {
+      const target = document.getElementById('save-feedback');
+      if (target) target.textContent = message;
+    }
+  };
+  const saveForms = id => [...document.querySelectorAll('[data-save-form]')]
+    .filter(form => !id || form.dataset.saveId === id);
+  const updateSave = (id, saved, csrf) => {
+    for (const form of saveForms(id)) {
+      form.elements.action.value = saved ? 'remove' : 'save';
+      if (csrf) form.elements.csrf_token.value = csrf;
+      const button = form.querySelector('button');
+      const label = saved ? 'Remove from Saved' : 'Save';
+      button.dataset.saved = String(saved);
+      button.setAttribute('aria-label', label + ' — ' + form.dataset.eventName);
+      button.querySelector('span').textContent = label;
+    }
+  };
+  let saveStateTurn = 0;
+  const refreshSavedState = async () => {
+    const ids = [...new Set(saveForms().map(form => form.dataset.saveId))];
+    if (!ids.length) return;
+    const turn = ++saveStateTurn;
+    try {
+      // Batch loaded rows; never make per-card SQL/provider requests.
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const params = new URLSearchParams();
+        ids.slice(offset, offset + 100).forEach(id => params.append('event_id', id));
+        const response = await fetch('/api/v1/me/saved-events/states?' + params);
+        if (turn !== saveStateTurn) return;
+        if (response.status === 401) {
+          const state = { ...history.state };
+          delete state.ticketopiaResults;
+          history.replaceState(state, '', location.href);
+          location.reload();
+          return;
+        }
+        if (!response.ok) throw new Error('Saved state unavailable');
+        const data = await response.json();
+        if (turn !== saveStateTurn) return;
+        ids.slice(offset, offset + 100).forEach(id => updateSave(id, Boolean(data.states[id]), data.csrf_token));
+      }
+    } catch {
+      if (turn !== saveStateTurn) return;
+      saveForms().forEach(form => { form.querySelector('button').disabled = true; });
+      saveFeedback('Saved state is unavailable. Refresh this page to try again.');
+    }
+  };
+  const saving = new Set();
+  document.addEventListener('submit', async event => {
+    const form = event.target.closest('[data-save-form]');
+    if (!form) return;
+    event.preventDefault();
+    const id = form.dataset.saveId;
+    if (saving.has(id)) return;
+    saving.add(id);
+    ++saveStateTurn;
+    const trigger = form.querySelector('button');
+    const hadFocus = document.activeElement === trigger;
+    const controls = saveForms(id);
+    controls.forEach(item => { item.setAttribute('aria-busy', 'true'); item.querySelector('button').disabled = true; });
+    saveFeedback('Updating your private save…', id, form);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(form.getAttribute('action'), {
+        method: 'POST', body: new URLSearchParams(new FormData(form)),
+        headers: { Accept: 'application/json' }, signal: controller.signal,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Your save could not be updated. Try again.');
+      updateSave(data.event_id, data.saved);
+      saveFeedback(data.saved ? 'Event saved privately.' : 'Event removed from Saved.', id, form);
+      if (location.pathname === '/saved') {
+        const row = form.closest('.event-row');
+        const adjacent = row?.nextElementSibling || row?.previousElementSibling;
+        history.replaceState({ ...history.state, ticketopiaSavedAction: {
+          focus: data.saved ? id : adjacent?.dataset.eventId || '',
+          notice: form.dataset.eventName + (data.saved ? ' saved privately.' : ' removed from Saved.'),
+        } }, '', location.href);
+        location.reload();
+      }
+    } catch (error) {
+      saveFeedback(error.name === 'AbortError' ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true);
+    } finally {
+      clearTimeout(timeout);
+      saving.delete(id);
+      controls.forEach(item => { item.removeAttribute('aria-busy'); item.querySelector('button').disabled = false; });
+      if (hadFocus && trigger.isConnected && document.activeElement === document.body) trigger.focus({ preventScroll: true });
+    }
+  });
+  if (location.pathname === '/saved' && history.state?.ticketopiaSavedAction) {
+    const action = history.state.ticketopiaSavedAction;
+    const state = { ...history.state };
+    delete state.ticketopiaSavedAction;
+    history.replaceState(state, '', location.href);
+    const row = [...document.querySelectorAll('.event-row')].find(item => item.dataset.eventId === action.focus)
+      || document.querySelector('.event-row');
+    const target = row?.querySelector('[data-save-form] button') || document.querySelector('.destination-state a[href="/"]');
+    const notice = document.getElementById('saved-notice');
+    if (notice) notice.textContent = action.notice;
+    requestAnimationFrame(() => target?.focus());
+  }
+  window.addEventListener('pageshow', event => {
+    // Revalidate credentials and private state when returning from browser cache.
+    if (event.persisted) refreshSavedState();
+  });
+
   // Sidebar collapse and navigation customization (desktop shell).
   const sidebar = document.querySelector('[data-sidebar]');
   if (sidebar) {
@@ -410,6 +533,7 @@
       pagination: pagination.outerHTML,
       scroll: scrollY,
       focus: lastFocusID,
+      csrf: document.querySelector('[data-save-form] input[name="csrf_token"]')?.value || '',
     } }, '', location.href);
   };
   const leaveResults = link => {
@@ -423,10 +547,13 @@
     const saved = history.state?.ticketopiaResults;
     const list = document.getElementById('event-list');
     if (!list || !saved || saved.url !== workspace.dataset.resultsUrl) return;
+    const csrf = document.querySelector('[data-save-form] input[name="csrf_token"]')?.value || '';
+    if ((saved.csrf || '') !== csrf) return; // Never restore another session's private controls.
     list.innerHTML = saved.list;
     document.getElementById('pagination').outerHTML = saved.pagination;
     window.htmx?.process(list);
     window.htmx?.process(document.getElementById('pagination'));
+    refreshSavedState();
     markSelection(new URL(location.href).searchParams.get('selected_event'));
     requestAnimationFrame(() => {
       scrollTo(0, saved.scroll);

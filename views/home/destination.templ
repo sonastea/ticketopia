@@ -11,7 +11,7 @@ templ Destination(active string, title string) {
 			<h1>{ title }</h1>
 			@empty.Empty(empty.Props{Class: "destination-state"}) {
 				@badge.Badge(badge.Props{Class: "availability-label"}) {
-					if active == "profile" || active == "interests" {
+					if active == "profile" || active == "interests" || active == "saved" {
 						Accounts not enabled
 					} else {
 						In development
@@ -20,8 +20,8 @@ templ Destination(active string, title string) {
 				switch active {
 					case "saved":
 						<h2>Your own list of good nights.</h2>
-						<p>Saved events will be your private collection, separate from public recommendations and event interest.</p>
-						<p>Saving isn't available yet. You can explore events and open their Ticketmaster pages today.</p>
+						<p>Saved events are private, separate from public recommendations and event interest.</p>
+						<p>Accounts aren't enabled on this server. Saving requires Google sign-in and MariaDB configuration; discovery is still open to everyone.</p>
 					case "community":
 						<h2>Local knowledge, shared around an event.</h2>
 						<p>This will be a place to find recommended events and useful conversations in your city.</p>

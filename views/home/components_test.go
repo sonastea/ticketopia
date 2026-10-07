@@ -5,7 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/a-h/templ"
+	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/components/button"
+	"golang.org/x/net/html"
 )
 
 func TestComponentLinksRejectScriptURLs(t *testing.T) {
@@ -38,5 +42,60 @@ func TestEmptyPreviewCanReceiveKeyboardFocus(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), `id="event-context" class="event-context" aria-label="Event preview" tabindex="0"`) {
 		t.Fatal("bounded preview must be keyboard-scrollable even without interactive event content")
+	}
+}
+
+func TestSaveFeedbackStaysOutsideActionControls(t *testing.T) {
+	event := models.Event{ID: "ticketmaster:Layout", Name: "Layout regression"}
+	view := SaveView{Enabled: true, SignedIn: true, CSRF: "fixture"}
+	page := EventPage{Detail: models.EventDetail{Item: event}, Saves: view}
+	for name, component := range map[string]templ.Component{
+		"discovery": EventRows([]models.Event{event}, "/", "", view, "/"),
+		"load more": MoreEventsList(SearchPage{Events: models.EventList{Items: []models.Event{event}}, Saves: view}),
+		"preview":   EventContext(page),
+		"event":     Event(page),
+		"Saved":     Saved(SavedPage{List: saved.List{Items: []saved.Item{{Event: event}}}, Saves: view, ReturnURL: "/saved"}),
+	} {
+		t.Run(name, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := component.Render(t.Context(), &out); err != nil {
+				t.Fatal(err)
+			}
+			doc, err := html.Parse(&out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hasAttribute := func(node *html.Node, key string) bool {
+				for _, attr := range node.Attr {
+					if attr.Key == key {
+						return true
+					}
+				}
+				return false
+			}
+			var form, feedback *html.Node
+			var walk func(*html.Node)
+			walk = func(node *html.Node) {
+				if hasAttribute(node, "data-save-form") {
+					form = node
+				}
+				if hasAttribute(node, "data-save-feedback") {
+					feedback = node
+				}
+				for child := node.FirstChild; child != nil; child = child.NextSibling {
+					walk(child)
+				}
+			}
+			walk(doc)
+			if form == nil || feedback == nil {
+				t.Fatal("missing save form or local feedback")
+			}
+			if !hasAttribute(feedback.Parent, "data-event-actions") || form.Parent.Parent != feedback.Parent {
+				t.Fatal("feedback must be a sibling of the controls row, not part of button alignment")
+			}
+			if !hasAttribute(feedback, "hidden") {
+				t.Fatal("empty feedback must not take space before a save")
+			}
+		})
 	}
 }

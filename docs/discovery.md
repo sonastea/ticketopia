@@ -99,9 +99,13 @@ A new form submission starts at the first page.
 - Preview loads cancel obsolete requests, have bounded timeouts, and offer Retry
   and Open event on failure. A failed preview leaves the discovery list usable.
   Keyboard users can tab to **Jump to event preview** on the selected row.
-- `/saved`, `/community`, `/me`, and `/me/interests` are navigable availability
-  pages. Save/Interested/Recommend controls are explicitly disabled and explained.
-  These routes do not implement accounts, persistence, or community mutations.
+- Opt-in [accounts](accounts.md) provide profiles/private preferences and
+  [private saves](saved-events.md). `/saved` is an owner-only collection with
+  durable last-known details; Save/Remove work from rows, previews and event pages.
+  Disabled accounts explain configuration requirements. `/community`, Interested
+  and Recommend remain unavailable and explicitly explained.
+- Detail reads can fall back to durable last-known snapshots when current provider
+  data is unavailable. Public metadata never includes private bookmark state.
 
 ### UI source and assets
 

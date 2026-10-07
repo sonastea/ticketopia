@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### 2026-10-06 — Direct Google sign-in and durable accounts
+### 2026-10-06 — Direct Google sign-in, durable accounts, and private saves
 
 - Deliver direct Google code/PKCE/OIDC sign-in using pinned `x/oauth2` and
   `go-oidc`, with browser-bound, atomic one-time flows and verified identity claims.
@@ -27,3 +27,6 @@
   and OpenAPI lint (only the two existing probe warnings). The independent UI
   reviewer's account-status documentation fix was scored resolved; preserve the
   incumbent design tokens and update its prose/sidecar guardrail consistently.
+- Extend the account phase with private Save/Remove, durable bookmarks and
+  `/saved`; see [save behavior](../saved-events.md) and its
+  [feature history](saved-events.md). Public interest and reminder delivery stay planned.

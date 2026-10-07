@@ -1,8 +1,8 @@
 # Database: MariaDB
 
 Status: Connection/migration support, accounts/private preferences/credentials,
-and minimal durable event identity are
-implemented, opt-in alongside unchanged KV-backed discovery. Broader application
+private bookmarks/last-known snapshots, and minimal durable event identity are
+implemented, opt-in alongside KV-backed discovery and durable detail fallback. Broader application
 storage, scheduled observations, deployed multi-pod operation, HA, and verified
 backup/restore remain planned. See the [foundation guide](../persistence.md).
 
@@ -41,8 +41,9 @@ Cache expiry or switching cache providers must not lose saved activity or jobs.
 
 ## Planned event and community model
 
-Only minimal event/provider identity and identifying metadata are delivered;
-other rows below remain logical records/invariants, not a delivered schema. They implement
+Event/provider identity, identifying metadata, accounts/preferences and private
+bookmarks/full last-known snapshots are delivered. Community rows below remain
+logical records/invariants, not a delivered schema. See [saves](../saved-events.md). They implement
 the [interaction distinctions](../design-guidelines.md#interaction-semantics-and-hierarchy).
 
 | Record | Identity / relationship | Required meaning |

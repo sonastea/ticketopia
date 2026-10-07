@@ -2,6 +2,10 @@
 
 ## 2026-10-06 — Unreleased
 
+- Add a root `.env.example` for all implemented features, with required provider,
+  MariaDB/TLS, and Google OAuth placeholders, safe proxy/cache defaults, optional
+  tuning, and migration-only credentials kept out of runtime injection. Document
+  secret handling and deployment prerequisites in the [environment setup](../deployment.md#environment-template).
 - Document optional runtime-only Google credentials, exact HTTPS callback,
   separately managed Kubernetes auth configuration, and the schema-v1 drain
   required before the account migration; see [deployment](../deployment.md#optional-google-accounts).

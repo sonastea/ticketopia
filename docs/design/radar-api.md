@@ -1,7 +1,8 @@
 # Radar API
 
 Status: The [discovery read API](../discovery.md#json-api) and
-[own/public account APIs](../accounts.md#sessions-and-api-clients) are implemented.
+[own/public account APIs](../accounts.md#sessions-and-api-clients) and
+[private saved-event APIs](../saved-events.md#api) are implemented.
 Personal radar, durable ingestion, reminders, and community endpoints below remain
 draft designs. Track backend and frontend delivery in the
 [aligned checklist](../goals/delivery.md).
@@ -65,8 +66,9 @@ actual concert start dates, statuses, source event URLs, and optional price rang
 | GET | `/api/v1/me/radar` | Get ranked events with structured match reasons. |
 | GET | `/api/v1/me/follows` | List artist and venue follows. |
 | PUT, DELETE | `/api/v1/me/follows/{kind}/{id}` | Follow/unfollow an `artist` or `venue`. |
-| GET | `/api/v1/me/saved-events` | List saved events. |
-| PUT, DELETE | `/api/v1/me/saved-events/{event_id}` | Save/unsave an event. |
+| GET | `/api/v1/me/saved-events` | Implemented: owner-only paginated last-known saved events. |
+| GET, PUT, DELETE | `/api/v1/me/saved-events/{event_id}` | Implemented: read/save/unsave an owner-only bookmark. |
+| GET | `/api/v1/me/saved-events/states` | Implemented: bounded batch of private viewer flags, separate from public metadata. |
 | GET | `/api/v1/me/reminders` | List reminder settings and scheduling states. |
 | PUT, DELETE | `/api/v1/me/reminders/{event_id}/{kind}` | Configure/remove a reminder; initially `public-on-sale`. |
 
@@ -147,8 +149,8 @@ review remain required before the public community pilot.
 
 ### Proposed MVP community resources
 
-Except the marked own/public profiles, routes below are **unimplemented proposals** under `/api/v1`. Proposed saved
-event routes above retain their owner-only semantics. Public reads return only
+Except the marked own/public profiles, routes below are **unimplemented proposals** under `/api/v1`. Saved
+event routes above are implemented with owner-only semantics. Public reads return only
 permitted fields; writes require verified identity and ownership/role checks.
 
 | Method | Path | Purpose |
