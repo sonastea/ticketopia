@@ -468,7 +468,7 @@ func Description(props ...DescriptionProps) templ.Component {
 			p = props[0]
 		}
 		var templ_7745c5c3_Var19 = []any{utils.CN(
-			"text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
+			"text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a]:hover:text-primary",
 			p.Class,
 		),
 		}

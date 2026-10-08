@@ -46,6 +46,49 @@
 - Inspect generated output only to debug generation, validate generated behavior,
   investigate a failure pointing into it, or when no source representation exists.
 
+## Modern CSS
+
+- Follow [Good CSS](https://good-css.com/skills/good-css/SKILL.md) when writing or
+  reviewing CSS, Tailwind classes, or inline styles. Read only its task-relevant
+  reference files; the local conventions below keep routine work self-contained.
+- Prefer an intrinsic layout or one adaptive declaration over breakpoint ladders,
+  extra wrappers, or JavaScript. Use Grid/Flexbox, `gap`, auto margins, intrinsic
+  grids with shrink-safe minima, and container queries for reusable components.
+  Preserve the shell's shared CSS/JavaScript thresholds and intentional layout
+  changes; do not replace behavior breakpoints with fluid math.
+- Use logical sizes, spacing, borders, alignment, and insets (`inline`/`block`,
+  `start`/`end`), including Tailwind logical utilities. Keep physical directions
+  only for genuinely physical geometry, safe-area environment variables, and
+  unchanged vendored dependencies.
+- Define palette colors in `oklch()`; achromatic colors use hue `none`. Derive
+  hover/pressed shades, tints, and transparency with `color-mix(in oklch, ...)`.
+  Preserve documented semantic palette roles and provider-brand exceptions.
+  Keep light/dark pairs in one `light-dark()` token set and switch `color-scheme`,
+  not token definitions. Ticketopia stays light by default; do not add automatic
+  dark mode or a theme toggle without a product requirement.
+- Tokenize fluid sizes with `clamp()` using rem bounds and a rem + viewport (or
+  container) preferred value. Font maxima must not exceed 2.5 times their minima.
+  Keep the existing role-based type hierarchy rather than inventing a new scale.
+- Keep the defensive reset: shrinkable flex/grid items, inherited word wrapping,
+  balanced headings, stable scrollbar gutter, and correct viewport units. Give
+  fixed-size media/icons `flex: none`, preserve image aspect-ratio wrappers, and
+  use tabular numbers for prices, dates, and counts, not all prose.
+- Use `overflow: clip` for clipping only; retain `auto`/`hidden` for actual or
+  programmatic scrolling and resizable controls. Prefer root `break-word` over
+  global `anywhere`; never truncate essential text or disable browser zoom.
+- Gate every hover rule behind `(hover: hover) and (pointer: fine)`, including
+  Tailwind variants. Provide non-motion `:active` feedback, visible outline-based
+  `:focus-visible` states, and 44px action targets. Never remove focus outlines;
+  preserve forced-colors support and text selection on content and links.
+- Name transition properties, use the shared easing tokens, and never use `all`
+  or `ease-in`. Opt into movement/scaling only under
+  `prefers-reduced-motion: no-preference`; unsupported enhancements must leave
+  native forms, disclosure, scrolling, and navigation usable.
+- Edit app-owned CSS in `views/styles/app.css`; keep vendored style utilities
+  intact and adapt copied components deliberately. Rebuild compiled CSS and
+  verify compact/desktop layouts, long content, enlarged text, touch feedback,
+  keyboard/forced-colors focus, and reduced motion after shared styling changes.
+
 ## Validation and completion
 
 - Use the smallest useful check during implementation: affected Go package/tests

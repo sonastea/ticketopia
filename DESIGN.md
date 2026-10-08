@@ -5,25 +5,25 @@ colors:
   ink: "#29252d"
   muted: "#69616d"
   brand: "#6b3d5f"
-  brand-dark: "#522c49"
-  brand-active: "#432338"
+  brand-dark: "color-mix(in oklch, var(--brand), black 18%)"
+  brand-active: "color-mix(in oklch, var(--brand), black 28%)"
   brand-soft: "#ebdde8"
   nav-surface: "#f2f0f3"
-  nav-hover: "#e6e0e5"
+  nav-hover: "color-mix(in oklch, var(--nav-surface), var(--ink) 6.5%)"
   paper: "#faf9fb"
   surface: "#ffffff"
   line: "#dfdae2"
   control-line: "#938b99"
   date-surface: "#e8d2db"
   error: "#a22b39"
-  error-bg: "#fff0f1"
+  error-bg: "color-mix(in oklch, var(--error) 6%, var(--surface))"
   warning: "#795318"
-  warning-bg: "#fff3d9"
+  warning-bg: "color-mix(in oklch, var(--warning) 6%, var(--surface))"
   success: "#286247"
 typography:
   display:
     fontFamily: "Manrope, sans-serif"
-    fontSize: "2rem"
+    fontSize: "clamp(1.75rem, 1.5rem + .625vw, 2rem)"
     fontWeight: 800
     lineHeight: 1.25
     letterSpacing: "-.035em"
@@ -263,6 +263,14 @@ Bold, readable Manrope and real provider photography carry the personality. Fami
 
 The palette combines muted deep plum, light stone, near-white reading space, and a small dusty-rose date vocabulary; dark ink and clearly differentiated borders keep it practical.
 
+App CSS expresses pinned base colors in OKLCH; hex values here remain familiar
+equivalent base swatches. Hover/pressed shades and status washes derive from their
+base using `color-mix(in oklch, ...)`, as the frontmatter records. Selection plum
+and rose date paper stay separately pinned semantic colors. Library light/dark
+pairs use `light-dark()` with a light fallback for older browsers; this does not
+enable automatic or whole-application dark mode. See the
+[modern CSS conventions](docs/ui-components.md#modern-css-conventions).
+
 ### Primary
 - **Deep plum** (`brand`): primary actions, actionable text, selected navigation text/icons, brand icon/stop, caret, and focus outlines.
 - **Dark plum** (`brand-dark`): primary-action hover, secondary-action hover text, and readable event-date text.
@@ -290,7 +298,7 @@ The palette combines muted deep plum, light stone, near-white reading space, and
 **The Plum State, Rose Date Rule.** Plum carries actions, focus, and selection; dusty rose belongs only to date indexing. Availability stays neutral, and every navigation layout shares the pale-plum current state.
 
 The supporting washes deliberately separate their roles: pale plum (`#ebdde8`)
-makes selection visible, hover stone (`#e6e0e5`) stays neutral, and warmer
+makes selection visible, derived hover stone stays neutral, and warmer
 dusty rose (`#e8d2db`) gives dates their own index. Keep the deep-plum action
 colors and near-white reading surfaces unchanged. Selection is also communicated
 through current-navigation weight and `aria-current`, with a distinct plum focus
@@ -307,7 +315,7 @@ text rather than white.
 **Character:** rounded, direct, and substantial. Tight heading tracking gives short titles confidence; ordinary casing and generous body leading keep long event information readable. The hierarchy is role-based, not a manufactured modular scale.
 
 ### Hierarchy
-- **Display:** `typography.display` for page headings. Discovery headings reduce to 1.75rem below the context threshold. Event-page headings use 1.75rem, reducing to 1.5rem on the smallest phones.
+- **Display:** `typography.display` for page headings, fluid from 1.75rem to 2rem. Event-page headings use the separate `--text-event-heading` token, fluid from 1.5rem to 1.75rem. Both use rem bounds and rem + viewport interpolation rather than font-size breakpoint overrides.
 - **Headline:** `typography.headline` for section and preview headings. Event-content section headings use 1.125rem; destination-state headings use 1.5rem.
 - **Title:** `typography.title` for supporting headings; `typography.event-title` for result titles, with the more open leading needed by long names.
 - **Body:** `typography.body` for the base reading size; `typography.body-small` for event descriptions. Observed reading measures are 65ch for introductions, 70ch for event prose, and 75ch for source notes.
@@ -317,7 +325,12 @@ text rather than white.
 
 Themed library primitives retain their own utility leading where the app has not overridden it: navigation, quiet buttons, and section links use the `text-sm` ratio (`calc(1.25 / .875)`); availability and sale-status badges use the `text-xs` ratio (`calc(1 / .75)`); search/filter input text uses 1.5. These are observed inherited roles, not a universal 1.6 line-height applied to every control. Plain date lines and sidebar customization labels retain the body leading.
 
-Headings balance lines, and headings/paragraphs can wrap anywhere to handle long provider names. Smaller metadata supports the event title and essential facts rather than replacing them.
+Headings balance lines, prose uses pretty wrapping where supported, and inherited
+`overflow-wrap: break-word` handles long provider names without shrinking
+min-content-sized boxes to a single letter. Flex/grid items can shrink with
+`min-inline-size: 0`. Manrope's real variable weights are used without synthetic
+bold/italic; font smoothing is explicit. Smaller metadata supports the event title
+and essential facts rather than replacing them.
 
 **The One Family, Clear Roles Rule.** Use Manrope's size, weight, leading, and spacing to distinguish headings, facts, and controls; keep dates tabular and long event names able to wrap.
 
@@ -327,7 +340,11 @@ Manrope remains the family for all surrounding account and application UI.
 
 ## Layout
 
-The centered application shell stops at 100rem and fills at least the dynamic viewport height. Main content uses normal document scrolling. Reused spacing primitives are the source's `space-1` through `space-7`; component-specific insets remain explicit rather than becoming another spacing scale.
+The centered application shell stops at 100rem and fills at least the small
+viewport height (`100svh`), avoiding document relayout as mobile toolbars move.
+Main content uses normal document scrolling. Fixed-height sidebar UI still uses
+`100dvh`. Reused spacing primitives are the source's `space-1` through `space-7`;
+component-specific insets remain explicit rather than becoming another scale.
 
 | Threshold | Shipped behavior |
 | --- | --- |
@@ -360,7 +377,11 @@ Some observed component-local corners are intentionally outside the reusable sca
 
 Event imagery fills a clipped frame with `object-fit: cover`. The default frame is 16:9; list images become square at the row-image threshold. Full-event images cap their height at 22rem, and a compact selected preview caps it at 16rem. Preserve provider color and content; the reviewed monochrome photographs are source material, not a prescribed grayscale filter.
 
-Icons are inline outline SVGs with a 24-unit viewBox, rounded caps/joins, and stroke width 1.7. The usual displayed size is 1.25rem; quiet controls use 1rem. The fallback uses a music icon for classified music events and a ticket icon otherwise. It occupies the same image frame, so a failed image does not erase the event's place in the list.
+Icons are outline SVGs with a 24-unit viewBox, rounded caps/joins, and stroke width
+1.7. Label-adjacent icons use font-relative em sizing and cannot shrink; larger
+decorative/fallback icons retain explicit rem sizes. The fallback uses a music
+icon for classified music events and a ticket icon otherwise. It occupies the
+same image frame, so a failed image does not erase the event's place in the list.
 
 ## Components
 
@@ -378,12 +399,19 @@ The Google sign-in CTA is a scoped provider-brand exception using Google's
 documented filled-blue treatment: #0b57d0 fill/border, white text, .25rem corners,
 and a 20px current gradient G centered in a 36px white tile with a .625rem label
 gap. Compact .1875rem insets frame the tile; .875rem trailing padding balances
-the label. Hover/pressed fills darken to #0842a0/#062e6f rather than adopting plum.
+the label. Hover/pressed fills mix the provider blue with 18%/35% black in OKLCH
+rather than adopting plum.
 It retains the app's 44px minimum target, plum focus outline, flat depth, and a
 no-JavaScript OAuth link. Logo/font sources and licensing are recorded in
 [`views/assets/fonts/README.md`](views/assets/fonts/README.md).
 
-Action background changes, sidebar width changes, and disclosure-chevron rotation use 160ms; result selection uses 180ms. These use the source's `cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms standard easing for color/fill changes only. Reduced-motion mode sets transition and animation durations to zero and scroll behavior to auto. No loading shimmer is part of the system.
+Action background changes, sidebar width changes, and disclosure-chevron rotation
+use 160ms; result selection uses 180ms. Buttons and badges share the source's
+`cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms for color/fill
+changes only. Geometry transitions opt into motion only when no reduction is
+requested. The reduced-motion safeguard also disables vendored animations and
+smooth scrolling. Hover requires a fine, hover-capable pointer; touch press
+feedback changes fill/color without movement. No loading shimmer ships.
 
 ### Inputs / Fields
 

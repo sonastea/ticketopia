@@ -75,6 +75,41 @@ and route semantics remain app-owned; see [DESIGN.md](../DESIGN.md).
 Ordinary headings, content links, semantic landmarks, lists, and provider images
 remain HTML; they are not interactive widget substitutes.
 
+## Modern CSS conventions
+
+Follow [Good CSS](https://good-css.com/skills/good-css/SKILL.md) and the repository's
+[agent guidance](../AGENTS.md#modern-css) in the existing Tailwind/CSS architecture.
+`views/styles/app.css` owns the reset, logical sizes/insets/spacing, OKLCH palette,
+derived `color-mix(in oklch, ...)` states, and fluid heading tokens. Approved plum
+selection and rose date colors remain distinct base palette roles; they are not
+generated hover shades. Do not change vendored style utilities to implement app
+conventions.
+
+The application stays light regardless of OS preference, including its initial
+color-scheme metadata. Library dark tokens use one `light-dark()` set; `.dark`
+only opts a subtree into `color-scheme: dark`, not a shipped whole-app dark mode.
+Tailwind's `hover` variant and app hover rules require both hover capability and
+a fine pointer. Touch has flat pressed feedback; links remain selectable. Focus
+uses real outlines, including forced-colors mode. Geometry transitions opt into
+`prefers-reduced-motion: no-preference`; vendored animations also respect the
+existing reduced-motion safeguard.
+
+Use parent-owned gaps and shrink-safe tracks. Keep behavioral shell thresholds
+at 62rem/72rem synchronized with JavaScript. Heading sizes adapt with bounded,
+rem-based `clamp()` tokens, while fields remain at least 16px to avoid iOS focus
+zoom without disabling user zoom. Text wraps without global min-content-shrinking
+`anywhere`; dates, prices, counts, and changing numeric facts use tabular figures.
+Image wrappers reserve aspect ratios and clip without creating scroll containers.
+Actual sidebar/preview scroll areas retain `overflow-y: auto`, stable gutters,
+and contained overscroll. Textareas grow from 8rem to 24rem with `field-sizing`
+where supported, retaining native scrolling and manual resizing otherwise.
+
+Modern features follow the existing Tailwind v4 browser baseline (Chrome 111+,
+Safari 16.4+, Firefox 128+). `light-dark()` requires Chrome 123+/Safari 17.5+;
+older browsers retain explicit light-token fallbacks, without library dark-mode
+opt-in. Pretty wrapping, intrinsic-size animation, and textarea auto-sizing
+progressively enhance browsers that support them.
+
 ## Local adaptations
 
 Copied component source is intentionally editable. Preserve these changes when
@@ -82,6 +117,9 @@ updating components, and review the registry diff before using `--overwrite`:
 
 - `button/button.templ` uses `templ.URL` rather than `templ.SafeURL` so provider
   and caller-supplied links retain protocol sanitization.
+  Its interaction defaults omit the library's pressed translation and blanket
+  selection suppression, use color-only transitions, and retain a transparent
+  outline rather than removing it. App CSS owns visible focus and press feedback.
 - `select/native.templ` offers a themed native `<select>`. Category and genre
   remain keyboard-accessible ordinary form controls; changing category replaces
   compatible genre options, and both work without JavaScript.
@@ -90,6 +128,8 @@ updating components, and review the registry diff before using `--overwrite`:
   without the library's JavaScript behavior.
 - The theme preserves 44px actions, visible outline focus, flat border-only depth,
   readable disabled states, reduced motion, and the existing responsive shell.
+- `empty/empty.templ` routes child-link hover through the guarded Tailwind `hover`
+  variant instead of an unconditional arbitrary `a:hover` selector.
 
 The upstream Select and Collapsible implementations and dependencies remain
 available for future JavaScript-enhanced widgets. Use the native variants for
@@ -103,3 +143,15 @@ Run the build, race tests, and vet above. The focused rendering regressions in
 For browser changes, check desktop, intermediate rail, mobile, and 320px layouts;
 category resets; preview loading/error/retry/close; event-section navigation;
 htmx pagination; keyboard focus; and search/pagination with JavaScript disabled.
+
+For isolated shared-CSS regressions, run `go run ./scripts/css-preview` in one
+terminal, then `PLAYWRIGHT_MODULE=/path/to/playwright node scripts/css-browser.cjs`
+in another. The read-only server binds to localhost:18088, renders production
+templates with long-content fixtures, and reads built assets from `views/assets`.
+It needs no provider, database, account session, or credentials. Playwright is an
+optional external test tool, not a shipping dependency. Set `CSS_SCREENSHOT_DIR`
+to capture the batched desktop/rail/mobile/320px/enlarged-text layouts. Checks also
+cover input floors, clipping/sticky scrolling, hover/press, reduced motion,
+forced-colors focus, selectable links, bounded textareas, RTL, and native filters.
+Set `CSS_BROWSER=webkit` and, if needed, `CSS_BROWSER_EXECUTABLE` to run the same
+checks in WebKit; the default is Chromium.
