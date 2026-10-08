@@ -29,6 +29,8 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Private artist and venue follows](follows.md): authenticated name search,
+  follow/unfollow, durable owner-only collections and equivalent APIs.
 - [Reliable event history](event-history.md): durable artist/venue catalogs,
   dated observations/change detection, budgeted city/date refreshes, retained
   coverage/failure receipts, and shared provider accounting.
@@ -52,8 +54,8 @@ their status; they describe intended work rather than available features.
 - [OpenAPI contract](openapi.md): API specification format, published YAML,
   tooling, and maintenance alongside Go handlers.
 - [Container deployment](deployment.md): Docker builds, Coolify settings, health
-  checks, graceful shutdown, Kubernetes probes, and private GHCR publishing with
-  a self-hosted GitHub Actions runner.
+  checks, graceful shutdown, Kubernetes probes, local pre-commit Docker validation,
+  and private GHCR publishing with a self-hosted GitHub Actions runner.
 - [UI components](ui-components.md): shadcn-templ installation, themed primitives,
   Tailwind v4 builds, progressive enhancement, and component updates.
 - [Ticketmaster discovery](discovery.md): event/metadata fetching, JSON API,

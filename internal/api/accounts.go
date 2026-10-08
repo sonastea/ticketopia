@@ -16,6 +16,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/follows"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/moderation"
 	"github.com/sonastea/ticketopia/internal/recommendations"
@@ -77,6 +78,9 @@ func (a *api) cookie(c echo.Context, kind, raw string, lifetime time.Duration) {
 // Only a local, known page may be resumed. Never redirect to an auth endpoint,
 // encoded slash/backslash, external origin, or user-controlled fragment.
 func safeAuthReturn(raw string) string {
+	if strings.HasPrefix(raw, "/follows") {
+		return safeFollowReturn(raw)
+	}
 	if strings.HasPrefix(raw, "/moderation") || strings.HasPrefix(raw, "/posts/") || strings.HasPrefix(raw, "/me/reports") || strings.HasPrefix(raw, "/me/moderation") {
 		return safeModerationReturn(raw)
 	}
@@ -253,6 +257,10 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 400, "invalid_sign_in", "Sign-in expired or could not be verified. Please start again.", nil
 	case errors.Is(err, accounts.ErrNotFound):
 		return 404, "account_not_found", "This profile could not be found.", nil
+	case errors.Is(err, follows.ErrNotFound):
+		return 404, "follow_not_found", "This artist, venue or follow couldn't be found. Search again or return to your follows.", nil
+	case errors.Is(err, follows.ErrUnavailable):
+		return 503, "follows_unavailable", "Your follows couldn't load or change. Please try again shortly.", nil
 	case errors.Is(err, discovery.ErrNotFound), errors.Is(err, saved.ErrNotFound), errors.Is(err, interests.ErrNotFound), errors.Is(err, recommendations.ErrNotFound):
 		return 404, "event_not_found", "This event could not be found. Return to discovery and try another event.", nil
 	case errors.Is(err, saved.ErrUnavailable):

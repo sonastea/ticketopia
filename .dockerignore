@@ -1,4 +1,5 @@
-# Allow only build inputs; leave local dependencies, binaries, Git, and docs out.
+# Allow only build/validation inputs; leave local dependencies, binaries, Git,
+# and docs out.
 **
 !go.mod
 !go.sum
@@ -15,6 +16,17 @@
 !utils/**
 !views/
 !views/**
+
+# Source files read by the local workflow and runtime-permission tests.
+!Makefile
+!scripts/
+scripts/**
+!scripts/mariadb-setup.sh
+!deploy/
+deploy/**
+!deploy/mariadb/
+deploy/mariadb/**
+!deploy/mariadb/runtime-check.sql
 
 # Never send local configuration or data, even from an included directory.
 **/.env*

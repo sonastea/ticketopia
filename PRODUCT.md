@@ -21,7 +21,8 @@ The [responsive UX guide](docs/design-guidelines.md) describes the implemented
 navigation and interaction contract.
 Opt-in Google accounts provide MariaDB-backed sessions, profiles/privacy defaults,
 private preferences, API credentials, and durable private event saves with
-last-known metadata. Independent Interested choices provide private-by-default
+last-known metadata. Private artist/venue follows provide authenticated search,
+follow/unfollow and cross-session owner-only collections. Independent Interested choices provide private-by-default
 identities, public counts, and explicitly public participant/profile activity.
 Public recommendations provide optional short reasons, edit/withdrawal, event/profile
 attribution, and grouped city/category browsing independently of private interest.
@@ -42,7 +43,7 @@ even as moderators. No notification delivery or public-pilot approval is claimed
 ## Product Purpose
 
 Help someone discover an event, save it privately, express interest, recommend
-it, and join useful event-specific conversations. Events are the central objects
+it, follow artists and venues, and join useful event-specific conversations. Events are the central objects
 connecting local discovery and community participation. Useful reminders remain
 an agreed subsequent outcome. The discovery foundation uses efficiently cached
 Ticketmaster data; see the [delivery checklist](docs/goals/delivery.md) for scope
@@ -70,7 +71,7 @@ messenger. Do not present asynchronous discussions as live chat.
 - Keep every discussion visibly associated with its event.
 - Use progressive disclosure and predictable navigation with low-friction actions.
 - Design desktop, tablet, and mobile independently with essential feature parity.
-- Keep private saves, social interest, event endorsements, and post reactions distinct.
+- Keep private saves/follows, social interest, event endorsements, and post reactions distinct.
 - Prefer asynchronous threads over advanced messaging complexity.
 - Start with a relevant city and make the location visible and easy to change.
 - Keep event dates distinct from ticket-sale dates.

@@ -35,11 +35,24 @@ GCC and C headers), without installing development tools on the host:
 docker buildx build --target validate --no-cache-filter validate .
 ```
 
+`make check` runs the same command against the current working tree, including
+uncommitted changes. Run it before committing changes to Docker/build inputs,
+asset generation, or tests that read repository files. It applies `.dockerignore`
+just like publishing, catching missing build-context inputs that host-only tests
+would miss, as well as asset, compilation, race-test, and vet errors. Tests always
+rerun while dependency and build layers remain cached. This is a manual local
+check, not an installed Git hook; it does not log in to GHCR or publish an image.
+
 The validation target runs on the builder's native architecture. The final runtime
 stage remains separate: normal image builds do not run tests or ship validation tools.
 
 Open <http://localhost:8080>. The [.dockerignore](../.dockerignore) allowlists build
-inputs and excludes local configuration, databases, dependencies, and binaries.
+and validation inputs and excludes local configuration, databases, dependencies,
+and binaries. Keep files read by tests in the allowlist too: the root `Makefile`,
+`scripts/mariadb-setup.sh`, and `deploy/mariadb/runtime-check.sql` support the
+workflow and runtime-permission regression tests. Workflow tests replace external
+tools with fixtures; including these sources does not provision a database or add
+them to the final runtime image.
 Secrets are not build arguments and `.env` is not baked into the image. Supply
 environment variables at runtime; for local testing, `--env-file .env` is also
 supported. Use the deployment platform's secret storage in production.

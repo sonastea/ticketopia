@@ -2,7 +2,7 @@
 
 Implemented, opt-in: direct Google authorization-code sign-in, durable accounts,
 browser sessions, public profiles/private preferences, personal API tokens, and
-[private event saves](saved-events.md), [Interested](event-interest.md), and
+[private event saves](saved-events.md), [private artist/venue follows](follows.md), [Interested](event-interest.md), and
 [public recommendations](event-recommendations.md).
 Accounts require MariaDB; there is no memory fallback. Discussions,
 personalization, and notification delivery remain planned.
@@ -10,7 +10,7 @@ personalization, and notification delivery remain planned.
 ## Enable accounts
 
 First follow the [MariaDB setup](persistence.md#repeatable-local-development), apply
-schema version **5**, and reapply the runtime grants. Discovery remains usable with
+schema version **10**, and reapply the runtime grants. Discovery remains usable with
 `AUTH_ENABLED` unset/false. When enabled, missing/invalid configuration or SQL
 startup failures stop the server before it listens.
 
@@ -56,6 +56,8 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
 - `/me/interests`: paginated own event interest with per-event visibility/removal,
   followed by separate private category choices. Catalog failures retain selected
   IDs rather than erasing choices. Categories do not filter or rank discovery automatically.
+- `/follows`: artist/venue search, follow/unfollow and a private, paginated collection.
+  Follows never enter public profile activity. See [follows](follows.md).
 - Discovery location precedence is explicit search, remembered browser city,
   authenticated account default city, then IP hint. An explicit empty city still
   asks for a location. Sidebar customization remains browser-local.
@@ -102,6 +104,8 @@ The web UI offers Save/Remove in discovery/previews/event pages and `/saved` for
 the owner-only collection. See [saving and verification](saved-events.md).
 They also manage independent interest through `/api/v1/me/event-interests`;
 see [interest APIs and verification](event-interest.md).
+Personal tokens also search artists/venues and manage private follows through
+`/api/v1/me/follows`; see [follow APIs and verification](follows.md#api).
 
 ## Security and verification
 

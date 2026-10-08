@@ -97,6 +97,10 @@
 - Broaden validation when shared behavior or package boundaries change. Use the
   full suite (`go test -race ./...`) and `go vet ./...` when appropriate for final
   validation of substantial changes, not after every small edit.
+- Before committing changes to Docker/build inputs, asset generation, or tests
+  that read repository files, run `make check` after the final relevant edits.
+  It validates the working tree with the publishing Docker target, including
+  `.dockerignore` filtering; host-only tests cannot catch omitted context files.
 - Add tests for meaningful behavioral risks, not to mirror implementation or
   validate prose-only/trivial edits. Do not rerun successful checks unless relevant
   changes, failures, or unresolved concerns justify it.

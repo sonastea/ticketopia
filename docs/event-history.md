@@ -10,7 +10,7 @@ Notification delivery and a public history API/timeline remain separate work.
 
 Drain older binaries, preserve a backup, apply migrations with separate migration
 credentials, and reapply runtime grants before starting this binary. It accepts
-clean schema 9 only; do not run schema-8 apps after migration. See
+clean schema 10 only, including [private follows](follows.md); drain older apps before migration. See
 [migration and recovery procedures](persistence.md#explicit-migrations-and-failed-ddl-recovery).
 The feature does not migrate databases on startup.
 

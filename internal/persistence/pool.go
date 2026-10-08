@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 9
+const SupportedSchemaVersion = 10
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -145,6 +145,8 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT artist_id,snapshot,first_seen,last_seen FROM artists LIMIT 0`,
 		`SELECT provider,source_id,artist_id FROM artist_providers LIMIT 0`,
 		`SELECT venue_id,snapshot,first_seen,last_seen FROM venues LIMIT 0`,
+		`SELECT account_id,artist_id,followed_at FROM artist_follows LIMIT 0`,
+		`SELECT account_id,venue_id,followed_at FROM venue_follows LIMIT 0`,
 		`SELECT provider,source_id,venue_id FROM venue_providers LIMIT 0`,
 		`SELECT event_id,first_seen,last_seen,last_changed,snapshot FROM event_history_state LIMIT 0`,
 		`SELECT event_id,observed_at,snapshot,changes FROM event_observations LIMIT 0`,
@@ -163,11 +165,11 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		}
 	}
 	var count int
-	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals','artists','artist_providers','venues','venue_providers','event_history_state','event_observations','collection_tasks','collection_runs','collection_pages','collection_run_events','provider_budgets') AND engine = 'InnoDB'`).Scan(&count)
+	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals','artists','artist_providers','venues','venue_providers','artist_follows','venue_follows','event_history_state','event_observations','collection_tasks','collection_runs','collection_pages','collection_run_events','provider_budgets') AND engine = 'InnoDB'`).Scan(&count)
 	if err != nil {
 		return safeError("schema validation", err)
 	}
-	if count != 33 {
+	if count != 35 {
 		return fmt.Errorf("database schema requires InnoDB tables")
 	}
 	return nil

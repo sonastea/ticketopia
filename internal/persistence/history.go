@@ -138,22 +138,8 @@ last_seen=GREATEST(last_seen,VALUES(last_seen))`, detail.Item.ID, at, at, change
 		if err != nil {
 			return err
 		}
-		table, mappings, column := "artists", "artist_providers", "artist_id"
-		if ref.kind == "venue" {
-			table, mappings, column = "venues", "venue_providers", "venue_id"
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO `+table+` (`+column+`,snapshot,first_seen,last_seen) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE snapshot=IF(VALUES(last_seen)>last_seen,VALUES(snapshot),snapshot),first_seen=LEAST(first_seen,VALUES(first_seen)),last_seen=GREATEST(last_seen,VALUES(last_seen))`, ref.id, string(data), at, at); err != nil {
+		if err := upsertReferenceTx(ctx, tx, ref.kind, ref.id, provider, source, data, at); err != nil {
 			return err
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO `+mappings+` (provider,source_id,`+column+`) VALUES (?,?,?) ON DUPLICATE KEY UPDATE `+column+`=`+column, provider, source, ref.id); err != nil {
-			return err
-		}
-		var mapped string
-		if err := tx.QueryRowContext(ctx, `SELECT `+column+` FROM `+mappings+` WHERE provider=? AND source_id=?`, provider, source).Scan(&mapped); err != nil {
-			return err
-		}
-		if mapped != ref.id {
-			return fmt.Errorf("reference mapping cannot change identity")
 		}
 	}
 	return nil

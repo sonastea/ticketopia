@@ -64,6 +64,7 @@ templ Settings(p Page) {
 				<a href="/me" aria-current={ layouts.CurrentPage(p.Section == "profile") }>Profile &amp; privacy</a>
 				<a href="/me/preferences" aria-current={ layouts.CurrentPage(p.Section == "preferences") }>Preferences</a>
 				<a href="/me/interests" aria-current={ layouts.CurrentPage(p.Section == "interests") }>Interests</a>
+				<a href="/follows">Follows</a>
 				if p.ModerationEnabled {
 					<a href="/me/reports">Your reports</a><a href="/me/moderation">Moderation outcomes</a>
 					if p.Moderator {
@@ -129,7 +130,7 @@ templ Profile(p Page) {
 				<p class="field-note">No bio added.</p>
 			}
 			<a href={ templ.URL("/users/" + p.Account.ID) } class="text-link">Open your public profile</a>
-			<p class="field-note">Your email, city, category preferences, notification settings, saves, and private event interest are not part of this public view. Public event interest and separately published recommendations appear.</p>
+			<p class="field-note">Your email, city, category preferences, notification settings, saves, follows, and private event interest are not part of this public view. Public event interest and separately published recommendations appear.</p>
 		</aside>
 	</div>
 	<section class="account-section" aria-labelledby="sign-in-heading">

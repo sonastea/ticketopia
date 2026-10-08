@@ -29,3 +29,5 @@ GRANT INSERT, UPDATE ON ticketopia.collection_runs TO 'ticketopia_runtime'@'%';
 GRANT INSERT ON ticketopia.collection_pages TO 'ticketopia_runtime'@'%';
 GRANT INSERT ON ticketopia.collection_run_events TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE ON ticketopia.provider_budgets TO 'ticketopia_runtime'@'%';
+GRANT INSERT, DELETE ON ticketopia.artist_follows TO 'ticketopia_runtime'@'%';
+GRANT INSERT, DELETE ON ticketopia.venue_follows TO 'ticketopia_runtime'@'%';

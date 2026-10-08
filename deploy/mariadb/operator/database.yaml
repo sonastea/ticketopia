@@ -457,6 +457,32 @@ spec:
 ---
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Grant
+metadata: {name: ticketopia-runtime-artist-follows, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, DELETE]
+  database: ticketopia
+  table: artist_follows
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-venue-follows, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, DELETE]
+  database: ticketopia
+  table: venue_follows
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
 metadata: {name: ticketopia-runtime-artist-providers, namespace: ticketopia}
 spec:
   mariaDbRef: {name: ticketopia-db}

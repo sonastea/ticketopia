@@ -75,6 +75,7 @@ func Execute(ctx context.Context) int {
 		// Shared snapshot fallback is public metadata, independent of accounts.
 		options = append(options, api.WithSavedEvents(pool.Saved()))
 		if authConfig.Enabled {
+			options = append(options, api.WithFollows(pool.Follows()))
 			options = append(options, api.WithEventInterests(pool.Interests()))
 			options = append(options, api.WithEventRecommendations(pool.Recommendations()))
 			options = append(options, api.WithEventDiscussions(pool.Discussions()))

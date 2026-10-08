@@ -53,6 +53,7 @@ templ App(active string, title string) {
 					@NavGroup("your-space", "Your space") {
 						@NavItem("/saved", "Saved", "saved", active == "saved")
 						@NavItem("/me/interests", "Interests", "interests", active == "interests")
+						@NavItem("/follows", "Follows", "follows", active == "follows")
 					}
 				</nav>
 				<div class="sidebar-foot">
@@ -85,7 +86,7 @@ templ App(active string, title string) {
 			@NavLink("/", "Discover", "discover", active == "discover")
 			@NavLink("/saved", "Saved", "saved", active == "saved")
 			@NavLink("/community", "Community", "community", active == "community")
-			@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests")
+			@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests" || active == "follows")
 		</nav>
 	}
 }

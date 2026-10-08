@@ -343,7 +343,7 @@ func TestMariaDBHistorySchema8UpgradePreservesActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if entry.Name() == "00009_event_history.sql" {
+		if entry.Name() >= "00009" {
 			continue
 		}
 		data, err := migrations.ReadFile("migrations/" + entry.Name())

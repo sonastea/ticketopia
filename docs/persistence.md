@@ -8,7 +8,8 @@ schema-v4 [event interest](event-interest.md), and schema-v5
 [event discussions/Helpful](event-discussions.md), plus schema-v7 grouped recommendations
 and observe-only publication measurements, and schema-v8
 [private reporting/moderation and durable roles](moderation.md), and schema-v9
-[reliable event history](event-history.md). Interactive discovery still uses its
+[reliable event history](event-history.md), plus schema-v10
+[private artist/venue follows](follows.md). Interactive discovery still uses its
 cache/provider services; MariaDB mode shares durable request budgets/pacing/cooldowns.
 Opt-in city/date collection and fresh activity snapshots persist observations,
 artist/venue catalogs, coverage and change evidence. There are no notification
@@ -270,22 +271,29 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 9 only**. Versions 0–8 and 10+ are rejected;
+This binary supports **clean schema version 10 only**. Versions 0–9 and 11+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous moderation binary supports version 8 only.
-For the v8-to-v9 history upgrade, stop/drain v8 traffic, preserve a backup,
-apply the v9 migration with the v9 image, reapply/reconcile runtime table grants,
-then start v9 apps. Do not leave v8 pods serving after migration; they will fail
+old binaries are gone. The previous history binary supports version 9 only.
+For the v9-to-v10 follow upgrade, stop/drain v9 traffic, preserve a backup,
+apply the v10 migration with the v10 image, reapply/reconcile runtime table grants,
+then start v10 apps. Do not leave v9 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
 
 ## Durable identity boundary
+
+Schema v10 adds separate `artist_follows` and `venue_follows`, each unique per
+account/catalog identity with stable first-follow times and keyset indexes.
+Runtime has INSERT/DELETE, not UPDATE. Follow writes atomically retain catalog
+metadata/mappings before the private follow; collection reads and removals are
+provider-free. No public follow identity/counts or notification jobs are added.
+See [follows](follows.md).
 
 `events.Service.EnsureDurable` explicitly persists a normalized occurrence for
 local actions; `Get` resolves it independently of cache/provider availability.

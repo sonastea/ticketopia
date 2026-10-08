@@ -65,5 +65,9 @@ INSERT INTO collection_pages SELECT * FROM collection_pages WHERE FALSE;
 INSERT INTO collection_run_events SELECT * FROM collection_run_events WHERE FALSE;
 INSERT INTO provider_budgets SELECT * FROM provider_budgets WHERE FALSE;
 UPDATE provider_budgets SET used=used WHERE FALSE;
+INSERT INTO artist_follows SELECT * FROM artist_follows WHERE FALSE;
+DELETE FROM artist_follows WHERE FALSE;
+INSERT INTO venue_follows SELECT * FROM venue_follows WHERE FALSE;
+DELETE FROM venue_follows WHERE FALSE;
 
 ROLLBACK;

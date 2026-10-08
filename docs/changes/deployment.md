@@ -1,5 +1,20 @@
 # Container deployment changes
 
+## 2026-10-08 — Unreleased
+
+- Fix container validation after the saved-events workflow tests began reading
+  sources omitted by the build-context allowlist. Include the root `Makefile`,
+  local MariaDB setup wrapper, and runtime-check SQL without sending local
+  configuration or credentials or changing the runtime image. See
+  [build and validation inputs](../deployment.md#build-and-run).
+- Reproduce the missing `Makefile` failure in Docker and verify container asset
+  generation, binary builds, race tests, and vet on clean committed sources plus
+  the allowlist fix. Database-backed integration checks remain skipped.
+- Add local `make check` and repository guidance to validate the current working
+  tree before committing relevant changes, catching build-context regressions
+  with the publishing checks without another workflow or an installed Git hook.
+  See [local validation](../deployment.md#build-and-run).
+
 ## 2026-10-06 — Unreleased
 
 - Add a root `.env.example` for all implemented features, with required provider,

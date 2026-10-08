@@ -137,10 +137,12 @@ and [cross-client continuity](../design/radar-api.md#shared-backend).
   preview, privacy-default controls, and private preference forms.
 - [x] MVP Frontend: Provide a private Saved collection.
 - [x] MVP Backend: Add idempotent save/unsave APIs backed by durable bookmarks.
-- [ ] Later Backend: Add artist/venue follow APIs and search backed by cached
-  provider or stored metadata; rank radar matches with understandable reasons.
-- [ ] Later Frontend: Provide artist/venue search and follow controls, and a radar
-  with match explanations alongside the MVP profile/preferences and saved list.
+- [x] Backend: Add private artist/venue follow APIs and search backed by cached
+  provider or stored metadata; see [follows](../follows.md).
+- [x] Frontend: Provide artist/venue search, follow controls and a private collection.
+- [ ] Later Backend: Rank radar matches with understandable reasons.
+- [ ] Later Frontend: Provide a radar with match explanations alongside follows,
+  profile/preferences and the saved list.
 - [x] Verification: Save an event, leave, return, and find it again; confirm the
   same preferences and choices are available to another authenticated client.
 

@@ -8,7 +8,7 @@ with editable filters, image-led results, contextual event previews, dedicated e
 pagination. Cached event data is shared by the responsive web UI and JSON API.
 
 Discovery includes category-aware genre filters for music, sports, arts, and more.
-Private saves, Interested, and public recommendations connect people to events;
+Private saves, artist/venue follows, Interested, and public recommendations connect people to events;
 asynchronous discussions add questions, replies, and Helpful acknowledgments.
 Private reporting and moderator review close the safety loop. See the [design guidelines](docs/design-guidelines.md)
 for desktop, tablet, and mobile direction and the
@@ -45,7 +45,7 @@ goal to implementation work and verification checkpoints.
 - [x] Save an event and find it again on a later visit.
 - [x] Sign in with Google and manage a profile, privacy defaults, and private preferences.
 - [x] Keep saved events private.
-- [ ] Follow artists and venues.
+- [x] Follow artists and venues.
 - [ ] See personalized matches with understandable reasons.
 
 ### Useful reminders
@@ -114,6 +114,7 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 
 - [x] Establish MariaDB connections, serialized migrations, and minimal durable event identity.
 - [x] Keep accounts, credentials, and private preferences across restarts.
+- [x] Keep private artist/venue follows and last-known metadata across restarts.
 - [x] Keep saved events and last-known event details across restarts.
 - [x] Keep event interest and its visibility across restarts.
 - [x] Keep public recommendations, reasons, and original publication times across restarts.
@@ -130,6 +131,7 @@ deployment examples. Discovery stays database-free by default; broader durable
 features and exercised multi-pod deployment remain planned. Opt-in
 [Google accounts](docs/accounts.md) store profiles, preferences, and credentials;
 [private saves](docs/saved-events.md) retain bookmarks and last-known event details.
+[Private follows](docs/follows.md) add artist/venue search and owner-only collections.
 [Interested](docs/event-interest.md) keeps separate choices, private-by-default identities,
 aggregate counts, and explicitly public participant/profile activity.
 [Public recommendations](docs/event-recommendations.md) provide separate endorsements,
@@ -198,7 +200,8 @@ available with accounts enabled, along with event discussions. Private reporting
 moderation are implemented for discussion posts/replies, with receipts, reversible hiding,
 author outcomes, and durable moderator roles. See [moderation](docs/moderation.md)
 for the operator grant/revoke CLI. [Reliable event history](docs/event-history.md)
-adds schema 9, dated changes, opt-in city/date collection and shared provider budgets.
+adds dated changes, opt-in city/date collection and shared provider budgets.
+The current binary requires schema 10 with [private artist/venue follows](docs/follows.md).
 Drain older binaries, migrate and reapply grants before starting this version.
 This is not public-pilot approval.
 

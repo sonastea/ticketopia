@@ -1,0 +1,160 @@
+package home
+
+import "github.com/sonastea/ticketopia/internal/models"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/input"
+import "github.com/sonastea/ticketopia/views/components/label"
+import "github.com/sonastea/ticketopia/views/components/alert"
+import selectcomp "github.com/sonastea/ticketopia/views/components/select"
+
+templ Follows(page FollowsPage) {
+	@layouts.App("follows", "Artists & venues") {
+		<main id="main" class="destination-page account-page follows-page">
+			<header class="account-heading">
+				<h1>Artists &amp; venues</h1>
+				<p class="intro">Keep the artists and places you care about in one private collection. Your follows stay with your account across visits and devices.</p>
+			</header>
+			<nav class="account-nav" aria-label="Account sections">
+				<a href="/me">Profile &amp; privacy</a>
+				<a href="/me/preferences">Preferences</a>
+				<a href="/me/interests">Interests</a>
+				<a href="/follows" aria-current="page">Follows</a>
+			</nav>
+			if !page.Enabled {
+				<p>Following requires accounts, which aren't enabled on this server.</p>
+				@button.Button(button.Props{Href: "/", Class: "action"}) {
+					Discover events
+				}
+			} else {
+				<section class="follow-search" aria-labelledby="follow-search-heading">
+					<h2 id="follow-search-heading">Find an artist or venue</h2>
+					<form method="get" action="/follows" class="account-form">
+						<div class="follow-search-fields">
+							@label.Label(label.Props{For: "follow-kind", Class: "field"}) {
+								Search for
+								@selectcomp.Native(selectcomp.NativeProps{ID: "follow-kind", Name: "kind"}) {
+									<option value="artist" selected?={ page.Kind != "venue" }>Artists</option>
+									<option value="venue" selected?={ page.Kind == "venue" }>Venues</option>
+								}
+							}
+							@label.Label(label.Props{For: "follow-keyword", Class: "field"}) {
+								Name
+								@input.Input(input.Props{ID: "follow-keyword", Name: "keyword", Value: page.Keyword, Required: true, Attributes: templ.Attributes{"maxlength": "120", "type": "search"}})
+							}
+						</div>
+						if page.Kind == "venue" {
+							<div class="follow-search-fields">
+								@label.Label(label.Props{For: "follow-city", Class: "field"}) {
+									City (optional)
+									@input.Input(input.Props{ID: "follow-city", Name: "city", Value: page.City, Attributes: templ.Attributes{"maxlength": "120"}})
+								}
+								@label.Label(label.Props{For: "follow-country", Class: "field"}) {
+									Country code (optional)
+									@input.Input(input.Props{ID: "follow-country", Name: "country", Value: page.Country, Attributes: templ.Attributes{"maxlength": "2", "placeholder": "US"}})
+								}
+							</div>
+						}
+						@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
+							Search
+						}
+					</form>
+					if page.SearchError != "" {
+						@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+							<h3>Search couldn't load</h3><p>{ page.SearchError }</p>
+							<a href={ templ.URL(page.ReturnURL) } class="text-link">Try search again</a>
+							<p>Your existing follows are unchanged.</p>
+						}
+					} else if page.Searched {
+						<h3>Search results</h3>
+						if page.Search.Meta.Stale {
+							<p class="field-note">These are last-known search results. Provider details couldn't be refreshed.</p>
+						}
+						if len(page.Search.Items) == 0 {
+							<p>No matches found. Try another name or broaden the venue location.</p>
+						} else {
+							<ul class="follow-list" aria-label="Search results">
+								for _, target := range page.Search.Items {
+									<li>@FollowRow(target, page.States[target.ID], page)</li>
+								}
+							</ul>
+							if page.Search.NextCursor != nil {
+							@button.Button(button.Props{Href: page.nextFollowURL(true), Variant: button.VariantOutline, Class: "action action-secondary"}) {
+								More search results
+							}
+							}
+							if page.Search.Limited {
+								<p class="field-note">Search limit reached. Refine the name or location to find more matches.</p>
+							}
+						}
+					}
+				</section>
+				<section class="account-section" aria-labelledby="your-follows-heading">
+					<h2 id="your-follows-heading">Your follows</h2>
+					<p class="field-note">Only you can see these. Following doesn't publish interest, reserve tickets, or send reminders.</p>
+					<nav class="account-nav" aria-label="Filter follows">
+						<a href="/follows" aria-current={ layouts.CurrentPage(page.Filter == "") }>All follows</a>
+						<a href="/follows?filter=artist" aria-current={ layouts.CurrentPage(page.Filter == "artist") }>Artists</a>
+						<a href="/follows?filter=venue" aria-current={ layouts.CurrentPage(page.Filter == "venue") }>Venues</a>
+					</nav>
+					if page.Error != "" {
+						@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+							<h3>Follows couldn't load</h3><p>{ page.Error }</p>
+							<a href="/follows" class="text-link">Reload your follows</a>
+						}
+					} else if len(page.List.Items) == 0 {
+						<p>No follows on this page yet. Search above, then choose Follow beside an artist or venue.</p>
+						if page.ReturnURL != "/follows" {
+							<a href="/follows" class="text-link">Back to all follows</a>
+						}
+					} else {
+						<p class="sort-label">Newest followed first · Last-known details</p>
+						<ul class="follow-list" aria-label="Your follows">
+							for _, item := range page.List.Items {
+								<li>@FollowRow(item.Target, true, page)</li>
+							}
+						</ul>
+						if page.List.NextCursor != nil {
+						@button.Button(button.Props{Href: page.nextFollowURL(false), Variant: button.VariantOutline, Class: "action action-secondary"}) {
+							More follows
+							}
+						}
+					}
+				</section>
+			}
+		</main>
+	}
+}
+
+templ FollowRow(target models.FollowTarget, followed bool, page FollowsPage) {
+	<div class="follow-identity">
+		<h3>{ target.Name }</h3>
+		<p class="field-note">{ followKind(target.Kind) }</p>
+		if target.Kind == "venue" {
+			<p class="field-note">{ followLocation(target) }</p>
+		}
+	</div>
+	<form method="post" action={ templ.URL(followAction(target)) }>
+		<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+		<input type="hidden" name="return_to" value={ page.ReturnURL }/>
+		<input type="hidden" name="action" value={ followVerb(followed) }/>
+		@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"aria-label": followLabel(followed) + " " + target.Name}}) {
+			{ followLabel(followed) }
+		}
+	</form>
+}
+
+templ FollowFailure(message string, returnURL string) {
+	@layouts.App("follows", "Follow couldn't change") {
+		<main id="main" class="destination-page account-page follows-page">
+			@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+				<h1>Follow couldn't change</h1>
+				<p>{ message }</p>
+				<p>If the result is uncertain, check your collection before retrying. Repeating Follow or Unfollow is safe.</p>
+				@button.Button(button.Props{Href: returnURL, Class: "action action-secondary"}) {
+					Return to your follows
+				}
+			}
+		</main>
+	}
+}
