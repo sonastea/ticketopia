@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### 2026-10-07 — Responsive discovery-to-discussion flow
+
+- Select event/threads beside results or in a compact view; disclose actions and expand details.
+- Preserve filters, thread/target/pages, scoped drafts and return state through
+  resize/Back/reload; reuse permission-filtered, provider-free thread reads.
+- Verify 134 Chromium outcomes/five clean axe scans and real-MariaDB race/vet/build.
+  See [responsive UX](../design-guidelines.md) and [discussions](../event-discussions.md).
+  Manual screen-reader/physical-device/cross-browser checks remain; no pilot approval.
+
 ### 2026-10-07 — Private reporting, review, and durable moderator roles
 
 - Deliver private report receipts/status, moderator queue/context, shared reasons

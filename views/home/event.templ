@@ -64,26 +64,37 @@ templ Event(page EventPage) {
 }
 
 templ EventContext(page EventPage) {
-	@card.Card(card.Props{Class: "context-inner", Attributes: templ.Attributes{"data-context-id": page.Detail.Item.ID, "data-context-section": page.Section}}) {
-		<div class="context-toolbar"><span>Event preview</span>@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantGhost, Size: button.SizeIcon, Class: "icon-button", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview"}}) {
+	@card.Card(card.Props{Class: "context-inner", Attributes: templ.Attributes{"data-context-id": page.Detail.Item.ID, "data-context-section": page.Section, "data-context-thread": contextThreadID(page)}}) {
+		<div class="context-toolbar"><span>Event & discussion</span>@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantGhost, Size: button.SizeIcon, Class: "icon-button", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview"}}) {
 	@layouts.Icon("close")
 }
 </div>
-		@EventImage(page.Detail.Item, true)
 		<div class="context-heading"><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
 			if page.Detail.Meta.Stale {
 				@Freshness(page.Detail.Meta)
 			}
 			@EventFacts(page.Detail.Item)
 </div>
-		@button.Button(button.Props{Href: sectionURL(page, page.Section), Variant: button.VariantLink, Class: "text-link open-event"}) {
+		@button.Button(button.Props{Href: sectionURL(page, "overview"), Variant: button.VariantLink, Class: "text-link open-event"}) {
 			<span>Open full event details</span>@layouts.Icon("arrow")
 		}
-		@EventParticipation(page, "context-participation-note")
+		<details class="context-event-details">
+			<summary>Event details & actions</summary>
+			@EventImage(page.Detail.Item, true)
+			@EventParticipation(page, "context-participation-note")
+			@TicketDetails(page.Detail.Item)
+			@Freshness(page.Detail.Meta)
+		</details>
 		@EventSections(page)
-		@EventSectionContent(page)
-		@TicketDetails(page.Detail.Item)
-		@Freshness(page.Detail.Meta)
+		if page.Thread != nil {
+			<div class="context-thread" data-context-thread-url={ page.Thread.URL }>
+				<a href={ templ.URL(sectionURL(page, "discussion")) } class="text-link" data-panel-link>Back to questions & tips</a>
+				<a href={ templ.URL(page.Thread.URL) } class="text-link">Open full conversation</a>
+				@DiscussionContent(*page.Thread)
+			</div>
+		} else {
+			@EventSectionContent(page)
+		}
 	}
 }
 
@@ -99,7 +110,7 @@ templ EventParticipation(page EventPage, noteID string) {
 		if page.Section != "community" {
 			@button.Button(button.Props{Href:recommendURL(page),Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"data-panel-link":true}}) {
 				@layouts.Icon("community")
-				Recommend
+				<span>Recommend</span>
 			}
 		}
 	}

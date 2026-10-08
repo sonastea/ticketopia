@@ -76,7 +76,10 @@
       }
       if (status) status.textContent = result.notice;
       // Native navigation avoids replacing a different selected event with a late response.
-      if (form.isConnected) location.assign(target.href);
+      if (form.isConnected) {
+        const confirmed = new CustomEvent('ticketopia:discussion-saved', {bubbles: true, cancelable: true, detail: {location: target.href, notice: result.notice, action: submitter.value, post: form.elements.post_id.value}});
+        if (form.dispatchEvent(confirmed)) location.assign(target.href);
+      }
     } catch (failure) {
       if (form.isConnected && error) {
         const validationError = serverError && responseStatus >= 400 && responseStatus < 500;

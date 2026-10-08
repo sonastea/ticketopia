@@ -78,29 +78,34 @@ A new form submission starts at the first page.
 - Wide screens (72rem+) have labeled left navigation, a primary event list, and
   a 21rem contextual preview. Intermediate screens (62–72rem) use a compact
   labeled rail and a 20rem preview; below 62rem the app uses bottom navigation
-  and dedicated event pages. The higher intermediate threshold leaves room for
+  and a single primary event/thread view on selection. Dedicated pages remain
+  available for expansion and ordinary no-JavaScript links. The intermediate threshold leaves room for
   the navigation rail and readable results. The full shell caps at 100rem.
 - Location stays visible above search. **Change city** opens the native Filters
   disclosure and focuses City. The same GET form exposes country, dates, category,
   and genre. Ordering is explicitly date-first; no unsupported sorting choices are
   presented. Inputs and disclosure remain usable without JavaScript.
-- Event titles and **Details** are real `/events/{event_id}` links. On larger
-  screens enhancement loads only the selected event into the preview, keeping
-  results in place. `selected_event` and `section` in the discovery URL reconstruct
-  the preview on direct entry or reload; these are HTML-only parameters.
+- Event titles are real Discussion links; **Details** selects Overview.
+  Enhancement loads only selected context and keeps results alongside it from
+  62rem, or hides results behind the primary view below that threshold.
+  `selected_event`, `section`, `selected_thread`, `reply_to`, and independent
+  `discussion_cursor` reconstruct context on direct entry/reload. These HTML-only
+  parameters never enter discovery cache keys or the JSON event API.
 - Event pages use `section=overview|discussion|community` and a validated local
   `return_to` URL. Overview shows supplied descriptions, venue information, prices,
   status, separate sale dates, freshness, and the Ticketmaster link. Community shows
   public recommendations and opted-in interest identities. Discussion loads recent
-  questions and a public composer, with replies on dedicated thread pages.
+  questions and a public composer. Threads/replies load in context, with canonical
+  dedicated routes for expansion/sharing. **Event details & actions** discloses
+  imagery/participation/tickets; essential facts stay visible ahead of discussion.
   HTML-only `recommend=true` opens
   the composer in Community; it is not a discovery/API filter.
 - Back restores previous selection; loaded result pages, focus, and scroll are
   retained in browser history across the event's full-page section links. A
   one-use, same-tab session-storage handoff carries the originating history entry;
   if storage is unavailable, a normal return
-  link still preserves validated search filters. Resizing retains the selected
-  event without adding history; narrow selected URLs show the preview in-shell.
+   link still preserves validated search filters and event/thread selection.
+   Resizing retains the selected event/thread and drafts without adding history.
 - Preview loads cancel obsolete requests, have bounded timeouts, and offer Retry
   and Open event on failure. A failed preview leaves the discovery list usable.
   Keyboard users can tab to **Jump to event preview** on the selected row.

@@ -23,17 +23,21 @@ edits, removal, Helpful, and direct thread reads do not need Ticketmaster.
 
 ## Web experience
 
-Open an event's **Discussion** section or selected desktop preview to ask a
-question or share a tip. Public attribution is explained before publication.
+Select an event from discovery to read its **Discussion** alongside results on
+desktop/wide tablet, or as a single primary view on compact screens. Compact
+event facts stay visible; **Event details & actions** discloses participation and
+tickets, and **Open full event details** expands Overview. Public attribution
+is explained before publication.
 Contributions are required plain text, up to 4000 Unicode characters including
 surrounding whitespace, and must be nonempty after trimming;
 invalid encoding/control characters and overlong text are rejected, not truncated.
 Text is escaped, never rendered as markup. Names and profile links are public
 even when interest is private.
 
-Root posts are newest-first. **Open conversation** leads to a shareable
-`/events/{event_id}/discussions/{discussion_id}` page, with event context and
-oldest-first replies. Replies to replies name a target within the same root;
+Root posts are newest-first. **Open conversation** selects the root and oldest-first
+replies inside the contextual view; **Open full conversation** expands to the
+shareable `/events/{event_id}/discussions/{discussion_id}` page. Without JavaScript
+conversation links navigate normally. Replies to replies name a target within the same root;
 there is at most one visual nesting level. Reply targets can be read independently
 of the current reply page. Authors can edit or remove their own posts. Removal
 withholds the body and author attribution, clears reactions, and leaves a
@@ -67,7 +71,12 @@ safe return context; native sign-in recovery leaves the draft available to copy
 rather than sending it through OAuth. Enhancement preserves account/event/thread/
 post/target-scoped drafts in browser session storage, disables pending submission, and
 confirms writes before navigation. Storage failure still permits in-page drafting.
-Late responses cannot replace a different selected event. No live polling or
+Confirmed contextual writes refresh only the active conversation; Helpful/edit/remove
+retain focus and reading position without adding navigation history. Selected
+thread/target/reply-page state is encoded separately from event-result pagination.
+Expansion/return, Back/reload and resizing preserve selection and scoped drafts.
+Storage failures retain in-page drafts only; drafts are neither sent through OAuth
+nor synced across devices. Late responses cannot replace a different selected event. No live polling or
 notification delivery is included.
 
 ## API
@@ -135,6 +144,20 @@ Desktop/tablet/390px/320px/200%-text thread captures passed overflow and axe che
 this is scoped evidence, not a whole-application or public-pilot certification.
 The finish review's **ship** verdict scored the transport-error copy fix resolved;
 it did not certify every community surface or the public pilot.
+
+`scripts/responsive-browser.cjs` runs through the same isolated fixture with
+`DISCUSSION_BROWSER_SCRIPT`. It exercises complete discovery/participation,
+contextual thread pagination, retry/drafts, expansion/return, Back/reload,
+keyboard, touch and reduced-height composing, blocked storage, private projections,
+320px reflow, 200% text and automated accessibility. Set
+`RESPONSIVE_SKIP_CAPTURES=true` for behavior-only reruns. This is Chromium fixture
+evidence, not physical-device, manual screen-reader, live OAuth or cross-browser certification.
+The responsive run passes 134 checks and five zero-violation axe scans. Existing
+Saved/Interested/Recommendation/Discussion behavior regressions pass another
+66/44/49/24 checks without recapturing unrelated surfaces; the real-MariaDB race
+suite, vet, production build and localized post-generation race checks also pass.
+The responsive finish review scores compact selection-failure focus and guest
+Reply focus resolved: **ship for those two fixes only**, not whole-application approval.
 
 **Basic private reporting and moderator review are implemented**; see
 [moderation setup and verification](moderation.md). Discussion follows/notifications,

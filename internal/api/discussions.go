@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/home"
 )
@@ -187,66 +188,85 @@ func (a *api) discussionView(c echo.Context, id string) home.DiscussionView {
 	return v
 }
 func (a *api) discussionCollectionPage(c echo.Context) error {
-	principal, err := a.discussionViewer(c, true)
-	if err != nil {
-		return a.accountPageError(c, err)
-	}
+	c.Response().Header().Set("Vary", "X-Ticketopia-Panel")
 	id, err := savedEventID(c)
 	if err != nil {
 		return a.accountPageError(c, err)
 	}
-	values := c.QueryParams()
+	p, status, err := a.loadDiscussionPage(c, id, c.Param("discussion_id"), c.QueryParams(), c.Request().URL.RequestURI())
+	if err != nil {
+		return a.accountPageError(c, err)
+	}
+	if c.Request().Header.Get("X-Ticketopia-Panel") == "true" {
+		page := home.EventPage{Detail: models.EventDetail{Item: p.Event, Meta: p.Meta}, Section: "discussion", ReturnURL: p.ReturnURL, ActionReturnURL: p.URL, Thread: &p, Saves: a.saveView(c, []string{id}), Interests: a.interestView(c, []string{id})}
+		return render(c, http.StatusOK, home.EventContext(page))
+	}
+	return render(c, status, home.Discussion(p))
+}
+
+// Both the discovery shell and shareable thread use the same permission-filtered
+// read. Threads retain their event snapshot and never need a provider refresh.
+func (a *api) loadDiscussionPage(c echo.Context, id, thread string, query url.Values, rawURL string) (home.DiscussionPage, int, error) {
+	principal, err := a.discussionViewer(c, true)
+	if err != nil {
+		return home.DiscussionPage{}, 0, err
+	}
+	values := url.Values{}
+	for key, value := range query {
+		values[key] = value
+	}
 	origin := safeReturnURL(values.Get("return_to"))
 	parent := values.Get("reply_to")
 	selected := values.Get("post_id")
 	for _, key := range []string{"return_to", "reply_to", "post_id"} {
 		if len(values[key]) > 1 {
-			return a.accountPageError(c, &accounts.ValidationError{Field: key, Message: "use one value"})
+			return home.DiscussionPage{}, 0, &accounts.ValidationError{Field: key, Message: "use one value"}
 		}
 		values.Del(key)
 	}
-	p := home.DiscussionPage{View: home.DiscussionView{Enabled: true, ModerationEnabled: a.moderationEnabled(), ViewerID: principal.Account.ID, CSRF: principal.CSRF, Key: accounts.ID()}, ReturnURL: origin, URL: c.Request().URL.RequestURI(), ParentID: parent}
-	thread := c.Param("discussion_id")
+	p := home.DiscussionPage{View: home.DiscussionView{Enabled: true, ModerationEnabled: a.moderationEnabled(), ViewerID: principal.Account.ID, CSRF: principal.CSRF, Key: accounts.ID()}, ReturnURL: origin, URL: rawURL, ParentID: parent}
 	if thread != "" {
 		root, err := a.discussions.Thread(c.Request().Context(), principal.Account.ID, id, thread)
 		if err != nil {
-			return a.accountPageError(c, err)
+			return p, 0, err
 		}
 		p.Root = &root
 		p.Event = root.Event
+		p.Meta = root.Meta
 		if parent != "" {
 			target, err := a.discussions.Parent(c.Request().Context(), principal.Account.ID, id, thread, parent)
 			if err != nil {
-				return a.accountPageError(c, err)
+				return p, 0, err
 			}
 			p.ReplyTo = &target
 		}
 		if selected != "" {
 			target, err := a.discussions.Parent(c.Request().Context(), principal.Account.ID, id, thread, selected)
 			if err != nil {
-				return a.accountPageError(c, err)
+				return p, 0, err
 			}
 			p.Selected = &target
 		}
 	} else {
 		if selected != "" {
-			return a.accountPageError(c, &accounts.ValidationError{Field: "post_id", Message: "open a thread to select a contribution"})
+			return p, 0, &accounts.ValidationError{Field: "post_id", Message: "open a thread to select a contribution"}
 		}
 		if parent != "" {
-			return a.accountPageError(c, &accounts.ValidationError{Field: "reply_to", Message: "open a thread to reply"})
+			return p, 0, &accounts.ValidationError{Field: "reply_to", Message: "open a thread to reply"}
 		}
 		d, err := a.eventDetail(c.Request().Context(), id)
 		if err != nil {
-			return a.accountPageError(c, err)
+			return p, 0, err
 		}
 		p.Event = d.Item
+		p.Meta = d.Meta
 	}
 	p.View.List, err = a.discussions.List(c.Request().Context(), principal.Account.ID, id, thread, values)
 	status := 200
 	if err != nil {
 		status, _, p.View.Error, _ = accountError(err)
 	}
-	return render(c, status, home.Discussion(p))
+	return p, status, nil
 }
 func (a *api) discussionCommunityPage(c echo.Context) error {
 	principal, err := a.discussionViewer(c, true)

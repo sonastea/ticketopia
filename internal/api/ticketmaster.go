@@ -11,6 +11,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/views/home"
 )
 
@@ -116,7 +117,28 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		return render(c, status, home.MoreEventsList(page))
 	}
 	if err == nil && selectedID != "" {
-		detail, selectionErr := a.eventDetail(c.Request().Context(), selectedID)
+		var detail models.EventDetail
+		var selectionErr error
+		if thread := c.QueryParam("selected_thread"); thread != "" || c.QueryParam("discussion_cursor") != "" {
+			values := url.Values{"return_to": {page.ReturnURL}}
+			for source, target := range map[string]string{"reply_to": "reply_to", "discussion_cursor": "cursor"} {
+				if value := c.QueryParam(source); value != "" {
+					values.Set(target, value)
+				}
+			}
+			threadURL := home.ThreadURL(selectedID, thread, page.ReturnURL)
+			u, _ := url.Parse(threadURL)
+			u.RawQuery = values.Encode()
+			p, _, e := a.loadDiscussionPage(c, selectedID, thread, values, u.String())
+			selectionErr = e
+			if e == nil {
+				page.Thread = &p
+				detail.Item = p.Event
+				detail.Meta = p.Meta
+			}
+		} else {
+			detail, selectionErr = a.eventDetail(c.Request().Context(), selectedID)
+		}
 		if selectionErr != nil {
 			_, page.SelectionError = errorMessage(selectionErr)
 		} else {
@@ -124,7 +146,7 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			if section == "community" {
 				page.Recommendations = a.recommendationView(c, selectedID)
 			}
-			if section == "discussion" {
+			if section == "discussion" && page.Thread == nil {
 				page.Discussions = a.discussionView(c, selectedID)
 			}
 			if a.interestEnabled() && section == "community" {

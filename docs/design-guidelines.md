@@ -86,9 +86,11 @@ Event dates, titles, venues, sale status, known prices, and source freshness lea
 Unknown prices never mean free. Distinguish event dates from ticket-sale dates.
 Provider images retain a fixed-ratio fallback when missing or broken.
 
-Event titles and Details are real event links. Desktop selection highlights the
-matching row and opens its preview; ordinary compact-screen selection opens the
-event page. Save/Remove work through private, CSRF-protected forms with row/preview
+Event titles and Details are real event links. Enhanced title selection highlights
+the matching row and opens Discussion alongside results from 62rem; below that
+threshold it becomes the primary single-column view. Details selects Overview;
+**Open full event details** expands to a dedicated page. Without JavaScript the
+links open dedicated event pages. Save/Remove work through private, CSRF-protected forms with row/preview
 state synchronization; signed-out visitors resume through Google sign-in. Interested
 has a separate selected state, visible Private/Public disclosure, aggregate count,
 and native per-event visibility control; only public identities appear in participant
@@ -108,7 +110,11 @@ External ticket links name Ticketmaster and do not imply ticket ownership or
 guaranteed availability. Section links use ordinary navigation semantics, not
 partial ARIA-tab behavior. Discussion and Community preserve the event identity.
 Community lists explicit endorsements separately from opted-in interest identities;
-Discussion loads recent questions and opens replies on a dedicated thread page.
+Discussion loads recent questions. **Open conversation** selects its root/replies
+in the same context; **Open full conversation** opens the shareable thread page.
+Compact event identity, date, venue, price and freshness remain above discussion.
+**Event details & actions** discloses imagery, Save/Interested/Recommend and tickets;
+its open state survives same-event section changes.
 
 ## Interaction semantics and hierarchy
 
@@ -136,16 +142,19 @@ native form; private receipts/outcomes and authorized review live in the account
 
 ## Discovery-to-discussion journeys and shared state
 
-Current discovery encodes filters and `selected_event` in URLs. Event pages and
+Discovery encodes filters, `selected_event`, `section`, `selected_thread`,
+`reply_to`, and the independent `discussion_cursor` in URLs. Event pages and
 sections use stable IDs, `section`, and a validated `return_to` context. Direct
 entry without return context provides a Discover link.
 
 - Explicit selection creates navigable history. Back restores selection/results,
   loaded pages where browser state is available, scroll, and focus.
-- Reload and shared URLs reconstruct the selected event and section. Filter
+- Reload and shared URLs reconstruct the selected event, section, thread, reply
+  target and discussion page. Filter
   changes reset pagination and selection.
-- Resize preserves the selected event and section without adding history. An
-  existing selected-preview URL displays context in-shell on compact screens.
+- Resize preserves event/thread selection and drafts without adding history.
+  Compact selection stays in-shell with bottom navigation and document scrolling;
+  intermediate widths use either readable list/context columns or that primary view.
 - Cancel obsolete requests and reject stale responses. Never display event A's
   details under event B's identity.
 - Keep loading and errors local to the preview; offer Retry, Open event, and
@@ -160,6 +169,11 @@ Drafts survive validation/network failures and responsive transitions. Load only
 the selected conversation's initial page; keep public metadata separate from
 viewer-specific state and permission-filtered responses. See the
 [API plan](design/radar-api.md#contextual-loading-and-client-state).
+Confirmed discussion actions refresh only the selected context. Helpful, editing
+and removal preserve action focus/reading position without adding navigation entries;
+publication selects the thread. Native forms and canonical thread links remain
+available without enhancement. Scoped drafts use this tab's session storage;
+blocked storage retains in-page drafts, not reload/cross-device persistence.
 
 ## Community requirements and retained later work
 
@@ -171,8 +185,8 @@ Detailed scope lives in [community goals](goals/event-communities.md) and the
   Replies to replies name their target within the same root thread.
 - Long conversations get a shareable thread route. Removed content leaves a
   content-free placeholder; no typing indicators or live-chat dependency.
-  These behaviors are implemented; roots load in the selected-event context,
-  while full replies load on dedicated thread pages.
+  These behaviors are implemented in both selected context and dedicated threads,
+  with independent root/reply pagination and local retry.
 - Use one active composer. Keep it reachable above the keyboard and safe area,
   preserve drafts on errors, and warn before deliberate draft discard.
 - Use sheets for short actions rather than whole nested conversations; avoid

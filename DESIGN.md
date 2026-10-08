@@ -458,6 +458,16 @@ Removed contributions leave content-free placeholders. The labeled composer
 discloses its public audience; errors preserve drafts and confirmed state. See
 [event discussions](docs/event-discussions.md). No new global tokens or assets.
 
+Within discovery, compact event/date/venue context and price/sale facts stay above
+questions or the selected root and replies. A native **Event details & actions**
+disclosure contains imagery, participation, ticket links, and source detail rather
+than leading the panel with artwork. Full-event and full-conversation links open
+dedicated pages. At the existing 62rem threshold, discussion shares the sticky
+context panel alongside results; below it, the selected event/thread becomes the
+single primary view. URL selection, drafts, and return continuity remain in the
+[responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state)
+and the discovery surface contract, not new global composition rules.
+
 ### Private Reporting and Moderator Review
 
 Reporting inherits the event/date/venue heading, 70ch reading measure, native

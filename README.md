@@ -88,11 +88,16 @@ goal to implementation work and verification checkpoints.
 - [x] Preview real event details alongside results and open a dedicated event page.
 - [x] Share/reload selected events and sections, recover local preview failures,
   and return to results with filters and available browser history state.
-- [ ] Select an event into a contextual desktop discussion panel and expand details.
-- [ ] Use adaptive tablet navigation and readable primary/context views.
-- [ ] Discover, save, express interest, recommend, and discuss through complete
+- [x] Select an event into a contextual desktop discussion panel and expand details.
+- [x] Use adaptive tablet navigation and readable primary/context views.
+- [x] Discover, save, express interest, recommend, and discuss through complete
   single-column mobile screens with bottom navigation and threaded replies.
-- [ ] Preserve event context, accessible navigation, and return state across devices.
+- [x] Preserve event context, accessible navigation, and return state across responsive layouts.
+
+Responsive journeys are verified with isolated Chromium fixtures, keyboard/touch,
+320px/200%-text and automated accessibility checks. History and drafts stay in the
+current browser/tab; manual screen-reader and physical-device checks remain in the
+[delivery verification checklist](docs/goals/delivery.md#6-responsive-discovery-to-discussion-experience).
 
 ### Reusable API
 

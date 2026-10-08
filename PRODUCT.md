@@ -30,6 +30,9 @@ withdrawal/republication cannot bump it. Publication/reactivation measurements a
 observe-only, without recommendation quotas or automatic account restrictions.
 Event discussions provide public questions, replies, owner edit/removal, Helpful
 acknowledgments, direct threads, and city/category browsing.
+Discovery connects selected event/thread discussions to results on wide screens
+and a primary single-column view on compact screens, with dedicated expansion,
+URL selection, tab-local drafts, and browsing-return continuity.
 [Private reporting and moderation](docs/moderation.md) provide private receipts,
 contextual keep/hide/restore, shared reasons with private notes, and author second
 review requests. Durable moderator roles are operator-managed with audited

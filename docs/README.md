@@ -33,7 +33,8 @@ their status; they describe intended work rather than available features.
   keep/hide/restore, author outcomes/second reviews, durable roles, and audited
   operator grant/revoke commands.
 - [Event discussions](event-discussions.md): public questions, threaded replies,
-  owner edit/removal, Helpful acknowledgments, direct links, and city/category browsing.
+  contextual discovery-to-discussion journeys, owner edit/removal, Helpful,
+  direct expansion links, and city/category browsing.
 - [Public event recommendations](event-recommendations.md): optional reasons,
   edit/withdraw, public event/profile attribution, grouped city/category browsing,
   durable anti-bumping, and observe-only participation measurements.

@@ -8,6 +8,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/home"
 )
 
@@ -18,10 +20,20 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 		filters[key] = value
 	}
 	id, section := filters.Get("selected_event"), filters.Get("section")
+	thread := filters.Get("selected_thread")
+	if thread != "" && (id == "" || section != "discussion" || discussions.PostID(thread) != nil) {
+		return nil, "", "", &discovery.ValidationError{Field: "selected_thread", Message: "open a valid thread for a selected event's discussion"}
+	}
+	if parent := filters.Get("reply_to"); parent != "" && (thread == "" || discussions.PostID(parent) != nil) {
+		return nil, "", "", &discovery.ValidationError{Field: "reply_to", Message: "choose a contribution in the selected thread"}
+	}
+	if cursor := filters.Get("discussion_cursor"); cursor != "" && (id == "" || section != "discussion" || len(cursor) > 1024) {
+		return nil, "", "", &discovery.ValidationError{Field: "discussion_cursor", Message: "paginate the selected thread"}
+	}
 	if values, ok := filters["recommend"]; ok && (len(values) != 1 || values[0] != "true" || id == "" || section != "community") {
 		return nil, "", "", &discovery.ValidationError{Field: "recommend", Message: "open recommendations for a selected event's community section"}
 	}
-	for _, key := range []string{"selected_event", "section", "recommend"} {
+	for _, key := range []string{"selected_event", "section", "recommend", "selected_thread", "reply_to", "discussion_cursor"} {
 		if len(filters[key]) > 1 {
 			return nil, "", "", &discovery.ValidationError{Field: key, Message: "use one value"}
 		}
@@ -38,7 +50,7 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 		}
 		delete(filters, "genre_category_id")
 	}
-	if len(id) > 160 {
+	if id != "" && saved.ValidateID(id) != nil {
 		return nil, "", "", &discovery.ValidationError{Field: "selected_event", Message: "invalid event ID"}
 	}
 	if section == "" {
@@ -80,7 +92,11 @@ func safeReturnURL(raw string) string {
 	if err != nil {
 		return "/"
 	}
-	if _, err := discovery.ParseQuery(values, time.Now()); err != nil {
+	filters, _, _, err := webSearch(values)
+	if err != nil {
+		return "/"
+	}
+	if _, err := discovery.ParseQuery(filters, time.Now()); err != nil {
 		return "/"
 	}
 	return u.String()

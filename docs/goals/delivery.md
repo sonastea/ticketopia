@@ -190,9 +190,9 @@ Build backend/API and UI together for each small outcome:
 
 ## 6. Responsive discovery-to-discussion experience
 
-Discovery, recommendation writing/browsing, selected-event root conversations,
-and dedicated thread writing are delivered. Full conversation expansion inside
-the contextual panel and broader cross-device journeys remain planned.
+Discovery and full event/conversation context now share one responsive selection
+flow, with dedicated expansion routes and verified fixture participation journeys.
+Draft/history continuity is browser/tab-local, not cross-device synchronization.
 
 - [x] Frontend: Responsive global navigation, image-led discovery, and selected
   event metadata previews with dedicated event pages on compact screens.
@@ -202,23 +202,28 @@ the contextual panel and broader cross-device journeys remain planned.
   browser Back, loaded-result restoration, direct section links, no-JavaScript
   navigation, keyboard focus, long titles, 200% text, and automated accessibility.
 
-- [ ] Frontend: Wide three-column discovery with global nav, results, and selected
+- [x] Frontend: Wide three-column discovery with global nav, results, and selected
   event discussion; selection does not require replacing the discovery page.
-- [ ] Frontend: Expand an event to a dedicated detail page and a conversation to
+- [x] Frontend: Expand an event to a dedicated detail page and a conversation to
   a shareable full discussion/thread view with persistent event context.
-- [ ] Frontend: Adapt intermediate widths to two columns or a dedicated view
+- [x] Frontend: Adapt intermediate widths to two columns or a dedicated view
   based on readable content widths, with collapsible global navigation.
-- [ ] Frontend: Single-column mobile discovery, persistent bottom navigation,
+- [x] Frontend: Single-column mobile discovery, persistent bottom navigation,
   compact search/filter access, event sections, and keyboard-safe thread composing.
-- [ ] Backend/UI: Paginate posts/replies independently; batch card aggregates,
+- [x] Backend/UI: Paginate posts/replies independently; batch card aggregates,
   fetch only selected context, isolate failures, and reject stale selection loads.
-- [ ] Frontend: Keep filters, event/thread identity, action state, return scroll,
+- [x] Frontend: Keep filters, event/thread identity, action state, return scroll,
   focus, and drafts coherent across navigation, resizing, and authentication.
 - [ ] Verification: Complete discovery, Save, Interested, Recommend, post/reply,
   Helpful, and return journeys on desktop, tablet, and phone, including 320px,
   zoom, keyboard/screen reader, Back/direct links, and loading/empty/error states.
-- [ ] Verification: Confirm as owner, another user, and guest that saves/private
+- [x] Verification: Confirm as owner, another user, and guest that saves/private
   interest identities stay private while counts/public endorsements remain distinct.
+
+Chromium fixture journeys cover desktop/tablet/390px/320px/200%-text participation,
+keyboard focus, touch, reduced keyboard viewport, automated accessibility and
+native fallback. The broader verification item stays open for manual screen-reader
+and physical-device/cross-browser checks; no public-pilot certification is claimed.
 
 ## Completion rules across milestones
 

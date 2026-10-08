@@ -33,7 +33,10 @@ Images and aligned date markers lead rows; search is the primary action.
 At 72rem and wider the sidebar can collapse to 4.5rem; its sections and links
 within each section are reorderable in an explicit customization mode. The
 62rem rail and compact four-item bottom navigation keep their existing order.
-Mobile uses a light header and full event views. Selection is pale plum and
+The contextual extension selects questions first, with compact event identity,
+native event details/actions, and the selected root/replies in the same panel.
+Expansion opens a dedicated event or shareable thread. Mobile uses a light header
+and a single primary event/thread view with bottom navigation. Selection is pale plum and
 updates matching context without displacing the list.
 
 **FORM:** User-pinned plum/light-stone refresh with Notion-inspired grouped
@@ -57,6 +60,31 @@ Keyboard move controls complement drag handles. Profile stays fixed.
 Event section links and selected-event URLs survive direct entry and resize.
 Provider images remain sourced from normalized Ticketmaster data; no new raster
 assets are authored. Account/community destinations explain their current state.
+
+## Responsive event/discussion extension / finish record — 2026-10-07
+
+- Completed the connected discovery-to-participation milestone without replacing
+  the incumbent visual system. Event titles select Discussion; Details selects
+  Overview. Questions and selected roots/replies share the context panel from
+  62rem; compact screens use a single primary view. Native event details/actions
+  and explicit dedicated-page expansion keep event identity close to discussion.
+- Filters, loaded results, selected event/thread/target, separate reply pagination,
+  scoped drafts, and return/focus continuity survive resize, Back, and reload.
+  Drafts remain browser/tab-local, not cross-device synchronization. Thread reads
+  reuse permission-filtered retained context without requiring the provider.
+- [responsive-checks.json](../review/responsive-checks.json) records 134 passing
+  Chromium checks and five zero-violation axe scans across desktop, tablet, mobile,
+  320px, and 200% text, including keyboard/touch journeys and failure recovery.
+  Saved/Interested/Recommendation/Discussion regressions pass 66/44/49/24 checks;
+  the real-MariaDB full race suite, vet, production build, and localized
+  post-generation race checks also pass.
+- The independent reviewer scored compact selection-failure focus and guest Reply
+  focus resolved: **ship for those two fixes only**. This is not whole-application
+  approval or public-pilot certification. Manual screen-reader, physical-device,
+  live OAuth, and cross-browser checks remain unverified.
+- The documenter updated descriptive Event Discussions prose in `DESIGN.md` only.
+  Frontmatter tokens and `.impeccable/design.json` remain unchanged; pre-existing
+  availability-copy drift is untouched. No new authored raster assets ship.
 
 ## Interested extension / finish record — 2026-10-06
 

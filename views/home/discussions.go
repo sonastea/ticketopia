@@ -16,6 +16,7 @@ type DiscussionView struct {
 }
 type DiscussionPage struct {
 	Event                    models.Event
+	Meta                     models.Freshness
 	Root                     *discussions.Post
 	ReplyTo                  *discussions.Post
 	Selected                 *discussions.Post
@@ -31,6 +32,13 @@ type DiscussionCommunityPage struct {
 	URL, Error            string
 }
 type DiscussionForm struct{ EventID, ThreadID, ParentID, PostID, Body, Key, Action, ReturnURL, CSRF, ViewerID string }
+
+func contextThreadID(p EventPage) string {
+	if p.Thread != nil {
+		return p.Thread.threadID()
+	}
+	return ""
+}
 
 func (p DiscussionCommunityPage) hasCategory() bool {
 	for _, c := range p.Categories {

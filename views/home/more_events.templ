@@ -22,7 +22,7 @@ templ EventRows(events []models.Event, returnURL string, selectedID string, save
 			</div>
 			<div class="event-copy">
 				<p class="event-date">{ startLabel(event.Start) }</p>
-				<h3><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
+				<h3><a href={ templ.URL(eventURL(event.ID, "discussion", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
 				<p class="event-venue">{ venueLabel(event) }</p>
 				<div class="event-metadata">@EventStatus(event.Status)
 <span>{ priceLabel(event.PriceRanges) }</span></div>

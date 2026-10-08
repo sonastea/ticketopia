@@ -10,7 +10,7 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
 fs.mkdirSync(out, { recursive: true });
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE });
   try {
     const owner = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     await owner.addCookies([{ name: 'ticketopia_session', value: process.env.SAVED_FIXTURE_TOKEN, url: base }]);
@@ -29,6 +29,7 @@ fs.mkdirSync(out, { recursive: true });
     const list = async () => (await owner.request.get(base + '/api/v1/me/event-interests')).json();
     const participants = async () => (await guest.request.get(base + '/api/v1/events/' + id + '/interested-users')).json();
     const capture = async (name, width, zoom = false) => {
+      if (process.env.PARTICIPATION_SKIP_CAPTURES === 'true') return;
       await page.setViewportSize({ width, height: 1000 });
       await page.evaluate(async zoom => { document.documentElement.style.fontSize = zoom ? '200%' : ''; await document.fonts.ready; scrollTo(0, 0); }, zoom);
       check('No overflow: ' + name, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -47,6 +48,7 @@ fs.mkdirSync(out, { recursive: true });
     await page.locator('.event-link').first().click();
     const context = page.locator('[data-context-id="' + id + '"]');
     await context.waitFor();
+    await context.locator('.context-event-details > summary').click();
     check('New choices visibly disclose Private', await context.locator('.interest-button').innerText() === 'Interested · Private');
     check('Accessible action name includes its visible label', (await context.locator('.interest-button').getAttribute('aria-label')).includes(await context.locator('.interest-button').innerText()));
     let release; let started;
@@ -112,6 +114,7 @@ fs.mkdirSync(out, { recursive: true });
     await owner.request.delete(base + '/api/v1/me/event-interests/ticketmaster:Browser_2', { headers: { 'X-CSRF-Token': me.csrf_token } });
     await set(other, otherMe.csrf_token, id, { visibility: 'private' });
     await page.goto(base + process.env.SAVED_SEARCH_PATH + '&selected_event=' + encodeURIComponent(id) + '&section=community');
+    await context.locator('.context-event-details > summary').click();
     await owner.request.patch(base + '/api/v1/me/profile', { data: { interest_visibility: 'public' }, headers: { 'X-CSRF-Token': me.csrf_token } });
     const fresh = await set(owner, me.csrf_token, 'ticketmaster:Browser_1');
     check('Profile default applies to new choices', fresh.visibility === 'public');

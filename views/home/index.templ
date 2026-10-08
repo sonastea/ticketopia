@@ -96,7 +96,7 @@ templ Index(page SearchPage) {
 				if page.SelectionError != "" {
 					@PreviewError(page.SelectionError, eventURL(page.SelectedID, page.Section, page.ReturnURL), page.ReturnURL)
 				} else if page.Selected != nil {
-					@EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL, Saves: page.Saves, Interests: page.Interests, Participants: page.Participants, ParticipantsError: page.ParticipantsError, Recommendations:page.Recommendations, Discussions:page.Discussions, ActionReturnURL: page.ActionReturnURL})
+					@EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL, Saves: page.Saves, Interests: page.Interests, Participants: page.Participants, ParticipantsError: page.ParticipantsError, Recommendations:page.Recommendations, Discussions:page.Discussions, Thread: page.Thread, ActionReturnURL: page.ActionReturnURL})
 				} else {
 					@EmptyContext()
 				}
@@ -222,7 +222,7 @@ templ EmptyContext() {
 		<div class="preview-placeholder" aria-hidden="true">@layouts.Icon("ticket")
 </div>
 		<h3>Something catch your eye?</h3>
-		<p>Select an event to see its dates, venue, and ticket details here.</p>
+		<p>Select an event to read its questions and tips alongside your results.</p>
 		<div class="context-footnote"><p>Good plans start with the details.</p><p>Open an event to see public recommendations, questions, and practical tips.</p></div>
 	}
 }

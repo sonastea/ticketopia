@@ -206,3 +206,58 @@ func TestDiscussionNativeDraftRecoveryAndSafeReturns(t *testing.T) {
 		}
 	}
 }
+
+func TestContextThreadUsesRetainedEventAndIsolatesReplyFailure(t *testing.T) {
+	a, repo, browser, bearer, _, event := discussionAPI(t)
+	w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"A retained question"}`, bearer, accounts.ID())
+	if w.Code != 201 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	thread := repo.post.ID
+	origin := "/?city=Berlin&selected_event=" + event + "&section=discussion&selected_thread=" + thread
+	if safeReturnURL(origin) != origin || safeAuthReturn(origin) != origin || safeDiscussionReturn(origin) != origin {
+		t.Fatal("selected thread lost its validated browsing/auth return")
+	}
+	path := "/events/" + event + "/discussions/" + thread + "?return_to=" + url.QueryEscape("/?city=Berlin")
+	for _, unavailable := range []bool{false, true} {
+		repo.unavailable = unavailable
+		r := httptest.NewRequest("GET", path, nil)
+		r.Header.Set("Cookie", "ticketopia_session="+browser)
+		r.Header.Set("X-Ticketopia-Panel", "true")
+		w := httptest.NewRecorder()
+		a.Routes().ServeHTTP(w, r)
+		if w.Code != 200 || strings.Contains(w.Body.String(), "<html") || !strings.Contains(w.Body.String(), `data-context-thread="`+thread+`"`) || !strings.Contains(w.Body.String(), "A retained question") || w.Header().Get("Cache-Control") != "private, no-store" || w.Header().Get("Vary") != "X-Ticketopia-Panel" {
+			t.Fatal("thread fragment lost event context or private response boundary", w.Code, w.Body.String())
+		}
+		if unavailable && (!strings.Contains(w.Body.String(), "Retry replies") || !strings.Contains(w.Body.String(), "Open full conversation")) {
+			t.Fatal("reply failure removed usable root/expansion/recovery")
+		}
+	}
+	if w := accountRequest(a, "GET", strings.Replace(path, event, "ticketmaster:wrong", 1), "", browser, "", "", "", ""); w.Code != 404 {
+		t.Fatal("thread/event mismatch accepted", w.Code)
+	}
+}
+
+func TestContextThreadParametersDoNotBecomeDiscoveryFilters(t *testing.T) {
+	thread, parent := accounts.ID(), accounts.ID()
+	values := url.Values{"city": {"Berlin"}, "selected_event": {"ticketmaster:show"}, "section": {"discussion"}, "selected_thread": {thread}, "reply_to": {parent}, "discussion_cursor": {"opaque"}}
+	filters, event, section, err := webSearch(values)
+	if err != nil || event != "ticketmaster:show" || section != "discussion" || filters.Encode() != "city=Berlin" {
+		t.Fatal(filters, event, section, err)
+	}
+	for _, change := range []url.Values{
+		{"selected_thread": {"bad"}}, {"selected_thread": {thread, thread}}, {"section": {"overview"}},
+		{"selected_event": {""}}, {"reply_to": {"bad"}}, {"discussion_cursor": {strings.Repeat("x", 1025)}},
+	} {
+		copy := url.Values{}
+		for key, value := range values {
+			copy[key] = value
+		}
+		for key, value := range change {
+			copy[key] = value
+		}
+		if _, _, _, err := webSearch(copy); err == nil {
+			t.Fatal("invalid contextual state accepted", copy)
+		}
+	}
+}

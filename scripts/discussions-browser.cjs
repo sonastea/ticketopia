@@ -60,8 +60,10 @@ fs.mkdirSync(out, {recursive: true});
       }
     }
     await page.unroute('**/discussion-actions');
-    await preview.getByRole('button', {name: 'Post question or tip'}).click();
-    await page.waitForURL('**/discussions/*');
+     await preview.getByRole('button', {name: 'Post question or tip'}).click();
+     await page.waitForURL(url => url.searchParams.has('selected_thread'));
+     await preview.getByRole('link', {name: 'Open full conversation', exact: true}).click();
+     await page.waitForURL('**/discussions/*');
     check('Publishing opens a shareable event thread', await page.locator('.discussion-post').first().innerText().then(text => text.includes('How is the balcony view?')));
     const list = await (await owner.request.get(base + endpoint)).json();
     check('Read-after-write root appears immediately', list.items && list.items.length === 1);

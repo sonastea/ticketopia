@@ -32,6 +32,7 @@ type SearchPage struct {
 	ParticipantsError     string
 	Recommendations       RecommendationView
 	Discussions           DiscussionView
+	Thread                *DiscussionPage
 	ActionReturnURL       string
 }
 
@@ -46,6 +47,7 @@ type EventPage struct {
 	ParticipantsError string
 	Recommendations   RecommendationView
 	Discussions       DiscussionView
+	Thread            *DiscussionPage
 	ActionReturnURL   string
 }
 
@@ -136,6 +138,10 @@ func returnOrigin(raw string) string {
 	values := u.Query()
 	values.Del("selected_event")
 	values.Del("section")
+	values.Del("selected_thread")
+	values.Del("reply_to")
+	values.Del("discussion_cursor")
+	values.Del("recommend")
 	u.RawQuery = values.Encode()
 	return u.String()
 }

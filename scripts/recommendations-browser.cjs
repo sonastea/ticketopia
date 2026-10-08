@@ -26,6 +26,7 @@ fs.mkdirSync(out, { recursive: true });
     const own = async () => (await owner.request.get(base + endpoint)).json();
     const eventList = async () => (await guest.request.get(base + '/api/v1/events/' + id + '/recommendations')).json();
     const capture = async (name, width, zoom = false) => {
+      if (process.env.PARTICIPATION_SKIP_CAPTURES === 'true') return;
       await page.setViewportSize({ width, height: 1000 });
       await page.evaluate(async zoom => { document.documentElement.style.fontSize = zoom ? '200%' : ''; await document.fonts.ready; scrollTo(0, 0); }, zoom);
       const overflow = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, nodes: [...document.querySelectorAll('main *')].filter(node => node.getBoundingClientRect().right > innerWidth + 1).map(node => ({ tag: node.tagName, classes: node.className, text: node.textContent.slice(0, 80), width: node.getBoundingClientRect().width })) }));
@@ -45,6 +46,7 @@ fs.mkdirSync(out, { recursive: true });
     await page.locator('.event-link').first().click();
     const context = page.locator('[data-context-id="' + id + '"]');
     await context.waitFor();
+    await context.locator('.context-event-details > summary').click();
     await context.getByRole('link', { name: 'Recommend', exact: true }).click();
     const panel = context.locator('[data-event-recommendations]');
     await panel.waitFor();

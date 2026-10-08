@@ -12,7 +12,7 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
 fs.mkdirSync(out, { recursive: true });
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE });
   try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     await context.addCookies([{ name: 'ticketopia_session', value: process.env.SAVED_FIXTURE_TOKEN, url: base }]);
@@ -106,6 +106,7 @@ fs.mkdirSync(out, { recursive: true });
     check('Discovery fixture has two rows', await page.locator('.event-row').count() === 2);
     await page.locator('.event-link').first().click();
     await page.locator('[data-context-id="ticketmaster:Browser_0"]').waitFor();
+    await page.locator('.context-event-details > summary').click();
     await actionLayoutViews('discovery and preview, unsaved');
     let releaseSave;
     const pendingSave = new Promise(resolve => { releaseSave = resolve; });

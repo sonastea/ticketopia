@@ -974,6 +974,12 @@ summary::-webkit-details-marker {
   gap: .35rem;
 }
 
+.event-actions > *, .event-actions .button-quiet {
+  max-inline-size: 100%;
+}
+
+.event-actions .button-quiet { flex-shrink: 1; }
+
 .button-quiet {
   display: inline-flex;
   align-items: center;
@@ -1277,6 +1283,26 @@ summary::-webkit-details-marker {
 .context-heading .event-venue {
   margin-block-start: .5rem;
 }
+
+.context-event-details > summary {
+  min-block-size: 2.75rem;
+  padding-block: .65rem;
+  color: var(--brand);
+  cursor: pointer;
+  font-size: .875rem;
+  font-weight: 700;
+}
+
+.context-event-details > summary:active {
+  background: var(--brand-soft);
+}
+
+.context-event-details .event-image { margin-block: .75rem; }
+.context-thread { padding-block: 1.25rem; }
+.context-thread > .text-link { display: flex; align-items: center; min-block-size: 2.75rem; }
+.context-thread h2 { font-size: 1.125rem; margin-block-start: 1.5rem; }
+.context-thread .discussion-reply-composer { margin-block-start: 1.5rem; }
+.discussion-list .recommendation-copy > .text-link { display: flex; align-items: center; min-block-size: 2.75rem; }
 
 .open-event {
   margin-block-start: .5rem;
