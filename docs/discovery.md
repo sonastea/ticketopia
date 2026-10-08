@@ -190,7 +190,8 @@ the HTML handler before calling the shared discovery service.
   `null` when unknown.
 - `meta.data_as_of` is the successful collection time. `meta.stale` identifies a
   retained result served after refresh failure or a request-budget cooldown.
-  These values are not durable first-seen/change-detection timestamps.
+  These values are not durable first-seen/change-detection timestamps. Opt-in
+  [event history](event-history.md) stores those separately in MariaDB.
 - Errors use `application/problem+json`: 400 for invalid or provider-rejected
   filters, 404 for a missing event, and 503 for unavailable data. Upstream 429
   becomes 503 with `Retry-After`
@@ -210,12 +211,13 @@ curl 'http://localhost:8080/api/v1/events?city=Chicago&country=US&category_id=KZ
 
 The [Discovery API documentation](https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/)
 lists default limits of 5 requests/second and 5,000/day. Ticketopia starts at most
-four external requests/second and permits 4,500 calls per process window of
+four external requests/second and permits 4,500 calls per window of
 24 hours, starting with its first request. This leaves headroom for other uses
 of the key. Set `TICKETMASTER_DAILY_BUDGET` to a
 positive integer to fit your account. All resource types share this budget.
-Cache hits consume no requests. There are no automatic request retries or
-background crawls.
+Cache hits consume no requests. There are no automatic HTTP request retries.
+[Scheduled city/date collection](event-history.md) is separately opt-in and uses
+the same budget, not another allowance.
 
 Timeouts and provider failures pause new external requests for 30 seconds; 429
 pauses for at least a minute. Longer `Retry-After` values (seconds or HTTP dates)
@@ -224,13 +226,14 @@ respected, up to 24 hours. A successful response with zero remaining quota is
 still returned and cached. HTTP calls time out after eight seconds; shared cache
 refresh work is bounded to ten seconds. Response bodies are limited to 8 MiB.
 
-Rate pacing, budget accounting, cooldowns, and concurrent-request deduplication
-are **per process** and reset on restart. Shared KV reuses stored results across
-instances but does not provide distributed locking or a shared request budget.
-Coordinate global pacing, budgets, cooldowns, and refresh ownership before scaling
-provider-calling pods with one shared key. The [planned MariaDB deployment](design/database.md)
-supports shared durable state across app replicas but does not implement that
-coordination by itself. Durable scheduled collection remains a later milestone.
+Database-free pacing, budget accounting, cooldowns and request deduplication are
+**per process** and reset on restart. Shared KV reuses results but is not a lock
+or shared budget. In **MariaDB mode**, provider calls use durable shared budgeting,
+pacing and cooldowns, even if the history scheduler is disabled. Scheduled refresh
+claims are also durable/fenced; cache-miss deduplication remains process-local.
+All callers sharing a key must use the same database and compatible binary.
+Other applications/database-free callers using that key are not coordinated.
+See [reliable history](event-history.md) for configuration, receipts and limitations.
 
 ## Verification
 

@@ -441,3 +441,146 @@ data:
   DB_QUERY_TIMEOUT: 3s
   DB_READY_TIMEOUT: 500ms
   DB_MIGRATION_TIMEOUT: 2m
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-artists, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: artists
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-artist-providers, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: artist_providers
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-venues, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: venues
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-venue-providers, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: venue_providers
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-event-history, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: event_history_state
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-event-observations, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT]
+  database: ticketopia
+  table: event_observations
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-collection-tasks, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: collection_tasks
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-collection-runs, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: collection_runs
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-collection-pages, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT]
+  database: ticketopia
+  table: collection_pages
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-collection-events, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT]
+  database: ticketopia
+  table: collection_run_events
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-provider-budgets, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: provider_budgets
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip

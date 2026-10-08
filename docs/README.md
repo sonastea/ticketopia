@@ -29,6 +29,9 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Reliable event history](event-history.md): durable artist/venue catalogs,
+  dated observations/change detection, budgeted city/date refreshes, retained
+  coverage/failure receipts, and shared provider accounting.
 - [Private reporting and moderation](moderation.md): report receipts, moderator
   keep/hide/restore, author outcomes/second reviews, durable roles, and audited
   operator grant/revoke commands.

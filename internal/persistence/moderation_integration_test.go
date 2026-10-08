@@ -341,9 +341,7 @@ func TestMariaDBModerationSchema7UpgradePreservesPostsAndActivity(t *testing.T) 
 	auth := accounts.New(old.Accounts(), accountProviderFixture{})
 	author, raw := loginAccount(t, auth, "moderation-upgrade")
 	detail := savedDetail("ModerationUpgrade")
-	if _, _, err := old.Saved().Save(t.Context(), author.ID, detail); err != nil {
-		t.Fatal(err)
-	}
+	seedLegacySavedEvent(t, db, author.ID, detail)
 	post, key := accounts.ID(), accounts.ID()
 	hash := accounts.Hash("retained retry fingerprint")
 	execSQL(t, db, `INSERT INTO discussion_posts (post_id,account_id,event_id,body,idempotency_key,request_hash) VALUES (?,?,?,?,?,?)`, post, author.ID, detail.Item.ID, "Retained public text", key, hash[:])

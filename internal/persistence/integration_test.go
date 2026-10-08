@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -106,6 +107,37 @@ func execSQL(t *testing.T, db *sql.DB, query string, args ...any) {
 	}
 }
 
+// Seed the pre-history schema through its SQL contract, not a current writer
+// which correctly requires schema 9. These fixtures model drained old binaries.
+func seedLegacySavedEvent(t *testing.T, db *sql.DB, owner string, detail models.EventDetail) {
+	t.Helper()
+	args, _, err := prepareSnapshot(detail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if err := upsertEventTx(t.Context(), tx, detail.Item, args); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(detail.Item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.ExecContext(t.Context(), `INSERT INTO event_snapshots (event_id,snapshot,data_as_of) VALUES (?,?,?)`, detail.Item.ID, string(data), detail.Meta.DataAsOf); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.ExecContext(t.Context(), `INSERT INTO saved_events (account_id,event_id) VALUES (?,?)`, owner, detail.Item.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func (f mariaFixture) migrate(t *testing.T) {
 	t.Helper()
 	if err := Migrate(t.Context(), f.migration); err != nil {
@@ -118,6 +150,9 @@ func (f mariaFixture) migrate(t *testing.T) {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
 	}
 	for table, privileges := range map[string]string{"moderation_reports": "INSERT, UPDATE", "moderation_decisions": "INSERT", "moderation_appeals": "INSERT, UPDATE"} {
+		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
+	}
+	for table, privileges := range map[string]string{"artists": "INSERT, UPDATE", "artist_providers": "INSERT, UPDATE", "venues": "INSERT, UPDATE", "venue_providers": "INSERT, UPDATE", "event_history_state": "INSERT, UPDATE", "event_observations": "INSERT", "collection_tasks": "INSERT, UPDATE", "collection_runs": "INSERT, UPDATE", "collection_pages": "INSERT", "collection_run_events": "INSERT", "provider_budgets": "INSERT, UPDATE"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
 	}
 }

@@ -7,10 +7,12 @@ schema-v4 [event interest](event-interest.md), and schema-v5
 [public recommendations](event-recommendations.md), and schema-v6
 [event discussions/Helpful](event-discussions.md), plus schema-v7 grouped recommendations
 and observe-only publication measurements, and schema-v8
-[private reporting/moderation and durable roles](moderation.md). Discovery
-still reads its existing cache/provider services and does **not** write SQL. There
-are no notification jobs, ingestion scheduler, global provider
-budgets, database HA, or verified production backup/restore in this slice.
+[private reporting/moderation and durable roles](moderation.md), and schema-v9
+[reliable event history](event-history.md). Interactive discovery still uses its
+cache/provider services; MariaDB mode shares durable request budgets/pacing/cooldowns.
+Opt-in city/date collection and fresh activity snapshots persist observations,
+artist/venue catalogs, coverage and change evidence. There are no notification
+jobs, database HA, or verified production backup/restore in this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
 [`internal/persistence`](../internal/persistence/), shared durable services in
@@ -268,16 +270,16 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 8 only**. Versions 0–7 and 9+ are rejected;
+This binary supports **clean schema version 9 only**. Versions 0–8 and 10+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous recommendation binary supports version 7 only.
-For the v7-to-v8 moderation upgrade, stop/drain v7 traffic, preserve a backup,
-apply the v8 migration with the v8 image, reapply/reconcile runtime table grants,
-then start v8 apps. Do not leave v7 pods serving after migration; they will fail
+old binaries are gone. The previous moderation binary supports version 8 only.
+For the v8-to-v9 history upgrade, stop/drain v8 traffic, preserve a backup,
+apply the v9 migration with the v9 image, reapply/reconcile runtime table grants,
+then start v9 apps. Do not leave v8 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
@@ -288,7 +290,8 @@ a claim that a three-pod rollout was exercised.
 `events.Service.EnsureDurable` explicitly persists a normalized occurrence for
 local actions; `Get` resolves it independently of cache/provider availability.
 Private saves compose identity, provider mapping, snapshot and bookmark in one
-transaction; discovery reads still do not write SQL or run ingestion. Detail reads
+transaction; plain discovery reads do not ingest observations. Scheduled city/date
+refreshes explicitly ingest fresh provider pages when enabled. Detail reads
 can fall back to a stored snapshot during provider/cache loss without exposing
 bookmark state. See [private saves](saved-events.md) for the HTTP/API boundary.
 
@@ -303,8 +306,8 @@ Metadata includes name/source URL, known UTC instant, local date/time/time-zone 
 TBA/TBD flags, explicit provider status, venue/place snapshots, optional artists,
 and every classification's category/genre/subgenre references. JSON fields hold
 the shared normalized model's small arrays/place, not raw provider responses.
-This minimal identity record is **not** dated observation history or independent
-artist/venue catalogs. Schema v3 additionally stores a complete normalized
+The minimal identity record alone is **not** dated observation history or independent
+artist/venue catalogs; schema v9 adds those separately. Schema v3 additionally stores a complete normalized
 last-known DTO in `event_snapshots`, including price/image/sale/description fields,
 with its collection time. Image URLs, not image binaries, are stored. Owner-only
 `saved_events` reference that snapshot and the account; runtime gets INSERT/DELETE
@@ -344,8 +347,17 @@ Upserts lock the stable event key and insert its provider mapping in one short
 InnoDB transaction. Deadlocks/lock-wait timeouts before commit get at most three
 attempts within one operation deadline. A transport failure during commit is
 uncertain and is **not** automatically replayed; resolve the unique identity before
-retrying. Last committed explicit metadata wins. Missing artists are valid, and
+retrying. Plain identity upserts retain last-committed metadata semantics; snapshot
+writes order metadata by successful collection time. Missing artists are valid, and
 only an explicit supplied status can record cancellation.
+
+Schema v9 adds immutable `event_observations`, monotonic `event_history_state`,
+independent artists/venues with provider mappings, refresh tasks/runs/page/event
+receipts and key-fingerprinted provider budgets. Fresh snapshot writes compose
+history with local activity; scheduled pages compose history and coverage. Current
+snapshots/identity metadata cannot rewind to an older collected snapshot. Runtime
+gets INSERT-only observations/page/run-event evidence and no history/catalog
+DELETE privileges. See [history behavior and configuration](event-history.md).
 
 ## Standalone operator example (not deployed)
 
@@ -392,7 +404,8 @@ Capacity with `max_connections=100`, application pool size 10, replicas 3, surge
 All app reads/writes use the same endpoint. This is **one database pod**, not
 replication/Galera/MaxScale HA. PVC persistence is not a backup; define and verify
 off-volume backups/restoration and any required failover before production claims.
-Existing provider budgets/deduplication remain process-local despite shared SQL/KV.
+MariaDB-backed provider budgets/pacing/cooldowns are now shared; cache miss
+deduplication remains process-local. All callers of a key must use the same SQL database.
 
 ## Verification
 
@@ -415,10 +428,13 @@ deadlines, committed partial DDL and repair, runtime privilege denial, clean/mis
 unsupported schemas, startup/handshake deadlines, case-distinct identities,
 category/artist-less metadata updates, UTC/TLS verification, mapping atomicity,
 pool/service restarts and cache removal, unavailable/recovered readiness, closed
-pools, shutdown drain ordering, credential redaction, and unchanged discovery reads.
+pools, shutdown drain ordering, credential redaction, and unchanged discovery DTOs.
+History tests additionally verify shared budgets/cooldowns, fenced crash recovery,
+atomic/shifted/capped coverage, history/catalog retention, sparse/stale changes,
+100-item scheduled provider pages and schema-v8 upgrade preservation.
 
 The smoke script runs migration in the non-root/read-only shell-free image, verifies
 bad-credential startup failure/redaction, checks UI/assets/probes, **temporarily pauses the local database**, checks readiness 503
 without liveness failure, recovers, and restarts/stops the application with exit 0.
 It does not remove the database volume or exercise three Kubernetes pods, HA,
-historical ingestion, or backup/restore.
+scheduled collection, or backup/restore; SQL/provider tests cover collection separately.
