@@ -61,6 +61,7 @@ templ Settings(p Page) {
 		<main id="main" class="destination-page account-page">
 			<header class="account-heading"><h1>{ p.Title() }</h1><p class="intro">Make this space feel like yours. Your email and preferences stay private.</p></header>
 			<nav class="account-nav" aria-label="Account sections">
+				<a href="/radar">Radar</a>
 				<a href="/me" aria-current={ layouts.CurrentPage(p.Section == "profile") }>Profile &amp; privacy</a>
 				<a href="/me/preferences" aria-current={ layouts.CurrentPage(p.Section == "preferences") }>Preferences</a>
 				<a href="/me/interests" aria-current={ layouts.CurrentPage(p.Section == "interests") }>Interests</a>
@@ -228,7 +229,7 @@ templ Interests(p Page) {
 		@CSRF(p.CSRF)<input type="hidden" name="section" value="interests"/>
 		<h2 id="interests-heading">What catches your interest?</h2>
 		<p>Choose categories you enjoy. These preferences stay private and are separate from marking an individual event Interested.</p>
-		<p class="field-note">Personalized matches aren't available yet. Discovery still lets you explore every category.</p>
+		<p class="field-note">Category choices help explain matches in <a href="/radar" class="text-link">your private Radar</a>. Discovery still lets you explore every category.</p>
 		if p.CategoriesUnavailable {
 			<p class="account-notice" role="status">Category options couldn't be refreshed. Existing choices are retained below; try this page again shortly for the complete catalog.</p>
 		}

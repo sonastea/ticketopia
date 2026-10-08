@@ -1,0 +1,70 @@
+package home
+
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/alert"
+import "github.com/sonastea/ticketopia/views/components/empty"
+
+templ Radar(page RadarPage) {
+	@layouts.App("radar", "Your radar") {
+		<main id="main" class="destination-page radar-page">
+			<header class="account-heading">
+				<h1>Your radar</h1>
+				<p class="intro">Nearby events connected to the artists, venues, and categories you choose. Your radar and preferences stay private; no reminders are sent.</p>
+			</header>
+			<nav class="account-nav" aria-label="Account sections">
+				<a href="/radar" aria-current="page">Radar</a>
+				<a href="/me/preferences">Location preferences</a>
+				<a href="/me/interests">Category preferences</a>
+				<a href="/follows">Follows</a>
+			</nav>
+			if !page.Enabled {
+				<p>Radar requires accounts, which aren't enabled on this server. You can still discover events by city.</p>
+				@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }
+			} else if page.Error != "" {
+				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+					<h2>Radar couldn't load</h2>
+					<p>{ page.Error }</p>
+					@button.Button(button.Props{Href: "/radar", Class: "action"}) { Refresh Radar }
+				}
+			} else if page.List.Mode == "needs_location" {
+				@empty.Empty(empty.Props{Class: "destination-state"}) {
+					<h2>Where should we look?</h2>
+					<p>Choose a city and country in your private preferences. Radar uses that location on every device, not a browser or IP hint.</p>
+					@button.Button(button.Props{Href: "/me/preferences", Class: "action"}) { Choose your city }
+				}
+			} else {
+				<p class="radar-scope">{ page.List.Scope.City }, { page.List.Scope.Country } · { page.List.Scope.StartDate } – { page.List.Scope.EndDate }</p>
+				if page.List.Mode == "nearby" {
+					<p class="participation-note">These are nearby suggestions, not personalized matches yet. Follow an artist or venue, or choose categories to make Radar yours.</p>
+				} else {
+					<p class="sort-label">Strongest matches first, then soonest date. Artist follows carry more weight than venue follows, then category choices.</p>
+				}
+				@Freshness(page.List.Meta)
+				@CollectionCoverage(page.List.Meta)
+				if len(page.List.Items) == 0 {
+					@empty.Empty(empty.Props{Class: "destination-state"}) {
+						<h2>No matches in the available event data</h2>
+						<p>We haven't found a dated event for these choices in your city in the next 90 days. This isn't a promise that none exist: events without dates, locations, or matching artist/category metadata can't be matched.</p>
+						<p>Try other follows or categories, change your city, or browse all events without changing your preferences.</p>
+						@button.Button(button.Props{Href: "/follows", Variant: button.VariantOutline, Class: "action action-secondary"}) { Manage follows }
+						@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }
+					}
+				} else {
+					<ul id="event-list" class="event-list">
+						@EventRowsWithRadar(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests, page.matches())
+					</ul>
+					<div class="pagination">
+						if page.List.NextCursor != nil {
+							@button.Button(button.Props{Href: page.nextURL(), Variant: button.VariantOutline, Class: "action action-secondary"}) { More radar events }
+						}
+						@button.Button(button.Props{Href: "/radar", Variant: button.VariantLink, Class: "text-link"}) { Refresh Radar }
+					</div>
+				}
+				<p class="field-note">Missing prices, sale times, images, or category labels stay unknown. Check the event and ticket page for current details and availability.</p>
+			}
+			<p id="save-feedback" class="sr-only" role="status"></p>
+			@SourceFooter()
+		</main>
+	}
+}

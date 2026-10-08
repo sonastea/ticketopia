@@ -4,8 +4,8 @@ Search for artists and venues, follow or unfollow them, and manage your private
 collection at `/follows`. Follows are MariaDB-backed and available on later visits
 and other authenticated clients. There are no public follower counts, follower
 lists, visibility switches, or follow activity on public profiles. Following is
-independent of Saved, Interested and recommendations; it does not reserve tickets,
-rank personalized matches, or schedule notifications.
+independent of Saved, Interested and recommendations; it helps explain and rank
+[private Radar matches](radar.md), but does not reserve tickets or schedule notifications.
 
 ## Setup and upgrade
 

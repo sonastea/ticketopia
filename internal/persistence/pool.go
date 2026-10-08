@@ -56,7 +56,8 @@ func connect(ctx context.Context, c Config) (*sql.DB, error) {
 	return db, nil
 }
 
-// Open validates an existing schema. It never creates or migrates anything.
+// Open validates an existing schema and runtime write permissions. It never
+// creates, migrates, or grants anything, and its write probes affect zero rows.
 func Open(ctx context.Context, c Config) (*Pool, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
@@ -69,6 +70,10 @@ func Open(ctx context.Context, c Config) (*Pool, error) {
 	}
 	p := &Pool{db: db, config: c}
 	if err := p.validateSchema(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := p.validateRuntimePermissions(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}

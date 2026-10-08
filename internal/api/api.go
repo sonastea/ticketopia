@@ -22,6 +22,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/location"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/moderation"
+	"github.com/sonastea/ticketopia/internal/radar"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/assets"
@@ -42,6 +43,7 @@ type api struct {
 	authConfig      accounts.Config
 	saved           *saved.Service
 	follows         *follows.Service
+	radar           *radar.Service
 	interests       *interests.Service
 	recommendations *recommendations.Service
 	discussions     *discussions.Service
@@ -82,6 +84,10 @@ func WithSavedEvents(repository saved.Repository) Option {
 
 func WithFollows(repository follows.Repository) Option {
 	return func(a *api) { a.follows = follows.New(repository, a.events) }
+}
+
+func WithRadar(repository radar.Repository, freshFor time.Duration) Option {
+	return func(a *api) { a.radar = radar.New(repository, a.events, freshFor) }
 }
 
 func WithAccounts(config accounts.Config, service *accounts.Service) Option {
@@ -148,6 +154,7 @@ func (a *api) Routes() *echo.Echo {
 	e.GET("/events/:event_id", a.eventPageHandler)
 	a.savedRoutes(e)
 	a.followRoutes(e)
+	a.radarRoutes(e)
 	a.interestRoutes(e)
 	a.recommendationRoutes(e)
 	a.discussionRoutes(e)

@@ -51,6 +51,7 @@ templ App(active string, title string) {
 						@NavItem("/community", "Community", "community", active == "community")
 					}
 					@NavGroup("your-space", "Your space") {
+						@NavItem("/radar", "Radar", "radar", active == "radar")
 						@NavItem("/saved", "Saved", "saved", active == "saved")
 						@NavItem("/me/interests", "Interests", "interests", active == "interests")
 						@NavItem("/follows", "Follows", "follows", active == "follows")
@@ -86,7 +87,7 @@ templ App(active string, title string) {
 			@NavLink("/", "Discover", "discover", active == "discover")
 			@NavLink("/saved", "Saved", "saved", active == "saved")
 			@NavLink("/community", "Community", "community", active == "community")
-			@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests" || active == "follows")
+			@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests" || active == "follows" || active == "radar")
 		</nav>
 	}
 }

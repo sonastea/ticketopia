@@ -22,7 +22,10 @@ navigation and interaction contract.
 Opt-in Google accounts provide MariaDB-backed sessions, profiles/privacy defaults,
 private preferences, API credentials, and durable private event saves with
 last-known metadata. Private artist/venue follows provide authenticated search,
-follow/unfollow and cross-session owner-only collections. Independent Interested choices provide private-by-default
+follow/unfollow and cross-session owner-only collections.
+[Personalized radar](docs/radar.md) explains nearby matches from these
+follows and explicit city/category preferences, with consistent web/API pagination.
+Independent Interested choices provide private-by-default
 identities, public counts, and explicitly public participant/profile activity.
 Public recommendations provide optional short reasons, edit/withdrawal, event/profile
 attribution, and grouped city/category browsing independently of private interest.

@@ -69,5 +69,16 @@ INSERT INTO artist_follows SELECT * FROM artist_follows WHERE FALSE;
 DELETE FROM artist_follows WHERE FALSE;
 INSERT INTO venue_follows SELECT * FROM venue_follows WHERE FALSE;
 DELETE FROM venue_follows WHERE FALSE;
+INSERT INTO event_search_places SELECT * FROM event_search_places WHERE FALSE;
+DELETE FROM event_search_places WHERE FALSE;
+INSERT INTO event_search_facets SELECT * FROM event_search_facets WHERE FALSE;
+DELETE FROM event_search_facets WHERE FALSE;
+INSERT INTO discovery_scopes SELECT * FROM discovery_scopes WHERE FALSE;
+UPDATE discovery_scopes SET scope_id=scope_id WHERE FALSE;
+INSERT INTO discovery_scope_events SELECT * FROM discovery_scope_events WHERE FALSE;
+UPDATE discovery_scope_events SET token=token WHERE FALSE;
+INSERT INTO event_detail_tasks SELECT * FROM event_detail_tasks WHERE FALSE;
+UPDATE event_detail_tasks SET token=token WHERE FALSE;
+DELETE FROM event_detail_tasks WHERE FALSE;
 
 ROLLBACK;

@@ -14,6 +14,11 @@
   backlog, failure/cooldown and quota aggregate logs.
 - Verify isolated MariaDB SQL/API/restart/quota/partial coverage and Chromium
   keyword/sort/pagination/history/empty states, 320px/200%-text and accessibility.
+- Check all schema-11 Discover write permissions during local database setup;
+  regression-test missing grants individually and use least-privilege Discover
+  grants in SQL fixtures. Document [1142 recovery](../event-history.md#missing-runtime-grants).
+- Refuse application startup when runtime writes are missing; see shared
+  [permission validation](../persistence.md#startup-permission-validation).
 
 - Persist independent artists/venues/provider mappings and immutable dated event
   observations with first/last seen and meaningful-change evidence in schema 9.

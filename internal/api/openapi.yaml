@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.10.0
+  version: 1.11.0
   license:
     name: MIT
     identifier: MIT
@@ -12,7 +12,7 @@ info:
     taxonomy IDs. MariaDB mode searches the durable public catalog with coverage
     receipts and dated event history. Data is never a live ticket inventory.
     Opt-in Google authentication provides MariaDB-backed profiles and private
-    preferences, private durable event saves and artist/venue follows, independent event interest, public
+    preferences, private personalized radar, durable event saves and artist/venue follows, independent event interest, public
     recommendations, and asynchronous event discussions with Helpful reactions.
     Interest identity is private by default; counts include private choices but
     participant lists and profile activity include only explicitly public choices.
@@ -453,6 +453,61 @@ paths:
         '400': {$ref: '#/components/responses/AccountBadRequest'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '503': {$ref: '#/components/responses/FollowsUnavailable'}
+  /api/v1/me/radar:
+    get:
+      operationId: getPersonalRadar
+      summary: Read your nearby events with explicit match reasons
+      description: |
+        Same service and ranking as /radar. Uses your private saved city/country,
+        account time zone (UTC fallback), and a 90-day inclusive venue-local date
+        window starting today. No IP/browser location or inferred social signals.
+        At least one followed artist, followed venue or preferred category must
+        match by case-sensitive ID. Categories are OR signals, not exclusions.
+        Rank by distinct signal types: artist 4, venue 2, category 1; then local
+        date/time ascending (unknown time last), then binary event ID ascending.
+        Repeated classifications/lineups do not multiply weights. Cancelled,
+        postponed, undated/TBA/TBD and already elapsed known instants are excluded.
+        Missing metadata is not invented; known IDs still match without labels.
+        No city or country returns mode needs_location and no items. Without
+        follows/categories, mode nearby returns dated city suggestions with a
+        nearby reason, not claimed personalized matches. Otherwise mode personalized
+        can have zero matches, including unknown retained preference IDs.
+        The first page may trigger shared broad coverage-aware collection; failures
+        retain stored results and coverage/freshness. Continuation is provider-free.
+        An opaque cursor binds owner, limit, anchored time/window, signals and the
+        entire ordered event-record version. It expires after 24 hours. Event or
+        signal changes return 409 radar_changed: discard the cursor and refresh.
+        Malformed, foreign, expired or changed-limit cursors return 400 invalid_input.
+        Time-based staleness alone does not invalidate cursors. No server-local
+        snapshot cache is required, so continuations work across replicas/restarts.
+        Unknown/repeated parameters are rejected. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CatalogLimit'}
+        - name: cursor
+          in: query
+          description: Use next_cursor unchanged, with the same limit, or omit to refresh.
+          schema: {type: string, maxLength: 1024}
+      responses:
+        '200':
+          description: Ranked private matches, nearby starter suggestions, or a location/empty state with coverage evidence.
+          headers:
+            Cache-Control: {schema: {type: string, const: 'private, no-store'}, description: Never cache account-specific radar publicly.}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RadarList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '409':
+          description: radar_changed; signals, location or ranked event records changed. Refresh without a cursor.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503':
+          description: Accounts/radar disabled or durable storage unavailable; never a fabricated empty list.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
   /api/v1/me/follows:
     get:
       operationId: listFollows
@@ -463,7 +518,7 @@ paths:
         cursors are owner- and filter-bound. Repeated follows keep followed_at unchanged.
         New follows appear on refresh; removals may shorten pages. Unknown/repeated
         parameters are rejected. All responses are private, no-store. No public counts,
-        profile activity, visibility settings, personalization or notifications.
+        profile activity, visibility settings or notifications. Follows are signals for private Radar.
       security: [{sessionCookie: []}, {bearerToken: []}]
       parameters:
         - {name: kind, in: query, schema: {type: string, enum: [artist, venue]}, description: Omit for both kinds.}
@@ -2008,6 +2063,40 @@ components:
     ResourceID:
       type: string
       pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'
+    RadarList:
+      type: object
+      required: [items, next_cursor, mode, scope, meta]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [event, reasons, meta]
+            properties:
+              event: {$ref: '#/components/schemas/Event'}
+              reasons:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [code, text]
+                  properties:
+                    code: {type: string, enum: [followed_artist, followed_venue, preferred_category, nearby]}
+                    text: {type: string, description: Understandable explanation; generic wording when a label is unavailable.}
+                    target_id: {type: string, description: Matched artist/venue provider ID or category taxonomy ID. Absent for nearby suggestions.}
+              meta: {$ref: '#/components/schemas/Freshness'}
+        next_cursor: {type: [string, 'null'], description: Null at the end. Version-bound and valid for 24 hours.}
+        mode: {type: string, enum: [personalized, nearby, needs_location]}
+        scope:
+          type: object
+          required: [city, country, start_date, end_date]
+          properties:
+            city: {type: string}
+            country: {type: string}
+            start_date: {type: string, format: date}
+            end_date: {type: string, format: date}
+        meta: {$ref: '#/components/schemas/Freshness'}
     Freshness:
       type: object
       required: [data_as_of, stale]

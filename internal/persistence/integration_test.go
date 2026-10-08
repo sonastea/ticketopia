@@ -158,8 +158,8 @@ func (f mariaFixture) migrate(t *testing.T) {
 	for _, table := range []string{"artist_follows", "venue_follows"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, DELETE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
 	}
-	for _, table := range []string{"event_search_places", "event_search_facets", "discovery_scopes", "discovery_scope_events", "event_detail_tasks"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE, DELETE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
+	for table, privileges := range map[string]string{"event_search_places": "INSERT, DELETE", "event_search_facets": "INSERT, DELETE", "discovery_scopes": "INSERT, UPDATE", "discovery_scope_events": "INSERT, UPDATE", "event_detail_tasks": "INSERT, UPDATE, DELETE"} {
+		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
 	}
 }
 
@@ -192,6 +192,9 @@ func TestMariaDBConcurrentMigrations(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// Schema-only migration commands do not grant runtime writes. Provision them
+	// before starting the application, even after concurrent migrations succeed.
+	f.migrate(t)
 	p := f.open(t)
 	if err := p.Ready(t.Context()); err != nil {
 		t.Fatal(err)

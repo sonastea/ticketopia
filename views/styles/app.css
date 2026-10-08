@@ -12,6 +12,9 @@
 }
 
 /* Account forms extend the existing flat, plum/light-stone app shell. */
+.radar-match { display: grid; gap: .25rem; margin-block: .75rem; }
+.radar-reasons { padding-inline-start: 1.25rem; color: var(--brand); font-size: .9375rem; }
+.radar-scope { font-variant-numeric: tabular-nums; margin-block-end: .75rem; }
 .follow-search { display: grid; gap: 1rem; }
 .follow-search-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
 .follow-list { list-style: none; padding: 0; margin: 0; }

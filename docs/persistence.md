@@ -24,8 +24,9 @@ The [database plan](design/database.md) owns the broader direction. Code lives i
 ## Explicit modes and configuration
 
 `PERSISTENCE_MODE=disabled` (also the unset default) preserves database-free
-discovery. `PERSISTENCE_MODE=mariadb` requires valid connection settings and a
-clean supported schema **before HTTP listens**. A failure exits nonzero within
+discovery. `PERSISTENCE_MODE=mariadb` requires valid connection settings, a clean
+supported schema and all required runtime write permissions **before HTTP listens**.
+A failure exits nonzero within
 `DB_STARTUP_TIMEOUT`; there is no fallback to memory and no startup migration.
 
 | Setting | Default / requirement in MariaDB mode |
@@ -67,6 +68,25 @@ queries, returning 503 on database unavailability, dirty/unsupported schema, or
 shutdown; subsequent successful checks recover to 200. Disabled readiness remains
 dependency-free. SQL pools close **after** HTTP drains (five seconds maximum;
 forced HTTP close on timeout), not at the beginning of SIGTERM handling.
+
+### Startup permission validation
+
+Every MariaDB application startup checks the actual INSERT/UPDATE/DELETE access
+required by the current schema, including Discover claims, projections, collection
+evidence and shared provider budgets. The probes affect zero rows and always roll
+back; they neither grant privileges nor create application data. They share the
+overall `DB_STARTUP_TIMEOUT` with connection/schema validation. Failures identify
+the operation/table and advise verifying runtime grants, without exposing database
+credentials or raw server messages. Missing writes cannot pass startup merely
+because the schema is clean and SELECT works.
+
+Migrations remain schema-only: the migration user has no grant option, and the
+application must never self-grant privileges. After adding tables, use local
+`make db-setup` or have an authorized operator reconcile grants before starting
+apps. Permission contract tests keep the startup probes, local runtime grants and
+local verification SQL aligned, even in CI without MariaDB. Readiness remains a
+lightweight schema/version check; permission revocation after startup is not
+periodically probed. Restart the app to revalidate changed grants.
 
 ## Repeatable local development
 

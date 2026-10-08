@@ -220,16 +220,38 @@ func TestMariaDBLocalRuntimeCheckRequiresGrants(t *testing.T) {
 	if err := check(); err != nil {
 		t.Fatal("runtime check failed with required grants", err)
 	}
-	execSQL(t, f.admin, "REVOKE INSERT, UPDATE ON "+f.runtime.Database+".event_snapshots FROM '"+f.runtime.User+"'@'%'")
-	if err := check(); err == nil {
-		t.Fatal("runtime check missed the permissions that caused Save to fail")
-	}
-	execSQL(t, f.admin, "GRANT INSERT, UPDATE ON "+f.runtime.Database+".event_snapshots TO '"+f.runtime.User+"'@'%'")
-	if err := check(); err != nil {
-		t.Fatal("runtime check did not recover after grants", err)
+	for _, grant := range []struct {
+		table      string
+		privileges []string
+	}{
+		{"event_snapshots", []string{"INSERT", "UPDATE"}},
+		{"event_search_places", []string{"INSERT", "DELETE"}},
+		{"event_search_facets", []string{"INSERT", "DELETE"}},
+		{"discovery_scopes", []string{"INSERT", "UPDATE"}},
+		{"discovery_scope_events", []string{"INSERT", "UPDATE"}},
+		{"event_detail_tasks", []string{"INSERT", "UPDATE", "DELETE"}},
+	} {
+		for _, privilege := range grant.privileges {
+			t.Run(grant.table+"/"+privilege, func(t *testing.T) {
+				execSQL(t, f.admin, "REVOKE "+privilege+" ON "+f.runtime.Database+"."+grant.table+" FROM '"+f.runtime.User+"'@'%'")
+				err := check()
+				execSQL(t, f.admin, "GRANT "+privilege+" ON "+f.runtime.Database+"."+grant.table+" TO '"+f.runtime.User+"'@'%'")
+				if err == nil {
+					t.Fatal("runtime check missed required permission")
+				}
+				if err := check(); err != nil {
+					t.Fatal("runtime check did not recover after grants", err)
+				}
+			})
+		}
 	}
 	var count int
-	if err := p.db.QueryRowContext(t.Context(), `SELECT (SELECT COUNT(*) FROM events)+(SELECT COUNT(*) FROM accounts)+(SELECT COUNT(*) FROM event_snapshots)+(SELECT COUNT(*) FROM saved_events)`).Scan(&count); err != nil || count != 0 {
+	if err := p.db.QueryRowContext(t.Context(), `SELECT
+		(SELECT COUNT(*) FROM events)+(SELECT COUNT(*) FROM accounts)+
+		(SELECT COUNT(*) FROM event_snapshots)+(SELECT COUNT(*) FROM saved_events)+
+		(SELECT COUNT(*) FROM event_search_places)+(SELECT COUNT(*) FROM event_search_facets)+
+		(SELECT COUNT(*) FROM discovery_scopes)+(SELECT COUNT(*) FROM discovery_scope_events)+
+		(SELECT COUNT(*) FROM event_detail_tasks)`).Scan(&count); err != nil || count != 0 {
 		t.Fatal("runtime check changed domain data", count, err)
 	}
 }

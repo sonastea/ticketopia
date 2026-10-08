@@ -27,6 +27,7 @@ deploy/**
 !deploy/mariadb/
 deploy/mariadb/**
 !deploy/mariadb/runtime-check.sql
+!deploy/mariadb/runtime-grants.sql
 
 # Never send local configuration or data, even from an included directory.
 **/.env*

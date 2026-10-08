@@ -37,7 +37,7 @@ goal to implementation work and verification checkpoints.
 
 ### Personal radar
 
-[Goal details](docs/goals/personal-radar.md)
+[Goal details](docs/goals/personal-radar.md) · [Personalized radar](docs/radar.md)
 
 - [x] Find nearby events by city with clear dates, venues, and known prices.
 - [x] Start with an approximate IP-based or remembered city, change it easily,
@@ -47,7 +47,7 @@ goal to implementation work and verification checkpoints.
 - [x] Sign in with Google and manage a profile, privacy defaults, and private preferences.
 - [x] Keep saved events private.
 - [x] Follow artists and venues.
-- [ ] See personalized matches with understandable reasons.
+- [x] See personalized matches with understandable reasons.
 
 ### Useful reminders
 
@@ -105,7 +105,7 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 [API design](docs/design/radar-api.md)
 
 - [x] Read events, their metadata, categories, and genres through the API.
-- [ ] Read personalized radar results through the API.
+- [x] Read personalized radar results through the API.
 - [ ] Manage personal and community activity from another client.
 - [x] Provide an OpenAPI description for implemented endpoints.
 

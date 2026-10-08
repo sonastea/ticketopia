@@ -54,6 +54,24 @@ Optional taxonomy failures never prevent the stored event list from rendering.
 Public searches/history contain no save/follow/interest ownership or preferences;
 coverage stores broad public scopes, not users' search keywords or identities.
 
+### Missing runtime grants
+
+`Discover refresh incomplete; retaining catalog` with `discover claim` and MariaDB
+code **1142** means the runtime user lacks a required table permission. The claim
+needs INSERT/UPDATE on `discovery_scopes`; collection also needs the projection,
+scope-event and detail-task grants in
+[`runtime-grants.sql`](../deploy/mariadb/runtime-grants.sql). Schema migrations do
+not apply runtime grants. Application startup now
+[validates all runtime writes](persistence.md#startup-permission-validation) and
+refuses to serve HTTP if any grant is missing, even when the schema is clean.
+Older binaries, or permissions revoked after startup, can still produce this
+warning; until repaired, Discover retains only existing stored matches.
+
+For local Compose development, `make db-setup` reapplies the grants and verifies
+every required Discover write with zero-row statements, without resetting data.
+For shared deployments, have an authorized operator reconcile the runtime grants
+after migration; do not run the local setup workflow against a shared database.
+
 ## Enable scheduled collection
 
 Drain older binaries, preserve a backup, apply migrations with separate migration

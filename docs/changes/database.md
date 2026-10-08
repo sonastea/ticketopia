@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-10-08 — Fail-fast runtime permissions
+
+- Validate every required runtime write before HTTP startup with zero-row,
+  rolled-back probes bounded by the startup deadline. Identify missing operation/
+  table grants without leaking credentials; keep migrations schema-only.
+- Remind operators to reconcile runtime grants in the migration success log.
+- Keep startup, local grants and setup checks aligned with database-free contract
+  tests; verify individual missing grants, recovery, no data changes and deadlines
+  on isolated MariaDB. See [permission validation](../persistence.md#startup-permission-validation).
+
 ### 2026-10-07 — Private moderation and durable roles schema v8
 
 - Add hiding/review versions, private reports, append-only decisions and author requests.
@@ -86,15 +96,4 @@
   compatibility flags. Verify Compose syntax, isolated 13.0.2 startup, and all
   active tuning values with engine rounding; do not restart the existing database.
   Keep the operator budget unchanged; see
-  [local development](../persistence.md#repeatable-local-development).
-- Switch local/operator image pins to **12.3.3**, the latest stable 12.3 LTS patch.
-  Retain local tuning and use a separate `data-v12-3` volume to preserve 13.0 data.
-  Require a verified logical restore for the engine downgrade; do not restart or
-  migrate the running database. Verify isolated TLS-enabled 12.3.3 startup/tuning,
-  migrations/repeat run, runtime grants, the full Go race suite, vet, and YAML.
-  Preserve the earlier cutover as history; see
-  [server-version guidance](../persistence.md#server-version-upgrades).
-- Revise local Compose tuning to the requested integer `M` values (`102M`, `51M`,
-  `10M`) and remove both obsolete compatibility flags. Verify Compose and all
-  17 exact tuning values on isolated 12.3.3; see
   [local development](../persistence.md#repeatable-local-development).

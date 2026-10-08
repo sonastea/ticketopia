@@ -29,6 +29,8 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Personalized radar](radar.md): private nearby matches from follows/category
+  preferences, structured explanations, first-run/freshness states and versioned pagination.
 - [Private artist and venue follows](follows.md): authenticated name search,
   follow/unfollow, durable owner-only collections and equivalent APIs.
 - [Reliable event history](event-history.md): durable artist/venue catalogs,

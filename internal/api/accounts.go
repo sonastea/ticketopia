@@ -19,6 +19,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/follows"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/moderation"
+	"github.com/sonastea/ticketopia/internal/radar"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/account"
@@ -78,6 +79,9 @@ func (a *api) cookie(c echo.Context, kind, raw string, lifetime time.Duration) {
 // Only a local, known page may be resumed. Never redirect to an auth endpoint,
 // encoded slash/backslash, external origin, or user-controlled fragment.
 func safeAuthReturn(raw string) string {
+	if strings.HasPrefix(raw, "/radar") {
+		return safeRadarReturn(raw)
+	}
 	if strings.HasPrefix(raw, "/follows") {
 		return safeFollowReturn(raw)
 	}
@@ -261,6 +265,10 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 404, "follow_not_found", "This artist, venue or follow couldn't be found. Search again or return to your follows.", nil
 	case errors.Is(err, follows.ErrUnavailable):
 		return 503, "follows_unavailable", "Your follows couldn't load or change. Please try again shortly.", nil
+	case errors.Is(err, radar.ErrChanged):
+		return 409, "radar_changed", "Your radar changed while you were browsing. Refresh Radar to see the current matches.", nil
+	case errors.Is(err, radar.ErrUnavailable):
+		return 503, "radar_unavailable", "Your radar couldn't load. Please try again shortly; your preferences and follows are unchanged.", nil
 	case errors.Is(err, discovery.ErrNotFound), errors.Is(err, saved.ErrNotFound), errors.Is(err, interests.ErrNotFound), errors.Is(err, recommendations.ErrNotFound):
 		return 404, "event_not_found", "This event could not be found. Return to discovery and try another event.", nil
 	case errors.Is(err, saved.ErrUnavailable):

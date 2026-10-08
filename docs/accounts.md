@@ -4,8 +4,8 @@ Implemented, opt-in: direct Google authorization-code sign-in, durable accounts,
 browser sessions, public profiles/private preferences, personal API tokens, and
 [private event saves](saved-events.md), [private artist/venue follows](follows.md), [Interested](event-interest.md), and
 [public recommendations](event-recommendations.md).
-Accounts require MariaDB; there is no memory fallback. Discussions,
-personalization, and notification delivery remain planned.
+Accounts require MariaDB; there is no memory fallback. [Personalized radar](radar.md)
+uses private follows/category/location preferences. Notification delivery remains planned.
 
 ## Enable accounts
 
@@ -55,7 +55,8 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
   occurs in this release. Venue-local event times are unchanged.
 - `/me/interests`: paginated own event interest with per-event visibility/removal,
   followed by separate private category choices. Catalog failures retain selected
-  IDs rather than erasing choices. Categories do not filter or rank discovery automatically.
+  IDs rather than erasing choices. Categories help rank private Radar; they do not
+  filter or rank public Discover automatically.
 - `/follows`: artist/venue search, follow/unfollow and a private, paginated collection.
   Follows never enter public profile activity. See [follows](follows.md).
 - Discovery location precedence is explicit search, remembered browser city,

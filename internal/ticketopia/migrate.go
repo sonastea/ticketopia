@@ -24,6 +24,6 @@ func ExecuteMigrations(ctx context.Context) int {
 		log.Error().Err(err).Msg("Migration failed")
 		return 1
 	}
-	log.Info().Int("schema_version", persistence.SupportedSchemaVersion).Msg("Migrations complete")
+	log.Info().Int("schema_version", persistence.SupportedSchemaVersion).Msg("Migrations complete; reconcile runtime grants before application startup")
 	return 0
 }

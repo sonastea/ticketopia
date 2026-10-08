@@ -5,7 +5,8 @@ Status: The [discovery read API](../discovery.md#json-api) and
 [private saved-event APIs](../saved-events.md#api) and
 [event-interest APIs](../event-interest.md#api) and
 [public-recommendation APIs](../event-recommendations.md#api) are implemented.
-Personal radar, durable ingestion, reminders, and other community endpoints below remain
+[Personal radar](../radar.md) and [durable ingestion/history](../event-history.md) are
+also implemented. Reminders and other explicitly proposed endpoints below remain
 draft designs. Track backend and frontend delivery in the
 [aligned checklist](../goals/delivery.md).
 
@@ -20,10 +21,11 @@ Discovery now supports all Ticketmaster segments with an optional category filte
 and compatible genre filters. The current OpenAPI contract also documents the
 implemented account slice; resources explicitly labeled planned below remain proposals.
 
-Current pagination wraps provider pages in filter-bound cursors; it does not yet
-offer a stored snapshot or an ID tie-breaker across upstream pages. Freshness is
-collection time, not durable first/last-seen history. The persistence and scheduled
-ingestion architecture below is the next stage, not current storage behavior.
+Discover wraps provider/SQL pages in filter-bound cursors, without frozen snapshots.
+Radar uses owner/window/result-version-bound cursors and deterministic ID tie-breaks,
+returning a refresh-required conflict when the ranked records or signals change.
+MariaDB provides durable first/last-seen history and coverage-aware catalog reads;
+see [event history](../event-history.md) and [Radar](../radar.md) for current behavior.
 
 ## Shared backend
 
@@ -65,7 +67,7 @@ actual concert start dates, statuses, source event URLs, and optional price rang
 | GET | `/api/v1/artists` | Search artists to follow. |
 | GET | `/api/v1/venues` | Search venues to follow. |
 | GET, PATCH | `/api/v1/me/preferences` | Implemented: private location, category, time-zone, and future notification preferences. |
-| GET | `/api/v1/me/radar` | Get ranked events with structured match reasons. |
+| GET | `/api/v1/me/radar` | Implemented: ranked events with structured match reasons and versioned pagination. |
 | GET | `/api/v1/me/follows` | List artist and venue follows. |
 | PUT, DELETE | `/api/v1/me/follows/{kind}/{id}` | Follow/unfollow an `artist` or `venue`. |
 | GET | `/api/v1/me/saved-events` | Implemented: owner-only paginated last-known saved events. |
