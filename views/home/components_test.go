@@ -71,6 +71,22 @@ func TestSearchComponentsKeepNativeFormContract(t *testing.T) {
 	}
 }
 
+func TestPartialStoredPaginationDoesNotClaimProviderCap(t *testing.T) {
+	for _, stored := range []bool{true, false} {
+		page := SearchPage{Events: models.EventList{Limited: true}}
+		if stored {
+			page.Events.Meta.Coverage = &models.Coverage{Status: "partial", TotalDays: 3}
+		}
+		var out bytes.Buffer
+		if err := Pagination(page).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(out.String(), "Coverage is partial") != stored || strings.Contains(out.String(), "search limit") == stored {
+			t.Fatal("partial collection confused with provider cap", out.String())
+		}
+	}
+}
+
 func TestEmptyPreviewCanReceiveKeyboardFocus(t *testing.T) {
 	var out bytes.Buffer
 	if err := Index(SearchPage{NeedsLocation: true}).Render(t.Context(), &out); err != nil {

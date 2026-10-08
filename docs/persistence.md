@@ -9,8 +9,9 @@ schema-v4 [event interest](event-interest.md), and schema-v5
 and observe-only publication measurements, and schema-v8
 [private reporting/moderation and durable roles](moderation.md), and schema-v9
 [reliable event history](event-history.md), plus schema-v10
-[private artist/venue follows](follows.md). Interactive discovery still uses its
-cache/provider services; MariaDB mode shares durable request budgets/pacing/cooldowns.
+[private artist/venue follows](follows.md), and schema-v11 stored Discover and public
+history reads. MariaDB discovery uses SQL plus coverage-aware collection/fallback;
+database-free mode retains cache/provider services. MariaDB mode shares durable request budgets/pacing/cooldowns.
 Opt-in city/date collection and fresh activity snapshots persist observations,
 artist/venue catalogs, coverage and change evidence. There are no notification
 jobs, database HA, or verified production backup/restore in this slice.
@@ -39,7 +40,7 @@ clean supported schema **before HTTP listens**. A failure exits nonzero within
 | `DB_CONN_LIFETIME`, `DB_CONN_IDLE_TIME` | `5m`, `1m`; maximum `1h` |
 | `DB_DIAL_TIMEOUT`, `DB_READ_TIMEOUT`, `DB_WRITE_TIMEOUT` | `3s`, `5s`, `5s`; maximum `30s` each |
 | `DB_STARTUP_TIMEOUT` | `10s`; maximum `1m` |
-| `DB_QUERY_TIMEOUT` | `3s`; maximum `30s` for an entire repository operation, including retries |
+| `DB_QUERY_TIMEOUT` | `3s`; maximum `30s` for an entire repository operation, including retries. Atomic collection-page batches allow at least `10s`, clipped by their caller's collection deadline. |
 | `DB_READY_TIMEOUT` | `500ms`; maximum `2s` |
 | `DB_MIGRATION_TIMEOUT` | `2m`; maximum `10m`, including advisory-lock wait |
 
@@ -271,22 +272,31 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 10 only**. Versions 0–9 and 11+ are rejected;
+This binary supports **clean schema version 11 only**. Versions 0–10 and 12+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous history binary supports version 9 only.
-For the v9-to-v10 follow upgrade, stop/drain v9 traffic, preserve a backup,
-apply the v10 migration with the v10 image, reapply/reconcile runtime table grants,
-then start v10 apps. Do not leave v9 pods serving after migration; they will fail
+old binaries are gone. The previous follow binary supports version 10 only.
+For the v10-to-v11 stored Discover upgrade, stop/drain v10 traffic, preserve a backup,
+apply the v11 migration with the v11 image, reapply/reconcile runtime table grants,
+then start v11 apps. Do not leave v10 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
 
 ## Durable identity boundary
+
+Schema v11 adds public search place/facet projections, indexed city/date and
+date/name reads, durable on-demand coverage claims/evidence, and missing-event
+detail refresh tasks. Migration backfills projections from current public metadata
+without inventing history or coverage. Snapshot transactions update projections
+only for the winning observation; stale/backdated writes cannot rewind filters.
+Search/history never join private activity. Runtime grants permit projection
+replacement and detail-task removal, not deletion of events or observations.
+See [stored Discover and coverage policy](event-history.md#stored-discover-and-coverage-aware-reads).
 
 Schema v10 adds separate `artist_follows` and `venue_follows`, each unique per
 account/catalog identity with stable first-follow times and keyset indexes.
@@ -298,7 +308,8 @@ See [follows](follows.md).
 `events.Service.EnsureDurable` explicitly persists a normalized occurrence for
 local actions; `Get` resolves it independently of cache/provider availability.
 Private saves compose identity, provider mapping, snapshot and bookmark in one
-transaction; plain discovery reads do not ingest observations. Scheduled city/date
+transaction; stored-result reuse does not advance observations. On-demand search
+and fresh detail refreshes ingest provider observations, while scheduled city/date
 refreshes explicitly ingest fresh provider pages when enabled. Detail reads
 can fall back to a stored snapshot during provider/cache loss without exposing
 bookmark state. See [private saves](saved-events.md) for the HTTP/API boundary.
@@ -436,7 +447,8 @@ deadlines, committed partial DDL and repair, runtime privilege denial, clean/mis
 unsupported schemas, startup/handshake deadlines, case-distinct identities,
 category/artist-less metadata updates, UTC/TLS verification, mapping atomicity,
 pool/service restarts and cache removal, unavailable/recovered readiness, closed
-pools, shutdown drain ordering, credential redaction, and unchanged discovery DTOs.
+pools, shutdown drain ordering, credential redaction, shared discovery/history reads,
+and privacy boundaries.
 History tests additionally verify shared budgets/cooldowns, fenced crash recovery,
 atomic/shifted/capped coverage, history/catalog retention, sparse/stale changes,
 100-item scheduled provider pages and schema-v8 upgrade preservation.

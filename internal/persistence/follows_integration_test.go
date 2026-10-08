@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -126,7 +127,21 @@ func TestMariaDBFollowKeysetsAndMigrationPreservation(t *testing.T) {
 	defer db.Close()
 	owner, raw := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: time.Second}, accountProviderFixture{}), "pre-follow")
 	detail := savedDetail("BeforeFollows")
-	if _, _, err := (&SavedRepository{db: db, timeout: time.Second}).Save(t.Context(), owner.ID, detail); err != nil {
+	// Seed the drained schema-9 contract, not the current schema-11 writer.
+	seedLegacySavedEvent(t, db, owner.ID, detail)
+	data, err := json.Marshal(detail.Item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if err := observeTx(t.Context(), tx, detail, data); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Open(t.Context(), f.runtime); err == nil {

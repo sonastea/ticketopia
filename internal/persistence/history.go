@@ -258,7 +258,7 @@ func (r *HistoryRepository) Page(ctx context.Context, claim history.Claim, page 
 	if page < 0 || page >= 10 || list.Meta.Stale || list.Meta.DataAsOf.IsZero() || len(list.Items) > 100 || list.Total < 0 {
 		return fmt.Errorf("invalid collection page")
 	}
-	return historyTransaction(ctx, r.db, r.timeout, "collection page", func(ctx context.Context, tx *sql.Tx) error {
+	return historyTransaction(ctx, r.db, max(r.timeout, 10*time.Second), "collection page", func(ctx context.Context, tx *sql.Tx) error {
 		if err := lockClaim(ctx, tx, claim); err != nil {
 			return err
 		}
@@ -318,6 +318,13 @@ func (r *HistoryRepository) Finish(ctx context.Context, claim history.Claim, sta
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE collection_runs SET status=?,failure=?,finished_at=UTC_TIMESTAMP(6) WHERE run_id=?`, status, failure, claim.RunID); err != nil {
 			return err
+		}
+		if status == "complete" {
+			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id)
+SELECT DISTINCT old.event_id FROM collection_run_events old JOIN collection_runs r ON r.run_id=old.run_id
+WHERE r.task_id=? AND old.run_id<>? AND NOT EXISTS (SELECT 1 FROM collection_run_events current WHERE current.run_id=? AND current.event_id=old.event_id)`, claim.ID, claim.RunID, claim.RunID); err != nil {
+				return err
+			}
 		}
 		_, err := tx.ExecContext(ctx, `UPDATE collection_tasks SET run_id=NULL,lease_until=NULL,next_refresh=TIMESTAMPADD(MICROSECOND,?,UTC_TIMESTAMP(6)),last_success=IF(?='complete',UTC_TIMESTAMP(6),last_success),last_failure=? WHERE task_id=?`, delay.Microseconds(), status, failure, claim.ID)
 		return err

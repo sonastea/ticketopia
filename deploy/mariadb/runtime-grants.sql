@@ -31,3 +31,8 @@ GRANT INSERT ON ticketopia.collection_run_events TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE ON ticketopia.provider_budgets TO 'ticketopia_runtime'@'%';
 GRANT INSERT, DELETE ON ticketopia.artist_follows TO 'ticketopia_runtime'@'%';
 GRANT INSERT, DELETE ON ticketopia.venue_follows TO 'ticketopia_runtime'@'%';
+GRANT INSERT, DELETE ON ticketopia.event_search_places TO 'ticketopia_runtime'@'%';
+GRANT INSERT, DELETE ON ticketopia.event_search_facets TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.discovery_scopes TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.discovery_scope_events TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE, DELETE ON ticketopia.event_detail_tasks TO 'ticketopia_runtime'@'%';

@@ -88,7 +88,7 @@ func WithAccounts(config accounts.Config, service *accounts.Service) Option {
 	return func(a *api) { a.authConfig, a.accounts = config, service }
 }
 
-// WithPersistence wires shared services without changing read-only discovery.
+// WithPersistence wires database readiness and durable identity services.
 func WithPersistence(ready func(context.Context) error, durable *events.Service) Option {
 	return func(a *api) { a.ready, a.durable = ready, durable }
 }
@@ -156,6 +156,7 @@ func (a *api) Routes() *echo.Echo {
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler)
 	e.GET("/api/v1/events/:event_id", a.eventHandler)
+	e.GET("/api/v1/events/:event_id/history", a.eventHistoryHandler)
 	e.GET("/api/v1/genres", a.genresHandler)
 	e.GET("/api/v1/categories", a.categoriesHandler)
 	e.GET("/api/v1/openapi.yaml", func(c echo.Context) error {

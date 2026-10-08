@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.9.0
+  version: 1.10.0
   license:
     name: MIT
     identifier: MIT
@@ -9,7 +9,8 @@ info:
     Read-only event discovery across all Ticketmaster categories, shared with the
     web UI. Event, artist, and venue IDs are provider-scoped (ticketmaster:SOURCE_ID).
     Category and genre IDs are Ticketmaster
-    taxonomy IDs. Data is cached, not a live inventory or durable event history.
+    taxonomy IDs. MariaDB mode searches the durable public catalog with coverage
+    receipts and dated event history. Data is never a live ticket inventory.
     Opt-in Google authentication provides MariaDB-backed profiles and private
     preferences, private durable event saves and artist/venue follows, independent event interest, public
     recommendations, and asynchronous event discussions with Helpful reactions.
@@ -54,9 +55,14 @@ paths:
       summary: Search events across categories
       description: |
         Dates are inclusive venue-local dates, defaulting to today in UTC through
-        90 days later. Maximum span is 366 days. Results use Ticketmaster's
-        date/name ordering. Pass the same explicit filters with the next cursor.
-        Provider pages can shift on refresh; cursors do not pin a snapshot.
+        90 days later. Maximum span is 366 days. Pass the same explicit filters
+        with the next cursor. Results can shift on refresh; cursors do not pin a snapshot.
+        MariaDB mode filters and paginates public stored snapshots, reusing fresh
+        collection coverage and retaining last-good results during failures/quota
+        exhaustion. On-demand broad city/date collection persists outside scheduled
+        cities. Incomplete collection is labeled, never a confirmed empty result.
+        Local keyword matching is a literal case-insensitive substring of event,
+        artist, or venue names. Database-free mode retains provider matching/paging.
         Unknown filters, repeated parameters, and invalid cursors return 400.
         Searches default to all categories. Legacy genre-only searches imply Music.
         Cursors issued before category support must be replaced by a new search.
@@ -75,6 +81,7 @@ paths:
         - {name: end_date, in: query, schema: {type: string, format: date}}
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
         - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
+        - {name: sort, in: query, schema: {type: string, enum: [date_asc, date_desc, name_asc], default: date_asc}}
       responses:
         '200':
           description: Events and source freshness. Empty results are cached too.
@@ -86,8 +93,8 @@ paths:
                 properties:
                   items: {type: array, items: {$ref: '#/components/schemas/Event'}}
                   next_cursor: {type: [string, 'null']}
-                  total: {type: integer, minimum: 0, description: 'Total reported by Ticketmaster, including results beyond its paging limit.'}
-                  limited: {type: boolean, description: True when further pages exist but the provider's size times page limit prevents access. Narrow the filters.}
+                  total: {type: integer, minimum: 0, description: 'MariaDB mode counts matching stored events; database-free mode reports the provider total.'}
+                  limited: {type: boolean, description: 'Collection is partial, or database-free provider paging is capped. SQL pagination itself is not capped at 1000.'}
                   meta: {$ref: '#/components/schemas/Freshness'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
@@ -95,7 +102,7 @@ paths:
     get:
       operationId: getEvent
       summary: Read an event and its embedded metadata
-      description: Prefers provider/cache data. With MariaDB persistence enabled, retained SQL metadata from scheduled collection or local activity is served with stale=true when current data is unavailable, independently of accounts. No private bookmark state or observation history is included.
+      description: MariaDB mode reuses fresh snapshots and serves last-known metadata during provider failure or 404, independently of accounts. Includes first/last-seen and recent dated meaningful changes. Private account activity is never included. Absence or 404 never implies cancellation.
       parameters:
         - name: event_id
           in: path
@@ -112,9 +119,35 @@ paths:
                 properties:
                   item: {$ref: '#/components/schemas/Event'}
                   meta: {$ref: '#/components/schemas/Freshness'}
+                  history: {$ref: '#/components/schemas/EventHistory'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '404':
           description: Event not found; cached for five minutes.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/events/{event_id}/history:
+    get:
+      operationId: getEventHistory
+      summary: Read dated public event changes
+      description: 'MariaDB-only, independent of provider/cache/accounts. No private saves, follows, interests, or preferences. Null means a known event has no observations yet. Pages contain all changes from up to limit observation instants; use next_before with the same event to continue.'
+      parameters:
+        - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+        - {name: before, in: query, description: Exclusive observation timestamp from next_before., schema: {type: string, format: date-time}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200':
+          description: Public history or null for a known event without observations.
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - {$ref: '#/components/schemas/EventHistory'}
+                  - {type: 'null'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404':
+          description: Unknown event identity.
           content:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
@@ -1979,8 +2012,34 @@ components:
       type: object
       required: [data_as_of, stale]
       properties:
-        data_as_of: {type: string, format: date-time, description: 'When this data was successfully collected, not when this response was served.'}
-        stale: {type: boolean, description: A refresh failed or was paused and retained data is being served.}
+        data_as_of: {type: [string, 'null'], format: date-time, description: 'When this data was successfully collected, not when this response was served. Null when there is no successful collection.'}
+        stale: {type: boolean, description: Stored facts are older than the freshness interval or retained after failed/paused refresh.}
+        coverage:
+          type: object
+          required: [status, collected_days, total_days]
+          properties:
+            status: {type: string, enum: [complete, partial, stale, not_collected]}
+            collected_days: {type: integer, minimum: 0, description: 'Dates with complete collection evidence, including older evidence.'}
+            total_days: {type: integer, minimum: 1}
+    EventHistory:
+      type: object
+      required: [first_seen, last_seen, last_changed, changes, next_before]
+      properties:
+        first_seen: {type: string, format: date-time}
+        last_seen: {type: string, format: date-time}
+        last_changed: {$ref: '#/components/schemas/NullableInstant'}
+        next_before: {$ref: '#/components/schemas/NullableInstant'}
+        changes:
+          type: array
+          items:
+            type: object
+            required: [observed_at, kind, summary, before, after]
+            properties:
+              observed_at: {type: string, format: date-time}
+              kind: {type: string, enum: [date, venue, sale_time, cancellation, postponement, status]}
+              summary: {type: string}
+              before: {description: Normalized prior public fact; shape depends on kind.}
+              after: {description: Normalized new public fact; shape depends on kind.}
     Source:
       type: object
       required: [provider, id, url]

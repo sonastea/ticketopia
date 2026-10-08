@@ -21,6 +21,8 @@ type Config struct {
 	BaseURL     string
 	HTTPClient  *http.Client
 	Coordinator Coordinator
+	Catalog     Catalog
+	FreshFor    time.Duration
 }
 
 type Service struct {
@@ -34,6 +36,8 @@ type Service struct {
 	flights     singleflight.Group
 	now         func() time.Time
 	coordinator Coordinator
+	catalog     Catalog
+	freshFor    time.Duration
 }
 
 func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Config) *Service {
@@ -49,10 +53,14 @@ func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Conf
 	if config.DailyBudget <= 0 {
 		config.DailyBudget = 4500
 	}
+	if config.FreshFor <= 0 {
+		config.FreshFor = 6 * time.Hour
+	}
 	return &Service{
 		ctx: ctx, cache: cache, logger: logger, key: strings.TrimSpace(config.APIKey),
 		baseURL: strings.TrimRight(config.BaseURL, "/"), client: config.HTTPClient,
 		gate: requestGate{budget: config.DailyBudget, interval: 250 * time.Millisecond}, now: time.Now, coordinator: config.Coordinator,
+		catalog: config.Catalog, freshFor: config.FreshFor,
 	}
 }
 
@@ -68,11 +76,18 @@ func (s *Service) Events(ctx context.Context, q Query) (models.EventList, error)
 	if err != nil {
 		return models.EventList{}, err
 	}
-	if q.Page < 0 || q.Page > 999/validated.Limit {
+	if q.Page < 0 || (s.catalog == nil && q.Page > 999/validated.Limit) || q.Page > 1000000/validated.Limit {
 		return models.EventList{}, &ValidationError{"cursor", "page exceeds the provider result limit"}
 	}
 	validated.Page = q.Page
+	validated.Stored = q.Stored
 	q = validated
+	if s.catalog != nil {
+		return s.storedEvents(ctx, q)
+	}
+	if q.Stored {
+		return models.EventList{}, &ValidationError{"cursor", "stored cursor requires MariaDB; start a new search"}
+	}
 	page, meta, err := cached(ctx, s, q.cacheKey(), eventPolicy, func(ctx context.Context) (eventPage, error) {
 		return s.fetchPage(ctx, q)
 	})
@@ -143,6 +158,13 @@ func (s *Service) Collect(ctx context.Context, q Query) (models.EventList, error
 func detailKey(id string) string { return "ticketmaster:v1:event:" + id }
 
 func (s *Service) Event(ctx context.Context, id string) (models.EventDetail, error) {
+	if s.catalog != nil {
+		return s.storedEvent(ctx, id)
+	}
+	return s.providerEvent(ctx, id)
+}
+
+func (s *Service) providerEvent(ctx context.Context, id string) (models.EventDetail, error) {
 	rawID, err := sourceID(id)
 	if err != nil {
 		return models.EventDetail{}, err
@@ -158,6 +180,24 @@ func (s *Service) Event(ctx context.Context, id string) (models.EventDetail, err
 		return normalizeEvent(raw), nil
 	})
 	return models.EventDetail{Item: event, Meta: meta}, err
+}
+
+// RefreshEvent bypasses retained/cache reads for targeted collection evidence.
+func (s *Service) RefreshEvent(ctx context.Context, id string) (models.EventDetail, error) {
+	rawID, err := sourceID(id)
+	if err != nil {
+		return models.EventDetail{}, err
+	}
+	var raw providerEvent
+	if err := s.get(ctx, "/events/"+rawID+".json", url.Values{}, &raw); err != nil {
+		return models.EventDetail{}, err
+	}
+	if raw.ID != rawID || raw.Name == "" {
+		return models.EventDetail{}, s.unavailable(30 * time.Second)
+	}
+	detail := models.EventDetail{Item: normalizeEvent(raw), Meta: models.Freshness{DataAsOf: s.now()}}
+	writeRecord(ctx, s, detailKey(id), cacheRecord[models.Event]{Data: detail.Item, FetchedAt: detail.Meta.DataAsOf, FreshUntil: s.now().Add(eventPolicy.fresh), StaleUntil: s.now().Add(eventPolicy.retain)})
+	return detail, nil
 }
 
 func (s *Service) Genres(ctx context.Context) (models.GenreList, error) {

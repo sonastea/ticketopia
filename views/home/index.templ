@@ -56,13 +56,14 @@ templ Index(page SearchPage) {
 					<section aria-labelledby="results-heading">
 						<div class="results-heading">
 							<h2 id="results-heading">Upcoming events <span>{ resultsTitle(page.Events.Total) }</span></h2>
-							<span class="sort-label">Date, soonest first</span>
+							<span class="sort-label">{ sortLabel(page.Filters.Sort) }</span>
 						</div>
 						@Freshness(page.Events.Meta)
+						@CollectionCoverage(page.Events.Meta)
 						if len(page.Events.Items) == 0 {
 							@empty.Empty(empty.Props{Class: "feedback empty-state"}) {
-								<h3>No events found for these filters</h3>
-								<p>Try a nearby city, a wider date range, or all categories.</p>@button.Button(button.Props{Href: "/", Variant: button.VariantLink, Class: "text-link"}) {
+								<h3>{ emptySearchTitle(page.Events.Meta) }</h3>
+								<p>{ emptySearchMessage(page.Events.Meta) }</p>@button.Button(button.Props{Href: "/", Variant: button.VariantLink, Class: "text-link"}) {
 	Reset filters
 }
 							}
@@ -147,6 +148,14 @@ templ SearchControls(page SearchPage) {
 					@label.Label(label.Props{For: "end-date", Class: "field"}) {
 						Through
 						@input.Input(input.Props{ID: "end-date", Name: "end_date", Type: "date", Value: page.Filters.EndDate, Required: true})
+					}
+					@label.Label(label.Props{For: "sort", Class: "field"}) {
+						Sort events
+						@selectcomp.Native(selectcomp.NativeProps{ID:"sort",Name:"sort"}) {
+							<option value="date_asc" selected?={page.Filters.Sort=="date_asc"}>Date, soonest first</option>
+							<option value="date_desc" selected?={page.Filters.Sort=="date_desc"}>Date, latest first</option>
+							<option value="name_asc" selected?={page.Filters.Sort=="name_asc"}>Name, A–Z</option>
+						}
 					}
 					@label.Label(label.Props{For: "category", Class: "field field-wide"}) {
 						Category

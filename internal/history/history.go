@@ -20,6 +20,43 @@ type Change struct {
 	After  json.RawMessage `json:"after"`
 }
 
+func ChangeSummary(c Change) string {
+	switch c.Kind {
+	case "date":
+		var start models.EventStart
+		if json.Unmarshal(c.Before, &start) == nil {
+			if start.DateTBA || start.DateTBD {
+				return "Previously listed with an unconfirmed date"
+			}
+			if start.LocalDate != nil {
+				label := *start.LocalDate
+				if start.LocalTime != nil && !start.TimeTBA && !start.NoSpecificTime {
+					label += " at " + *start.LocalTime
+				}
+				if start.Timezone != nil {
+					label += " (" + *start.Timezone + ")"
+				}
+				return "Previously scheduled for " + label
+			}
+		}
+		return "Schedule changed (previous date or time not confirmed)"
+	case "venue":
+		return "Venue information changed"
+	case "sale_time":
+		return "Ticket sale schedule changed"
+	case "cancellation":
+		return "Ticketmaster explicitly marked this event cancelled"
+	case "postponement":
+		return "Ticketmaster explicitly marked this event postponed"
+	default:
+		var status string
+		if json.Unmarshal(c.After, &status) == nil {
+			return "Status changed to " + status
+		}
+		return "Event status changed"
+	}
+}
+
 // Changes compares facts, not presentation. Venue ordering, price/image edits,
 // title changes and equivalent UTC instants are not reminder-worthy changes.
 // Unknown venue/status/sale fields alone do not imply removal or cancellation.

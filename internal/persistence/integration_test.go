@@ -158,6 +158,9 @@ func (f mariaFixture) migrate(t *testing.T) {
 	for _, table := range []string{"artist_follows", "venue_follows"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, DELETE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
 	}
+	for _, table := range []string{"event_search_places", "event_search_facets", "discovery_scopes", "discovery_scope_events", "event_detail_tasks"} {
+		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE, DELETE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
+	}
 }
 
 func (f mariaFixture) open(t *testing.T) *Pool {

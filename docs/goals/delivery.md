@@ -101,11 +101,18 @@ detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
 - [x] Backend: Schedule city/date collection within the request budget; record
   coverage, failures, and meaningful changes without erasing the last good data.
 - [x] Backend: Add durable budget/refresh coordination for MariaDB-backed workers
-  and hosts; retain quota and collection coverage receipts. See [event history](../event-history.md).
+	and hosts; retain quota and collection coverage receipts. See [event history](../event-history.md).
+- [x] Backend/frontend: Connect the durable catalog to existing Discover/API,
+  with SQL filtering/sorting/pagination, coverage-aware reuse/fallback and durable
+  on-demand collection outside configured cities; verify partial/outage/quota/restart paths.
+- [x] Backend: Budget targeted detail reads for omitted known events, without
+  inferring cancellation from absence or 404.
+- [x] Operations: Log collection coverage/stale scopes/failures, detail backlogs,
+  provider cooldowns and active-window quota consumption in all MariaDB deployments.
 - [ ] Backend: Add operational dashboards/metrics for cache hits, external calls,
   quota usage, and collection coverage.
 - [ ] Backend: Back up and verify restoration of application state and jobs.
-- [ ] Frontend: Add an event detail page with useful metadata and clear change,
+- [x] Frontend: Add an event detail page with useful metadata and clear change,
   freshness, cancellation, and postponement information from durable observations.
 - [x] Frontend foundation: Read current event metadata, venue, status, prices,
   source freshness, and ticket links on a dedicated event page using cached reads.

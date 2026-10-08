@@ -41,6 +41,38 @@ func (a *api) eventHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, data)
 }
 
+func (a *api) eventHistoryHandler(c echo.Context) error {
+	id, err := url.PathUnescape(c.Param("event_id"))
+	if err != nil {
+		return problem(c, &discovery.ValidationError{Field: "event_id", Message: "invalid URL encoding"})
+	}
+	values := c.QueryParams()
+	for k, v := range values {
+		if (k != "before" && k != "limit") || len(v) != 1 {
+			return problem(c, &discovery.ValidationError{Field: k, Message: "use one supported parameter"})
+		}
+	}
+	var before time.Time
+	if value := values.Get("before"); value != "" {
+		before, err = time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			return problem(c, &discovery.ValidationError{Field: "before", Message: "use an RFC3339 observation timestamp"})
+		}
+	}
+	limit := 20
+	if value := values.Get("limit"); value != "" {
+		limit, err = strconv.Atoi(value)
+		if err != nil {
+			return problem(c, &discovery.ValidationError{Field: "limit", Message: "use 1 to 100"})
+		}
+	}
+	h, err := a.events.History(c.Request().Context(), id, before, limit)
+	if err != nil {
+		return problem(c, err)
+	}
+	return c.JSON(http.StatusOK, h)
+}
+
 func (a *api) genresHandler(c echo.Context) error {
 	if len(c.QueryParams()) > 0 {
 		return problem(c, &discovery.ValidationError{Field: "query", Message: "the genre catalog does not accept filters"})

@@ -16,6 +16,13 @@ implemented visual system.
 HTML and JSON handlers call the same service. The browser never receives the
 Ticketmaster key and the server does not call its own HTTP API.
 
+In MariaDB mode this service searches the durable public catalog first, reuses
+fresh collection coverage, and retains last-good results during outage/quota
+exhaustion. On-demand collection persists outside configured scheduler cities.
+See [stored Discover and history](event-history.md#stored-discover-and-coverage-aware-reads)
+for coverage, SQL indexes/keyword semantics, targeted detail refreshes and operator
+logs. Database-free mode retains provider/cache behavior described below.
+
 One search retrieves events with their artist, venue, classification, image,
 advertised price, status, and sale metadata. Those results also populate event
 detail cache entries, avoiding an external request per visible event. A separate
@@ -51,8 +58,9 @@ imply Music. The neutral Featuring section can contain performers or teams and
 is omitted when no attractions are supplied. Prices do not establish fee
 inclusion or ticket inventory.
 
-Load-more keeps all filters, starts at provider page zero, and stops at the end
-or Ticketmaster's paging cap. With JavaScript it appends rows; without JavaScript
+Load-more keeps all filters and starts at page zero. MariaDB paginates all matching
+stored results; database-free mode stops at Ticketmaster's paging cap.
+With JavaScript it appends rows; without JavaScript
 the link navigates to the next page. Search is a regular GET form. The page
 includes loading, empty, error, and stale-result messages. Event results are read
 before optional metadata so a catalog failure cannot replace successful results.
@@ -83,8 +91,8 @@ A new form submission starts at the first page.
   the navigation rail and readable results. The full shell caps at 100rem.
 - Location stays visible above search. **Change city** opens the native Filters
   disclosure and focuses City. The same GET form exposes country, dates, category,
-  and genre. Ordering is explicitly date-first; no unsupported sorting choices are
-  presented. Inputs and disclosure remain usable without JavaScript.
+  genre, and date-ascending/date-descending/name-ascending sorting. Inputs and
+  disclosure remain usable without JavaScript.
 - Event titles are real Discussion links; **Details** selects Overview.
   Enhancement loads only selected context and keeps results alongside it from
   62rem, or hides results behind the primary view below that threshold.
@@ -145,6 +153,7 @@ are embedded in the binary.
 | --- | --- | --- |
 | GET | `/api/v1/events` | Filtered events with pagination and freshness. |
 | GET | `/api/v1/events/{event_id}` | One normalized event, fetched on demand if uncached. |
+| GET | `/api/v1/events/{event_id}/history` | Public dated history, SQL-only; `before`/`limit` pagination. |
 | GET | `/api/v1/genres` | Music genre/subgenre metadata and freshness. |
 | GET | `/api/v1/categories` | Categories with compatible genres/subgenres and freshness. |
 | GET | `/api/v1/openapi.yaml` | [OpenAPI 3.1 contract](../internal/api/openapi.yaml). |
@@ -153,7 +162,7 @@ See the [OpenAPI guide](openapi.md) for what the contract describes, how it is
 embedded and served, and how to validate and keep it aligned with the handlers.
 
 Event filters: `city`, `country`, `keyword`, `category_id`, `genre_id`, `artist_id`, `venue_id`,
-`start_date`, `end_date`, `limit`, and `cursor`. Empty filters are treated as
+`start_date`, `end_date`, `sort`, `limit`, and `cursor`. Empty filters are treated as
 omitted. Unknown/repeated parameters are rejected. The catalog and contract routes
 accept no query parameters.
 JSON reads use the supplied filters; browser location defaults are applied by
@@ -173,8 +182,9 @@ the HTML handler before calling the shared discovery service.
   on subsequent requests; omitted defaults may change at midnight UTC.
   Category is part of both cache and cursor scope. Cursors issued before this
   expansion must restart; old music-only cache entries cannot appear as all-category results.
-- Provider ordering is date/name ascending. The upstream result set can shift
-  between refreshes; this is not a snapshot cursor or a durable history.
+- `sort` accepts `date_asc` (default), `date_desc`, or `name_asc`, with identity
+  tie-breaks in SQL. Cursors bind the sort too. Result sets can shift between
+  refreshes; pagination does not pin a snapshot.
 - Ticketmaster requires `size * page < 1000`. `next_cursor` is `null` at the end;
   `limited: true` means the cap prevented another page. `total` is the provider's
   total, which can exceed the accessible results. Narrow filters to continue.
@@ -189,9 +199,12 @@ the HTML handler before calling the shared discovery service.
   strings preserve the provider's decimal representation. `fees_included` is
   `null` when unknown.
 - `meta.data_as_of` is the successful collection time. `meta.stale` identifies a
-  retained result served after refresh failure or a request-budget cooldown.
-  These values are not durable first-seen/change-detection timestamps. Opt-in
-  [event history](event-history.md) stores those separately in MariaDB.
+  retained/older result served after refresh failure or a request-budget cooldown.
+  MariaDB lists use the oldest supporting collection/snapshot instant and include
+  `meta.coverage` with `complete`, `partial`, `stale`, or `not_collected`; totals
+  count stored matches, not unseen upstream events. Empty incomplete/older results
+  are not authoritative. MariaDB detail responses add public `history` with
+  first/last seen and meaningful changes; these are distinct from `data_as_of`.
 - Errors use `application/problem+json`: 400 for invalid or provider-rejected
   filters, 404 for a missing event, and 503 for unavailable data. Upstream 429
   becomes 503 with `Retry-After`

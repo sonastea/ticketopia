@@ -48,6 +48,7 @@ func Execute(ctx context.Context) int {
 		return 1
 	}
 	var historyRepository *persistence.HistoryRepository
+	var catalogRepository *persistence.DiscoveryRepository
 	authConfig, err := accounts.ConfigFromEnv()
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid authentication configuration")
@@ -71,6 +72,11 @@ func Execute(ctx context.Context) int {
 		}()
 		options = append(options, api.WithPersistence(pool.Ready, events.New(pool.Events())))
 		providerConfig.Coordinator = pool.ProviderBudget(providerConfig.APIKey, providerConfig.DailyBudget)
+		catalogRepository = pool.Discovery()
+		providerConfig.Catalog = catalogRepository
+		if historyConfig.Enabled {
+			providerConfig.FreshFor = historyConfig.Interval
+		}
 		historyRepository = pool.History()
 		// Shared snapshot fallback is public metadata, independent of accounts.
 		options = append(options, api.WithSavedEvents(pool.Saved()))
@@ -104,6 +110,36 @@ func Execute(ctx context.Context) int {
 		go func() {
 			defer close(done)
 			history.New(historyRepository, provider, historyConfig, logger).Run(workerCtx)
+		}()
+		defer func() { cancel(); <-done }()
+	}
+	if catalogRepository != nil {
+		workerCtx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for tick := 0; workerCtx.Err() == nil; tick++ {
+				if tick%15 == 0 {
+					stats, err := catalogRepository.OperationalStatus(workerCtx, historyConfig.Interval)
+					if err != nil {
+						logger.Warn().Err(err).Msg("Collection status unavailable")
+					} else {
+						logger.Info().Interface("collection", stats).Msg("Event catalog operational status")
+					}
+				}
+				if !historyConfig.Enabled {
+					if _, err := history.RefreshMissing(workerCtx, historyRepository, provider); err != nil && workerCtx.Err() == nil {
+						logger.Warn().Err(err).Msg("Missing event refresh failed")
+					}
+				}
+				select {
+				case <-workerCtx.Done():
+					return
+				case <-ticker.C:
+				}
+			}
 		}()
 		defer func() { cancel(); <-done }()
 	}

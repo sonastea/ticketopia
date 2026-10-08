@@ -125,6 +125,9 @@ func upsertSnapshotTx(ctx context.Context, tx *sql.Tx, detail models.EventDetail
 		if err := upsertEventTx(ctx, tx, detail.Item, args); err != nil {
 			return err
 		}
+		if err := projectSearchTx(ctx, tx, detail.Item); err != nil {
+			return err
+		}
 	}
 	if !detail.Meta.Stale {
 		if err := observeTx(ctx, tx, detail, data); err != nil {

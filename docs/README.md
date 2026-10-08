@@ -32,8 +32,8 @@ their status; they describe intended work rather than available features.
 - [Private artist and venue follows](follows.md): authenticated name search,
   follow/unfollow, durable owner-only collections and equivalent APIs.
 - [Reliable event history](event-history.md): durable artist/venue catalogs,
-  dated observations/change detection, budgeted city/date refreshes, retained
-  coverage/failure receipts, and shared provider accounting.
+  database-backed Discover and coverage-aware fallback, dated public detail
+  history, missing-event refreshes, collection receipts and shared provider accounting.
 - [Private reporting and moderation](moderation.md): report receipts, moderator
   keep/hide/restore, author outcomes/second reviews, durable roles, and audited
   operator grant/revoke commands.

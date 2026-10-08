@@ -165,8 +165,31 @@ templ EventSectionContent(page EventPage) {
 					<h3>Before you go</h3>
 					<p class="provider-copy">{ page.Detail.Item.PleaseNote }</p>
 				}
+				@EventHistory(page.Detail.History)
 		}
 	</section>
+}
+
+templ EventHistory(history *models.EventHistory) {
+	<h3>Event history</h3>
+	if history == nil {
+		<p>No dated observations have been collected for this event yet.</p>
+	} else {
+		<p>First seen { historyLabel(history.FirstSeen) }. Last seen { historyLabel(history.LastSeen) }.</p>
+		if len(history.Changes)==0 {
+			<p>No meaningful changes observed yet.</p>
+		} else {
+			<ul>
+				for _,change:=range history.Changes {
+					<li><time datetime={ change.ObservedAt.Format("2006-01-02T15:04:05Z07:00") }>{ historyLabel(change.ObservedAt) }</time>: { change.Summary }</li>
+				}
+			</ul>
+		}
+		if history.NextBefore != nil {
+			<p>Showing the most recent changes. Earlier observations are available through the history API.</p>
+		}
+		<p>Only observed provider changes are recorded. Disappearance or a failed lookup never means cancellation.</p>
+	}
 }
 
 templ TicketDetails(event models.Event) {

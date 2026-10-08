@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Event is a client-independent view of one occurrence, never a title-based group.
 type Event struct {
@@ -123,6 +126,45 @@ type CategoryList struct {
 type Freshness struct {
 	DataAsOf time.Time `json:"data_as_of"`
 	Stale    bool      `json:"stale"`
+	Coverage *Coverage `json:"coverage,omitempty"`
+}
+
+// A scope with no successful collection has no data timestamp, not an invented
+// year-one observation. Keep time.Time internally for existing shared readers.
+func (f Freshness) MarshalJSON() ([]byte, error) {
+	var at *time.Time
+	if !f.DataAsOf.IsZero() {
+		at = &f.DataAsOf
+	}
+	return json.Marshal(struct {
+		DataAsOf *time.Time `json:"data_as_of"`
+		Stale    bool       `json:"stale"`
+		Coverage *Coverage  `json:"coverage,omitempty"`
+	}{at, f.Stale, f.Coverage})
+}
+
+// Coverage describes collection, not ticket availability. Missing evidence is
+// never an authoritative empty result.
+type Coverage struct {
+	Status        string `json:"status"`
+	CollectedDays int    `json:"collected_days"`
+	TotalDays     int    `json:"total_days"`
+}
+
+type EventHistory struct {
+	FirstSeen   time.Time     `json:"first_seen"`
+	LastSeen    time.Time     `json:"last_seen"`
+	LastChanged *time.Time    `json:"last_changed"`
+	Changes     []EventChange `json:"changes"`
+	NextBefore  *time.Time    `json:"next_before"`
+}
+
+type EventChange struct {
+	ObservedAt time.Time       `json:"observed_at"`
+	Kind       string          `json:"kind"`
+	Summary    string          `json:"summary"`
+	Before     json.RawMessage `json:"before"`
+	After      json.RawMessage `json:"after"`
 }
 
 type EventList struct {
@@ -134,8 +176,9 @@ type EventList struct {
 }
 
 type EventDetail struct {
-	Item Event     `json:"item"`
-	Meta Freshness `json:"meta"`
+	Item    Event         `json:"item"`
+	Meta    Freshness     `json:"meta"`
+	History *EventHistory `json:"history,omitempty"`
 }
 
 type GenreList struct {

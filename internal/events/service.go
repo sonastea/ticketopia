@@ -1,5 +1,5 @@
-// Package events is the shared boundary for durable event identity. Discovery
-// remains read-only; local actions explicitly ensure an identity.
+// Package events is the shared boundary for durable event identity. Local
+// actions explicitly ensure an identity; collection persists public snapshots.
 package events
 
 import (

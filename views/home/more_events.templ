@@ -78,9 +78,26 @@ templ Freshness(meta models.Freshness) {
 	if !meta.DataAsOf.IsZero() {
 		<p class={ "freshness", templ.KV("is-stale", meta.Stale) }>
 			if meta.Stale {
-					<strong>Showing last-known details. Current provider data is unavailable.</strong><span></span>
+					<strong>Showing last-known details. Showing older results, not live availability.</strong><span></span>
 			}
 			Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
+		</p>
+	}
+}
+
+templ CollectionCoverage(meta models.Freshness) {
+	if meta.Coverage != nil {
+		<p class="field-note" role="status" data-coverage={meta.Coverage.Status}>
+			switch meta.Coverage.Status {
+				case "not_collected":
+					Not collected yet. Ticketmaster could not be refreshed; this is not a confirmed empty search.
+				case "partial":
+					Partial coverage. Some dates or provider pages are missing; more events may exist. Try a shorter date range.
+				case "stale":
+					Showing older results from previously completed coverage while collection catches up.
+				default:
+					Collected coverage for all requested dates. Events not recently confirmed remain last-known records.
+			}
 		</p>
 	}
 }
@@ -92,12 +109,17 @@ templ Pagination(page SearchPage) {
 				<span class="ready-label">Load more events</span><span class="loading-label">Loading events…</span>@layouts.Icon("chevron")
 			}
 		} else if page.Events.Limited {
-			<p>You've reached Ticketmaster's search limit. Narrow your city, dates, category, or genre to find more relevant events.</p>
+			if page.Events.Meta.Coverage != nil {
+				<p>You've reached the end of collected results. Coverage is partial; more events may exist. Try a shorter date range.</p>
+			} else {
+				<p>You've reached Ticketmaster's search limit. Narrow your city, dates, category, or genre to find more relevant events.</p>
+			}
 		} else if len(page.Events.Items) > 0 {
 			<p>You've reached the end of these results.</p>
 		}
 		if page.Filters.Page > 0 {
 			@Freshness(page.Events.Meta)
+			@CollectionCoverage(page.Events.Meta)
 		}
 		<p id="load-error" class="load-error" role="alert"></p>
 	</div>

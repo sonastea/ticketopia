@@ -32,6 +32,7 @@ type Collector struct {
 	now        func() time.Time
 	day        string
 	ids        []string
+	detailAt   time.Time
 }
 
 func New(repository Repository, provider Provider, config Config, logger zerolog.Logger) *Collector {
@@ -60,6 +61,17 @@ func (c *Collector) Run(ctx context.Context) {
 
 func (c *Collector) Once(ctx context.Context) (bool, error) {
 	now := c.now().UTC()
+	if now.Sub(c.detailAt) >= time.Minute {
+		if r, ok := c.repository.(DetailRepository); ok {
+			if p, ok := c.provider.(DetailProvider); ok {
+				c.detailAt = now
+				worked, err := RefreshMissing(ctx, r, p)
+				if worked || err != nil {
+					return worked, err
+				}
+			}
+		}
+	}
 	day := now.Format(time.DateOnly)
 	if c.day != day {
 		tasks := []Task{}

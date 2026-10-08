@@ -29,6 +29,8 @@ type Query struct {
 	City, Country, Keyword, GenreID, ArtistID, VenueID string
 	StartDate, EndDate                                 string
 	Limit, Page                                        int
+	Sort                                               string
+	Stored                                             bool
 }
 
 // ParseQuery canonicalizes every supported filter before cache lookup. Default
@@ -37,7 +39,7 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	allowed := map[string]bool{
 		"city": true, "country": true, "keyword": true, "category_id": true, "genre_id": true,
 		"artist_id": true, "venue_id": true, "start_date": true,
-		"end_date": true, "limit": true, "cursor": true,
+		"end_date": true, "limit": true, "cursor": true, "sort": true,
 	}
 	for field, list := range values {
 		if !allowed[field] || len(list) != 1 {
@@ -51,6 +53,13 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 		Keyword: text("keyword"), GenreID: text("genre_id"),
 		ArtistID: text("artist_id"), VenueID: text("venue_id"), Limit: 20,
 		StartDate: text("start_date"), EndDate: text("end_date"),
+		Sort: text("sort"),
+	}
+	if q.Sort == "" {
+		q.Sort = "date_asc"
+	}
+	if q.Sort != "date_asc" && q.Sort != "date_desc" && q.Sort != "name_asc" {
+		return q, &ValidationError{"sort", "use date_asc, date_desc, or name_asc"}
 	}
 	for name, value := range map[string]string{"city": q.City, "keyword": q.Keyword} {
 		if len(value) > 120 {
@@ -108,10 +117,11 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	if encoded := values.Get("cursor"); encoded != "" {
 		var cursor pageCursor
 		decoded, err := base64.RawURLEncoding.DecodeString(encoded)
-		if len(encoded) > 512 || err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Version != 1 || cursor.Filters != q.fingerprint() || cursor.Page < 1 || cursor.Page > 999/q.Limit {
+		if len(encoded) > 512 || err != nil || json.Unmarshal(decoded, &cursor) != nil || (cursor.Version != 1 && cursor.Version != 2) || cursor.Filters != q.fingerprint() || cursor.Page < 1 || (cursor.Version == 1 && cursor.Page > 999/q.Limit) || cursor.Page > 1000000/q.Limit {
 			return q, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
 		}
 		q.Page = cursor.Page
+		q.Stored = cursor.Version == 2
 	}
 	return q, nil
 }
@@ -128,6 +138,9 @@ func (q Query) Values() url.Values {
 	values := url.Values{
 		"category_id": {q.CategoryValue()},
 		"start_date":  {q.StartDate}, "end_date": {q.EndDate}, "limit": {strconv.Itoa(q.Limit)},
+	}
+	if q.Sort != "" && q.Sort != "date_asc" {
+		values.Set("sort", q.Sort)
 	}
 	for key, value := range map[string]string{
 		"city": q.City, "country": q.Country, "keyword": q.Keyword,
@@ -155,6 +168,12 @@ func (q Query) upstream() url.Values {
 		"size": {strconv.Itoa(q.Limit)}, "page": {strconv.Itoa(q.Page)},
 		"localStartDateTime": {q.StartDate + "T00:00:00," + q.EndDate + "T23:59:59"},
 	}
+	if q.Sort == "date_desc" {
+		values.Set("sort", "date,name,desc")
+	}
+	if q.Sort == "name_asc" {
+		values.Set("sort", "name,asc")
+	}
 	for key, value := range map[string]string{
 		"segmentId": q.CategoryID,
 		"city":      q.City, "countryCode": q.Country, "keyword": q.Keyword, "genreId": q.GenreID,
@@ -180,8 +199,31 @@ func (q Query) fingerprint() string {
 }
 
 func (q Query) nextCursor() string {
-	data, _ := json.Marshal(pageCursor{1, q.Page + 1, q.fingerprint()})
+	v := 1
+	if q.Stored {
+		v = 2
+	}
+	data, _ := json.Marshal(pageCursor{v, q.Page + 1, q.fingerprint()})
 	return base64.RawURLEncoding.EncodeToString(data)
+}
+
+func (q Query) NextCursor() string { q.Stored = true; return q.nextCursor() }
+
+// CollectionScope collects broadly once, then filters locally. A city search
+// never stores a user's keyword or their private participation/preferences.
+func (q Query) CollectionScope() Query {
+	q.Keyword, q.CategoryID, q.GenreID, q.Sort = "", "", "", "date_asc"
+	if q.City != "" {
+		q.ArtistID, q.VenueID = "", ""
+	}
+	q.Limit, q.Page, q.Stored = 100, 0, false
+	return q
+}
+
+func (q Query) ScopeID() string {
+	q = q.CollectionScope()
+	q.City = strings.ToLower(q.City)
+	return q.fingerprint()
 }
 
 func (q Query) cacheKey() string {

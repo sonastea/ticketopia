@@ -32,6 +32,7 @@ goal to implementation work and verification checkpoints.
 - [x] Provide a searchable, responsive event list with correct ticket links and
   clear loading, empty, error, and freshness states.
 - [x] Persist observations and schedule budgeted city/date refreshes in MariaDB.
+- [x] Power Discover/API with the durable catalog, coverage-aware fallback, and dated event history.
 - [x] Discover across all Ticketmaster event categories with compatible filters.
 
 ### Personal radar
@@ -201,7 +202,8 @@ moderation are implemented for discussion posts/replies, with receipts, reversib
 author outcomes, and durable moderator roles. See [moderation](docs/moderation.md)
 for the operator grant/revoke CLI. [Reliable event history](docs/event-history.md)
 adds dated changes, opt-in city/date collection and shared provider budgets.
-The current binary requires schema 10 with [private artist/venue follows](docs/follows.md).
+The current binary requires schema 11 with stored Discover/coverage and
+[private artist/venue follows](docs/follows.md).
 Drain older binaries, migrate and reapply grants before starting this version.
 This is not public-pilot approval.
 
