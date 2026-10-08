@@ -5,7 +5,8 @@ detail pages, the MariaDB connection/migration/identity foundation, and opt-in
 Google accounts/profiles/private preferences, durable private saves, Interested
 with privacy controls/counts/public-opt-in activity, and public recommendations are
 implemented, along with event questions/replies/Helpful and conversation browsing.
-Basic private reporting/moderation is implemented; broader persistence remains planned.
+Basic private reporting/moderation and reliable scheduled event history are implemented;
+broader persistence remains planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -29,7 +30,8 @@ reporting and owner moderation before the first public community pilot.
 
 **Retained subsequent milestones:** artist/venue follows, personalized radar,
 on-sale/change reminders and digest, followed-discussion notifications, Going/Went
-and structured post-show prompts, and budgeted scheduled observation history.
+and structured post-show prompts. Budgeted scheduled observation history is now
+implemented, independently opt-in.
 Minimal durable events/accounts/community records and verified backup/restore
 are MVP foundations; the full ingestion scheduler is not a dependency of posting.
 
@@ -94,12 +96,14 @@ detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
 - [x] Backend foundation: Provide a minimal durable event/provider repository with
   case-sensitive identity, atomic concurrent upserts, category references, and
   cache-independent metadata; verify against real MariaDB. See [setup/recovery](../persistence.md).
-- [ ] Backend: Persist events, artists, venues, provider-ID mappings, and dated
+- [x] Backend: Persist events, artists, venues, provider-ID mappings, and dated
   observations with first/last-seen and change times.
-- [ ] Backend: Schedule city/date collection within the request budget; record
+- [x] Backend: Schedule city/date collection within the request budget; record
   coverage, failures, and meaningful changes without erasing the last good data.
-- [ ] Backend: Add durable budget/refresh coordination before multiple workers or
-  hosts; measure cache hits, external calls, quota usage, and collection coverage.
+- [x] Backend: Add durable budget/refresh coordination for MariaDB-backed workers
+  and hosts; retain quota and collection coverage receipts. See [event history](../event-history.md).
+- [ ] Backend: Add operational dashboards/metrics for cache hits, external calls,
+  quota usage, and collection coverage.
 - [ ] Backend: Back up and verify restoration of application state and jobs.
 - [ ] Frontend: Add an event detail page with useful metadata and clear change,
   freshness, cancellation, and postponement information from durable observations.

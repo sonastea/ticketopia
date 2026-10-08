@@ -11,7 +11,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/events"
+	"github.com/sonastea/ticketopia/internal/history"
 	"github.com/sonastea/ticketopia/internal/infra"
 	"github.com/sonastea/ticketopia/internal/logger"
 	"github.com/sonastea/ticketopia/internal/persistence"
@@ -31,6 +33,21 @@ func Execute(ctx context.Context) int {
 		return 1
 	}
 	var options []api.Option
+	historyConfig, err := history.ConfigFromEnv()
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid event history configuration")
+		return 1
+	}
+	if historyConfig.Enabled && !config.Enabled {
+		logger.Error().Msg("Event history collection requires PERSISTENCE_MODE=mariadb")
+		return 1
+	}
+	providerConfig, err := discovery.ConfigFromEnv()
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid Ticketmaster configuration")
+		return 1
+	}
+	var historyRepository *persistence.HistoryRepository
 	authConfig, err := accounts.ConfigFromEnv()
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid authentication configuration")
@@ -53,8 +70,11 @@ func Execute(ctx context.Context) int {
 			}
 		}()
 		options = append(options, api.WithPersistence(pool.Ready, events.New(pool.Events())))
+		providerConfig.Coordinator = pool.ProviderBudget(providerConfig.APIKey, providerConfig.DailyBudget)
+		historyRepository = pool.History()
+		// Shared snapshot fallback is public metadata, independent of accounts.
+		options = append(options, api.WithSavedEvents(pool.Saved()))
 		if authConfig.Enabled {
-			options = append(options, api.WithSavedEvents(pool.Saved()))
 			options = append(options, api.WithEventInterests(pool.Interests()))
 			options = append(options, api.WithEventRecommendations(pool.Recommendations()))
 			options = append(options, api.WithEventDiscussions(pool.Discussions()))
@@ -70,10 +90,21 @@ func Execute(ctx context.Context) int {
 		}
 	}()
 
+	provider := discovery.New(ctx, cache, logger, providerConfig)
+	options = append([]api.Option{api.WithDiscovery(provider)}, options...)
 	api, err := api.NewAPI(ctx, logger, cache, options...)
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid API configuration")
 		return 1
+	}
+	if historyConfig.Enabled {
+		workerCtx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			history.New(historyRepository, provider, historyConfig, logger).Run(workerCtx)
+		}()
+		defer func() { cancel(); <-done }()
 	}
 	srv := api.Server(8080)
 	return serve(ctx, srv, srv.ListenAndServe, logger)

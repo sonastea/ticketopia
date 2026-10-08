@@ -95,7 +95,7 @@ paths:
     get:
       operationId: getEvent
       summary: Read an event and its embedded metadata
-      description: Prefers provider/cache data. With saves enabled, retained SQL metadata is served with stale=true when current data is unavailable. No private bookmark state is included.
+      description: Prefers provider/cache data. With MariaDB persistence enabled, retained SQL metadata from scheduled collection or local activity is served with stale=true when current data is unavailable, independently of accounts. No private bookmark state or observation history is included.
       parameters:
         - name: event_id
           in: path

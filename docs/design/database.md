@@ -3,9 +3,9 @@
 Status: Connection/migration support, accounts/private preferences/credentials,
 private bookmarks/last-known snapshots, independent event interest/visibility, public recommendations,
 event discussions/Helpful,
-and minimal durable event identity are
+and reliable event history/catalogs/scheduled observations are
 implemented, opt-in alongside KV-backed discovery and durable detail fallback. Broader application
-storage, scheduled observations, deployed multi-pod operation, HA, and verified
+storage, deployed multi-pod operation, HA, and verified
 backup/restore remain planned. See the [foundation guide](../persistence.md).
 
 The [account guide](../accounts.md) describes the delivered schema-v2 identity,
@@ -27,7 +27,8 @@ and test persistence against the deployed MariaDB release, not SQLite.
 
 The foundation uses pinned `go-sql-driver/mysql` and Goose, embedded serialized
 migrations, and standalone operator examples. The examples have not been deployed
-to a cluster; ordinary discovery reads do not ingest events into SQL.
+to a cluster; ordinary discovery reads do not ingest events into SQL. Schema 9 adds
+[budgeted scheduled history](../event-history.md) and shared provider accounting.
 
 ## What MariaDB owns
 
@@ -119,8 +120,8 @@ notification jobs, and moderation records retain their previously planned roles.
   constraints/idempotency records rather than blindly replaying mutations.
 - Coordinate jobs with atomic database claims and expiring ownership, or an
   explicitly fenced leader. Process-local locks do not coordinate three pods.
-  External request budgets also need shared atomic accounting; the existing
-  discovery counters and deduplication remain per process even with shared KV.
+  External request budgets use shared atomic accounting in MariaDB mode; database-free
+  discovery and cache miss deduplication remain per process even with shared KV.
 
 ## Kubernetes operating model
 
@@ -180,7 +181,7 @@ example rollout sequencing; backups/failover still require separate implementati
   before checking the [persistence milestones](../goals/delivery.md#2-keep-reliable-event-and-application-history).
 - Start with connection/migration support and minimal durable event identity;
   accounts, saves, and community records build on it. Scheduled observation
-  history remains a later milestone, not a prerequisite for local actions.
+  history is now implemented but remains opt-in, not a prerequisite for local actions.
 
 ## References
 

@@ -192,12 +192,8 @@ func TestMariaDBRecommendationSchema6UpgradeBackfillsFeedWithoutInventingActivit
 	owner, token := loginAccount(t, auth, "grouped-upgrade")
 	other, _ := loginAccount(t, auth, "grouped-upgrade-other")
 	d := savedDetail("GroupedUpgrade")
-	if _, _, err := old.Saved().Save(t.Context(), owner.ID, d); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := old.Interests().Set(t.Context(), owner.ID, d, "private"); err != nil {
-		t.Fatal(err)
-	}
+	seedLegacySavedEvent(t, db, owner.ID, d)
+	execSQL(t, db, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,'private')`, owner.ID, d.Item.ID)
 	at := time.Date(2026, 10, 6, 10, 0, 0, 0, time.UTC)
 	execSQL(t, db, `INSERT INTO event_recommendations (account_id,event_id,reason,recommended_at,updated_at) VALUES (?,?,?,?,?),(?,?,?,?,?)`, owner.ID, d.Item.ID, "First reason", at, at, other.ID, d.Item.ID, "Later reason", at.Add(time.Hour), at.Add(time.Hour))
 	if _, err := Open(t.Context(), f.runtime); err == nil {

@@ -23,7 +23,7 @@ goal to implementation work and verification checkpoints.
 
 ### Event data foundation
 
-[Discovery guide](docs/discovery.md) · [Cache behavior](docs/cache.md)
+[Discovery guide](docs/discovery.md) · [Cache behavior](docs/cache.md) · [Reliable history](docs/event-history.md)
 
 - [x] Fetch Ticketmaster events with artist, venue, date, status, and price metadata.
 - [x] Load cached category and genre/subgenre catalogs for discovery filters.
@@ -31,7 +31,7 @@ goal to implementation work and verification checkpoints.
   stale fallback, and bounded external request usage.
 - [x] Provide a searchable, responsive event list with correct ticket links and
   clear loading, empty, error, and freshness states.
-- [ ] Persist observations and schedule budgeted city/date refreshes in MariaDB.
+- [x] Persist observations and schedule budgeted city/date refreshes in MariaDB.
 - [x] Discover across all Ticketmaster event categories with compatible filters.
 
 ### Personal radar
@@ -117,7 +117,7 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 - [x] Keep saved events and last-known event details across restarts.
 - [x] Keep event interest and its visibility across restarts.
 - [x] Keep public recommendations, reasons, and original publication times across restarts.
-- [ ] Keep dated event observation history across restarts.
+- [x] Keep dated event observation history across restarts.
 - [x] Keep event discussions and Helpful reactions across restarts.
 - [x] Persist private reports, moderation decisions, author review requests, and moderator roles/audits.
 - [ ] Persist notification jobs.
@@ -197,7 +197,10 @@ Discovery stays public. Private saves, Interested, and public recommendations ar
 available with accounts enabled, along with event discussions. Private reporting and
 moderation are implemented for discussion posts/replies, with receipts, reversible hiding,
 author outcomes, and durable moderator roles. See [moderation](docs/moderation.md)
-for the schema-8 upgrade and operator grant/revoke CLI. This is not public-pilot approval.
+for the operator grant/revoke CLI. [Reliable event history](docs/event-history.md)
+adds schema 9, dated changes, opt-in city/date collection and shared provider budgets.
+Drain older binaries, migrate and reapply grants before starting this version.
+This is not public-pilot approval.
 
 ## Run in a container
 

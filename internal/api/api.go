@@ -48,6 +48,12 @@ type api struct {
 
 type Option func(*api)
 
+// WithDiscovery shares one provider service between HTTP and scheduled reads.
+// Apply it before options which construct services using discovery.
+func WithDiscovery(service *discovery.Service) Option {
+	return func(a *api) { a.events = service }
+}
+
 type interestDetails struct{ a *api }
 
 func (d interestDetails) Detail(ctx context.Context, id string) (models.EventDetail, error) {
@@ -82,13 +88,9 @@ func WithPersistence(ready func(context.Context) error, durable *events.Service)
 }
 
 func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store, options ...Option) (*api, error) {
-	budget := 4500
-	if value := os.Getenv("TICKETMASTER_DAILY_BUDGET"); value != "" {
-		parsed, err := strconv.Atoi(value)
-		if err != nil || parsed < 1 {
-			return nil, fmt.Errorf("TICKETMASTER_DAILY_BUDGET must be a positive integer")
-		}
-		budget = parsed
+	providerConfig, err := discovery.ConfigFromEnv()
+	if err != nil {
+		return nil, err
 	}
 	ipExtractor, err := clientIPExtractor(os.Getenv("TRUSTED_PROXY_CIDRS"))
 	if err != nil {
@@ -103,9 +105,7 @@ func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store, options 
 	}
 	a := &api{
 		logger: logger, ipExtractor: ipExtractor, shutdown: ctx.Done(),
-		events: discovery.New(ctx, cache, logger, discovery.Config{
-			APIKey: os.Getenv("TICKETMASTER_KEY"), DailyBudget: budget,
-		}),
+		events:    discovery.New(ctx, cache, logger, providerConfig),
 		locations: location.New(ctx, cache, logger, location.Config{Disabled: !geolocation}),
 	}
 	for _, option := range options {

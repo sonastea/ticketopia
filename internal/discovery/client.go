@@ -14,6 +14,13 @@ import (
 
 var ErrNotFound = errors.New("event not found")
 
+// Coordinator persists request accounting across processes/restarts. A failed
+// coordinator must fail closed, never silently permit an unbudgeted request.
+type Coordinator interface {
+	Wait(context.Context) error
+	Pause(context.Context, time.Duration) error
+}
+
 // UnavailableError deliberately carries no request URL, API key, or provider body.
 type UnavailableError struct {
 	RetryAfter time.Duration
@@ -79,8 +86,22 @@ func (s *Service) get(ctx context.Context, path string, query url.Values, target
 	if s.key == "" {
 		return &UnavailableError{RetryAfter: time.Minute}
 	}
-	if err := s.gate.wait(ctx); err != nil {
-		return err
+	var gateErr error
+	if s.coordinator != nil {
+		// Keep this process's cooldown even if persisting it failed transiently.
+		s.gate.mu.Lock()
+		remaining := time.Until(s.gate.blocked)
+		s.gate.mu.Unlock()
+		if remaining > 0 {
+			gateErr = &UnavailableError{RetryAfter: remaining}
+		} else {
+			gateErr = s.coordinator.Wait(ctx)
+		}
+	} else {
+		gateErr = s.gate.wait(ctx)
+	}
+	if gateErr != nil {
+		return gateErr
 	}
 	query.Set("apikey", s.key)
 	query.Set("locale", "en")
@@ -118,7 +139,7 @@ func (s *Service) get(ctx context.Context, path string, query url.Values, target
 		if delay <= 0 {
 			delay = 24 * time.Hour
 		}
-		s.gate.pause(delay)
+		s.pause(delay)
 	}
 	const maxBody = 8 << 20
 	body, err := io.ReadAll(io.LimitReader(res.Body, maxBody+1))
@@ -129,9 +150,20 @@ func (s *Service) get(ctx context.Context, path string, query url.Values, target
 }
 
 func (s *Service) unavailable(delay time.Duration) error {
-	s.gate.pause(delay)
+	s.pause(delay)
 	s.logger.Warn().Dur("retry_after", delay).Msg("Ticketmaster unavailable; pausing external requests")
 	return &UnavailableError{RetryAfter: delay}
+}
+
+func (s *Service) pause(delay time.Duration) {
+	s.gate.pause(delay)
+	if s.coordinator != nil {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(s.ctx), 3*time.Second)
+		defer cancel()
+		if err := s.coordinator.Pause(ctx, delay); err != nil {
+			s.logger.Error().Err(err).Msg("Unable to persist Ticketmaster cooldown")
+		}
+	}
 }
 
 func retryDelay(headers http.Header, now time.Time) time.Duration {

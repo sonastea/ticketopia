@@ -266,12 +266,8 @@ func TestMariaDBRecommendationMigrationPreservesExistingActivity(t *testing.T) {
 	defer db.Close()
 	a, raw := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: f.migration.QueryTimeout}, accountProviderFixture{}), "before-recommend")
 	detail := savedDetail("BeforeRecommend")
-	if _, _, err := (&SavedRepository{db: db, timeout: f.migration.QueryTimeout}).Save(t.Context(), a.ID, detail); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := (&InterestRepository{db: db, timeout: f.migration.QueryTimeout}).Set(t.Context(), a.ID, detail, "private"); err != nil {
-		t.Fatal(err)
-	}
+	seedLegacySavedEvent(t, db, a.ID, detail)
+	execSQL(t, db, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,'private')`, a.ID, detail.Item.ID)
 	if _, err := Open(t.Context(), f.runtime); err == nil {
 		t.Fatal("v5 binary accepted v4")
 	}

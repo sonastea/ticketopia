@@ -243,9 +243,7 @@ func TestMariaDBInterestMigrationPreservesSavesAccountsAndSessions(t *testing.T)
 	defer db.Close()
 	a, raw := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: f.migration.QueryTimeout}, accountProviderFixture{}), "pre-interest")
 	detail := savedDetail("BeforeInterest")
-	if _, _, err := (&SavedRepository{db: db, timeout: f.migration.QueryTimeout}).Save(t.Context(), a.ID, detail); err != nil {
-		t.Fatal(err)
-	}
+	seedLegacySavedEvent(t, db, a.ID, detail)
 	if _, err := Open(t.Context(), f.runtime); err == nil {
 		t.Fatal("v4 binary accepted v3")
 	}

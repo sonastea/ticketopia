@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 8
+const SupportedSchemaVersion = 9
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -142,6 +142,17 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT report_id, post_id, reporter_id, reason, context, reported_body, created_at, decision_id FROM moderation_reports LIMIT 0`,
 		`SELECT decision_id, post_id, moderator_id, action, reason, notes, created_at FROM moderation_decisions LIMIT 0`,
 		`SELECT decision_id, context, created_at, reviewed_by FROM moderation_appeals LIMIT 0`,
+		`SELECT artist_id,snapshot,first_seen,last_seen FROM artists LIMIT 0`,
+		`SELECT provider,source_id,artist_id FROM artist_providers LIMIT 0`,
+		`SELECT venue_id,snapshot,first_seen,last_seen FROM venues LIMIT 0`,
+		`SELECT provider,source_id,venue_id FROM venue_providers LIMIT 0`,
+		`SELECT event_id,first_seen,last_seen,last_changed,snapshot FROM event_history_state LIMIT 0`,
+		`SELECT event_id,observed_at,snapshot,changes FROM event_observations LIMIT 0`,
+		`SELECT task_id,city,country,local_date,next_refresh,lease_until,run_id,last_attempt,last_success,last_failure FROM collection_tasks LIMIT 0`,
+		`SELECT run_id,task_id,started_at,finished_at,status,failure FROM collection_runs LIMIT 0`,
+		`SELECT run_id,page_number,collected_at,event_count,reported_total,limited FROM collection_pages LIMIT 0`,
+		`SELECT run_id,event_id,observed_at FROM collection_run_events LIMIT 0`,
+		`SELECT key_hash,window_start,used,budget,next_request,blocked_until FROM provider_budgets LIMIT 0`,
 	} {
 		rows, err := p.db.QueryContext(ctx, query)
 		if err != nil {
@@ -152,11 +163,11 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		}
 	}
 	var count int
-	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals') AND engine = 'InnoDB'`).Scan(&count)
+	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals','artists','artist_providers','venues','venue_providers','event_history_state','event_observations','collection_tasks','collection_runs','collection_pages','collection_run_events','provider_budgets') AND engine = 'InnoDB'`).Scan(&count)
 	if err != nil {
 		return safeError("schema validation", err)
 	}
-	if count != 22 {
+	if count != 33 {
 		return fmt.Errorf("database schema requires InnoDB tables")
 	}
 	return nil

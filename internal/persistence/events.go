@@ -114,11 +114,18 @@ func (r *EventRepository) upsertOnce(ctx context.Context, event models.Event, ar
 }
 
 func upsertEventTx(ctx context.Context, tx *sql.Tx, event models.Event, args []any) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO events (`+eventColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE name=VALUES(name), source_url=VALUES(source_url), start_utc=VALUES(start_utc),
+	return writeEventTx(ctx, tx, event, args, true)
+}
+
+func writeEventTx(ctx context.Context, tx *sql.Tx, event models.Event, args []any, update bool) error {
+	query := `INSERT INTO events (` + eventColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE event_id=event_id`
+	if update {
+		query = `INSERT INTO events (` + eventColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), source_url=VALUES(source_url), start_utc=VALUES(start_utc),
 local_date=VALUES(local_date), local_time=VALUES(local_time), timezone=VALUES(timezone), date_tba=VALUES(date_tba),
 date_tbd=VALUES(date_tbd), time_tba=VALUES(time_tba), no_specific_time=VALUES(no_specific_time), status=VALUES(status),
-venues=VALUES(venues), artists=VALUES(artists), classifications=VALUES(classifications), place=VALUES(place), updated_at=UTC_TIMESTAMP(6)`, args...)
+venues=VALUES(venues), artists=VALUES(artists), classifications=VALUES(classifications), place=VALUES(place), updated_at=UTC_TIMESTAMP(6)`
+	}
+	_, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}

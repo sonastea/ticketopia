@@ -182,9 +182,7 @@ func TestMariaDBDiscussionRootAtomicSnapshotAndSchema5Upgrade(t *testing.T) {
 	auth := accounts.New(old.Accounts(), accountProviderFixture{})
 	who, token := loginAccount(t, auth, "discussion-upgrade")
 	d := savedDetail("DiscussionUpgrade")
-	if _, _, err := old.Saved().Save(t.Context(), who.ID, d); err != nil {
-		t.Fatal(err)
-	}
+	seedLegacySavedEvent(t, db, who.ID, d)
 	// Seed using the previous schema's SQL, not the current repository contract.
 	execSQL(t, db, `INSERT INTO event_recommendations (account_id,event_id,reason) VALUES (?,?,?)`, who.ID, d.Item.ID, "An existing endorsement")
 	f.migrate(t)

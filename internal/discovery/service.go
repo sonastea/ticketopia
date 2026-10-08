@@ -20,18 +20,20 @@ type Config struct {
 	DailyBudget int
 	BaseURL     string
 	HTTPClient  *http.Client
+	Coordinator Coordinator
 }
 
 type Service struct {
-	ctx     context.Context
-	cache   kv.Store
-	logger  zerolog.Logger
-	key     string
-	baseURL string
-	client  *http.Client
-	gate    requestGate
-	flights singleflight.Group
-	now     func() time.Time
+	ctx         context.Context
+	cache       kv.Store
+	logger      zerolog.Logger
+	key         string
+	baseURL     string
+	client      *http.Client
+	gate        requestGate
+	flights     singleflight.Group
+	now         func() time.Time
+	coordinator Coordinator
 }
 
 func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Config) *Service {
@@ -50,7 +52,7 @@ func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Conf
 	return &Service{
 		ctx: ctx, cache: cache, logger: logger, key: strings.TrimSpace(config.APIKey),
 		baseURL: strings.TrimRight(config.BaseURL, "/"), client: config.HTTPClient,
-		gate: requestGate{budget: config.DailyBudget, interval: 250 * time.Millisecond}, now: time.Now,
+		gate: requestGate{budget: config.DailyBudget, interval: 250 * time.Millisecond}, now: time.Now, coordinator: config.Coordinator,
 	}
 }
 
@@ -72,33 +74,15 @@ func (s *Service) Events(ctx context.Context, q Query) (models.EventList, error)
 	validated.Page = q.Page
 	q = validated
 	page, meta, err := cached(ctx, s, q.cacheKey(), eventPolicy, func(ctx context.Context) (eventPage, error) {
-		var raw providerEvents
-		if err := s.get(ctx, "/events.json", q.upstream(), &raw); err != nil {
-			return eventPage{}, err
-		}
-		if raw.Page == nil || raw.Page.Number != q.Page || raw.Page.TotalPages < 0 || raw.Page.TotalElements < 0 {
-			return eventPage{}, s.unavailable(30 * time.Second)
-		}
-		page := eventPage{Items: []models.Event{}, Total: raw.Page.TotalElements, TotalPages: raw.Page.TotalPages}
-		for _, event := range raw.Embedded.Events {
-			if !sourceIDPattern.MatchString(event.ID) || event.Name == "" {
-				return eventPage{}, s.unavailable(30 * time.Second)
-			}
-			page.Items = append(page.Items, normalizeEvent(event))
-		}
-		// Search includes the metadata used by detail reads. Seed those entries once
-		// instead of making one external request per event displayed by a client.
-		now := s.now()
-		for _, event := range page.Items {
-			writeRecord(ctx, s, detailKey(event.ID), cacheRecord[models.Event]{
-				Data: event, FetchedAt: now, FreshUntil: now.Add(eventPolicy.fresh), StaleUntil: now.Add(eventPolicy.retain),
-			})
-		}
-		return page, nil
+		return s.fetchPage(ctx, q)
 	})
 	if err != nil {
 		return models.EventList{}, err
 	}
+	return eventList(q, page, meta), nil
+}
+
+func eventList(q Query, page eventPage, meta models.Freshness) models.EventList {
 	list := models.EventList{Items: page.Items, Total: page.Total, Meta: meta}
 	if len(page.Items) > 0 && q.Page+1 < page.TotalPages {
 		if (q.Page+1)*q.Limit < 1000 {
@@ -108,7 +92,52 @@ func (s *Service) Events(ctx context.Context, q Query) (models.EventList, error)
 			list.Limited = true
 		}
 	}
-	return list, nil
+	return list
+}
+
+func (s *Service) fetchPage(ctx context.Context, q Query) (eventPage, error) {
+	var raw providerEvents
+	if err := s.get(ctx, "/events.json", q.upstream(), &raw); err != nil {
+		return eventPage{}, err
+	}
+	if raw.Page == nil || raw.Page.Number != q.Page || raw.Page.TotalPages < 0 || raw.Page.TotalElements < 0 || len(raw.Embedded.Events) > q.Limit || (len(raw.Embedded.Events) == 0 && q.Page < raw.Page.TotalPages && raw.Page.TotalElements > 0) {
+		return eventPage{}, s.unavailable(30 * time.Second)
+	}
+	page := eventPage{Items: []models.Event{}, Total: raw.Page.TotalElements, TotalPages: raw.Page.TotalPages}
+	for _, event := range raw.Embedded.Events {
+		if !sourceIDPattern.MatchString(event.ID) || event.Name == "" {
+			return eventPage{}, s.unavailable(30 * time.Second)
+		}
+		page.Items = append(page.Items, normalizeEvent(event))
+	}
+	now := s.now()
+	for _, event := range page.Items {
+		writeRecord(ctx, s, detailKey(event.ID), cacheRecord[models.Event]{
+			Data: event, FetchedAt: now, FreshUntil: now.Add(eventPolicy.fresh), StaleUntil: now.Add(eventPolicy.retain),
+		})
+	}
+	return page, nil
+}
+
+// Collect deliberately bypasses retained reads: cache fallback cannot establish
+// collection coverage or advance durable last-seen times. It shares the same
+// client, budget, cooldowns, validation and normalization as interactive reads.
+func (s *Service) Collect(ctx context.Context, q Query) (models.EventList, error) {
+	validated, err := ParseQuery(q.Values(), s.now())
+	if err != nil {
+		return models.EventList{}, err
+	}
+	if q.Page < 0 || q.Page > 999/validated.Limit {
+		return models.EventList{}, &ValidationError{"cursor", "page exceeds the provider result limit"}
+	}
+	validated.Page = q.Page
+	page, err := s.fetchPage(ctx, validated)
+	if err != nil {
+		return models.EventList{}, err
+	}
+	now := s.now()
+	writeRecord(ctx, s, validated.cacheKey(), cacheRecord[eventPage]{Data: page, FetchedAt: now, FreshUntil: now.Add(eventPolicy.fresh), StaleUntil: now.Add(eventPolicy.retain)})
+	return eventList(validated, page, models.Freshness{DataAsOf: now}), nil
 }
 
 func detailKey(id string) string { return "ticketmaster:v1:event:" + id }
