@@ -128,11 +128,8 @@ templ EventSectionContent(page EventPage) {
 	<section class="event-section" aria-labelledby="event-section-heading">
 		switch page.Section {
 			case "discussion":
-				<h2 id="event-section-heading">A place to talk about this event</h2>
-				<p>Event discussions are in development. Questions, tips, and threaded replies will live here, alongside the event they belong to.</p>
-				@badge.Badge(badge.Props{Class: "availability-label"}) {
-					Posting and replies are not available yet.
-				}
+				<h2 id="event-section-heading">Questions & tips</h2>
+				@DiscussionPanel(page.Detail.Item.ID,page.Discussions,page.ActionReturnURL)
 			case "community":
 				<h2 id="event-section-heading">Good events are worth sharing</h2>
 				@RecommendationPanel(page.Detail.Item.ID,page.Recommendations,page.ActionReturnURL)

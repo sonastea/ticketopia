@@ -62,6 +62,7 @@ func main() {
 			Detail: detail, ReturnURL: "/", ActionReturnURL: r.URL.RequestURI(), Section: section,
 			Saves: saves, Interests: interests,
 			Recommendations: home.RecommendationView{Enabled: true, SignedIn: true, Open: true, CSRF: "css-fixture"},
+			Discussions:     home.DiscussionView{Enabled: true, ViewerID: "css-fixture", CSRF: "css-fixture"},
 		}))
 	})
 	mux.HandleFunc("GET /me", func(w http.ResponseWriter, r *http.Request) {

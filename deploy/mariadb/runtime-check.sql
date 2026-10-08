@@ -30,5 +30,14 @@ DELETE FROM event_interests WHERE FALSE;
 INSERT INTO event_recommendations SELECT * FROM event_recommendations WHERE FALSE;
 UPDATE event_recommendations SET reason = reason WHERE FALSE;
 DELETE FROM event_recommendations WHERE FALSE;
+INSERT INTO recommendation_feed_events SELECT * FROM recommendation_feed_events WHERE FALSE;
+UPDATE recommendation_feed_events SET first_recommended_at=first_recommended_at WHERE FALSE;
+INSERT INTO recommendation_activity SELECT * FROM recommendation_activity WHERE FALSE;
+UPDATE recommendation_activity SET new_publications=new_publications WHERE FALSE;
+INSERT INTO discussion_posts SELECT * FROM discussion_posts WHERE FALSE;
+UPDATE discussion_posts SET body = body WHERE FALSE;
+INSERT INTO post_helpful SELECT * FROM post_helpful WHERE FALSE;
+UPDATE post_helpful SET post_id = post_id WHERE FALSE;
+DELETE FROM post_helpful WHERE FALSE;
 
 ROLLBACK;

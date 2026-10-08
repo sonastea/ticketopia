@@ -1,0 +1,271 @@
+package home
+
+import "fmt"
+import "github.com/sonastea/ticketopia/internal/discussions"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/input"
+import "github.com/sonastea/ticketopia/views/components/label"
+import selectcomp "github.com/sonastea/ticketopia/views/components/select"
+
+templ DiscussionPanel(event string,v DiscussionView,returnURL string) {
+	if !v.Enabled {
+		<p class="field-note">Discussions require accounts to be enabled on this server.</p>
+	} else {
+		<p class="field-note">Ask a question or share a practical tip. Contributions are public; this is an asynchronous conversation, not live chat.</p>
+		if v.ViewerID!="" {
+			<details class="recommendation-editor discussion-editor">
+				<summary>Ask a question or share a tip</summary>
+				@DiscussionComposer(DiscussionForm{EventID:event,Action:"create",Key:v.Key,ReturnURL:returnURL,CSRF:v.CSRF,ViewerID:v.ViewerID},"Your question or tip","Post question or tip")
+			</details>
+		} else {
+			<a href={ templ.URL(signInURL(returnURL)) } class="text-link">Sign in to join the discussion</a>
+		}
+		if v.Error!="" {
+			<p role="status" class="field-note">{ v.Error }</p>
+		} else {
+			<p class="field-note">{ fmt.Sprint(v.List.Count) } visible questions and tips</p>
+			@DiscussionRoots(v.List,false,returnURL)
+			if v.List.NextCursor!=nil {
+				<a href={ templ.URL(ThreadURL(event,"",DiscussionOrigin(returnURL))) } class="text-link">See all conversations</a>
+			}
+		}
+	}
+}
+
+templ DiscussionRoots(list discussions.List,showEvent bool,returnURL string) {
+	if len(list.Items)==0 {
+		<p class="field-note">No conversations on this page. Open an event to ask the first question.</p>
+	} else {
+		<ul class="discussion-list recommendation-list">
+			for _,post:=range list.Items {
+				<li class={ templ.KV("recommendation-event",showEvent) }>
+					if showEvent {
+						<div class="event-art">@EventImage(post.Event,false)</div>
+					}
+					<div class="recommendation-copy">
+						if showEvent {
+							<p class="event-date">{ startLabel(post.Event.Start) }</p>
+							<h3><a href={ templ.URL(eventURL(post.EventID,"discussion",returnURL)) } class="text-link">{ post.Event.Name }</a></h3>
+							<p class="event-venue">{ venueLabel(post.Event) }</p>
+						}
+						if post.Removed {
+							<p class="field-note">This contribution was removed. Replies are still available.</p>
+						} else {
+							@PostAttribution(post)
+							<p class="discussion-body">{ post.Body }</p>
+						}
+						<a href={ templ.URL(ThreadURL(post.EventID,post.ID,DiscussionOrigin(returnURL))) } class="text-link">Open conversation · { fmt.Sprint(post.ReplyCount) } replies</a>
+					</div>
+				</li>
+			}
+		</ul>
+	}
+}
+
+templ PostAttribution(post discussions.Post) {
+	<p class="discussion-attribution">
+		if post.Profile!=nil {
+			<a href={ templ.URL("/users/"+post.Profile.ID) } class="text-link">{ post.Profile.DisplayName }</a>
+		}
+		<time datetime={ post.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ post.CreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time>
+		if !post.CreatedAt.Equal(post.UpdatedAt) {
+			<span>Edited</span>
+		}
+	</p>
+}
+
+templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
+	<article class="discussion-post" id={ "post-"+post.ID } aria-label="Discussion contribution">
+		if post.Removed {
+			<p class="field-note">This contribution was removed.</p>
+		} else {
+			@PostAttribution(post)
+			if post.ParentID!="" && post.ParentID!=post.ThreadID {
+				<p class="field-note"><a href={ templ.URL(replyURL(returnURL,post.ParentID)) } class="text-link">In reply to { post.ParentName }</a></p>
+			}
+			<p class="discussion-body">{ post.Body }</p>
+			<div class="discussion-actions">
+				<a href={ templ.URL(replyURL(returnURL,post.ID)) } class="text-link">Reply</a>
+				if v.ViewerID!="" {
+					<form action="/discussion-actions" method="post" data-discussion-form>
+						@DiscussionMetadata(discussionForm(post,v,"helpful",returnURL))
+						@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"name":"action","value":helpfulVerb(post.Helpful),"aria-pressed":fmt.Sprint(post.Helpful)}}) {
+							Helpful · { fmt.Sprint(post.HelpfulCount) }
+						}
+						<p hidden data-discussion-error class="field-note" role="alert"></p>
+					</form>
+			} else {
+				<span class="field-note">{ fmt.Sprint(post.HelpfulCount) } Helpful</span>
+			}
+			</div>
+			if post.Profile!=nil && post.Profile.ID==v.ViewerID {
+				<details class="discussion-editor recommendation-editor">
+					<summary>Edit your contribution</summary>
+					@DiscussionComposer(discussionForm(post,v,"edit",returnURL),"Your contribution","Save changes")
+				</details>
+				<details class="discussion-removal">
+					<summary>Remove your contribution</summary>
+					<p class="field-note">Your text and attribution will be removed. Replies remain with a placeholder. This cannot be undone.</p>
+					<form action="/discussion-actions" method="post" data-discussion-form>
+						@DiscussionMetadata(discussionForm(post,v,"remove",returnURL))
+						@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"name":"action","value":"remove"}}) {
+							Remove contribution
+						}
+						<p hidden data-discussion-error class="field-note" role="alert"></p>
+					</form>
+				</details>
+			}
+		}
+	</article>
+}
+
+templ DiscussionMetadata(f DiscussionForm) {
+	<input type="hidden" name="csrf_token" value={ f.CSRF }/>
+	<input type="hidden" name="return_to" value={ f.ReturnURL }/>
+	<input type="hidden" name="event_id" value={ f.EventID }/>
+	<input type="hidden" name="thread_id" value={ f.ThreadID }/>
+	<input type="hidden" name="parent_id" value={ f.ParentID }/>
+	<input type="hidden" name="post_id" value={ f.PostID }/>
+	<input type="hidden" name="idempotency_key" value={ f.Key }/>
+}
+
+templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
+	<form action="/discussion-actions" method="post" class="account-form discussion-composer" data-discussion-form data-discussion-draft={ f.draftScope() }>
+		@DiscussionMetadata(f)
+		<p class="field-note">Your display name, profile link, and contribution will be public. Private interest and saves do not hide posts. Keep it relevant and respectful; don't share private information.</p>
+		if f.ParentID!="" {
+			<p class="field-note">Replying to <a href={ templ.URL("#post-"+f.ParentID) } class="text-link">the selected contribution</a>.</p>
+		}
+		<label class="field">{ fieldLabel } <span>(up to 4000 characters)</span><textarea name="body" rows="4" maxlength="4000" required>{ f.Body }</textarea></label>
+		if f.CSRF!="" {
+			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":f.Action}}) {
+				{ submitLabel }
+			}
+		}
+		<p hidden data-discussion-error class="field-note" role="alert"></p>
+	</form>
+}
+
+templ Discussion(p DiscussionPage) {
+	@layouts.App("community","Discussion · "+p.Event.Name) {
+		<main id="main" class="destination-page discussion-page" data-discussion-viewer={ p.View.ViewerID }>
+			<a href={ templ.URL(eventURL(p.Event.ID,"discussion",p.ReturnURL)) } class="text-link">Back to event</a>
+			<header class="discussion-event-heading"><h1>{ p.Event.Name }</h1><p class="event-date">{ startLabel(p.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Event) }</p></header>
+			if p.Root!=nil {
+				<h2>Conversation</h2>
+				@DiscussionPost(*p.Root,p.View,p.URL)
+				<h2>{ fmt.Sprint(p.Root.ReplyCount) } replies</h2>
+				if p.View.Error!="" {
+					<p role="alert">{ p.View.Error }</p>
+				} else {
+					<div class="discussion-replies">
+						for _,post:=range p.View.List.Items {
+							@DiscussionPost(post,p.View,p.URL)
+						}
+						if len(p.View.List.Items)==0 {
+							<p class="field-note">No replies on this page. Share what you know or ask a follow-up.</p>
+						}
+					</div>
+					if p.View.List.NextCursor!=nil {
+						<a href={ templ.URL(CollectionNextURL(p.URL,p.View.List.NextCursor)) } class="text-link">More replies</a>
+					}
+				}
+				<section id="discussion-composer" class="discussion-reply-composer" aria-labelledby="reply-heading">
+					<h2 id="reply-heading">Reply to this conversation</h2>
+					if p.ReplyTo!=nil {
+						if p.ReplyTo.Removed {
+							<p class="field-note">Replying to a removed contribution.</p>
+						} else {
+							<p class="field-note">Replying to { p.ReplyTo.Profile.DisplayName }:</p>
+							<blockquote class="discussion-body">{ p.ReplyTo.Body }</blockquote>
+						}
+					}
+					if p.View.ViewerID!="" {
+						@DiscussionComposer(DiscussionForm{EventID:p.Event.ID,ThreadID:p.Root.ID,ParentID:p.ParentID,Action:"create",Key:p.View.Key,ReturnURL:p.URL,CSRF:p.View.CSRF,ViewerID:p.View.ViewerID},"Your reply","Publish reply")
+					} else {
+						<a href={ templ.URL(signInURL(p.URL)) } class="text-link">Sign in to reply or mark a contribution Helpful</a>
+					}
+				</section>
+			} else {
+				<h2>Questions & tips</h2>
+				@DiscussionPanel(p.Event.ID,p.View,p.URL)
+				if p.View.List.NextCursor!=nil {
+					<a href={ templ.URL(CollectionNextURL(p.URL,p.View.List.NextCursor)) } class="text-link">More conversations</a>
+				}
+			}
+		</main>
+	}
+}
+
+templ DiscussionCommunity(p DiscussionCommunityPage) {
+	@layouts.App("community","Community conversations") {
+		<main id="main" class="destination-page community-page">
+			<header><h1>Questions & tips from the community</h1><p class="intro">Find practical advice and join conversations around local events.</p></header>
+			<nav class="section-nav" aria-label="Community collections"><a href="/community" class="text-link">Recommendations</a><a href="/community/discussions" aria-current="page" class="text-link">Conversations</a></nav>
+			if !p.Enabled {
+				<p>Discussions require accounts to be enabled on this server.</p><a href="/" class="text-link">Discover events</a>
+			} else {
+				<form action="/community/discussions" method="get" class="community-filters">
+					@label.Label(label.Props{For:"discussion-city",Class:"field"}) {
+						City <span>(optional)</span>
+						@input.Input(input.Props{ID:"discussion-city",Name:"city",Value:p.Filters.City,Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
+					}
+					@label.Label(label.Props{For:"discussion-country",Class:"field"}) {
+						Country code <span>(optional)</span>
+						@input.Input(input.Props{ID:"discussion-country",Name:"country",Value:p.Filters.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}"}})
+					}
+					@label.Label(label.Props{For:"discussion-category",Class:"field"}) {
+						Category
+						@selectcomp.Native(selectcomp.NativeProps{ID:"discussion-category",Name:"category_id"}) {
+							<option value="all">All categories</option>
+							if p.Filters.CategoryID!="" && !p.hasCategory() {
+								<option value={ p.Filters.CategoryID } selected>{ p.Filters.CategoryID }</option>
+							}
+							for _,category:=range p.Categories {
+								<option value={ category.ID } selected?={ category.ID==p.Filters.CategoryID }>{ category.Name }</option>
+							}
+						}
+					}
+					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+						Apply filters
+					}
+				</form>
+				if p.CategoriesUnavailable {
+					<p class="field-note">Category options couldn't refresh. Conversations and your selected filter are still available.</p>
+				}
+				if p.Error!="" {
+					<p role="alert">{ p.Error }</p><a href="/community/discussions" class="text-link">Reset filters and retry</a>
+				} else {
+					<div class="results-heading"><h2>Recent conversations</h2><span class="sort-label">Newest started first</span></div>
+					@DiscussionRoots(p.List,true,p.URL)
+					if p.List.NextCursor!=nil {
+						<a href={ templ.URL(CollectionNextURL(p.URL,p.List.NextCursor)) } class="text-link">More conversations</a>
+					}
+				}
+			}
+		</main>
+	}
+}
+
+templ DiscussionFailure(f DiscussionForm,message string,signIn bool) {
+	@layouts.App("community","Contribution wasn't saved") {
+		<main id="main" class="destination-page discussion-page">
+			<h1>Contribution wasn't saved</h1><p role="alert">{ message }</p>
+			if f.Action=="create" || f.Action=="edit" {
+				@DiscussionComposer(f,"Your draft","Retry contribution")
+			} else if f.CSRF!="" {
+				<form action="/discussion-actions" method="post">
+					@DiscussionMetadata(f)
+					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":f.Action}}) {
+						Retry action
+					}
+				</form>
+			}
+			if signIn {
+				<p class="field-note">Your draft is kept above. Copy it before signing in, then return to the conversation to retry.</p><a href={ templ.URL(signInURL(f.ReturnURL)) } class="text-link">Sign in to continue</a>
+			}
+			<a href={ templ.URL(f.ReturnURL) } class="text-link">Back to conversation</a>
+		</main>
+	}
+}

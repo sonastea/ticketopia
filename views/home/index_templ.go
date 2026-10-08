@@ -407,7 +407,7 @@ func Index(page SearchPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else if page.Selected != nil {
-				templ_7745c5c3_Err = EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL, Saves: page.Saves, Interests: page.Interests, Participants: page.Participants, ParticipantsError: page.ParticipantsError, Recommendations: page.Recommendations, ActionReturnURL: page.ActionReturnURL}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventContext(EventPage{Detail: *page.Selected, Section: page.Section, ReturnURL: page.ReturnURL, Saves: page.Saves, Interests: page.Interests, Participants: page.Participants, ParticipantsError: page.ParticipantsError, Recommendations: page.Recommendations, Discussions: page.Discussions, ActionReturnURL: page.ActionReturnURL}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1244,7 +1244,7 @@ func EmptyContext() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "</div><h3>Something catch your eye?</h3><p>Select an event to see its dates, venue, and ticket details here.</p><div class=\"context-footnote\"><p>Good plans start with the details.</p><p>Open an event to see public recommendations. Event conversations are coming later.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "</div><h3>Something catch your eye?</h3><p>Select an event to see its dates, venue, and ticket details here.</p><div class=\"context-footnote\"><p>Good plans start with the details.</p><p>Open an event to see public recommendations, questions, and practical tips.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

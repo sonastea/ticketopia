@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### 2026-10-07 — Grouped recommendation contract v1.7.0
+
+- Add `/api/v1/community/recommendations` with event-level pagination, immutable
+  first-publication ordering, active counts and three-author previews.
+- Preserve individual collections and separate cursor scopes; document withdrawal
+  markers, no-bump reactivation and observe-only measurements without quotas.
+  See [recommendations](../event-recommendations.md#api).
+- Verify strict grouped queries and public projections; lint the 1.7.0 contract
+  with only the existing two health-probe warnings.
+
+### 2026-10-07 — Discussion and Helpful contract v1.6.0
+
+- Document root/reply creation and reads, owner edit/removal, independent Helpful,
+  and city/category root browsing. Specify public projections, durable retry-key
+  retention/conflicts, creation limits, strict bodies, ownership/ancestry, removal
+  placeholders, viewer-scoped cursors, and creation snapshot boundaries.
+- Keep cookie/bearer identity and CSRF rules aligned with shared services;
+  reporting/moderation remain proposed. See [discussions](../event-discussions.md#api).
+
 ### 2026-10-06 — Account/save/interest/recommendation contract v1.5.0
 
 - Add own/public profiles, private preferences, browser-only API credential

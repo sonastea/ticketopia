@@ -31,6 +31,7 @@ type SearchPage struct {
 	Participants          interests.Participants
 	ParticipantsError     string
 	Recommendations       RecommendationView
+	Discussions           DiscussionView
 	ActionReturnURL       string
 }
 
@@ -44,6 +45,7 @@ type EventPage struct {
 	Participants      interests.Participants
 	ParticipantsError string
 	Recommendations   RecommendationView
+	Discussions       DiscussionView
 	ActionReturnURL   string
 }
 
@@ -72,7 +74,7 @@ func (v RecommendationView) reason() string {
 type CommunityPage struct {
 	Enabled               bool
 	Filters               recommendations.Query
-	List                  recommendations.List
+	List                  recommendations.Feed
 	Categories            []models.Category
 	CategoriesUnavailable bool
 	ReturnURL, Error      string
@@ -100,7 +102,7 @@ func profileRecommendationNextURL(raw string, cursor *string) string {
 }
 func isCommunityURL(raw string) bool {
 	u, err := url.Parse(raw)
-	return err == nil && u.Path == "/community"
+	return err == nil && (u.Path == "/community" || u.Path == "/community/discussions")
 }
 func isProfileURL(raw string) bool {
 	u, err := url.Parse(raw)

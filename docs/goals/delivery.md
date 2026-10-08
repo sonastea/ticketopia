@@ -4,7 +4,8 @@ Status: All-category discovery, responsive navigation, basic event previews/
 detail pages, the MariaDB connection/migration/identity foundation, and opt-in
 Google accounts/profiles/private preferences, durable private saves, Interested
 with privacy controls/counts/public-opt-in activity, and public recommendations are
-implemented. Discussions/moderation and broader persistence remain planned.
+implemented, along with event questions/replies/Helpful and conversation browsing.
+Reporting/moderation and broader persistence remain planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -15,7 +16,7 @@ does not complete a UI outcome, and a cache does not complete durable storage.
 The updated release combines location-based discovery across **all Ticketmaster
 event categories** with event-centered community participation. Category-aware
 discovery, account/profile/preferences, private saves, Interested, and public
-recommendations are implemented; discussions and moderation remain planned.
+recommendations and discussions/Helpful are implemented; reporting/moderation remain planned.
 The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
 Section numbers below group capabilities; they do not force reminders/ranking
 to ship before community work.
@@ -107,7 +108,7 @@ detection, and later [venue insights](../ideas/venue-insights-and-discovery.md).
 - [x] MVP save foundation: Atomically upsert durable event/provider identity and
   last-known snapshots before bookmarks; retain saved events without provider/cache
   data. See [private saves](../saved-events.md).
-- [ ] MVP community foundation: Preserve conversations without provider/cache data.
+- [x] MVP community foundation: Preserve conversations without provider/cache data.
   Basic event details must ship without waiting for historical change detection.
 - [x] MVP recommendation foundation: Preserve public endorsements and their event
   snapshots across restarts/provider loss without merging save or interest state.
@@ -169,10 +170,10 @@ Build backend/API and UI together for each small outcome:
   See [recommendations](../event-recommendations.md) for API/UI and verification.
 - [x] Verification: Exercise native/enhanced writes, failures/drafts, public privacy,
   paginated return context, offline persistence, compact/200% text, and accessibility.
-- [ ] Frontend: Browse active event conversations alongside recommendation discovery.
-- [ ] Backend: Persist comments, replies, edits/removals, and positive Helpful
+- [x] Frontend: Browse recent event conversations alongside recommendation discovery.
+- [x] Backend: Persist comments, replies, edits/removals, and positive Helpful
   reactions, enforcing ownership and preserving removed reply context.
-- [ ] Frontend: Provide readable threads, composing/replying/editing/removal, and
+- [x] Frontend: Provide readable threads, composing/replying/editing/removal, and
   adding/removing Helpful reactions.
 - [ ] Later Backend: Persist followed discussions and preference-aware activity jobs.
 - [ ] Later Frontend: Follow/unfollow conversations and surface useful activity updates.
@@ -188,8 +189,9 @@ Build backend/API and UI together for each small outcome:
 
 ## 6. Responsive discovery-to-discussion experience
 
-The discovery subset and recommendation writing/browsing are delivered. Discussion
-layout and writing journeys remain planned; earlier work does not establish their completion.
+Discovery, recommendation writing/browsing, selected-event root conversations,
+and dedicated thread writing are delivered. Full conversation expansion inside
+the contextual panel and broader cross-device journeys remain planned.
 
 - [x] Frontend: Responsive global navigation, image-led discovery, and selected
   event metadata previews with dedicated event pages on compact screens.

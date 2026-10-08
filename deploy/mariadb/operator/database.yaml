@@ -311,6 +311,66 @@ spec:
   grantOption: false
   cleanupPolicy: Skip
 ---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-discussion-posts
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: discussion_posts
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-post-helpful
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE, DELETE]
+  database: ticketopia
+  table: post_helpful
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-recommendation-feed-events
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: recommendation_feed_events
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-recommendation-activity
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: recommendation_activity
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:

@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
@@ -75,6 +76,9 @@ func (a *api) cookie(c echo.Context, kind, raw string, lifetime time.Duration) {
 // Only a local, known page may be resumed. Never redirect to an auth endpoint,
 // encoded slash/backslash, external origin, or user-controlled fragment.
 func safeAuthReturn(raw string) string {
+	if isDiscussionReturn(raw) {
+		return safeDiscussionReturn(raw)
+	}
 	if strings.HasPrefix(raw, "/community") {
 		return safeCommunityReturn(raw)
 	}
@@ -253,6 +257,12 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 503, "event_interests_unavailable", "We couldn't load or change event interest. Please try again shortly.", nil
 	case errors.Is(err, recommendations.ErrUnavailable):
 		return 503, "event_recommendations_unavailable", "We couldn't load or change recommendations. Please try again shortly.", nil
+	case errors.Is(err, discussions.ErrNotFound):
+		return 404, "post_not_found", "This contribution couldn't be found or changed.", nil
+	case errors.Is(err, discussions.ErrConflict):
+		return 409, "idempotency_conflict", "This retry key was used for a different contribution. Use a new key for a new post.", nil
+	case errors.Is(err, discussions.ErrUnavailable):
+		return 503, "discussions_unavailable", "Discussions couldn't load or change. Please try again shortly.", nil
 	case errors.Is(err, accounts.ErrLimited):
 		return 429, "rate_limited", "Too many attempts. Try again in ten minutes.", nil
 	case errors.Is(err, accounts.ErrCredentialLimit):
@@ -547,6 +557,9 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 	return render(c, status, account.Settings(page))
 }
 func parseAccountForm(c echo.Context, allowed ...string) error {
+	return parseBoundedAccountForm(c, 16384, allowed...)
+}
+func parseBoundedAccountForm(c echo.Context, maxBytes int64, allowed ...string) error {
 	// Form values (including CSRF) must come from the bounded POST body, never
 	// a query string that can leak into navigation history or access logs.
 	if len(c.QueryParams()) > 0 {
@@ -556,9 +569,13 @@ func parseAccountForm(c echo.Context, allowed ...string) error {
 	if err != nil || media != "application/x-www-form-urlencoded" {
 		return &accounts.ValidationError{Field: "body", Message: "submit an ordinary form"}
 	}
-	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, 16384)
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, maxBytes)
 	if err = c.Request().ParseForm(); err != nil {
-		return &accounts.ValidationError{Field: "body", Message: "use a form no larger than 16 KiB"}
+		message := "use a form no larger than 16 KiB"
+		if maxBytes > 16384 {
+			message = "use a form no larger than 64 KiB"
+		}
+		return &accounts.ValidationError{Field: "body", Message: message}
 	}
 	for key, values := range c.Request().PostForm {
 		if key == "csrf_token" {

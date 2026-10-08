@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 5
+const SupportedSchemaVersion = 7
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -132,7 +132,11 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT event_id, snapshot, data_as_of FROM event_snapshots LIMIT 0`,
 		`SELECT account_id, event_id, saved_at FROM saved_events LIMIT 0`,
 		`SELECT account_id, event_id, interested_at, visibility FROM event_interests LIMIT 0`,
-		`SELECT account_id, event_id, reason, recommended_at, updated_at FROM event_recommendations LIMIT 0`,
+		`SELECT account_id, event_id, reason, recommended_at, updated_at, withdrawn_at FROM event_recommendations LIMIT 0`,
+		`SELECT event_id, first_recommended_at FROM recommendation_feed_events LIMIT 0`,
+		`SELECT account_id, window_start, new_publications, reactivations, total_new_publications, total_reactivations, last_published_at FROM recommendation_activity LIMIT 0`,
+		`SELECT post_id, account_id, event_id, root_id, parent_id, body, idempotency_key, request_hash, created_at, updated_at, removed_at FROM discussion_posts LIMIT 0`,
+		`SELECT account_id, post_id FROM post_helpful LIMIT 0`,
 	} {
 		rows, err := p.db.QueryContext(ctx, query)
 		if err != nil {
@@ -143,11 +147,11 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		}
 	}
 	var count int
-	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events','event_interests','event_recommendations') AND engine = 'InnoDB'`).Scan(&count)
+	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','recommendation_feed_events','recommendation_activity') AND engine = 'InnoDB'`).Scan(&count)
 	if err != nil {
 		return safeError("schema validation", err)
 	}
-	if count != 13 {
+	if count != 17 {
 		return fmt.Errorf("database schema requires InnoDB tables")
 	}
 	return nil

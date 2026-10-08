@@ -9,7 +9,8 @@ pagination. Cached event data is shared by the responsive web UI and JSON API.
 
 Discovery includes category-aware genre filters for music, sports, arts, and more.
 Private saves, Interested, and public recommendations connect people to events;
-asynchronous discussions and moderation remain planned. See the [design guidelines](docs/design-guidelines.md)
+asynchronous discussions add questions, replies, and Helpful acknowledgments.
+Reporting/moderation remain planned. See the [design guidelines](docs/design-guidelines.md)
 for desktop, tablet, and mobile direction and the
 [MVP boundary](docs/goals/delivery.md#mvp-release-boundary) for release scope.
 
@@ -63,13 +64,14 @@ goal to implementation work and verification checkpoints.
 - [x] Mark an event Interested and change or remove that choice.
 - [x] Choose public interest visibility; keep interest identity private by default.
 - [x] Recommend an event publicly, optionally explain why, and edit or withdraw it.
-- [x] Browse public recommendations by city/category and on events/profiles.
-- [ ] Browse event conversations alongside recommendations.
+- [x] Browse event-grouped recommendations by city/category and individual event/profile endorsements.
+- [x] Prevent withdrawal/republication feed bumping without participation quotas.
+- [x] Browse event conversations alongside recommendations.
 - [ ] Later: Mark an event Going and choose participation visibility.
-- [ ] Post a question, tip, or comment on an event.
-- [ ] Reply to another person's contribution.
-- [ ] Edit or remove your own comments and replies.
-- [ ] Give or remove a positive Helpful thumbs-up.
+- [x] Post a question, tip, or comment on an event.
+- [x] Reply to another person's contribution.
+- [x] Edit or remove your own comments and replies.
+- [x] Give or remove a positive Helpful thumbs-up.
 - [ ] Later: Follow a discussion and receive relevant activity updates.
 - [ ] Report a concern privately and receive acknowledgment.
 - [ ] Review reports as a moderator and communicate clear outcomes.
@@ -111,7 +113,8 @@ goal to implementation work and verification checkpoints.
 - [x] Keep event interest and its visibility across restarts.
 - [x] Keep public recommendations, reasons, and original publication times across restarts.
 - [ ] Keep dated event observation history across restarts.
-- [ ] Persist community activity, moderation records, and notification jobs.
+- [x] Keep event discussions and Helpful reactions across restarts.
+- [ ] Persist moderation records and notification jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
 
@@ -124,7 +127,10 @@ features and exercised multi-pod deployment remain planned. Opt-in
 [Interested](docs/event-interest.md) keeps separate choices, private-by-default identities,
 aggregate counts, and explicitly public participant/profile activity.
 [Public recommendations](docs/event-recommendations.md) provide separate endorsements,
-optional reasons, edit/withdrawal, public attribution, and city/category browsing.
+optional reasons, edit/withdrawal, public attribution, grouped city/category browsing,
+durable anti-bumping, and observe-only activity measurements without automatic quotas.
+[Event discussions](docs/event-discussions.md) add durable public questions,
+threaded replies, author edit/removal, and independent Helpful reactions.
 
 ### Container deployment
 
@@ -182,7 +188,8 @@ it does not start containers or apply runtime grants.
 Accounts are separately opt-in with `AUTH_ENABLED=true`, `AUTH_BASE_URL`,
 `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`; see [Google sign-in setup](docs/accounts.md).
 Discovery stays public. Private saves, Interested, and public recommendations are
-available with accounts enabled; discussions and moderation remain planned.
+available with accounts enabled, along with event discussions. Reporting/moderation
+remain planned and are required before a public community pilot.
 
 ## Run in a container
 

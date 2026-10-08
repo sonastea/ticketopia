@@ -51,6 +51,9 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 }
 
 func safeReturnURL(raw string) string {
+	if isDiscussionReturn(raw) {
+		return safeDiscussionReturn(raw)
+	}
 	if strings.HasPrefix(raw, "/community") {
 		return safeCommunityReturn(raw)
 	}
@@ -115,6 +118,9 @@ func (a *api) eventPageHandler(c echo.Context) error {
 			page.Interests = a.interestView(c, []string{id})
 			if page.Section == "community" {
 				page.Recommendations = a.recommendationView(c, id)
+			}
+			if page.Section == "discussion" {
+				page.Discussions = a.discussionView(c, id)
 			}
 			if a.interestEnabled() && page.Section == "community" {
 				page.Participants, err = a.interests.Participants(c.Request().Context(), id, nil)

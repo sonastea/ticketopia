@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### 2026-10-07 — Grouped recommendations and observe-only protection
+
+- Show one Community entry per event, active counts, up to three named reasons,
+  and a full-list link. Keep event/profile individual attribution and APIs compatible.
+- Preserve immutable event and account/event publication positions through edits,
+  additional authors and all-withdrawn republication; clear withdrawn reason text.
+- Record committed first-publication/reactivation counts in bounded ten-minute
+  windows and lifetime totals. Exclude edits/retries; add no quotas, cooldowns,
+  IP grouping or automatic sanctions. See [recommendations](../event-recommendations.md).
+- Add the grouped API in OpenAPI 1.7.0. Reporting/moderation still gates a pilot.
+- Verify real-MariaDB races, vet/build/lint and 82 Chromium outcomes with 11
+  zero-violation axe captures; the scoped grouped-feed review disposition is ship.
+
+### 2026-10-07 — Durable event discussions and Helpful
+
+- Deliver public questions/tips, independently paginated replies, same-thread
+  reply targets, author editing/removal, and reversible Helpful acknowledgments.
+- Preserve event snapshots, ancestry, retry keys, and removed reply context across
+  restarts/provider outages; keep saves, interest, and recommendations independent.
+- Add event/preview composers, shareable threads, native draft recovery, scoped
+  enhanced drafts, and separate city/category conversation browsing. Extend
+  OpenAPI to 1.6.0; see [discussions](../event-discussions.md).
+- Reporting/moderation and discussion notifications remain planned. Moderation
+  remains required before the first public community pilot.
+- Verify the full Go race suite with real MariaDB, vet, production build, OpenAPI
+  lint, and 24 native/enhanced Chromium outcomes. Exercise five responsive thread
+  captures with zero axe violations; do not claim whole-application certification.
+- Resolve the independent review's transport-error copy finding: uncertain writes
+  preserve drafts/retry keys and explain confirmation uncertainty rather than
+  claiming nothing was saved. Final verdict marks that scored fix resolved.
+
 ### 2026-10-06 — Interested visibility and public recommendations
 
 - Implement durable, reversible event interest independently from saves, category

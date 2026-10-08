@@ -151,7 +151,7 @@ review remain required before the public community pilot.
 
 ### Proposed MVP community resources
 
-Except the marked profiles/interest/recommendation routes, routes below are **unimplemented proposals** under `/api/v1`. Saved
+Except marked implemented routes, routes below are **unimplemented proposals** under `/api/v1`. Saved
 event routes above are implemented with owner-only semantics. Public reads return only
 permitted fields; writes require verified identity and ownership/role checks.
 
@@ -171,13 +171,13 @@ permitted fields; writes require verified identity and ownership/role checks.
 | GET | `/events/{event_id}/interested-users` | Implemented: paginated public-opt-in interested identities only |
 | GET | `/events/{event_id}/recommendations` | Implemented: public endorsements, authors, optional reasons and explicit count |
 | GET | `/users/{user_id}/event-recommendations` | Implemented: public endorsements independently of interest visibility |
-| GET, POST | `/events/{event_id}/discussions` | List visible root posts / create a root post |
-| GET | `/events/{event_id}/discussions/{discussion_id}` | Root post and event reference for direct-link context |
-| GET, POST | `/events/{event_id}/discussions/{discussion_id}/replies` | Paginated replies / create reply with optional same-thread parent target |
-| PATCH, DELETE | `/posts/{post_id}` | Author edit / removal preserving reply context |
-| PUT, DELETE | `/posts/{post_id}/reactions/helpful` | Set/remove current user's positive post reaction |
+| GET, POST | `/events/{event_id}/discussions` | Implemented: root pagination / public question or tip |
+| GET | `/events/{event_id}/discussions/{discussion_id}` | Implemented: root and retained event context |
+| GET, POST | `/events/{event_id}/discussions/{discussion_id}/replies` | Implemented: independent reply pagination / same-thread target |
+| PATCH, DELETE | `/posts/{post_id}` | Implemented: author edit / removal preserving reply context |
+| PUT, DELETE | `/posts/{post_id}/reactions/helpful` | Implemented: current user's positive acknowledgment |
 | GET | `/recommendations` | Implemented: city/country/category-scoped endorsements; original-publication ordering, not personalized ranking |
-| GET | `/community/discussions` | City/category-scoped active event threads |
+| GET | `/community/discussions` | Implemented: city/category-scoped roots, newest started first |
 | POST | `/posts/{post_id}/reports` | Submit a private concern |
 | GET | `/me/reports` | Reporter-only acknowledgment and permitted status |
 | GET, PATCH | `/moderation/reports/{report_id}` | Authorized case review/decision, excluding private notes from public responses |
@@ -191,6 +191,9 @@ contribution; reject reuse with a different payload. Specify limits and key
 retention before these endpoints ship. Mutations return authoritative viewer
 state and affected counts (or trigger a scoped refetch after `204`). Do not infer
 recommendation from Helpful, save, interest, or text mentioning an event.
+Implemented post/reply creation uses required account-scoped keys retained for
+the contribution's lifetime, including removal, and 20 attempts/ten minutes;
+see [discussions](../event-discussions.md#api). Reports remain proposed.
 
 Enforce thread/event identity, reply ancestry, edit ownership, and content
 visibility in shared services, not only templates. A discussion count counts

@@ -72,7 +72,7 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 			t.Fatalf("encoded detail ID or shared detail cache failed: %d %s", detail.Code, detail.Body.String())
 		}
 		web := request("/events/"+id+"?section=discussion&return_to="+url.QueryEscape("/?"+query), false)
-		for _, text := range []string{"A show", "A place to talk about this event", "Posting and replies are not available yet.", "Back to results", `aria-current="page"`} {
+		for _, text := range []string{"A show", "Questions & tips", "Discussions require accounts to be enabled on this server.", "Back to results", `aria-current="page"`} {
 			if web.Code != 200 || !strings.Contains(web.Body.String(), text) || eventCalls.Load() != 1 {
 				t.Fatalf("web event route/cache failed for %s: %d, missing %q", id, web.Code, text)
 			}

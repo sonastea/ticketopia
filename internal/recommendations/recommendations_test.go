@@ -2,6 +2,7 @@ package recommendations
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"strings"
@@ -15,6 +16,7 @@ import (
 type repositoryFixture struct {
 	item   *Item
 	items  []Item
+	groups []EventGroup
 	writes int
 	err    error
 	query  Query
@@ -48,6 +50,10 @@ func (r *repositoryFixture) List(_ context.Context, _, _ string, q Query) ([]Ite
 	return r.items, r.err
 }
 func (r *repositoryFixture) Count(context.Context, string) (int, error) { return len(r.items), r.err }
+func (r *repositoryFixture) Community(_ context.Context, q Query) ([]EventGroup, error) {
+	r.query = q
+	return r.groups, r.err
+}
 
 type detailFixture struct {
 	calls  int
@@ -116,18 +122,18 @@ func TestRecommendationCollectionsRejectCrossScopeCursors(t *testing.T) {
 	r := &repositoryFixture{items: []Item{{Event: models.Event{ID: "ticketmaster:a"}, Profile: accounts.PublicProfile{ID: owner}, RecommendedAt: at}, {Event: models.Event{ID: "ticketmaster:b"}, Profile: accounts.PublicProfile{ID: owner}, RecommendedAt: at}}}
 	s := New(r, nil)
 	values := url.Values{"limit": {"1"}, "city": {" Berlin "}, "country": {"de"}, "category_id": {"sports"}}
-	list, err := s.Community(t.Context(), values)
+	list, err := s.Recent(t.Context(), values)
 	if err != nil || len(list.Items) != 1 || list.NextCursor == nil {
 		t.Fatal(list, err)
 	}
 	values.Set("cursor", *list.NextCursor)
-	if _, err := s.Community(t.Context(), values); err != nil || r.query.City != "Berlin" || r.query.Country != "DE" {
+	if _, err := s.Recent(t.Context(), values); err != nil || r.query.City != "Berlin" || r.query.Country != "DE" {
 		t.Fatal(err)
 	}
 	for key, value := range map[string]string{"city": "Chicago", "country": "US", "category_id": "music"} {
 		copy, _ := url.ParseQuery(values.Encode())
 		copy.Set(key, value)
-		if _, err := s.Community(t.Context(), copy); err == nil {
+		if _, err := s.Recent(t.Context(), copy); err == nil {
 			t.Fatal("cursor crossed", key)
 		}
 	}
@@ -137,7 +143,7 @@ func TestRecommendationCollectionsRejectCrossScopeCursors(t *testing.T) {
 		}
 	}
 	for _, values := range []url.Values{{"limit": {"0"}}, {"limit": {"101"}}, {"limit": {"1", "2"}}, {"city": {"a\x00b"}}, {"city": {strings.Repeat("京", 121)}}, {"country": {"USA"}}, {"category_id": {"bad/id"}}, {"cursor": {"!"}}, {"cursor": {strings.Repeat("a", 1025)}}, {"owner": {"other"}}} {
-		if _, err := s.Community(t.Context(), values); err == nil {
+		if _, err := s.Recent(t.Context(), values); err == nil {
 			t.Fatal("invalid query accepted", values)
 		}
 	}
@@ -145,5 +151,56 @@ func TestRecommendationCollectionsRejectCrossScopeCursors(t *testing.T) {
 	list, err = s.Event(t.Context(), "ticketmaster:Unknown", nil)
 	if err != nil || list.Items == nil || list.Count == nil || *list.Count != 0 {
 		t.Fatal("unknown event fabricated or null collection", list, err)
+	}
+}
+
+func TestGroupedFeedCursorValidationAndPublicObservationPrivacy(t *testing.T) {
+	at := time.Now().UTC()
+	r := &repositoryFixture{groups: []EventGroup{{Event: models.Event{ID: "ticketmaster:a"}, FirstRecommendedAt: at}, {Event: models.Event{ID: "ticketmaster:b"}, FirstRecommendedAt: at}}}
+	s := New(r, nil)
+	values := url.Values{"limit": {"1"}, "city": {" Berlin "}, "country": {"de"}, "category_id": {"sports"}}
+	feed, err := s.Community(t.Context(), values)
+	if err != nil || len(feed.Items) != 1 || feed.NextCursor == nil {
+		t.Fatal(feed, err)
+	}
+	values.Set("cursor", *feed.NextCursor)
+	if _, err := s.Community(t.Context(), values); err != nil || r.query.FeedCursor.EventID != "ticketmaster:a" || !r.query.FeedCursor.Before.Equal(at) || r.query.City != "Berlin" || r.query.Country != "DE" {
+		t.Fatal(r.query, err)
+	}
+	for key, value := range map[string]string{"city": "Chicago", "country": "US", "category_id": "music"} {
+		copy, _ := url.ParseQuery(values.Encode())
+		copy.Set(key, value)
+		if _, err := s.Community(t.Context(), copy); err == nil {
+			t.Fatal("grouped cursor crossed", key)
+		}
+	}
+	if _, err := s.Recent(t.Context(), values); err == nil {
+		t.Fatal("grouped cursor used in individual feed")
+	}
+	for _, values := range []url.Values{{"cursor": {}}, {"cursor": {"", ""}}, {"cursor": {"!"}}, {"limit": {"0"}}, {"country": {"USA"}}, {"owner": {"other"}}} {
+		if _, err := s.Community(t.Context(), values); err == nil {
+			t.Fatal("invalid grouped query accepted", values)
+		}
+	}
+	r.items = []Item{{Event: models.Event{ID: "ticketmaster:a"}, Profile: accounts.PublicProfile{ID: accounts.ID()}, RecommendedAt: at}, {Event: models.Event{ID: "ticketmaster:b"}, Profile: accounts.PublicProfile{ID: accounts.ID()}, RecommendedAt: at}}
+	individual, err := s.Recent(t.Context(), url.Values{"limit": {"1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Community(t.Context(), url.Values{"cursor": {*individual.NextCursor}}); err == nil {
+		t.Fatal("individual cursor used in grouped feed")
+	}
+	r.groups = nil
+	feed, err = s.Community(t.Context(), nil)
+	if err != nil || feed.Items == nil || feed.NextCursor != nil {
+		t.Fatal("empty grouped collection", feed, err)
+	}
+	r.err = ErrUnavailable
+	if _, err = s.Community(t.Context(), nil); !errors.Is(err, ErrUnavailable) {
+		t.Fatal("outage fabricated empty grouped collection", err)
+	}
+	data, err := json.Marshal(Item{Observation: &Observation{NewPublications: 123, Reactivations: 456}})
+	if err != nil || strings.Contains(string(data), "Observation") || strings.Contains(string(data), "publications") || strings.Contains(string(data), "reactivations") {
+		t.Fatal("operator data leaked", string(data), err)
 	}
 }

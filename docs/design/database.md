@@ -2,6 +2,7 @@
 
 Status: Connection/migration support, accounts/private preferences/credentials,
 private bookmarks/last-known snapshots, independent event interest/visibility, public recommendations,
+event discussions/Helpful,
 and minimal durable event identity are
 implemented, opt-in alongside KV-backed discovery and durable detail fallback. Broader application
 storage, scheduled observations, deployed multi-pod operation, HA, and verified
@@ -43,8 +44,8 @@ Cache expiry or switching cache providers must not lose saved activity or jobs.
 ## Planned event and community model
 
 Event/provider identity, identifying metadata, accounts/preferences and private
-bookmarks/full last-known snapshots and event interest are delivered. Other community
-rows below remain logical records/invariants, not a delivered schema.
+bookmarks/full last-known snapshots, interest, recommendations, and discussion posts/
+Helpful are delivered. Moderation and later participation remain planned.
 See [saves](../saved-events.md) and [interest](../event-interest.md). They implement
 the [interaction distinctions](../design-guidelines.md#interaction-semantics-and-hierarchy).
 

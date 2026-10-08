@@ -24,9 +24,13 @@ private preferences, API credentials, and durable private event saves with
 last-known metadata. Independent Interested choices provide private-by-default
 identities, public counts, and explicitly public participant/profile activity.
 Public recommendations provide optional short reasons, edit/withdrawal, event/profile
-attribution, and city/category browsing independently of private interest.
-Discussions and moderation remain planned; their UI must communicate availability
-truthfully rather than simulate successful participation. Moderation gates a public pilot.
+attribution, and grouped city/category browsing independently of private interest.
+Community shows each event once at its original first-recommendation position;
+withdrawal/republication cannot bump it. Publication/reactivation measurements are
+observe-only, without recommendation quotas or automatic account restrictions.
+Event discussions provide public questions, replies, owner edit/removal, Helpful
+acknowledgments, direct threads, and city/category browsing. Reporting/moderation
+remain planned and gate a public community pilot.
 
 ## Product Purpose
 

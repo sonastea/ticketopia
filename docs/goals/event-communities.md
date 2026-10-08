@@ -4,8 +4,9 @@ Status: [Interested](../event-interest.md) is implemented with private-by-defaul
 identity visibility, public counts, and public-opt-in participants/profile activity.
 [Public recommendations](../event-recommendations.md) support optional reasons,
 edit/withdrawal, event/profile attribution, and city/category browsing.
-Discussions, Helpful reactions, reporting and moderation remain
-planned, alongside [personal radar and reminders](personal-radar.md).
+[Event discussions](../event-discussions.md) implement questions, replies, owner
+edit/removal, Helpful reactions, direct threads, and city/category browsing.
+Reporting and moderation remain planned, alongside [personal radar and reminders](personal-radar.md).
 
 ## Goal
 

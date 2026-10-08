@@ -4,9 +4,11 @@ Implemented: explicit SQL connection lifecycle, serialized embedded migrations,
 schema validation/readiness, minimal durable event/provider identity, accounts,
 credentials/private preferences, schema-v3 [private saves/snapshots](saved-events.md),
 schema-v4 [event interest](event-interest.md), and schema-v5
-[public recommendations](event-recommendations.md). Discovery
+[public recommendations](event-recommendations.md), and schema-v6
+[event discussions/Helpful](event-discussions.md), plus schema-v7 grouped recommendations
+and observe-only publication measurements. Discovery
 still reads its existing cache/provider services and does **not** write SQL. There
-are no discussions/moderation, ingestion scheduler, global provider
+are no reporting/moderation, ingestion scheduler, global provider
 budgets, database HA, or verified production backup/restore in this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
@@ -265,16 +267,16 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 5 only**. Versions 0–4 and 6+ are rejected;
+This binary supports **clean schema version 7 only**. Versions 0–6 and 8+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous interest binary supports version 4 only.
-For the v4-to-v5 recommendation upgrade, stop/drain v4 traffic, preserve a backup,
-apply the v5 migration with the v5 image, reapply/reconcile runtime table grants,
-then start v5 apps. Do not leave v4 pods serving after migration; they will fail
+old binaries are gone. The previous discussion binary supports version 6 only.
+For the v6-to-v7 recommendation upgrade, stop/drain v6 traffic, preserve a backup,
+apply the v7 migration with the v7 image, reapply/reconcile runtime table grants,
+then start v7 apps. Do not leave v6 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
@@ -315,6 +317,19 @@ with a bounded reason, original publication/edit times, and recent/owner/event
 pagination indexes. Runtime can INSERT/UPDATE/DELETE recommendations without changing
 saves or interest. Publication composes the event/snapshot transaction; editing
 and withdrawal work without provider calls. See [recommendations](event-recommendations.md).
+Schema v6 adds `discussion_posts` and `post_helpful`, immutable same-thread ancestry,
+durable account-scoped creation keys/fingerprints, content-free removal, and unique
+user/post Helpful choices. Root creation composes the event/snapshot transaction;
+replies, edits, removal, and direct threads need no provider. Runtime cannot DELETE
+posts; INSERT/UPDATE and reaction INSERT/UPDATE/DELETE are explicitly granted.
+See [discussions](event-discussions.md) for retention, limits, and API/UI behavior.
+Schema v7 retains withdrawn recommendations with cleared reasons and a private
+original-publication marker. `recommendation_feed_events` keeps immutable event
+positions, backfilled from earliest surviving endorsements. `recommendation_activity`
+holds one observe-only ten-minute-window/totals row per account; no automatic quotas
+or sanctions. These tables require SELECT and INSERT/UPDATE, not DELETE. Counters
+commit with publication/reactivation, not edits/retries, and stay out of public DTOs.
+See [recommendation measurements](event-recommendations.md#observe-only-participation-measurements).
 
 Upserts lock the stable event key and insert its provider mapping in one short
 InnoDB transaction. Deadlocks/lock-wait timeouts before commit get at most three

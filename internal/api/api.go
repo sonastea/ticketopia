@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/kv"
@@ -40,6 +41,7 @@ type api struct {
 	saved           *saved.Service
 	interests       *interests.Service
 	recommendations *recommendations.Service
+	discussions     *discussions.Service
 }
 
 type Option func(*api)
@@ -55,6 +57,10 @@ func WithEventInterests(repository interests.Repository) Option {
 
 func WithEventRecommendations(repository recommendations.Repository) Option {
 	return func(a *api) { a.recommendations = recommendations.New(repository, interestDetails{a}) }
+}
+
+func WithEventDiscussions(repository discussions.Repository) Option {
+	return func(a *api) { a.discussions = discussions.New(repository, interestDetails{a}) }
 }
 
 func WithSavedEvents(repository saved.Repository) Option {
@@ -132,6 +138,7 @@ func (a *api) Routes() *echo.Echo {
 	a.savedRoutes(e)
 	a.interestRoutes(e)
 	a.recommendationRoutes(e)
+	a.discussionRoutes(e)
 	a.accountRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler)

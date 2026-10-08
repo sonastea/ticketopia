@@ -29,8 +29,11 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Event discussions](event-discussions.md): public questions, threaded replies,
+  owner edit/removal, Helpful acknowledgments, direct links, and city/category browsing.
 - [Public event recommendations](event-recommendations.md): optional reasons,
-  edit/withdraw, public event/profile attribution, and city/category browsing.
+  edit/withdraw, public event/profile attribution, grouped city/category browsing,
+  durable anti-bumping, and observe-only participation measurements.
 - [Event interest](event-interest.md): independent Interested choices, private-by-default
   visibility, aggregate counts, own collections, and public-opt-in participants/profile activity.
 - [Private saved events](saved-events.md): durable owner-only bookmarks, web/API

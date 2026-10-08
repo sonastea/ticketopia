@@ -4,6 +4,28 @@
 
 ## Unreleased
 
+### 2026-10-07 — Recommendation feed and observation schema v7
+
+- Retain private withdrawn publication markers with cleared reasons; backfill
+  immutable event feed positions from earliest surviving endorsements.
+- Add one observe-only window/totals row per account, committed with publication
+  or reactivation, plus runtime/operator grants and schema validation/probes.
+- Require drained old traffic and clean schema 7; leave the development database
+  unchanged. See [recommendations](../event-recommendations.md) and [persistence](../persistence.md).
+- Verify schema-6 backfill, original positions across restart/reactivation, bounded
+  counters/reset, concurrent cross-pool increments and atomic rollback in real MariaDB.
+
+### 2026-10-07 — Discussion schema v6
+
+- Add posts with immutable ancestry, durable creation keys/fingerprints, soft
+  removal, and unique Helpful reactions, plus least-privilege grants/probes.
+- Require clean schema 6 and drained schema-5 traffic before migration. Preserve
+  prior accounts/activity/snapshots; leave the running development schema unchanged.
+  See [discussions](../event-discussions.md) and [persistence](../persistence.md).
+- Verify concurrent retries/Helpful across pools, ancestry, removed reply context,
+  restart/provider loss, filtered keysets, schema-5 preservation, atomic rollback,
+  and DB-clock read-after-write boundaries with the full real-MariaDB race suite.
+
 ### 2026-10-06 — Account/save schemas, runtime grants, and server configuration
 
 - Add schema v2 for accounts/issuer-subject identities, hashed credentials,
@@ -68,31 +90,3 @@
   `10M`) and remove both obsolete compatibility flags. Verify Compose and all
   17 exact tuning values on isolated 12.3.3; see
   [local development](../persistence.md#repeatable-local-development).
-
-### 2026-10-05 — MariaDB direction and connection/migration/identity foundation
-
-- Replace the SQLite-first/later-PlanetScale direction with MariaDB accessed via
-  `database/sql` and `github.com/go-sql-driver/mysql`, with `mariadb-operator` for
-  Kubernetes; see the [database plan](../design/database.md).
-- Define shared primary routing for three stateless app replicas, independently
-  selected database HA, bounded pools, verified TLS, serialized migrations,
-  cross-pod job/budget coordination, and backup/restore verification.
-- Align root goals, delivery tasks, API architecture, cache/discovery notes, and
-  deployment guidance with the selected stack and delivered foundation.
-- Deliver explicit database-free/MariaDB modes, bounded pools/deadlines, verified
-  TLS, UTC/strict sessions, fail-closed startup/schema validation, SQL readiness,
-  redacted errors, and pool cleanup after HTTP shutdown.
-- Add a shell-free `ticketopia migrate` subcommand with embedded pinned Goose
-  migrations, separate DDL credentials, advisory-lock serialization, and a durable
-  failed-DDL guard. Document inspection/recovery and schema-version compatibility.
-- Add minimal event/provider identity with case-sensitive keys, atomic concurrent
-  upserts, retained categories/optional artists, stable public IDs, and shared service
-  boundaries without changing discovery reads or adding mutation endpoints.
-- Add repeatable TLS-enabled local MariaDB and standalone operator/Secret/Job/
-  three-app-replica examples with surge/draining capacity budgets. No cluster/HA/
-  backup deployment is claimed; broader persistence milestones remain unchecked.
-- Verify real MariaDB migrations, partial DDL/recovery, runtime privilege denial,
-  multi-pool identities, metadata/UTC/TLS, cache-independent restarts, startup and
-  readiness failures/recovery, shutdown, and redaction; see the [foundation guide](../persistence.md).
-- Pass `go test -race ./...` with real MariaDB, `go vet ./...`, `npm run build`,
-  the Docker build, and non-root/read-only migration/application image smoke checks.

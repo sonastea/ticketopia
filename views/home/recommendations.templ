@@ -115,7 +115,8 @@ templ RecommendationList(list recommendations.List,showEvent bool,returnURL stri
 templ Community(p CommunityPage) {
 	@layouts.App("community","Community recommendations") {
 		<main id="main" class="destination-page community-page">
-			<header><h1>Recommended by the community</h1><p class="intro">Public event recommendations, with the people and reasons behind them.</p></header>
+			<header><h1>Recommended by the community</h1><p class="intro">Each event appears once, with the people and reasons behind its public recommendations.</p></header>
+			<nav class="section-nav" aria-label="Community collections"><a href="/community" aria-current="page" class="text-link">Recommendations</a><a href="/community/discussions" class="text-link">Conversations</a></nav>
 			if !p.Enabled {
 				<p>Community recommendations require accounts to be enabled on this server. You can still discover events.</p>
 				<a href="/" class="text-link">Discover events</a>
@@ -153,17 +154,55 @@ templ Community(p CommunityPage) {
 						<h2>Recommendations couldn't load</h2><p>{ p.Error }</p><a href="/community" class="text-link">Reset filters and retry</a>
 					}
 				} else {
-					<div class="results-heading"><h2>Recent recommendations</h2><span class="sort-label">Newest published first</span></div>
-					@RecommendationList(p.List,true,p.ReturnURL)
+					<div class="results-heading"><h2>Recommended events</h2><span class="sort-label">First recommended, newest first</span></div>
+					@CommunityRecommendationList(p.List,p.ReturnURL)
 					if p.List.NextCursor != nil {
 						@button.Button(button.Props{Href:CollectionNextURL(p.ReturnURL,p.List.NextCursor),Variant:button.VariantOutline,Class:"action action-secondary"}) {
 							More recommendations
 						}
 					}
 				}
-				<p class="participation-note">Recommendations don't confirm attendance, ticket ownership, or current ticket availability. Event discussions are not available yet.</p>
+				<p class="participation-note">Recommendations don't confirm attendance, ticket ownership, or current ticket availability.</p>
 			}
 		</main>
+	}
+}
+
+templ CommunityRecommendationList(feed recommendations.Feed,returnURL string) {
+	if len(feed.Items)==0 {
+		<p class="field-note">No recommendations on this page. Open an event to share one you recommend.</p>
+	} else {
+		<ul class="recommendation-list">
+			for _,group:=range feed.Items {
+				<li class="recommendation-event">
+					<div class="event-art">
+						@EventImage(group.Event,false)
+						<div class="date-marker" aria-hidden="true"><span>{ datePart(group.Event.Start,"Jan") }</span><strong>{ datePart(group.Event.Start,"2") }</strong></div>
+					</div>
+					<div class="recommendation-copy">
+						<p class="event-date">{ startLabel(group.Event.Start) }</p>
+						<h3><a href={ templ.URL(eventURL(group.Event.ID,"community",returnURL)) } class="text-link">{ group.Event.Name }</a></h3>
+						<p class="event-venue">{ venueLabel(group.Event) }</p>
+						@EventFacts(group.Event)
+						<p class="field-note"><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) } · <time datetime={ group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>First recommended { group.FirstRecommendedAt.UTC().Format("Jan 2, 2006") }</time></p>
+						<ul class="community-recommenders">
+							for _,item:=range group.Recommendations {
+								<li>
+									<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event</p>
+									if item.Reason!="" {
+										<p class="recommendation-reason">{ item.Reason }</p>
+									}
+								</li>
+							}
+						</ul>
+						<a href={ templ.URL(recommendationListURL(group.Event.ID,returnURL)) } class="text-link">See all recommendations for this event</a>
+						if !group.Meta.DataAsOf.IsZero() {
+							<p class="freshness">Last-known event details updated { freshnessLabel(group.Meta.DataAsOf) }.</p>
+						}
+					</div>
+				</li>
+			}
+		</ul>
 	}
 }
 

@@ -3,7 +3,8 @@
 The implemented UI supports all-category discovery, read-only event details, and
 opt-in [Google accounts/profile/privacy/preferences](accounts.md) and
 [private event saves](saved-events.md), [Interested](event-interest.md), and
-[public recommendations](event-recommendations.md). Discussions remain planned.
+[public recommendations](event-recommendations.md), and
+[event discussions/Helpful](event-discussions.md). Reporting/moderation remain planned.
 
 ## Sources of truth
 
@@ -23,9 +24,10 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Destination | Route | Current behavior |
 | --- | --- | --- |
 | Discover | `/` | City, keyword, dates, category/genre filters, event results, pagination |
-| Event | `/events/{event_id}` | Details, Save/Interested and per-event privacy; Community shows public recommendations and public-opt-in participants; discussions explain planned availability |
+| Event | `/events/{event_id}` | Details, Save/Interested and per-event privacy; Community shows public recommendations and public-opt-in participants; Discussion shows recent questions/tips and a public composer |
 | Saved | `/saved` | Owner-only newest-saved-first collection, last-known details, and pagination; sign-in or configuration explanation when unavailable |
-| Community | `/community` | Public recent endorsements with city/country/category filters and pagination; conversations remain planned |
+| Community | `/community` | One entry per recommended event, active counts and named reasons; separate `/community/discussions` collection; both have city/country/category filters and pagination |
+| Thread | `/events/{event_id}/discussions/{discussion_id}` | Shareable root/replies, public attribution, owner edit/remove, positive Helpful and native composing |
 | Interests | `/me/interests` | Paginated own event interest and per-event visibility, followed by separate private category preferences |
 | Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
 | Preferences | `/me/preferences` | Private default city, time zone, and future notification preferences |
@@ -103,14 +105,14 @@ Do not fabricate engagement counts or successful actions.
 
 External ticket links name Ticketmaster and do not imply ticket ownership or
 guaranteed availability. Section links use ordinary navigation semantics, not
-partial ARIA-tab behavior. Discussion and Community preserve the event identity
-while explaining their current availability. Community lists explicit endorsements
-separately from opted-in interest identities; only Discussion remains unavailable.
+partial ARIA-tab behavior. Discussion and Community preserve the event identity.
+Community lists explicit endorsements separately from opted-in interest identities;
+Discussion loads recent questions and opens replies on a dedicated thread page.
 
 ## Interaction semantics and hierarchy
 
 The following participation semantics are product requirements. Private Save
-and Interested and Recommend are implemented; discussion/Helpful remain planned:
+and Interested, Recommend, Discuss, and Helpful are implemented:
 
 | Interaction | Meaning and visibility | Feedback and aggregate information |
 | --- | --- | --- |
@@ -127,8 +129,8 @@ in small groups. Recommending must not implicitly save, mark interest, or post.
 
 Keep decision-critical event facts ahead of participation. Future event controls
 keep Save and Interested compact, Discuss contextual, and Recommend
-secondary. Within conversations, Reply leads, Helpful is secondary, and editing
-and reporting use a labeled action menu.
+secondary. Within conversations, Reply leads, Helpful is secondary, and editing/
+removal use labeled native disclosures. Reporting remains planned.
 
 ## Discovery-to-discussion journeys and shared state
 
@@ -151,13 +153,13 @@ entry without return context provides a Discover link.
   pagination origins. Explicit Recommend intent opens the composer without a
   second click; generic Community navigation keeps the disclosure secondary.
 
-Future discussion/thread routes must retain the same event and return context.
+Discussion/thread routes retain the same event and return context.
 Drafts survive validation/network failures and responsive transitions. Load only
 the selected conversation's initial page; keep public metadata separate from
 viewer-specific state and permission-filtered responses. See the
 [API plan](design/radar-api.md#contextual-loading-and-client-state).
 
-## Future community requirements
+## Community requirements and retained later work
 
 Detailed scope lives in [community goals](goals/event-communities.md) and the
 [delivery checklist](goals/delivery.md#mvp-release-boundary).
@@ -167,6 +169,8 @@ Detailed scope lives in [community goals](goals/event-communities.md) and the
   Replies to replies name their target within the same root thread.
 - Long conversations get a shareable thread route. Removed content leaves a
   content-free placeholder; no typing indicators or live-chat dependency.
+  These behaviors are implemented; roots load in the selected-event context,
+  while full replies load on dedicated thread pages.
 - Use one active composer. Keep it reachable above the keyboard and safe area,
   preserve drafts on errors, and warn before deliberate draft discard.
 - Use sheets for short actions rather than whole nested conversations; avoid

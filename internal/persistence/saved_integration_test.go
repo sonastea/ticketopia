@@ -227,6 +227,13 @@ func TestMariaDBRecommendationBrowserReview(t *testing.T) {
 	}
 	runActivityBrowser(t, script)
 }
+func TestMariaDBDiscussionBrowserReview(t *testing.T) {
+	script := os.Getenv("DISCUSSION_BROWSER_SCRIPT")
+	if script == "" {
+		t.Skip("set DISCUSSION_BROWSER_SCRIPT for optional Chromium verification")
+	}
+	runActivityBrowser(t, script)
+}
 func runActivityBrowser(t *testing.T, script string) {
 	t.Setenv("TICKETMASTER_KEY", "")
 	t.Setenv("IP_GEOLOCATION_ENABLED", "false")
@@ -275,7 +282,7 @@ func runActivityBrowser(t *testing.T, script string) {
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
 		options := []api.Option{}
 		if enabled {
-			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(p.Recommendations()))
+			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(p.Recommendations()), api.WithEventDiscussions(p.Discussions()))
 		}
 		app, err := api.NewAPI(t.Context(), zerolog.Nop(), store, options...)
 		if err != nil {

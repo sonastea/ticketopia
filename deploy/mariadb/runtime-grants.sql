@@ -10,3 +10,7 @@ GRANT INSERT, UPDATE ON ticketopia.event_snapshots TO 'ticketopia_runtime'@'%';
 GRANT INSERT, DELETE ON ticketopia.saved_events TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE, DELETE ON ticketopia.event_interests TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE, DELETE ON ticketopia.event_recommendations TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.recommendation_feed_events TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.recommendation_activity TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.discussion_posts TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE, DELETE ON ticketopia.post_helpful TO 'ticketopia_runtime'@'%';

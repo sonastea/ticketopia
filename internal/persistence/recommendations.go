@@ -44,7 +44,7 @@ func scanRecommendation(row interface{ Scan(...any) error }) (recommendations.It
 func (r *RecommendationRepository) Get(ctx context.Context, owner, id string) (recommendations.Item, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	return scanRecommendation(r.db.QueryRowContext(ctx, `SELECT `+recommendationColumns+recommendationJoin+` WHERE r.account_id=? AND r.event_id=?`, owner, id))
+	return scanRecommendation(r.db.QueryRowContext(ctx, `SELECT `+recommendationColumns+recommendationJoin+` WHERE r.account_id=? AND r.event_id=? AND r.withdrawn_at IS NULL`, owner, id))
 }
 func (r *RecommendationRepository) Set(ctx context.Context, owner string, detail models.EventDetail, reason string) (recommendations.Item, bool, error) {
 	reason, err := recommendations.Reason(reason)
@@ -81,15 +81,21 @@ func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, de
 		return recommendations.Item{}, false, retryable(err), err
 	}
 	defer tx.Rollback()
+	// Lock the stable event/snapshot before its endorsement, matching save and
+	// interest transactions. This serializes new account/event rows without an
+	// account-wide lock that could deadlock with those independent actions.
 	if err := upsertSnapshotTx(ctx, tx, detail, args, data); err != nil {
 		return recommendations.Item{}, false, retryable(err), err
 	}
-	var count int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_recommendations WHERE account_id=? AND event_id=?`, owner, detail.Item.ID).Scan(&count); err != nil {
+	var active bool
+	err = tx.QueryRowContext(ctx, `SELECT withdrawn_at IS NULL FROM event_recommendations WHERE account_id=? AND event_id=? FOR UPDATE`, owner, detail.Item.ID).Scan(&active)
+	first := errors.Is(err, sql.ErrNoRows)
+	if err != nil && !first {
 		return recommendations.Item{}, false, retryable(err), err
 	}
+	created := first || !active
 	// Binary comparison detects case-only edits and ignores idempotent retries.
-	_, err = tx.ExecContext(ctx, `INSERT INTO event_recommendations (account_id,event_id,reason) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=IF(BINARY reason<>BINARY VALUES(reason),UTC_TIMESTAMP(6),updated_at),reason=VALUES(reason)`, owner, detail.Item.ID, reason)
+	_, err = tx.ExecContext(ctx, `INSERT INTO event_recommendations (account_id,event_id,reason) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=IF(withdrawn_at IS NOT NULL OR BINARY reason<>BINARY VALUES(reason),UTC_TIMESTAMP(6),updated_at),reason=VALUES(reason),withdrawn_at=NULL`, owner, detail.Item.ID, reason)
 	if err != nil {
 		return recommendations.Item{}, false, retryable(err), err
 	}
@@ -97,15 +103,44 @@ func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, de
 	if err != nil {
 		return recommendations.Item{}, false, false, err
 	}
+	if created {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO recommendation_feed_events (event_id,first_recommended_at) VALUES (?,?) ON DUPLICATE KEY UPDATE event_id=VALUES(event_id)`, detail.Item.ID, item.RecommendedAt); err != nil {
+			return recommendations.Item{}, false, retryable(err), err
+		}
+		observation, err := recordRecommendationActivity(ctx, tx, owner, first)
+		if err != nil {
+			return recommendations.Item{}, false, retryable(err), err
+		}
+		item.Observation = &observation
+	}
 	if err := tx.Commit(); err != nil {
 		return recommendations.Item{}, false, false, err
 	}
-	return item, count == 0, false, nil
+	return item, created, false, nil
+}
+func recordRecommendationActivity(ctx context.Context, tx *sql.Tx, owner string, first bool) (recommendations.Observation, error) {
+	newCount, reactivationCount := 0, 1
+	if first {
+		newCount, reactivationCount = 1, 0
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO recommendation_activity (account_id,window_start,new_publications,reactivations,total_new_publications,total_reactivations,last_published_at)
+ VALUES (?,FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(UTC_TIMESTAMP(6))/600)*600),?,?,?,?,UTC_TIMESTAMP(6))
+ ON DUPLICATE KEY UPDATE
+ new_publications=IF(window_start=VALUES(window_start),new_publications+VALUES(new_publications),VALUES(new_publications)),
+ reactivations=IF(window_start=VALUES(window_start),reactivations+VALUES(reactivations),VALUES(reactivations)),
+ total_new_publications=total_new_publications+VALUES(total_new_publications),
+ total_reactivations=total_reactivations+VALUES(total_reactivations),window_start=VALUES(window_start),last_published_at=VALUES(last_published_at)`, owner, newCount, reactivationCount, newCount, reactivationCount)
+	if err != nil {
+		return recommendations.Observation{}, err
+	}
+	var o recommendations.Observation
+	err = tx.QueryRowContext(ctx, `SELECT window_start,new_publications,reactivations,total_new_publications,total_reactivations FROM recommendation_activity WHERE account_id=?`, owner).Scan(&o.WindowStart, &o.NewPublications, &o.Reactivations, &o.TotalNewPublications, &o.TotalReactivations)
+	return o, err
 }
 func (r *RecommendationRepository) Remove(ctx context.Context, owner, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	_, err := r.db.ExecContext(ctx, `DELETE FROM event_recommendations WHERE account_id=? AND event_id=?`, owner, id)
+	_, err := r.db.ExecContext(ctx, `UPDATE event_recommendations SET reason='',updated_at=UTC_TIMESTAMP(6),withdrawn_at=UTC_TIMESTAMP(6) WHERE account_id=? AND event_id=? AND withdrawn_at IS NULL`, owner, id)
 	if err != nil {
 		return safeError("recommendation withdrawal", err)
 	}
@@ -115,7 +150,7 @@ func (r *RecommendationRepository) Count(ctx context.Context, id string) (int, e
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	var count int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_recommendations WHERE event_id=?`, id).Scan(&count)
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_recommendations WHERE event_id=? AND withdrawn_at IS NULL`, id).Scan(&count)
 	if err != nil {
 		return 0, safeError("recommendation count", err)
 	}
@@ -124,7 +159,7 @@ func (r *RecommendationRepository) Count(ctx context.Context, id string) (int, e
 func (r *RecommendationRepository) List(ctx context.Context, owner, event string, q recommendations.Query) ([]recommendations.Item, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	query := `SELECT ` + recommendationColumns + recommendationJoin + ` WHERE 1=1`
+	query := `SELECT ` + recommendationColumns + recommendationJoin + ` WHERE r.withdrawn_at IS NULL`
 	args := []any{}
 	if owner != "" {
 		query += ` AND r.account_id=?`

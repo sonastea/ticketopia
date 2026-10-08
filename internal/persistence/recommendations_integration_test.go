@@ -155,7 +155,7 @@ func TestMariaDBRecommendationFiltersKeysetsAndAudienceBoundaries(t *testing.T) 
 	seen := map[string]bool{}
 	ids := []string{}
 	for {
-		list, err := s.Community(t.Context(), values)
+		list, err := s.Recent(t.Context(), values)
 		if err != nil || len(list.Items) != 1 {
 			t.Fatal("community page", list, err)
 		}
@@ -172,7 +172,7 @@ func TestMariaDBRecommendationFiltersKeysetsAndAudienceBoundaries(t *testing.T) 
 		values.Set("cursor", *list.NextCursor)
 		copy, _ := url.ParseQuery(values.Encode())
 		copy.Set("city", "Chicago")
-		if _, err := s.Community(t.Context(), copy); err == nil {
+		if _, err := s.Recent(t.Context(), copy); err == nil {
 			t.Fatal("cursor crossed city filters")
 		}
 		if _, err := s.Event(t.Context(), "ticketmaster:a", url.Values{"cursor": {*list.NextCursor}}); err == nil {
@@ -185,13 +185,53 @@ func TestMariaDBRecommendationFiltersKeysetsAndAudienceBoundaries(t *testing.T) 
 	if fmt.Sprint(ids) != "[ticketmaster:z ticketmaster:a ticketmaster:a ticketmaster:A]" {
 		t.Fatal("binary ordering", ids)
 	}
+	execSQL(t, f.admin, "UPDATE "+f.runtime.Database+".recommendation_feed_events SET first_recommended_at='2026-10-06 10:00:00.000000'")
+	groupedValues := url.Values{"limit": {"1"}, "city": {"berlin"}, "country": {"de"}, "category_id": {"sports"}}
+	groupedIDs := []string{}
+	for {
+		feed, err := s.Community(t.Context(), groupedValues)
+		if err != nil || len(feed.Items) != 1 {
+			t.Fatal("grouped keyset page", feed, err)
+		}
+		g := feed.Items[0]
+		groupedIDs = append(groupedIDs, g.Event.ID)
+		if g.Event.ID == "ticketmaster:a" && (g.Count != 2 || len(g.Recommendations) != 2) {
+			t.Fatal("group did not preserve both endorsements", g)
+		}
+		if feed.NextCursor == nil {
+			break
+		}
+		groupedValues.Set("cursor", *feed.NextCursor)
+		copy, _ := url.ParseQuery(groupedValues.Encode())
+		copy.Set("city", "Chicago")
+		if _, err := s.Community(t.Context(), copy); err == nil {
+			t.Fatal("grouped cursor crossed filters")
+		}
+		if _, err := s.Recent(t.Context(), groupedValues); err == nil {
+			t.Fatal("grouped cursor crossed individual feed")
+		}
+		if len(groupedIDs) > 3 {
+			t.Fatal("grouped pagination loop")
+		}
+	}
+	if fmt.Sprint(groupedIDs) != "[ticketmaster:z ticketmaster:a ticketmaster:A]" {
+		t.Fatal("grouped binary ordering", groupedIDs)
+	}
 	for _, tc := range []struct {
 		values url.Values
 		count  int
 	}{{url.Values{"city": {"Chicago"}, "country": {"us"}}, 1}, {url.Values{"city": {"Berlin"}, "category_id": {"music"}}, 0}, {url.Values{"city": {"%"}}, 0}, {url.Values{"city": {"berlin"}}, 4}} {
-		list, err := s.Community(t.Context(), tc.values)
+		list, err := s.Recent(t.Context(), tc.values)
 		if err != nil || len(list.Items) != tc.count {
 			t.Fatal("scope filtering", tc, list, err)
+		}
+		feed, err := s.Community(t.Context(), tc.values)
+		want := tc.count
+		if want == 4 {
+			want = 3
+		}
+		if err != nil || len(feed.Items) != want {
+			t.Fatal("grouped scope filtering", tc, feed, err)
 		}
 	}
 	own, err := s.Own(t.Context(), owner.ID, url.Values{"limit": {"1"}})

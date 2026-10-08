@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.5.0
+  version: 1.7.0
   license:
     name: MIT
     identifier: MIT
@@ -11,7 +11,8 @@ info:
     Category and genre IDs are Ticketmaster
     taxonomy IDs. Data is cached, not a live inventory or durable event history.
     Opt-in Google authentication provides MariaDB-backed profiles and private
-    preferences, private durable event saves, independent event interest, and public event recommendations.
+    preferences, private durable event saves, independent event interest, public
+    recommendations, and asynchronous event discussions with Helpful reactions.
     Interest identity is private by default; counts include private choices but
     participant lists and profile activity include only explicitly public choices.
     Account APIs use a browser session or a user-scoped API token;
@@ -707,7 +708,9 @@ paths:
         Public endorsements, one per account/event, with optional plain-text reasons
         and allowlisted profiles. Multiple people can independently endorse the same
         event. Ordered by original recommended_at, then binary event ID and account
-        ID descending; edits do not bump publication ordering. Filters use retained
+        ID descending; edits and reactivation do not bump publication ordering.
+        This compatible endpoint still lists individual endorsements; use
+        /api/v1/community/recommendations for one entry per event. Filters use retained
         event snapshots, not provider requests. No private saves, interest identities,
         email or preferences appear. All responses are private, no-store, so withdrawal
         affects subsequent reads. Only the listed parameters, each once, are accepted.
@@ -723,6 +726,36 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/EventRecommendationList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+  /api/v1/community/recommendations:
+    get:
+      operationId: listCommunityRecommendedEvents
+      summary: Browse recommended events with grouped public endorsements
+      description: |
+        One entry per event with at least one active endorsement, an active count,
+        and up to three allowlisted author/reason previews ordered by original
+        recommended_at and binary account ID descending. Counts and previews use
+        one committed read snapshot. Events sort by immutable first_recommended_at,
+        then binary event ID descending. Additional authors, edits, withdrawal and
+        republication never bump an event, even after all endorsements were withdrawn.
+        Filters use retained snapshots and match the individual endorsement endpoint.
+        A single endorsement is sufficient; no automatic quotas, cooldowns or account
+        restrictions are imposed by observe-only publication measurements. Measurements
+        never enter public responses. Responses are private, no-store; only the listed
+        parameters, each once, are accepted. Limits count events, not endorsements.
+      parameters:
+        - {name: city, in: query, description: 'Case-insensitive exact city name, trimmed; no wildcard matching.', schema: {type: string, maxLength: 120}}
+        - {name: country, in: query, description: Optional two-letter country code., schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
+        - {name: category_id, in: query, description: Event segment ID; all or omission removes this filter., schema: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/RecommendationFeedCursor'}
+      responses:
+        '200':
+          description: Grouped recommended events, or an empty array.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecommendationFeed'}
         '400': {$ref: '#/components/responses/AccountBadRequest'}
         '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
   /api/v1/me/event-recommendations:
@@ -772,7 +805,10 @@ paths:
         and query parameters are rejected. Reasons use valid UTF-8 plain text up
         to 500 Unicode characters, with surrounding whitespace trimmed. New
         identity/snapshot/recommendation commit atomically. Edits/retries preserve
-        recommended_at; unchanged reasons also preserve updated_at. Existing edits
+        recommended_at; unchanged reasons also preserve updated_at. Reactivation
+        returns 201 but preserves the original publication time and event feed position.
+        Observe-only ten-minute publication/reactivation counters exclude edits and
+        retries and impose no recommendation-specific quotas or cooldowns. Existing edits
         need no provider call. Cookie writes require CSRF and same-origin checks;
         bearer writes do not use ambient cookies. All responses are private, no-store.
       security: [{sessionCookie: []}, {bearerToken: []}]
@@ -789,7 +825,7 @@ paths:
                 reason: {type: string, maxLength: 500, default: ''}
       responses:
         '201':
-          description: Public recommendation created.
+          description: Public recommendation created or reactivated without bumping original ordering.
           headers:
             Location: {description: Own recommendation resource., schema: {type: string}}
           content:
@@ -808,7 +844,7 @@ paths:
     delete:
       operationId: withdrawOwnEventRecommendation
       summary: Withdraw your recommendation without changing other activity
-      description: Empty body and no query parameters. Owner-only, idempotent 204 even when absent. Retains shared metadata and other accounts' recommendations, saves and interest. Cookie writes require CSRF and same-origin checks. All responses are private, no-store.
+      description: Empty body and no query parameters. Owner-only, idempotent 204 even when absent. Clears the reason and excludes the endorsement from all reads/counts, retaining only its private account/event publication marker to prevent republication bumping. Retains shared metadata and other accounts' recommendations, saves and interest. Cookie writes require CSRF and same-origin checks. All responses are private, no-store.
       security: [{sessionCookie: []}, {bearerToken: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
@@ -860,6 +896,213 @@ paths:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
         '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+  /api/v1/events/{event_id}/discussions:
+    parameters:
+      - {$ref: '#/components/parameters/DiscussionEventID'}
+    get:
+      operationId: listEventDiscussions
+      summary: Read public event questions and tips
+      description: |
+        Roots are newest-first by created_at and binary ID. Count includes visible
+        roots, not replies; removed roots with visible replies remain as content-free
+        context and are excluded from count. Unknown valid events return an empty list
+        without provider calls. Optional credentials populate only your Helpful state.
+        All discussion responses are private, no-store. Unknown/repeated parameters
+        and cross-viewer/event/thread/filter cursors are rejected.
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/DiscussionCursor'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+    post:
+      operationId: createEventDiscussion
+      summary: Publish a public event question or tip
+      description: |
+        Public display name/profile attribution must be disclosed by clients.
+        Plain text, trimmed, 1–4000 Unicode characters; controls other than line
+        breaks/tabs are rejected. Strict JSON object, 16 KiB body limit, no query.
+        Required Idempotency-Key is account-scoped and retained for the contribution's
+        lifetime, including edits/removal. Same normalized event/thread/parent/body
+        returns the current post with 200; a different payload returns 409.
+        New roots atomically retain event identity/snapshot. Creation is limited to
+        20 attempts per account per ten minutes, shared across roots and replies.
+        Cookie writes require CSRF/same-origin checks; bearer identity takes precedence.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body: {type: string, minLength: 1, maxLength: 4000}
+                parent_id: {type: string, maxLength: 0, description: Roots cannot have a reply target.}
+      responses:
+        '201': {$ref: '#/components/responses/DiscussionCreated'}
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '409': {$ref: '#/components/responses/DiscussionConflict'}
+        '429': {$ref: '#/components/responses/AccountRateLimited'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/events/{event_id}/discussions/{discussion_id}:
+    parameters:
+      - {$ref: '#/components/parameters/DiscussionEventID'}
+      - {$ref: '#/components/parameters/DiscussionID'}
+    get:
+      operationId: getEventDiscussion
+      summary: Read a root contribution with retained event context
+      description: No query parameters. Removed roots return a content-free placeholder with reply count, no body or author attribution. Event/thread mismatch returns 404. Does not require provider availability.
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/events/{event_id}/discussions/{discussion_id}/replies:
+    parameters:
+      - {$ref: '#/components/parameters/DiscussionEventID'}
+      - {$ref: '#/components/parameters/DiscussionID'}
+    get:
+      operationId: listDiscussionReplies
+      summary: Read oldest-first thread replies
+      description: Independent ascending created_at/binary ID keyset. Removed replies remain content-free placeholders; count includes nonremoved replies only. A creation snapshot boundary excludes later posts until refresh, while edits/removals remain current.
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/DiscussionCursor'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+    post:
+      operationId: createDiscussionReply
+      summary: Publish a public reply, optionally targeting another contribution
+      description: Same creation limits, public attribution, CSRF, and durable idempotency rules as root posts. parent_id must name a contribution in this event/root thread. Replies to replies use a target reference, not arbitrary nesting. Replies require no provider calls and remain available after root removal.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body: {type: string, minLength: 1, maxLength: 4000}
+                parent_id: {type: string, description: Optional same-thread target; omit or use an empty string for a general reply.}
+      responses:
+        '201': {$ref: '#/components/responses/DiscussionCreated'}
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '409': {$ref: '#/components/responses/DiscussionConflict'}
+        '429': {$ref: '#/components/responses/AccountRateLimited'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/posts/{post_id}:
+    parameters:
+      - {$ref: '#/components/parameters/PostID'}
+    patch:
+      operationId: editDiscussionPost
+      summary: Replace your contribution's text
+      description: Author-only plain-text replacement, preserving creation/order and unchanged retry timestamps. Removed content cannot be restored. No query parameters. Cookie writes require CSRF and same-origin checks.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body: {type: string, minLength: 1, maxLength: 4000}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+    delete:
+      operationId: removeDiscussionPost
+      summary: Remove your contribution without erasing replies
+      description: Empty body, no query. Author-only; retry returns 204 for an already removed owned post. Unknown/not-owned posts return 404. Clears body and reactions atomically, withholds attribution, retains parent/root identity and retry fingerprint. Cookie writes require CSRF and same-origin checks.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '204': {description: Contribution removed or already removed by its author.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/posts/{post_id}/reactions/helpful:
+    parameters:
+      - {$ref: '#/components/parameters/PostID'}
+    put:
+      operationId: setPostHelpful
+      summary: Acknowledge a useful contribution
+      description: Empty body, no query. Unique user/post positive reaction; retries cannot double-count. Removed posts cannot receive reactions. Does not affect event saves, interest or recommendations. Cookie writes require CSRF and same-origin checks.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+    delete:
+      operationId: removePostHelpful
+      summary: Remove your Helpful acknowledgment
+      description: Empty body, no query. Idempotent; returns authoritative count and viewer state, including a placeholder if the post was removed. Cookie writes require CSRF and same-origin checks.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/community/discussions:
+    get:
+      operationId: listCommunityDiscussions
+      summary: Browse public event conversations by city and category
+      description: Newest started first, not personalized ranking or a live activity feed. Uses retained venue city/country with event-place fallback and segment ID. Exact case-insensitive city matching, not wildcards. Cursors bind normalized filters, viewer and creation boundary; edits/replies/Helpful do not bump root order.
+      parameters:
+        - {name: city, in: query, schema: {type: string, maxLength: 120}}
+        - {name: country, in: query, schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
+        - {name: category_id, in: query, schema: {type: string, maxLength: 64}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/DiscussionCursor'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
   /api/v1/openapi.yaml:
     get:
       operationId: getOpenAPI
@@ -883,10 +1126,41 @@ components:
       scheme: bearer
       description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
   parameters:
+    DiscussionEventID:
+      name: event_id
+      in: path
+      required: true
+      schema: {type: string, pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'}
+    DiscussionID:
+      name: discussion_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/AccountID'}
+    PostID:
+      name: post_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/AccountID'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Account-scoped retry key, retained for the contribution lifetime, including after removal. Reusing it with a different normalized payload returns 409.
+      schema: {type: string, pattern: '^[A-Za-z0-9_-]{16,128}$'}
+    DiscussionCursor:
+      name: cursor
+      in: query
+      description: Independent next_cursor bound to collection, viewer, event/thread, normalized filters and creation snapshot.
+      schema: {type: string, maxLength: 1024}
     RecommendationCursor:
       name: cursor
       in: query
       description: Opaque next_cursor bound to this collection, owner/public audience, event and normalized community filters.
+      schema: {type: string, maxLength: 1024}
+    RecommendationFeedCursor:
+      name: cursor
+      in: query
+      description: Opaque grouped-feed next_cursor bound to normalized filters. Not interchangeable with individual recommendation cursors.
       schema: {type: string, maxLength: 1024}
     InterestLimit:
       name: limit
@@ -903,6 +1177,40 @@ components:
       description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
       schema: {type: string}
   responses:
+    DiscussionPost:
+      description: Authoritative public post and this viewer's Helpful state; no private account activity.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DiscussionPost'}
+    DiscussionCreated:
+      description: Public contribution created atomically with durable retry identity.
+      headers:
+        Location:
+          description: API root-thread URL for the contribution.
+          schema: {type: string}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DiscussionPost'}
+    DiscussionList:
+      description: Paginated public contributions with independent visible-root or reply count.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DiscussionList'}
+    DiscussionNotFound:
+      description: Missing contribution/event, wrong event/thread/parent, or not owned/editable. No removed content is disclosed.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    DiscussionConflict:
+      description: Idempotency key reused with a different normalized payload.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    DiscussionsUnavailable:
+      description: Accounts/discussions disabled, storage unavailable, or first root event cannot be resolved. Never fabricated zero activity.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     RecommendationNotFound:
       description: This owner has no recommendation, or the event cannot be resolved for first publication.
       content:
@@ -975,6 +1283,34 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    DiscussionPost:
+      type: object
+      additionalProperties: false
+      required: [id, event_id, thread_id, body, created_at, updated_at, removed, reply_count, helpful_count, helpful, event, meta]
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        event_id: {type: string}
+        thread_id: {$ref: '#/components/schemas/AccountID'}
+        parent_id: {$ref: '#/components/schemas/AccountID'}
+        parent_name: {type: string, description: 'Public target name, or Removed contribution; never removed author attribution.'}
+        profile: {$ref: '#/components/schemas/PublicProfile'}
+        body: {type: string, maxLength: 4000, description: Escaped plain text; empty for removed posts.}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        removed: {type: boolean, description: Removed posts omit profile and withhold body/reactions.}
+        reply_count: {type: integer, minimum: 0, description: Nonremoved replies to this root; zero for replies.}
+        helpful_count: {type: integer, minimum: 0}
+        helpful: {type: boolean, description: This authenticated viewer's choice; false for guests.}
+        event: {$ref: '#/components/schemas/Event'}
+        meta: {$ref: '#/components/schemas/Freshness'}
+    DiscussionList:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor, count]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/DiscussionPost'}}
+        next_cursor: {type: [string, 'null']}
+        count: {type: integer, minimum: 0, description: 'Nonremoved roots or replies in this creation boundary/scope, independently of pagination.'}
     EventRecommendation:
       type: object
       additionalProperties: false
@@ -983,8 +1319,8 @@ components:
         event: {$ref: '#/components/schemas/Event'}
         profile: {$ref: '#/components/schemas/PublicProfile'}
         reason: {type: string, maxLength: 500, description: 'Optional reason as plain text, never trusted HTML.'}
-        recommended_at: {type: string, format: date-time, description: Original publication time; edits and retries preserve ordering.}
-        updated_at: {type: string, format: date-time, description: Last reason change; unchanged retries preserve this time.}
+        recommended_at: {type: string, format: date-time, description: 'Original publication time; edits, retries and reactivation preserve ordering.'}
+        updated_at: {type: string, format: date-time, description: Last reason change or reactivation; unchanged active retries preserve this time.}
         meta: {$ref: '#/components/schemas/Freshness'}
     EventRecommendationList:
       type: object
@@ -994,6 +1330,23 @@ components:
         items: {type: array, items: {$ref: '#/components/schemas/EventRecommendation'}}
         next_cursor: {type: [string, 'null']}
         count: {type: integer, minimum: 0, description: 'Total endorsements for the event; present only on event-scoped reads, independently of pagination.'}
+    RecommendationFeed:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/RecommendedEvent'}}
+        next_cursor: {type: [string, 'null']}
+    RecommendedEvent:
+      type: object
+      additionalProperties: false
+      required: [event, first_recommended_at, count, recommendations, meta]
+      properties:
+        event: {$ref: '#/components/schemas/Event'}
+        first_recommended_at: {type: string, format: date-time, description: Immutable event-level first publication time; surviving all withdrawals and later republication.}
+        count: {type: integer, minimum: 1, description: 'Total active endorsements for this event, independently of the bounded previews.'}
+        recommendations: {type: array, maxItems: 3, items: {$ref: '#/components/schemas/EventRecommendation'}}
+        meta: {$ref: '#/components/schemas/Freshness'}
     EventInterest:
       type: object
       required: [event, interested_at, visibility, meta]

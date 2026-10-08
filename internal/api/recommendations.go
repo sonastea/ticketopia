@@ -19,6 +19,7 @@ func (a *api) recommendationRoutes(e *echo.Echo) {
 	e.POST("/recommendations/:event_id", a.recommendationPage)
 	e.GET("/events/:event_id/recommendations", a.eventRecommendationsPage)
 	e.GET("/api/v1/recommendations", a.communityRecommendationsHandler)
+	e.GET("/api/v1/community/recommendations", a.groupedRecommendationsHandler)
 	e.GET("/api/v1/me/event-recommendations", a.ownRecommendationsHandler)
 	e.GET("/api/v1/me/event-recommendations/:event_id", a.getRecommendationHandler)
 	e.PUT("/api/v1/me/event-recommendations/:event_id", a.setRecommendationHandler)
@@ -87,6 +88,7 @@ func (a *api) setRecommendationHandler(c echo.Context) error {
 	if err != nil {
 		return accountProblem(c, err)
 	}
+	a.observeRecommendation(p.Account.ID, item)
 	status := 200
 	if created {
 		status = 201
@@ -127,11 +129,26 @@ func (a *api) communityRecommendationsHandler(c echo.Context) error {
 	if err := a.publicRecommendationCheck(c); err != nil {
 		return accountProblem(c, err)
 	}
+	list, err := a.recommendations.Recent(c.Request().Context(), c.QueryParams())
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	return c.JSON(200, list)
+}
+func (a *api) groupedRecommendationsHandler(c echo.Context) error {
+	if err := a.publicRecommendationCheck(c); err != nil {
+		return accountProblem(c, err)
+	}
 	list, err := a.recommendations.Community(c.Request().Context(), c.QueryParams())
 	if err != nil {
 		return accountProblem(c, err)
 	}
 	return c.JSON(200, list)
+}
+func (a *api) observeRecommendation(owner string, item recommendations.Item) {
+	if o := item.Observation; o != nil {
+		a.logger.Info().Str("account_id", owner).Time("window_start", o.WindowStart).Uint64("new_publications", o.NewPublications).Uint64("reactivations", o.Reactivations).Uint64("total_new_publications", o.TotalNewPublications).Uint64("total_reactivations", o.TotalReactivations).Msg("recommendation activity observed")
+	}
 }
 func (a *api) eventRecommendationsHandler(c echo.Context) error {
 	if err := a.publicRecommendationCheck(c); err != nil {
@@ -192,7 +209,7 @@ func (a *api) communityPage(c echo.Context) error {
 	p := home.CommunityPage{Enabled: a.recommendationsEnabled(), ReturnURL: c.Request().URL.RequestURI()}
 	status := 200
 	var err error
-	p.Filters, err = recommendations.ParseQuery(c.QueryParams(), "community", true)
+	p.Filters, err = recommendations.ParseFeedQuery(c.QueryParams())
 	if err == nil && p.Enabled {
 		p.List, err = a.recommendations.Community(c.Request().Context(), c.QueryParams())
 	}
@@ -241,8 +258,11 @@ func (a *api) recommendationPage(c echo.Context) error {
 	notice := "Your recommendation was published."
 	switch c.FormValue("action") {
 	case "set":
-		_, created, setErr := a.recommendations.Set(c.Request().Context(), p.Account.ID, id, c.FormValue("reason"))
+		item, created, setErr := a.recommendations.Set(c.Request().Context(), p.Account.ID, id, c.FormValue("reason"))
 		err = setErr
+		if err == nil {
+			a.observeRecommendation(p.Account.ID, item)
+		}
 		if !created {
 			notice = "Your recommendation was updated."
 		}
@@ -288,7 +308,7 @@ func safeCommunityReturn(raw string) string {
 	if err != nil {
 		return "/community"
 	}
-	if _, err := recommendations.ParseQuery(values, "community", true); err != nil {
+	if _, err := recommendations.ParseFeedQuery(values); err != nil {
 		return "/community"
 	}
 	return u.String()

@@ -18,6 +18,7 @@ templ Base(title string) {
 			<script src="/assets/app.js" defer></script>
 			<script src="/assets/interests.js" defer></script>
 			<script src="/assets/recommendations.js" defer></script>
+			<script src="/assets/discussions.js" defer></script>
 			<title>{ title } · Ticketopia</title>
 		</head>
 		<body>
@@ -25,6 +26,7 @@ templ Base(title string) {
 			{ children... }
 			<p class="sr-only" role="status" aria-atomic="true" data-interest-status></p>
 			<p class="sr-only" role="status" aria-atomic="true" data-recommendation-status></p>
+			<p class="sr-only" role="status" aria-atomic="true" data-discussion-status></p>
 		</body>
 	</html>
 }

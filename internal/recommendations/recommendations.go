@@ -32,6 +32,36 @@ type Item struct {
 	RecommendedAt time.Time              `json:"recommended_at"`
 	UpdatedAt     time.Time              `json:"updated_at"`
 	Meta          models.Freshness       `json:"meta"`
+	Observation   *Observation           `json:"-"`
+}
+
+// Observation measures committed transitions, not attempts, retries, or edits.
+// It is operator metadata, excluded from all public projections.
+type Observation struct {
+	WindowStart          time.Time
+	NewPublications      uint64
+	Reactivations        uint64
+	TotalNewPublications uint64
+	TotalReactivations   uint64
+}
+
+const PreviewLimit = 3
+
+type EventGroup struct {
+	Event              models.Event     `json:"event"`
+	FirstRecommendedAt time.Time        `json:"first_recommended_at"`
+	Count              int              `json:"count"`
+	Recommendations    []Item           `json:"recommendations"`
+	Meta               models.Freshness `json:"meta"`
+}
+type Feed struct {
+	Items      []EventGroup `json:"items"`
+	NextCursor *string      `json:"next_cursor"`
+}
+type FeedCursor struct {
+	Scope   string    `json:"scope"`
+	Before  time.Time `json:"before"`
+	EventID string    `json:"event_id"`
 }
 type List struct {
 	Items      []Item  `json:"items"`
@@ -47,6 +77,7 @@ type Cursor struct {
 type Query struct {
 	Limit                     int
 	Cursor                    *Cursor
+	FeedCursor                *FeedCursor
 	City, Country, CategoryID string
 }
 type Repository interface {
@@ -55,6 +86,7 @@ type Repository interface {
 	Remove(context.Context, string, string) error
 	List(context.Context, string, string, Query) ([]Item, error)
 	Count(context.Context, string) (int, error)
+	Community(context.Context, Query) ([]EventGroup, error)
 }
 type Details interface {
 	Detail(context.Context, string) (models.EventDetail, error)
@@ -237,6 +269,51 @@ func (s *Service) Event(ctx context.Context, id string, values url.Values) (List
 	list.Count = &count
 	return list, nil
 }
-func (s *Service) Community(ctx context.Context, values url.Values) (List, error) {
+func (s *Service) Recent(ctx context.Context, values url.Values) (List, error) {
 	return s.list(ctx, "", "", "community", true, values)
+}
+func ParseFeedQuery(values url.Values) (Query, error) {
+	filters := url.Values{}
+	for k, v := range values {
+		filters[k] = v
+	}
+	filters.Del("cursor")
+	q, err := ParseQuery(filters, "community-events", true)
+	if err != nil {
+		return q, err
+	}
+	if raw, ok := values["cursor"]; ok {
+		var c FeedCursor
+		if len(raw) != 1 || len(raw[0]) > 1024 {
+			return q, &accounts.ValidationError{Field: "cursor", Message: "use the next cursor from this grouped recommendation feed"}
+		}
+		data, err := base64.RawURLEncoding.Strict().DecodeString(raw[0])
+		if err != nil || json.Unmarshal(data, &c) != nil || c.Scope != queryScope("community-events", q) || c.Before.IsZero() || c.Before.Year() < 1000 || c.Before.Year() > 9999 || saved.ValidateID(c.EventID) != nil {
+			return q, &accounts.ValidationError{Field: "cursor", Message: "use the next cursor from this grouped recommendation feed and filters"}
+		}
+		q.FeedCursor = &c
+	}
+	return q, nil
+}
+func (s *Service) Community(ctx context.Context, values url.Values) (Feed, error) {
+	q, err := ParseFeedQuery(values)
+	if err != nil {
+		return Feed{}, err
+	}
+	items, err := s.repo.Community(ctx, q)
+	if err != nil {
+		return Feed{}, err
+	}
+	result := Feed{Items: items}
+	if items == nil {
+		result.Items = []EventGroup{}
+	}
+	if len(items) > q.Limit {
+		result.Items = items[:q.Limit]
+		last := result.Items[q.Limit-1]
+		data, _ := json.Marshal(FeedCursor{queryScope("community-events", q), last.FirstRecommendedAt.UTC(), last.Event.ID})
+		cursor := base64.RawURLEncoding.EncodeToString(data)
+		result.NextCursor = &cursor
+	}
+	return result, nil
 }

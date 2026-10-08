@@ -57,6 +57,7 @@ func Execute(ctx context.Context) int {
 			options = append(options, api.WithSavedEvents(pool.Saved()))
 			options = append(options, api.WithEventInterests(pool.Interests()))
 			options = append(options, api.WithEventRecommendations(pool.Recommendations()))
+			options = append(options, api.WithEventDiscussions(pool.Discussions()))
 			options = append(options, api.WithAccounts(authConfig, accounts.New(pool.Accounts(), accounts.NewGoogle(ctx, authConfig))))
 		}
 	}

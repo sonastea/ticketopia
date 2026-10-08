@@ -25,7 +25,7 @@ remains available; disabled deployments explain that saving requires accounts.
 ### Save fails after a schema upgrade
 
 If sign-in and discovery work but Save returns “We couldn't complete this account
-request,” check the runtime grants as well as the current schema version 5. Startup verifies
+request,” check the runtime grants as well as the current schema version 7. Startup verifies
 read access and schema shape, not mutation privileges. The runtime user needs
 `INSERT, UPDATE` on `event_snapshots` and `INSERT, DELETE` on `saved_events`.
 For the local Compose database, run the combined migration/grants/access-check target:
