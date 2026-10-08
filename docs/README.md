@@ -29,6 +29,9 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Private reporting and moderation](moderation.md): report receipts, moderator
+  keep/hide/restore, author outcomes/second reviews, durable roles, and audited
+  operator grant/revoke commands.
 - [Event discussions](event-discussions.md): public questions, threaded replies,
   owner edit/removal, Helpful acknowledgments, direct links, and city/category browsing.
 - [Public event recommendations](event-recommendations.md): optional reasons,

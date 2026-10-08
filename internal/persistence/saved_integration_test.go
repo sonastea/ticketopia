@@ -234,6 +234,13 @@ func TestMariaDBDiscussionBrowserReview(t *testing.T) {
 	}
 	runActivityBrowser(t, script)
 }
+func TestMariaDBModerationBrowserReview(t *testing.T) {
+	script := os.Getenv("MODERATION_BROWSER_SCRIPT")
+	if script == "" {
+		t.Skip("set MODERATION_BROWSER_SCRIPT for optional Chromium verification")
+	}
+	runActivityBrowser(t, script)
+}
 func runActivityBrowser(t *testing.T, script string) {
 	t.Setenv("TICKETMASTER_KEY", "")
 	t.Setenv("IP_GEOLOCATION_ENABLED", "false")
@@ -243,6 +250,23 @@ func runActivityBrowser(t *testing.T, script string) {
 	auth := accounts.New(p.Accounts(), accountProviderFixture{})
 	owner, raw := loginAccount(t, auth, "saved-browser")
 	other, otherRaw := loginAccount(t, auth, "saved-browser-other")
+	modRaw := ""
+	if script == os.Getenv("MODERATION_BROWSER_SCRIPT") {
+		mod, raw := loginAccount(t, auth, "moderation-browser-owner")
+		modRaw = raw
+		operator, err := Open(t.Context(), f.migration)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = operator.SetModerator(t.Context(), mod.ID, "browser fixture", true)
+		if err == nil {
+			_, err = operator.SetModerator(t.Context(), owner.ID, "browser fixture", true)
+		}
+		operator.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	cache := kv.NewMemory()
 	defer cache.Close()
 	now := time.Now().UTC()
@@ -282,7 +306,7 @@ func runActivityBrowser(t *testing.T, script string) {
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
 		options := []api.Option{}
 		if enabled {
-			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(p.Recommendations()), api.WithEventDiscussions(p.Discussions()))
+			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(p.Recommendations()), api.WithEventDiscussions(p.Discussions()), api.WithModeration(p.Moderation()))
 		}
 		app, err := api.NewAPI(t.Context(), zerolog.Nop(), store, options...)
 		if err != nil {
@@ -299,7 +323,7 @@ func runActivityBrowser(t *testing.T, script string) {
 	fallback := start(noCache, true)
 	disabled := start(cache, false)
 	command := exec.CommandContext(t.Context(), "node", script)
-	command.Env = append(os.Environ(), "SAVED_BASE_URL="+server.URL, "SAVED_FALLBACK_URL="+fallback.URL, "SAVED_DISABLED_URL="+disabled.URL, "SAVED_SEARCH_PATH=/?"+q.Values().Encode(), "SAVED_FIXTURE_TOKEN="+raw, "SAVED_OTHER_TOKEN="+otherRaw, "SAVED_FIXTURE_ID="+owner.ID, "SAVED_OTHER_ID="+other.ID)
+	command.Env = append(os.Environ(), "SAVED_BASE_URL="+server.URL, "SAVED_FALLBACK_URL="+fallback.URL, "SAVED_DISABLED_URL="+disabled.URL, "SAVED_SEARCH_PATH=/?"+q.Values().Encode(), "SAVED_FIXTURE_TOKEN="+raw, "SAVED_OTHER_TOKEN="+otherRaw, "SAVED_FIXTURE_ID="+owner.ID, "SAVED_OTHER_ID="+other.ID, "MODERATION_FIXTURE_TOKEN="+modRaw)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("saved browser review: %v\n%s", err, output)

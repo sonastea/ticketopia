@@ -39,5 +39,12 @@ UPDATE discussion_posts SET body = body WHERE FALSE;
 INSERT INTO post_helpful SELECT * FROM post_helpful WHERE FALSE;
 UPDATE post_helpful SET post_id = post_id WHERE FALSE;
 DELETE FROM post_helpful WHERE FALSE;
+SELECT account_id, role FROM account_roles LIMIT 0;
+SELECT role_event_id FROM account_role_events LIMIT 0;
+INSERT INTO moderation_reports SELECT * FROM moderation_reports WHERE FALSE;
+UPDATE moderation_reports SET decision_id = decision_id WHERE FALSE;
+INSERT INTO moderation_decisions SELECT * FROM moderation_decisions WHERE FALSE;
+INSERT INTO moderation_appeals SELECT * FROM moderation_appeals WHERE FALSE;
+UPDATE moderation_appeals SET reviewed_by = reviewed_by WHERE FALSE;
 
 ROLLBACK;

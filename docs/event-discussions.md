@@ -7,10 +7,10 @@ writing requires sign-in. Conversations are asynchronous, not live chat.
 
 ## Setup and upgrade
 
-Discussions were introduced in schema 6; this binary supports clean schema 7 only.
+Discussions were introduced in schema 6; this binary supports clean schema 8 only.
 Drain old apps, preserve a backup,
 run `ticketopia migrate` with migration credentials, reconcile runtime grants,
-then start schema-7 apps. There is no startup migration or cross-version
+then start schema-8 apps. There is no startup migration or cross-version
 zero-downtime rollout. See [persistence](persistence.md#rolling-update-compatibility).
 Local `make db-setup` applies migrations/grants; testing uses isolated schemas
 and does not upgrade the running development database.
@@ -43,6 +43,18 @@ Helpful can be set or removed independently per user/post. It is a positive
 acknowledgment, not an event endorsement or negative vote. Counts never imply
 private saves or publish private interest identities.
 
+[Private reporting and moderation](moderation.md) adds Report privately, own
+receipts/outcomes, and authorized keep/hide/restore with author review requests.
+Hidden posts withhold text, attribution, and Helpful state/counts publicly, while
+replies remain accessible. Authors cannot edit hidden text to bypass review.
+Hiding is reversible; author removal is not. Reports retain private original-text
+evidence for authorized moderators, including after author removal.
+
+Personal report/outcome links select the exact contribution with `post_id` and
+`#post-ID` in a dedicated thread. Off-page replies render once in a **Selected
+contribution** section, independently of reply pagination and without exposing
+hidden text or changing the reply target. Selection enforces event/thread ancestry.
+
 Community has distinct **Recommendations** and **Conversations** collections.
 `/community/discussions` supports city, country, category, and pagination. Ordering
 is newest **started**, not newest reply or personalized ranking. Filters use
@@ -60,7 +72,7 @@ notification delivery is included.
 
 ## API
 
-The [OpenAPI contract](openapi.md) is version **1.7.0**.
+The [OpenAPI contract](openapi.md) is version **1.8.0**.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -124,7 +136,7 @@ this is scoped evidence, not a whole-application or public-pilot certification.
 The finish review's **ship** verdict scored the transport-error copy fix resolved;
 it did not certify every community surface or the public pilot.
 
-**Private reporting and moderator review remain unimplemented and are required
-before a public community pilot.** Discussion follows/notifications, attendance,
-and profile-wide contribution feeds remain later work. No public-pilot approval,
+**Basic private reporting and moderator review are implemented**; see
+[moderation setup and verification](moderation.md). Discussion follows/notifications,
+attendance, and profile-wide contribution feeds remain later work. No public-pilot approval,
 multi-pod deployment, or production backup/restore is claimed.

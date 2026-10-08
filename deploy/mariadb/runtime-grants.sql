@@ -14,3 +14,7 @@ GRANT INSERT, UPDATE ON ticketopia.recommendation_feed_events TO 'ticketopia_run
 GRANT INSERT, UPDATE ON ticketopia.recommendation_activity TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE ON ticketopia.discussion_posts TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE, DELETE ON ticketopia.post_helpful TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.moderation_reports TO 'ticketopia_runtime'@'%';
+GRANT INSERT ON ticketopia.moderation_decisions TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.moderation_appeals TO 'ticketopia_runtime'@'%';
+-- account_roles and account_role_events retain SELECT-only runtime access.

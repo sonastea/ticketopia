@@ -2249,6 +2249,18 @@ summary::-webkit-details-marker {
 .discussion-composer button { inline-size: fit-content; max-inline-size: 100%; }
 [data-discussion-form][aria-busy="true"] { opacity: .7; }
 [data-discussion-error] { color: var(--error); }
+.moderation-page { max-inline-size: 72rem; }
+.moderation-page > h1 { margin-block: 1.25rem .75rem; }
+.moderation-record { display: grid; gap: .75rem; border-block-start: 1px solid var(--line); padding-block: 1.5rem; min-inline-size: 0; }
+.moderation-record > * { margin-block: 0; }
+.moderation-record > .text-link { justify-self: start; }
+.moderation-record time { font-variant-numeric: tabular-nums; }
+.moderation-page .account-form { max-inline-size: 70ch; }
+.moderation-page .field-note { max-inline-size: 75ch; }
+.moderation-page select { min-block-size: 2.75rem; }
+.moderation-form { margin-block-start: 1.5rem; }
+.moderation-utility { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
+.moderation-empty { margin-block-start: 1.5rem; }
 @media (min-width: 40rem) {
   .recommendation-event { grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; }
   .recommendation-event .event-image { aspect-ratio: 1; }

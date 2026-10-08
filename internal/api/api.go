@@ -20,6 +20,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/location"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/moderation"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/assets"
@@ -42,6 +43,7 @@ type api struct {
 	interests       *interests.Service
 	recommendations *recommendations.Service
 	discussions     *discussions.Service
+	moderation      *moderation.Service
 }
 
 type Option func(*api)
@@ -61,6 +63,9 @@ func WithEventRecommendations(repository recommendations.Repository) Option {
 
 func WithEventDiscussions(repository discussions.Repository) Option {
 	return func(a *api) { a.discussions = discussions.New(repository, interestDetails{a}) }
+}
+func WithModeration(repository moderation.Repository) Option {
+	return func(a *api) { a.moderation = moderation.New(repository) }
 }
 
 func WithSavedEvents(repository saved.Repository) Option {
@@ -139,6 +144,7 @@ func (a *api) Routes() *echo.Echo {
 	a.interestRoutes(e)
 	a.recommendationRoutes(e)
 	a.discussionRoutes(e)
+	a.moderationRoutes(e)
 	a.accountRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler)

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-10-07 — Private reporting and moderation contract v1.8.0
+
+- Document owner-only receipts/outcomes, private author review requests, authorized
+  queue/case reads, and atomic keep/hide/restore with stale-context rejection.
+- Add safe hidden-post projections and independent bounded history cursors;
+  distinguish shared reasons from moderator-only evidence/notes and author appeals.
+  See [moderation](../moderation.md#api).
+- Validate the contract with only the two existing health-probe warnings.
+
 ### 2026-10-07 — Grouped recommendation contract v1.7.0
 
 - Add `/api/v1/community/recommendations` with event-level pagination, immutable

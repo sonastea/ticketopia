@@ -4,7 +4,8 @@ The implemented UI supports all-category discovery, read-only event details, and
 opt-in [Google accounts/profile/privacy/preferences](accounts.md) and
 [private event saves](saved-events.md), [Interested](event-interest.md), and
 [public recommendations](event-recommendations.md), and
-[event discussions/Helpful](event-discussions.md). Reporting/moderation remain planned.
+[event discussions/Helpful](event-discussions.md) and basic
+[private reporting/moderation](moderation.md).
 
 ## Sources of truth
 
@@ -130,7 +131,8 @@ in small groups. Recommending must not implicitly save, mark interest, or post.
 Keep decision-critical event facts ahead of participation. Future event controls
 keep Save and Interested compact, Discuss contextual, and Recommend
 secondary. Within conversations, Reply leads, Helpful is secondary, and editing/
-removal use labeled native disclosures. Reporting remains planned.
+removal use labeled native disclosures. Report privately opens an event-contextual
+native form; private receipts/outcomes and authorized review live in the account area.
 
 ## Discovery-to-discussion journeys and shared state
 

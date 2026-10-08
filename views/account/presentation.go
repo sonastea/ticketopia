@@ -14,6 +14,7 @@ type Page struct {
 	Categories                             []models.Category
 	CategoriesUnavailable                  bool
 	EventInterests                         home.InterestCollectionPage
+	ModerationEnabled, Moderator           bool
 }
 
 func (p Page) Active() string {

@@ -1,0 +1,278 @@
+package home
+
+import "fmt"
+import "time"
+import "github.com/sonastea/ticketopia/internal/moderation"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import selectcomp "github.com/sonastea/ticketopia/views/components/select"
+
+templ ModerationLinks(moderator bool,active string) {
+	<nav class="account-nav" aria-label="Reporting and moderation">
+		<a href="/me">Profile</a><a href="/me/reports" aria-current={ layouts.CurrentPage(active=="reports") }>Your reports</a><a href="/me/moderation" aria-current={ layouts.CurrentPage(active=="outcomes") }>Your moderation outcomes</a>
+		if moderator {
+			<a href="/moderation" aria-current={ layouts.CurrentPage(active=="queue") }>Moderator review queue</a>
+		}
+	</nav>
+}
+
+templ ReportConcern(p ReportPage) {
+	@layouts.App("community","Report a concern privately") {
+		<main id="main" class="destination-page moderation-page">
+			<h1>Report a concern privately</h1>
+			<p class="intro">Ask a moderator to review this contribution. Your report and identity are visible only to you and authorized moderators—not the author or the public.</p>
+			if p.Post.ID!="" {
+				<header class="discussion-event-heading"><h2>{ p.Post.Event.Name }</h2><p class="event-date">{ startLabel(p.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Post.Event) }</p></header>
+				if p.Post.Removed || p.Post.Hidden {
+					<p class="field-note">This contribution is no longer visible. You can still check any report you've already sent.</p>
+				} else {
+					@PostAttribution(p.Post)<blockquote class="discussion-body">{ p.Post.Body }</blockquote>
+				}
+				<a href={ templ.URL(ThreadURL(p.Post.EventID,p.Post.ThreadID,"/")) } class="text-link">Back to conversation</a>
+			}
+			if p.Error!="" {
+				<p class="account-notice" role="alert">{ p.Error }</p>
+			}
+			<form action={ "/posts/"+p.PostID+"/report" } method="post" class="account-form moderation-form">
+				<input type="hidden" name="csrf_token" value={ p.CSRF }/>
+				<label class="field" for="report-reason"><span id="report-reason-label">Reason</span>
+				@selectcomp.Native(selectcomp.NativeProps{ID:"report-reason",Name:"reason",Attributes:templ.Attributes{"required":true,"aria-labelledby":"report-reason-label"}}) {
+					<option value="" selected?={ p.Reason=="" }>Choose a reason</option>
+					for _,reason:=range []string{"spam","abuse","private_information","other"} {
+						<option value={ reason } selected?={ reason==p.Reason }>{ reportReason(reason) }</option>
+					}
+				}
+				</label>
+				<label class="field">Additional context <span>(optional, up to 2000 characters)</span><textarea name="context" rows="4" maxlength="2000">{ p.Context }</textarea></label>
+				<p class="field-note">Reports request a review; they are not downvotes and don't automatically hide content. One report per person per contribution is kept, so retrying won't create duplicates.</p>
+				if p.CSRF!="" {
+					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+						Send private report
+					}
+				} else {
+					<p class="field-note">Your context is kept above. Copy it before signing in, then return here to send your report.</p><a href={ templ.URL(signInURL("/posts/"+p.PostID+"/report")) } class="text-link">Sign in to report</a>
+				}
+			</form>
+			<a href="/me/reports" class="text-link moderation-utility">Check your reports</a>
+		</main>
+	}
+}
+
+templ OutcomeSummary(o moderation.Outcome) {
+	<p><strong>{ moderationAction(o.Action) }</strong> · <time datetime={ o.CreatedAt.Format(time.RFC3339Nano) }>{ o.CreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+	<p class="discussion-body">{ o.Reason }</p>
+}
+
+templ OwnModeration(p OwnModerationPage) {
+	@layouts.App("profile","Your reports and moderation") {
+		<main id="main" class="destination-page moderation-page">
+			if p.OutcomesView {
+				<h1>Your moderation outcomes</h1><p class="intro">Reasons for actions on your contributions, with a way to request another review. Reporter identities and private moderator notes are never shown here.</p>
+			} else {
+				<h1>Your private reports</h1><p class="intro">Every report below was received. Check here for review outcomes; no email or push notifications are sent.</p>
+			}
+			@ModerationLinks(p.Moderator,ternary(p.OutcomesView,"outcomes","reports"))
+			if p.OutcomesView {
+				if len(p.Outcomes.Items)==0 {
+					<p>No moderation actions on your contributions on this page.</p>
+				}
+				for _,o:=range p.Outcomes.Items {
+					<section class="moderation-record" aria-label="Moderation outcome">
+						<h2>{ o.EventName }</h2>
+						<p class="field-note">{ ternary(o.PostID==o.ThreadID,"Your question or tip","Your reply") } · posted <time datetime={ o.PostCreatedAt.Format(time.RFC3339Nano) }>{ o.PostCreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+						@OutcomeSummary(o)
+						<a href={ templ.URL(ContributionURL(o.EventID,o.ThreadID,o.PostID)) } class="text-link">Open affected contribution</a>
+						if o.Action=="hide" {
+							if o.Appealed {
+								<p class="field-note">Your request for another review was received. { ternary(o.AppealReviewed,"It has been reviewed; the later outcome is listed here.","It is awaiting review.") }</p>
+							} else if o.CanAppeal {
+								<details class="recommendation-editor"><summary>Request another review</summary>@AppealComposer(AppealForm{DecisionID:o.ID,CSRF:p.CSRF})</details>
+							}
+						}
+					</section>
+				}
+				if p.Outcomes.NextCursor!=nil {
+					<a href={ templ.URL(CollectionNextURL(p.URL,p.Outcomes.NextCursor)) } class="text-link">More outcomes</a>
+				}
+			} else {
+				if len(p.Reports.Items)==0 {
+					<p>No reports on this page. Use “Report privately” on a discussion contribution when you have a concern.</p>
+				}
+				for _,r:=range p.Reports.Items {
+					<section class="moderation-record" aria-label="Your private report">
+						<h2>{ r.EventName }</h2>
+						<p class="field-note">{ ternary(r.PostID==r.ThreadID,"Reported question or tip","Reported reply") } · posted <time datetime={ r.PostCreatedAt.Format(time.RFC3339Nano) }>{ r.PostCreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+						<p><strong>{ reportReason(r.Reason) }</strong></p>
+						<p class="field-note">Received <time datetime={ r.CreatedAt.Format(time.RFC3339Nano) }>{ r.CreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+						if r.Context!="" {
+							<p class="discussion-body">{ r.Context }</p>
+						}
+						if r.Outcome==nil {
+							<p><strong>Awaiting moderator review</strong></p>
+						} else {
+							@OutcomeSummary(moderation.Outcome{Action:r.Outcome.Action,Reason:r.Outcome.Reason,CreatedAt:r.Outcome.CreatedAt})
+						}
+						<a href={ templ.URL(ContributionURL(r.EventID,r.ThreadID,r.PostID)) } class="text-link">Open reported contribution</a>
+					</section>
+				}
+				if p.Reports.NextCursor!=nil {
+					<a href={ templ.URL(CollectionNextURL(p.URL,p.Reports.NextCursor)) } class="text-link">More reports</a>
+				}
+			}
+		</main>
+	}
+}
+
+templ AppealComposer(f AppealForm) {
+	<form action={ "/me/moderation/"+f.DecisionID+"/appeal" } method="post" class="account-form">
+		<input type="hidden" name="csrf_token" value={ f.CSRF }/>
+		<label class="field">Why should this decision be reviewed again? <span>(up to 2000 characters)</span><textarea name="context" rows="4" maxlength="2000" required>{ f.Context }</textarea></label>
+		<p class="field-note">Only you and authorized moderators can see your request. Another review is possible while this is the latest hiding decision and the contribution hasn't been removed.</p>
+		if f.CSRF!="" {
+			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+				Request another review
+			}
+		}
+	</form>
+}
+templ AppealFailure(f AppealForm) {
+	@layouts.App("profile","Review request wasn't saved") {
+		<main id="main" class="destination-page moderation-page"><h1>Review request wasn't saved</h1><p role="alert">{ f.Error }</p>@AppealComposer(f)
+			if f.CSRF=="" {
+				<p class="field-note">Your draft is kept above. Copy it before signing in, then return to your outcomes to retry.</p><a href={ templ.URL(signInURL("/me/moderation")) } class="text-link">Sign in to continue</a>
+			}
+			<a href="/me/moderation" class="text-link moderation-utility">Back to your outcomes</a>
+		</main>
+	}
+}
+
+templ ModerationQueue(p ModerationQueuePage) {
+	@layouts.App("profile","Moderator review queue") {
+		<main id="main" class="destination-page moderation-page"><h1>Moderator review queue</h1><p class="intro">Review the contribution and its conversation before deciding. Report counts are context, never votes for removal. Cases about your own contributions are private to other moderators.</p>
+			@ModerationLinks(true,"queue")
+			<nav class="section-nav" aria-label="Review queue filter"><a href="/moderation" aria-current={ layouts.CurrentPage(!p.All) } class="text-link">Awaiting review</a><a href="/moderation?state=all" aria-current={ layouts.CurrentPage(p.All) } class="text-link">All cases</a></nav>
+			if len(p.List.Items)==0 {
+				<p class="moderation-empty">No cases on this page. { ternary(p.All,"Reports and decisions will appear here.","There are no reports or review requests awaiting a decision on this page.") }</p>
+			}
+			for _,v:=range p.List.Items {
+				<article class="moderation-record"><h2><a href={ templ.URL("/moderation/posts/"+v.Post.ID) } class="text-link">{ v.Post.Event.Name }</a></h2><p class="event-date">{ startLabel(v.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(v.Post.Event) }</p>
+					if v.Post.Hidden {
+						<p class="field-note">Contribution hidden by a moderator</p>
+					} else if v.Post.Removed {
+						<p class="field-note">Contribution removed by its author</p>
+					} else {
+						@PostAttribution(v.Post)<p class="discussion-body">{ v.Post.Body }</p>
+					}
+					<p class="field-note">{ fmt.Sprint(v.PendingReports) } reports and { fmt.Sprint(v.PendingAppeals) } author review requests awaiting a decision</p>
+					<a href={ templ.URL("/moderation/posts/"+v.Post.ID) } class="text-link moderation-utility">Review contribution</a>
+				</article>
+			}
+			if p.List.NextCursor!=nil {
+				<a href={ templ.URL(CollectionNextURL(p.URL,p.List.NextCursor)) } class="text-link">More cases</a>
+			}
+		</main>
+	}
+}
+
+templ ModerationCase(p ModerationCasePage) {
+	@layouts.App("profile","Review contribution") {
+		<main id="main" class="destination-page moderation-page"><a href="/moderation" class="text-link">Back to review queue</a><h1>Review contribution</h1>
+			<header class="discussion-event-heading"><h2>{ p.Case.Post.Event.Name }</h2><p class="event-date">{ startLabel(p.Case.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Case.Post.Event) }</p><a href={ templ.URL(ThreadURL(p.Case.Post.EventID,p.Case.Post.ThreadID,"/")) } class="text-link moderation-utility">Read the full conversation</a></header>
+			<section class="moderation-record" aria-labelledby="current-contribution"><h2 id="current-contribution">Current contribution</h2>
+				<p class="field-note">{ ternary(p.Case.Post.Removed,"Removed by the author",ternary(p.Case.Post.Hidden,"Hidden by a moderator","Publicly visible")) } · Author account: { p.Case.AuthorID }</p>
+				if p.Case.Post.ParentID!="" {
+					<p class="field-note">Reply target: { p.Case.Post.ParentID }</p>
+				}
+				if p.Case.CurrentBody!="" {
+					<blockquote class="discussion-body">{ p.Case.CurrentBody }</blockquote>
+				} else {
+					<p class="field-note">The author removed the text. It cannot be restored.</p>
+				}
+			</section>
+			<section class="moderation-record" aria-labelledby="reported-concerns"><h2 id="reported-concerns">Private reports</h2>
+				for _,r:=range p.Case.Reports {
+					<details class="account-token-details"><summary>{ reportReason(r.Reason) } · { ternary(r.Reviewed,"Reviewed","Awaiting review") }</summary><p class="field-note">Reporter account: { r.ReporterID }</p><p class="discussion-body">{ r.Context }</p><p class="field-note">Contribution text at reporting time:</p><blockquote class="discussion-body">{ r.ReportedBody }</blockquote></details>
+				}
+				if len(p.Case.Reports)==0 {
+					<p class="field-note">No reports for this contribution.</p>
+				}
+				if p.Case.NextReportsCursor!=nil {
+					<a href={ templ.URL(caseNextURL(p.URL,"reports",p.Case.NextReportsCursor)) } class="text-link">More private reports</a>
+				}
+			</section>
+			if len(p.Case.Appeals)>0 {
+				<section class="moderation-record" aria-labelledby="author-requests"><h2 id="author-requests">Author review requests</h2>
+					for _,v:=range p.Case.Appeals {
+						<p><strong>{ ternary(v.Reviewed,"Reviewed","Awaiting review") }</strong></p><p class="discussion-body">{ v.Context }</p>
+					}
+					if p.Case.NextAppealsCursor!=nil {
+						<a href={ templ.URL(caseNextURL(p.URL,"appeals",p.Case.NextAppealsCursor)) } class="text-link">More author review requests</a>
+					}
+				</section>
+			}
+			if p.Error!="" {
+				<p class="account-notice" role="alert">{ p.Error }</p><p class="field-note">The current context is shown below and above. Review it again before submitting.</p>
+			}
+			if p.Case.AuthorID==p.ViewerID {
+				<p class="field-note">Another moderator must review your own contribution.</p>
+			} else {
+				<section class="moderation-record" aria-labelledby="decision-heading"><h2 id="decision-heading">Record a decision</h2>
+					<form action={ "/moderation/posts/"+p.Case.Post.ID } method="post" class="account-form">
+						<input type="hidden" name="csrf_token" value={ p.CSRF }/><input type="hidden" name="expected_version" value={ fmt.Sprint(p.Case.Version) }/><input type="hidden" name="expected_updated_at" value={ p.Case.Post.UpdatedAt.Format(time.RFC3339Nano) }/>
+						<label class="field" for="decision-action"><span id="decision-action-label">Action</span>
+						@selectcomp.Native(selectcomp.NativeProps{ID:"decision-action",Name:"action",Attributes:templ.Attributes{"required":true,"aria-labelledby":"decision-action-label"}}) {
+							<option value="" selected?={ p.Review.Action=="" }>Choose an action</option>
+							if !p.Case.Post.Hidden {
+								<option value="keep" selected?={ p.Review.Action=="keep" }>Keep contribution / no further action</option>
+								}
+							if !p.Case.Post.Removed {
+								<option value="hide" selected?={ p.Review.Action=="hide" }>Hide contribution / uphold hiding</option>
+								}
+							if p.Case.Post.Hidden && !p.Case.Post.Removed {
+								<option value="restore" selected?={ p.Review.Action=="restore" }>Restore contribution</option>
+								}
+						}
+						</label>
+						<label class="field">Decision reason <span>(shared with reporters and the affected author; up to 2000 characters)</span><textarea name="reason" rows="3" required maxlength="2000">{ p.Review.Reason }</textarea></label>
+						<label class="field">Private moderator notes <span>(optional, up to 2000 characters)</span><textarea name="notes" rows="3" maxlength="2000">{ p.Review.Notes }</textarea></label>
+						<p class="field-note">Never include reporter identities or private evidence in the shared reason. This decision closes all reports and author review requests currently awaiting review for this contribution. Hiding withholds text, attribution, and Helpful counts while keeping replies; restoration doesn't undo an author's removal.</p>
+						@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+							Record decision
+						}
+					</form>
+				</section>
+			}
+			<section class="moderation-record" aria-labelledby="decision-history"><h2 id="decision-history">Decision history</h2>
+				if len(p.Case.Decisions)==0 {
+					<p class="field-note">No decisions yet.</p>
+				}
+				for _,d:=range p.Case.Decisions {
+					@OutcomeSummary(d.Outcome)<p class="field-note">Moderator account: { d.ModeratorID }</p>
+					if d.Notes!="" {
+						<p class="discussion-body">Private notes: { d.Notes }</p>
+					}
+				}
+				if p.Case.NextDecisionsCursor!=nil {
+					<a href={ templ.URL(caseNextURL(p.URL,"decisions",p.Case.NextDecisionsCursor)) } class="text-link">More decisions</a>
+				}
+			</section>
+		</main>
+	}
+}
+
+templ ModerationDraftFailure(p ModerationCasePage) {
+	@layouts.App("profile","Decision wasn't confirmed") {
+		<main id="main" class="destination-page moderation-page">
+			<h1>Decision wasn't confirmed</h1><p role="alert">{ p.Error }</p>
+			<p class="field-note">Your drafts are kept below. Copy them before reopening the case, then check its current history and context before deciding again.</p>
+			<div class="account-form">
+				<label class="field">Draft decision reason<textarea rows="3" readonly>{ p.Review.Reason }</textarea></label>
+				<label class="field">Draft private notes<textarea rows="3" readonly>{ p.Review.Notes }</textarea></label>
+			</div>
+			<a href={ templ.URL("/moderation/posts/"+p.Case.Post.ID) } class="text-link moderation-utility">Reopen case</a>
+			if p.CSRF=="" {
+				<a href={ templ.URL(signInURL("/moderation/posts/"+p.Case.Post.ID)) } class="text-link moderation-utility">Sign in to continue</a>
+			}
+		</main>
+	}
+}

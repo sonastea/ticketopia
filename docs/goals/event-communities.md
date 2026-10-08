@@ -6,7 +6,9 @@ identity visibility, public counts, and public-opt-in participants/profile activ
 edit/withdrawal, event/profile attribution, and city/category browsing.
 [Event discussions](../event-discussions.md) implement questions, replies, owner
 edit/removal, Helpful reactions, direct threads, and city/category browsing.
-Reporting and moderation remain planned, alongside [personal radar and reminders](personal-radar.md).
+[Private reporting and moderation](../moderation.md) implement receipts, authorized
+keep/hide/restore, author outcomes/second reviews, and durable moderator roles.
+[Personal radar and reminders](personal-radar.md) remain planned.
 
 ## Goal
 
@@ -84,6 +86,10 @@ should avoid harassment, spam, scams, and sharing another person's private
 information.
 
 ## Moderation, starting small
+
+The basic loop below is [implemented](../moderation.md), with account-ID-keyed
+moderator roles and an audited operator CLI. Warnings and participation restrictions
+remain planned; no notification delivery or public-pilot approval is claimed.
 
 Use a simple, primarily report-driven review process. Ordinary comments appear
 without routine pre-approval; the site owner can act as the initial moderator.

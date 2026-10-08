@@ -51,6 +51,8 @@ templ DiscussionRoots(list discussions.List,showEvent bool,returnURL string) {
 						}
 						if post.Removed {
 							<p class="field-note">This contribution was removed. Replies are still available.</p>
+						} else if post.Hidden {
+							<p class="field-note">This contribution was hidden by a moderator. Replies are still available.</p>
 						} else {
 							@PostAttribution(post)
 							<p class="discussion-body">{ post.Body }</p>
@@ -79,6 +81,11 @@ templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
 	<article class="discussion-post" id={ "post-"+post.ID } aria-label="Discussion contribution">
 		if post.Removed {
 			<p class="field-note">This contribution was removed.</p>
+		} else if post.Hidden {
+			<p class="field-note">This contribution was hidden by a moderator. Replies are kept.</p>
+			if v.ViewerID!="" && v.ModerationEnabled {
+				<a href="/me/moderation" class="text-link">Check outcomes for your contributions</a>
+			}
 		} else {
 			@PostAttribution(post)
 			if post.ParentID!="" && post.ParentID!=post.ThreadID {
@@ -87,6 +94,9 @@ templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
 			<p class="discussion-body">{ post.Body }</p>
 			<div class="discussion-actions">
 				<a href={ templ.URL(replyURL(returnURL,post.ID)) } class="text-link">Reply</a>
+				if v.ModerationEnabled && (post.Profile==nil || post.Profile.ID!=v.ViewerID) {
+					<a href={ templ.URL("/posts/"+post.ID+"/report") } class="text-link">Report privately</a>
+				}
 				if v.ViewerID!="" {
 					<form action="/discussion-actions" method="post" data-discussion-form>
 						@DiscussionMetadata(discussionForm(post,v,"helpful",returnURL))
@@ -155,6 +165,10 @@ templ Discussion(p DiscussionPage) {
 			if p.Root!=nil {
 				<h2>Conversation</h2>
 				@DiscussionPost(*p.Root,p.View,p.URL)
+				if p.selectedOffPage() {
+					<h2>Selected contribution</h2>
+					@DiscussionPost(*p.Selected,p.View,p.URL)
+				}
 				<h2>{ fmt.Sprint(p.Root.ReplyCount) } replies</h2>
 				if p.View.Error!="" {
 					<p role="alert">{ p.View.Error }</p>
@@ -174,8 +188,8 @@ templ Discussion(p DiscussionPage) {
 				<section id="discussion-composer" class="discussion-reply-composer" aria-labelledby="reply-heading">
 					<h2 id="reply-heading">Reply to this conversation</h2>
 					if p.ReplyTo!=nil {
-						if p.ReplyTo.Removed {
-							<p class="field-note">Replying to a removed contribution.</p>
+						if p.ReplyTo.Removed || p.ReplyTo.Hidden {
+							<p class="field-note">Replying to a contribution whose text is no longer visible.</p>
 						} else {
 							<p class="field-note">Replying to { p.ReplyTo.Profile.DisplayName }:</p>
 							<blockquote class="discussion-body">{ p.ReplyTo.Body }</blockquote>

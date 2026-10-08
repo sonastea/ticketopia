@@ -10,6 +10,7 @@ import (
 
 type DiscussionView struct {
 	Enabled                    bool
+	ModerationEnabled          bool
 	ViewerID, CSRF, Key, Error string
 	List                       discussions.List
 }
@@ -17,6 +18,7 @@ type DiscussionPage struct {
 	Event                    models.Event
 	Root                     *discussions.Post
 	ReplyTo                  *discussions.Post
+	Selected                 *discussions.Post
 	View                     DiscussionView
 	ReturnURL, URL, ParentID string
 }
@@ -47,6 +49,30 @@ func ThreadURL(event, thread, origin string) string {
 		path += "?" + url.Values{"return_to": {origin}}.Encode()
 	}
 	return path
+}
+
+// ContributionURL selects a reply independently of the paginated reply list,
+// so a private receipt links to its exact public contribution or placeholder.
+func ContributionURL(event, thread, post string) string {
+	u, _ := url.Parse(ThreadURL(event, thread, "/"))
+	if post != thread {
+		q := u.Query()
+		q.Set("post_id", post)
+		u.RawQuery = q.Encode()
+	}
+	u.Fragment = "post-" + post
+	return u.String()
+}
+func (p DiscussionPage) selectedOffPage() bool {
+	if p.Selected == nil || (p.Root != nil && p.Root.ID == p.Selected.ID) {
+		return false
+	}
+	for _, post := range p.View.List.Items {
+		if post.ID == p.Selected.ID {
+			return false
+		}
+	}
+	return true
 }
 func DiscussionOrigin(raw string) string {
 	u, err := url.Parse(raw)

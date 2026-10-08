@@ -20,8 +20,10 @@ func main() {
 		status = ticketopia.Execute(ctx)
 	case len(os.Args) == 2 && os.Args[1] == "migrate":
 		status = ticketopia.ExecuteMigrations(ctx)
+	case len(os.Args) >= 2 && os.Args[1] == "moderator":
+		status = ticketopia.ExecuteModerator(ctx, os.Args[2:])
 	default:
-		fmt.Fprintln(os.Stderr, "usage: ticketopia [migrate]")
+		fmt.Fprintln(os.Stderr, "usage: ticketopia [migrate | moderator grant|revoke --account-id ID --operator LABEL]")
 		status = 2
 	}
 	os.Exit(status)

@@ -64,6 +64,12 @@ templ Settings(p Page) {
 				<a href="/me" aria-current={ layouts.CurrentPage(p.Section == "profile") }>Profile &amp; privacy</a>
 				<a href="/me/preferences" aria-current={ layouts.CurrentPage(p.Section == "preferences") }>Preferences</a>
 				<a href="/me/interests" aria-current={ layouts.CurrentPage(p.Section == "interests") }>Interests</a>
+				if p.ModerationEnabled {
+					<a href="/me/reports">Your reports</a><a href="/me/moderation">Moderation outcomes</a>
+					if p.Moderator {
+						<a href="/moderation">Moderator review queue</a>
+					}
+				}
 			</nav>
 			if p.Error != "" {
 				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {

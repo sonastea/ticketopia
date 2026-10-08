@@ -10,7 +10,7 @@ pagination. Cached event data is shared by the responsive web UI and JSON API.
 Discovery includes category-aware genre filters for music, sports, arts, and more.
 Private saves, Interested, and public recommendations connect people to events;
 asynchronous discussions add questions, replies, and Helpful acknowledgments.
-Reporting/moderation remain planned. See the [design guidelines](docs/design-guidelines.md)
+Private reporting and moderator review close the safety loop. See the [design guidelines](docs/design-guidelines.md)
 for desktop, tablet, and mobile direction and the
 [MVP boundary](docs/goals/delivery.md#mvp-release-boundary) for release scope.
 
@@ -73,8 +73,8 @@ goal to implementation work and verification checkpoints.
 - [x] Edit or remove your own comments and replies.
 - [x] Give or remove a positive Helpful thumbs-up.
 - [ ] Later: Follow a discussion and receive relevant activity updates.
-- [ ] Report a concern privately and receive acknowledgment.
-- [ ] Review reports as a moderator and communicate clear outcomes.
+- [x] Report a concern privately and receive acknowledgment.
+- [x] Review reports as a moderator and communicate clear outcomes.
 - [ ] Later: Record Went and share a post-event reflection.
 
 ### Responsive event and discussion experience
@@ -114,7 +114,8 @@ goal to implementation work and verification checkpoints.
 - [x] Keep public recommendations, reasons, and original publication times across restarts.
 - [ ] Keep dated event observation history across restarts.
 - [x] Keep event discussions and Helpful reactions across restarts.
-- [ ] Persist moderation records and notification jobs.
+- [x] Persist private reports, moderation decisions, author review requests, and moderator roles/audits.
+- [ ] Persist notification jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
 
@@ -188,8 +189,10 @@ it does not start containers or apply runtime grants.
 Accounts are separately opt-in with `AUTH_ENABLED=true`, `AUTH_BASE_URL`,
 `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`; see [Google sign-in setup](docs/accounts.md).
 Discovery stays public. Private saves, Interested, and public recommendations are
-available with accounts enabled, along with event discussions. Reporting/moderation
-remain planned and are required before a public community pilot.
+available with accounts enabled, along with event discussions. Private reporting and
+moderation are implemented for discussion posts/replies, with receipts, reversible hiding,
+author outcomes, and durable moderator roles. See [moderation](docs/moderation.md)
+for the schema-8 upgrade and operator grant/revoke CLI. This is not public-pilot approval.
 
 ## Run in a container
 

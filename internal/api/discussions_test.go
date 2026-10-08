@@ -196,6 +196,10 @@ func TestDiscussionNativeDraftRecoveryAndSafeReturns(t *testing.T) {
 	if got := safeAuthReturn(thread); got != thread {
 		t.Fatal("sign-in lost thread", got)
 	}
+	selected := thread + "&post_id=" + accounts.ID()
+	if got := safeAuthReturn(selected); got != selected {
+		t.Fatal("lost selected contribution", got)
+	}
 	for _, bad := range []string{"https://evil.example/", "//evil.example/", "/foo/discussions", "/events/ticketmaster:show/discussions/bad", "/community/discussions/evil", "/events/ticketmaster:show/discussions?owner=x"} {
 		if got := safeDiscussionReturn(bad); got != "/" {
 			t.Fatal("unsafe return", bad, got)

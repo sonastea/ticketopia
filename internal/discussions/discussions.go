@@ -41,6 +41,7 @@ type Post struct {
 	CreatedAt    time.Time               `json:"created_at"`
 	UpdatedAt    time.Time               `json:"updated_at"`
 	Removed      bool                    `json:"removed"`
+	Hidden       bool                    `json:"hidden"`
 	ReplyCount   int                     `json:"reply_count"`
 	HelpfulCount int                     `json:"helpful_count"`
 	Helpful      bool                    `json:"helpful"`
@@ -185,6 +186,12 @@ func (s *Service) Thread(ctx context.Context, viewer, event, id string) (Post, e
 		return Post{}, ErrNotFound
 	}
 	return p, err
+}
+func (s *Service) Post(ctx context.Context, viewer, id string) (Post, error) {
+	if err := PostID(id); err != nil {
+		return Post{}, err
+	}
+	return s.repo.Get(ctx, viewer, id)
 }
 func (s *Service) Edit(ctx context.Context, who, id, body string) (Post, error) {
 	if err := owner(who); err != nil {

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.7.0
+  version: 1.8.0
   license:
     name: MIT
     identifier: MIT
@@ -1114,6 +1114,225 @@ paths:
             application/yaml:
               schema: {type: string}
         '400': {$ref: '#/components/responses/BadRequest'}
+  /api/v1/posts/{post_id}/reports:
+    post:
+      operationId: createPrivateReport
+      summary: Privately report a discussion contribution
+      description: |
+        Signed-in reports require spam, abuse, private_information, or other and
+        optional plain-text context. One immutable report per account/post is kept;
+        retries return it unchanged, including after hiding/removal. New reports
+        require another author's visible post. Reports do not automatically hide
+        content. Allows 20 attempts/account/ten minutes across web and API.
+        All moderation responses are private, no-store. No provider calls.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/PostID'}
+        - {$ref: '#/components/parameters/CSRFToken'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, enum: [spam, abuse, private_information, other]}
+                context: {type: string, maxLength: 2000, default: ''}
+      responses:
+        '201': {$ref: '#/components/responses/PrivateReport'}
+        '200': {$ref: '#/components/responses/PrivateReport'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/ModerationNotFound'}
+        '429': {$ref: '#/components/responses/AccountRateLimited'}
+        '503': {$ref: '#/components/responses/ModerationUnavailable'}
+  /api/v1/me/reports:
+    get:
+      operationId: listOwnPrivateReports
+      summary: Read your reports and review resolutions
+      description: Owner-only, newest reports first. Never includes other reporters, original reported text, moderator identity/notes, or author appeal metadata. Collections are live, not snapshots.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/ModerationCursor'}
+      responses:
+        '200':
+          description: Your private reports and their resolutions, if reviewed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/PrivateReport'}}
+                  next_cursor: {type: [string, 'null']}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/ModerationUnavailable'}
+  /api/v1/me/moderation:
+    get:
+      operationId: listOwnModerationOutcomes
+      summary: Read actions on your contributions
+      description: Owner-only hide/restore history, newest first, including your appeal status. No reporter identities, report context, or private notes. Keep decisions do not produce author notices. Live pagination.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/ModerationCursor'}
+      responses:
+        '200':
+          description: Your moderation outcomes.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ModerationOutcome'}}
+                  next_cursor: {type: [string, 'null']}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/ModerationUnavailable'}
+  /api/v1/me/moderation/{decision_id}/appeal:
+    post:
+      operationId: requestModerationReview
+      summary: Request another review of an action on your contribution
+      description: |
+        Author-only, private request against the latest hide decision while the
+        contribution remains hidden and not author-removed. One request per
+        decision; retries succeed unchanged. A new moderator decision closes
+        pending requests. Allows 20 attempts/account/ten minutes, shared with web.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/DecisionID'}
+        - {$ref: '#/components/parameters/CSRFToken'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [context]
+              properties:
+                context: {type: string, minLength: 1, maxLength: 2000}
+      responses:
+        '204': {description: 'Review request received, or its existing retry acknowledged.'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/ModerationNotFound'}
+        '409': {$ref: '#/components/responses/ModerationConflict'}
+        '429': {$ref: '#/components/responses/AccountRateLimited'}
+        '503': {$ref: '#/components/responses/ModerationUnavailable'}
+  /api/v1/moderation:
+    get:
+      operationId: listModeratorQueue
+      summary: List contributions awaiting moderator review
+      description: |
+        Requires a current durable moderator role. Default pending includes open
+        reports or author requests; all also includes resolved cases. Ordered by
+        newest contribution creation, never by report volume. Counts do not hide
+        content or establish a decision. Queue uses public post projections;
+        detailed private evidence is available only in an authorized case read.
+        Cases about the current moderator's own contributions are excluded.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/ModerationCursor'}
+        - {name: state, in: query, schema: {type: string, enum: [pending, all], default: pending}}
+      responses:
+        '200':
+          description: Live moderator queue, with viewer/state-bound pagination.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ModerationQueueItem'}}
+                  next_cursor: {type: [string, 'null']}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/ModerationForbidden'}
+        '503': {$ref: '#/components/responses/ModerationUnavailable'}
+  /api/v1/moderation/posts/{post_id}:
+    get:
+      operationId: readModerationCase
+      summary: Review private reports, contribution context, and decisions
+      description: |
+        Current moderator role required; authors cannot read their own cases even
+        as moderators. Includes current retained body/author,
+        private reporter IDs/context and original text at reporting time, private
+        notes, and author requests. Each history is independently paginated newest
+        first; use its corresponding next cursor. Version changes on new reports,
+        appeals, author edits/removal, and decisions. Check full conversation
+        context before deciding. No email or credentials in any projection.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/PostID'}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {name: reports_cursor, in: query, schema: {type: string, maxLength: 512}}
+        - {name: decisions_cursor, in: query, schema: {type: string, maxLength: 512}}
+        - {name: appeals_cursor, in: query, schema: {type: string, maxLength: 512}}
+      responses:
+        '200':
+          description: Private moderator case and bounded independent histories.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ModerationCase'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/ModerationForbidden'}
+        '404': {$ref: '#/components/responses/ModerationNotFound'}
+        '503': {$ref: '#/components/responses/ModerationUnavailable'}
+  /api/v1/moderation/posts/{post_id}/decisions:
+    post:
+      operationId: recordModerationDecision
+      summary: Keep, hide, or restore a contribution with an accountable reason
+      description: |
+        Requires a current moderator role, also rechecked transactionally. Cannot
+        review your own contribution. Send expected_version and expected_updated_at
+        from the current case; stale context returns 409, including duplicate
+        submissions. Decisions atomically close all pending reports/requests for
+        this contribution and append immutable history. Reason is shared with
+        reporters and affected author; notes remain moderator-only. Hide withholds
+        body, attribution and Helpful state publicly, preserving replies. Restore
+        unhides retained text/reactions, never author-removed text. Keep requires a
+        nonhidden contribution; removed contributions permit keep only. No query
+        parameters, unknown/repeated/null fields, or JSON bodies over 16 KiB.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/PostID'}
+        - {$ref: '#/components/parameters/CSRFToken'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, reason, expected_version, expected_updated_at]
+              properties:
+                action: {type: string, enum: [keep, hide, restore]}
+                reason: {type: string, minLength: 1, maxLength: 2000}
+                notes: {type: string, maxLength: 2000, default: ''}
+                expected_version: {type: integer, minimum: 0, format: int64}
+                expected_updated_at: {type: string, format: date-time}
+      responses:
+        '201':
+          description: Decision recorded and pending reports/requests resolved.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ModerationOutcome'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/ModerationForbidden'}
+        '404': {$ref: '#/components/responses/ModerationNotFound'}
+        '409': {$ref: '#/components/responses/ModerationConflict'}
+        '503': {$ref: '#/components/responses/ModerationUnavailable'}
 components:
   securitySchemes:
     sessionCookie:
@@ -1126,6 +1345,16 @@ components:
       scheme: bearer
       description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
   parameters:
+    DecisionID:
+      name: decision_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/AccountID'}
+    ModerationCursor:
+      name: cursor
+      in: query
+      description: Next cursor bound to this private collection, viewer, and queue state. Live chronological pagination, not a snapshot.
+      schema: {type: string, maxLength: 512}
     DiscussionEventID:
       name: event_id
       in: path
@@ -1177,6 +1406,33 @@ components:
       description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
       schema: {type: string}
   responses:
+    PrivateReport:
+      description: Your report was received, or the existing report returned unchanged on retry.
+      headers:
+        Location: {description: Your private report collection., schema: {type: string}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/PrivateReport'}
+    ModerationForbidden:
+      description: Current moderator role required, own-contribution case reads/decisions denied, or cookie CSRF/origin checks failed.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    ModerationNotFound:
+      description: Missing/unavailable contribution or decision, or record not owned by this reporter/author. No private evidence disclosed.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    ModerationConflict:
+      description: Case/contribution changed, or appeal is not against the current hiding decision. Reload and review before retrying.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    ModerationUnavailable:
+      description: Accounts/moderation disabled or durable storage unavailable. Never fabricated empty state or in-memory fallback.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     DiscussionPost:
       description: Authoritative public post and this viewer's Helpful state; no private account activity.
       content:
@@ -1283,22 +1539,108 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    ModerationResolution:
+      type: object
+      required: [action, reason, created_at]
+      properties:
+        action: {type: string, enum: [keep, hide, restore]}
+        reason: {type: string, maxLength: 2000}
+        created_at: {type: string, format: date-time}
+    ModerationOutcome:
+      allOf:
+        - {$ref: '#/components/schemas/ModerationResolution'}
+        - type: object
+          required: [id, post_id, event_id, event_name, thread_id, post_created_at, appealed, appeal_reviewed, can_appeal]
+          properties:
+            id: {$ref: '#/components/schemas/AccountID'}
+            post_id: {$ref: '#/components/schemas/AccountID'}
+            event_id: {type: string}
+            event_name: {type: string, description: 'Public event name from retained metadata, never private evidence.'}
+            thread_id: {$ref: '#/components/schemas/AccountID'}
+            post_created_at: {type: string, format: date-time, description: Original contribution creation time for identifying the affected post.}
+            appealed: {type: boolean}
+            appeal_reviewed: {type: boolean}
+            can_appeal: {type: boolean, description: Whether this latest hiding decision currently permits a new author review request.}
+    PrivateReport:
+      type: object
+      required: [id, post_id, event_id, event_name, thread_id, post_created_at, reason, context, created_at, outcome]
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        post_id: {$ref: '#/components/schemas/AccountID'}
+        event_id: {type: string}
+        event_name: {type: string, description: 'Public event name from retained metadata, never private evidence.'}
+        thread_id: {$ref: '#/components/schemas/AccountID'}
+        post_created_at: {type: string, format: date-time}
+        reason: {type: string, enum: [spam, abuse, private_information, other]}
+        context: {type: string, maxLength: 2000}
+        created_at: {type: string, format: date-time}
+        outcome:
+          oneOf:
+            - {$ref: '#/components/schemas/ModerationResolution'}
+            - {type: 'null'}
+    ModeratorReport:
+      allOf:
+        - {$ref: '#/components/schemas/PrivateReport'}
+        - type: object
+          required: [reporter_id, reported_body, reviewed]
+          properties:
+            reporter_id: {$ref: '#/components/schemas/AccountID'}
+            reported_body: {type: string, maxLength: 4000}
+            reviewed: {type: boolean, description: True if this report has been resolved. Moderator history supplies decisions; outcome is null in this case projection.}
+    ModeratorDecision:
+      allOf:
+        - {$ref: '#/components/schemas/ModerationOutcome'}
+        - type: object
+          required: [moderator_id, notes]
+          properties:
+            moderator_id: {$ref: '#/components/schemas/AccountID'}
+            notes: {type: string, maxLength: 2000}
+    ModerationAppeal:
+      type: object
+      required: [decision_id, context, created_at, reviewed]
+      properties:
+        decision_id: {$ref: '#/components/schemas/AccountID'}
+        context: {type: string, maxLength: 2000}
+        created_at: {type: string, format: date-time}
+        reviewed: {type: boolean}
+    ModerationQueueItem:
+      type: object
+      required: [post, pending_reports, pending_appeals]
+      properties:
+        post: {$ref: '#/components/schemas/DiscussionPost'}
+        pending_reports: {type: integer, minimum: 0}
+        pending_appeals: {type: integer, minimum: 0}
+    ModerationCase:
+      type: object
+      required: [post, author_id, current_body, version, reports, decisions, appeals, next_reports_cursor, next_decisions_cursor, next_appeals_cursor]
+      properties:
+        post: {$ref: '#/components/schemas/DiscussionPost'}
+        author_id: {$ref: '#/components/schemas/AccountID'}
+        current_body: {type: string, maxLength: 4000, description: 'Retained text visible only to authorized moderators, even while hidden. Empty after author removal.'}
+        version: {type: integer, minimum: 0, format: int64}
+        reports: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ModeratorReport'}}
+        decisions: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ModeratorDecision'}}
+        appeals: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ModerationAppeal'}}
+        next_reports_cursor: {type: [string, 'null']}
+        next_decisions_cursor: {type: [string, 'null']}
+        next_appeals_cursor: {type: [string, 'null']}
     DiscussionPost:
       type: object
       additionalProperties: false
-      required: [id, event_id, thread_id, body, created_at, updated_at, removed, reply_count, helpful_count, helpful, event, meta]
+      required: [id, event_id, thread_id, body, created_at, updated_at, removed, hidden, reply_count, helpful_count, helpful, event, meta]
       properties:
         id: {$ref: '#/components/schemas/AccountID'}
         event_id: {type: string}
         thread_id: {$ref: '#/components/schemas/AccountID'}
         parent_id: {$ref: '#/components/schemas/AccountID'}
-        parent_name: {type: string, description: 'Public target name, or Removed contribution; never removed author attribution.'}
+        parent_name: {type: string, description: 'Public target name, Removed contribution, or Hidden contribution; never withheld author attribution.'}
         profile: {$ref: '#/components/schemas/PublicProfile'}
-        body: {type: string, maxLength: 4000, description: Escaped plain text; empty for removed posts.}
+        body: {type: string, maxLength: 4000, description: Escaped plain text; empty for removed or hidden posts.}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
         removed: {type: boolean, description: Removed posts omit profile and withhold body/reactions.}
-        reply_count: {type: integer, minimum: 0, description: Nonremoved replies to this root; zero for replies.}
+        hidden: {type: boolean, description: Moderator-hidden posts omit profile and withhold body/reactions. Author removal takes precedence. No private reason/report fields.}
+        reply_count: {type: integer, minimum: 0, description: Visible replies to this root; zero for replies.}
         helpful_count: {type: integer, minimum: 0}
         helpful: {type: boolean, description: This authenticated viewer's choice; false for guests.}
         event: {$ref: '#/components/schemas/Event'}
@@ -1310,7 +1652,7 @@ components:
       properties:
         items: {type: array, items: {$ref: '#/components/schemas/DiscussionPost'}}
         next_cursor: {type: [string, 'null']}
-        count: {type: integer, minimum: 0, description: 'Nonremoved roots or replies in this creation boundary/scope, independently of pagination.'}
+        count: {type: integer, minimum: 0, description: 'Visible roots or replies in this creation boundary/scope, independently of pagination.'}
     EventRecommendation:
       type: object
       additionalProperties: false

@@ -458,6 +458,25 @@ Removed contributions leave content-free placeholders. The labeled composer
 discloses its public audience; errors preserve drafts and confirmed state. See
 [event discussions](docs/event-discussions.md). No new global tokens or assets.
 
+### Private Reporting and Moderator Review
+
+Reporting inherits the event/date/venue heading, 70ch reading measure, native
+selects/textareas and plum secondary action. Personal receipts/outcomes are flat,
+rule-separated records with event names, contribution type/time, and direct links
+to the affected contribution or withheld-content placeholder. A selected reply
+outside the current reply page is shown separately, without duplicating its ID.
+Current account-area destinations keep the section-link underline and `aria-current`.
+
+The moderator queue orders contribution context, not report volume. Cases separate
+current and report-time text, shared reasons and private notes, and author requests
+and decision history. Native disclosures keep report evidence scannable; errors
+retain escaped drafts. All controls remain usable without JavaScript, with 44px
+selects and wrapped long/enlarged text. Affected authors cannot read their own case
+evidence even with moderator membership; public hiding withholds text/attribution
+and preserves replies. See [moderation](docs/moderation.md) and its
+[surface contract](.impeccable/surfaces/views-home-moderation-templ.md). No new global
+tokens, motion, typography, or raster assets are introduced.
+
 ### Cards / Containers
 
 Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale preview/full-event data places a last-known provenance notice immediately before price and sale status, using the existing warning treatment rather than presenting stored availability as live.
@@ -479,7 +498,7 @@ Account forms inherit the same type, colors, corners, and controls. A separate w
 ### Don't:
 - Don't add cast shadows, glass effects, or raised hover cards to this flat, border-defined system.
 - Don't force provider photographs into monochrome or substitute decorative stock imagery for event identity.
-- Don't conflate private saves, event interest, recommendations, discussion posts, Helpful, or private category preferences. Moderation, personalization, and reminder delivery remain planned; moderation is required before a public community pilot. Don't fabricate participation counts, imply that interest/recommendation confirms attendance or ticket ownership, or imply that saving reserves tickets.
+- Don't conflate private saves, event interest, recommendations, discussion posts, Helpful, private reports, or category preferences. Basic reporting/moderation is implemented; personalization and reminder delivery remain planned. Don't imply public-pilot approval, fabricate participation counts, imply that interest/recommendation confirms attendance or ticket ownership, or imply that saving reserves tickets.
 - Don't use promotional clutter or manufactured urgency to compete with practical event information.
 - Don't promote route-specific composition or synthesized sidecar tonal ramps into new global design tokens.
 - Don't reuse date paper for selected rows, current navigation, availability labels, caret, or focus.

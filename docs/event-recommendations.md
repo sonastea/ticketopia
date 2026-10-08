@@ -8,7 +8,7 @@ publishing/editing/withdrawal requires an authenticated account. There is no new
 ## Setup and upgrade
 
 Recommendations were introduced in schema 5; the current binary requires
-**clean schema 7 only**. Drain old apps, preserve a backup, run `ticketopia migrate`
+**clean schema 8 only**. Drain old apps, preserve a backup, run `ticketopia migrate`
 using migration credentials, reconcile grants, then start current apps. The additive
 migrations preserve accounts, sessions, preferences, saves, interest, and snapshots;
 they do not publish existing activity. Startup never migrates automatically and
@@ -97,16 +97,18 @@ read-only database snapshot. Feed reads use two batched queries, not one per car
 
 Disabled accounts explain web availability and return 503 for public recommendation
 APIs rather than fabricated zero activity. Storage failures mean unavailable, not
-empty. [Discussions/Helpful](event-discussions.md) are implemented; reminders,
-reporting, and moderation remain unimplemented.
-**Reporting/moderation is required before a public community pilot.**
+empty. [Discussions/Helpful](event-discussions.md) and basic
+[private reporting/moderation](moderation.md) are implemented for discussion posts;
+recommendation reporting and reminder delivery remain later work.
+**This does not imply approval for a public community pilot.**
 
 ## Observe-only participation measurements
 
 There is **no recommendation-specific quota, cooldown, or automatic account
 restriction**. Active legitimate members and admins can keep participating. Google
 sign-in and one endorsement/account/event remain required; multiple Google accounts
-do not establish unique people. Reporting/moderation still gates a public pilot.
+do not establish unique people. Basic discussion reporting/moderation is delivered;
+public-pilot scope and operational coverage still need verification.
 
 Successful first account/event publications and withdrawn-to-active reactivations
 update one durable `recommendation_activity` row per account, in the same transaction
@@ -142,7 +144,7 @@ need a separate implementation decision.
 
 ## API
 
-The [OpenAPI contract](../internal/api/openapi.yaml) is version **1.7.0**.
+The [OpenAPI contract](../internal/api/openapi.yaml) is version **1.8.0**.
 
 | Method | Route | Purpose |
 | --- | --- | --- |

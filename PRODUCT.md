@@ -29,8 +29,12 @@ Community shows each event once at its original first-recommendation position;
 withdrawal/republication cannot bump it. Publication/reactivation measurements are
 observe-only, without recommendation quotas or automatic account restrictions.
 Event discussions provide public questions, replies, owner edit/removal, Helpful
-acknowledgments, direct threads, and city/category browsing. Reporting/moderation
-remain planned and gate a public community pilot.
+acknowledgments, direct threads, and city/category browsing.
+[Private reporting and moderation](docs/moderation.md) provide private receipts,
+contextual keep/hide/restore, shared reasons with private notes, and author second
+review requests. Durable moderator roles are operator-managed with audited
+grant/revoke commands; affected authors cannot access their own case evidence,
+even as moderators. No notification delivery or public-pilot approval is claimed.
 
 ## Product Purpose
 

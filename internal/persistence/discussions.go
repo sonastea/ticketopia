@@ -33,18 +33,18 @@ func (r *DiscussionRepository) Snapshot(ctx context.Context) (time.Time, error) 
 	return at, nil
 }
 
-const postColumns = `p.post_id,p.event_id,COALESCE(p.root_id,p.post_id),COALESCE(p.parent_id,''),a.account_id,a.display_name,a.bio,p.body,p.created_at,p.updated_at,p.removed_at IS NOT NULL,e.snapshot,e.data_as_of,
- (SELECT COUNT(*) FROM discussion_posts replies WHERE replies.root_id=p.post_id AND replies.removed_at IS NULL),
+const postColumns = `p.post_id,p.event_id,COALESCE(p.root_id,p.post_id),COALESCE(p.parent_id,''),a.account_id,a.display_name,a.bio,p.body,p.created_at,p.updated_at,p.removed_at IS NOT NULL,p.hidden_at IS NOT NULL,e.snapshot,e.data_as_of,
+ (SELECT COUNT(*) FROM discussion_posts replies WHERE replies.root_id=p.post_id AND replies.removed_at IS NULL AND replies.hidden_at IS NULL),
  (SELECT COUNT(*) FROM post_helpful h WHERE h.post_id=p.post_id),
  EXISTS(SELECT 1 FROM post_helpful h WHERE h.post_id=p.post_id AND h.account_id=?),
- COALESCE((SELECT IF(parent.removed_at IS NULL,author.display_name,'Removed contribution') FROM discussion_posts parent JOIN accounts author ON author.account_id=parent.account_id WHERE parent.post_id=p.parent_id),'')`
+ COALESCE((SELECT CASE WHEN parent.removed_at IS NOT NULL THEN 'Removed contribution' WHEN parent.hidden_at IS NOT NULL THEN 'Hidden contribution' ELSE author.display_name END FROM discussion_posts parent JOIN accounts author ON author.account_id=parent.account_id WHERE parent.post_id=p.parent_id),'')`
 const postJoin = ` FROM discussion_posts p JOIN accounts a ON a.account_id=p.account_id JOIN event_snapshots e ON e.event_id=p.event_id`
 
 func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
 	var p discussions.Post
 	var profile accounts.PublicProfile
 	var data []byte
-	err := row.Scan(&p.ID, &p.EventID, &p.ThreadID, &p.ParentID, &profile.ID, &profile.DisplayName, &profile.Bio, &p.Body, &p.CreatedAt, &p.UpdatedAt, &p.Removed, &data, &p.Meta.DataAsOf, &p.ReplyCount, &p.HelpfulCount, &p.Helpful, &p.ParentName)
+	err := row.Scan(&p.ID, &p.EventID, &p.ThreadID, &p.ParentID, &profile.ID, &profile.DisplayName, &profile.Bio, &p.Body, &p.CreatedAt, &p.UpdatedAt, &p.Removed, &p.Hidden, &data, &p.Meta.DataAsOf, &p.ReplyCount, &p.HelpfulCount, &p.Helpful, &p.ParentName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return p, discussions.ErrNotFound
 	}
@@ -55,7 +55,10 @@ func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
 		return p, discussions.ErrUnavailable
 	}
 	p.Meta.Stale = true
-	if p.Removed {
+	if p.Removed || p.Hidden {
+		if p.Removed {
+			p.Hidden = false
+		}
 		p.Body = ""
 		p.ParentName = ""
 		p.HelpfulCount = 0
@@ -192,14 +195,14 @@ func (r *DiscussionRepository) Edit(ctx context.Context, owner, id, body string)
 	defer tx.Rollback()
 	var who string
 	var removed bool
-	err = tx.QueryRowContext(ctx, `SELECT account_id,removed_at IS NOT NULL FROM discussion_posts WHERE post_id=? FOR UPDATE`, id).Scan(&who, &removed)
+	err = tx.QueryRowContext(ctx, `SELECT account_id,(removed_at IS NOT NULL OR hidden_at IS NOT NULL) FROM discussion_posts WHERE post_id=? FOR UPDATE`, id).Scan(&who, &removed)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && (who != owner || removed)) {
 		return discussions.Post{}, discussions.ErrNotFound
 	}
 	if err != nil {
 		return discussions.Post{}, safeError("discussion edit", err)
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET updated_at=IF(BINARY body<>BINARY ?,UTC_TIMESTAMP(6),updated_at),body=? WHERE post_id=?`, body, body, id)
+	_, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET review_version=review_version+IF(BINARY body<>BINARY ?,1,0),updated_at=IF(BINARY body<>BINARY ?,UTC_TIMESTAMP(6),updated_at),body=? WHERE post_id=?`, body, body, body, id)
 	if err != nil {
 		return discussions.Post{}, safeError("discussion edit", err)
 	}
@@ -228,7 +231,7 @@ func (r *DiscussionRepository) Remove(ctx context.Context, owner, id string) err
 	if err != nil {
 		return safeError("discussion removal", err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET body='',updated_at=IF(removed_at IS NULL,UTC_TIMESTAMP(6),updated_at),removed_at=COALESCE(removed_at,UTC_TIMESTAMP(6)) WHERE post_id=?`, id); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET body='',review_version=review_version+IF(removed_at IS NULL,1,0),updated_at=IF(removed_at IS NULL,UTC_TIMESTAMP(6),updated_at),removed_at=COALESCE(removed_at,UTC_TIMESTAMP(6)) WHERE post_id=?`, id); err != nil {
 		return safeError("discussion removal", err)
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM post_helpful WHERE post_id=?`, id); err != nil {
@@ -248,7 +251,7 @@ func (r *DiscussionRepository) React(ctx context.Context, owner, id string, set 
 	}
 	defer tx.Rollback()
 	var removed bool
-	err = tx.QueryRowContext(ctx, `SELECT removed_at IS NOT NULL FROM discussion_posts WHERE post_id=? FOR UPDATE`, id).Scan(&removed)
+	err = tx.QueryRowContext(ctx, `SELECT (removed_at IS NOT NULL OR hidden_at IS NOT NULL) FROM discussion_posts WHERE post_id=? FOR UPDATE`, id).Scan(&removed)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && removed && set) {
 		return discussions.Post{}, discussions.ErrNotFound
 	}
@@ -281,7 +284,7 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 		where += ` AND p.root_id=?`
 		args = append(args, thread)
 	} else {
-		where += ` AND p.root_id IS NULL AND (p.removed_at IS NULL OR EXISTS(SELECT 1 FROM discussion_posts child WHERE child.root_id=p.post_id AND child.removed_at IS NULL))`
+		where += ` AND p.root_id IS NULL AND ((p.removed_at IS NULL AND p.hidden_at IS NULL) OR EXISTS(SELECT 1 FROM discussion_posts child WHERE child.root_id=p.post_id AND child.removed_at IS NULL AND child.hidden_at IS NULL))`
 	}
 	if event != "" {
 		where += ` AND p.event_id=?`
@@ -298,7 +301,7 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 		args = append(args, q.CategoryID)
 	}
 	var count int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*)`+postJoin+where+` AND p.removed_at IS NULL`, args...).Scan(&count); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*)`+postJoin+where+` AND p.removed_at IS NULL AND p.hidden_at IS NULL`, args...).Scan(&count); err != nil {
 		return nil, 0, safeError("discussion count", err)
 	}
 	op, order := "<", "DESC"

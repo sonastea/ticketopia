@@ -170,7 +170,7 @@ func (a *api) helpfulHandler(c echo.Context) error {
 	return c.JSON(200, post)
 }
 func (a *api) discussionView(c echo.Context, id string) home.DiscussionView {
-	v := home.DiscussionView{Enabled: a.discussionsEnabled(), Key: accounts.ID()}
+	v := home.DiscussionView{Enabled: a.discussionsEnabled(), ModerationEnabled: a.moderationEnabled(), Key: accounts.ID()}
 	if !v.Enabled {
 		return v
 	}
@@ -198,13 +198,14 @@ func (a *api) discussionCollectionPage(c echo.Context) error {
 	values := c.QueryParams()
 	origin := safeReturnURL(values.Get("return_to"))
 	parent := values.Get("reply_to")
-	for _, key := range []string{"return_to", "reply_to"} {
+	selected := values.Get("post_id")
+	for _, key := range []string{"return_to", "reply_to", "post_id"} {
 		if len(values[key]) > 1 {
 			return a.accountPageError(c, &accounts.ValidationError{Field: key, Message: "use one value"})
 		}
 		values.Del(key)
 	}
-	p := home.DiscussionPage{View: home.DiscussionView{Enabled: true, ViewerID: principal.Account.ID, CSRF: principal.CSRF, Key: accounts.ID()}, ReturnURL: origin, URL: c.Request().URL.RequestURI(), ParentID: parent}
+	p := home.DiscussionPage{View: home.DiscussionView{Enabled: true, ModerationEnabled: a.moderationEnabled(), ViewerID: principal.Account.ID, CSRF: principal.CSRF, Key: accounts.ID()}, ReturnURL: origin, URL: c.Request().URL.RequestURI(), ParentID: parent}
 	thread := c.Param("discussion_id")
 	if thread != "" {
 		root, err := a.discussions.Thread(c.Request().Context(), principal.Account.ID, id, thread)
@@ -220,7 +221,17 @@ func (a *api) discussionCollectionPage(c echo.Context) error {
 			}
 			p.ReplyTo = &target
 		}
+		if selected != "" {
+			target, err := a.discussions.Parent(c.Request().Context(), principal.Account.ID, id, thread, selected)
+			if err != nil {
+				return a.accountPageError(c, err)
+			}
+			p.Selected = &target
+		}
 	} else {
+		if selected != "" {
+			return a.accountPageError(c, &accounts.ValidationError{Field: "post_id", Message: "open a thread to select a contribution"})
+		}
 		if parent != "" {
 			return a.accountPageError(c, &accounts.ValidationError{Field: "reply_to", Message: "open a thread to reply"})
 		}
@@ -355,11 +366,14 @@ func safeDiscussionReturn(raw string) string {
 			return "/"
 		}
 		for k, v := range values {
-			if len(v) != 1 || (k != "return_to" && k != "reply_to" && k != "cursor" && k != "limit") {
+			if len(v) != 1 || (k != "return_to" && k != "reply_to" && k != "post_id" && k != "cursor" && k != "limit") {
 				return "/"
 			}
 		}
 		if values.Get("reply_to") != "" && (len(parts) != 4 || discussions.PostID(values.Get("reply_to")) != nil) {
+			return "/"
+		}
+		if values.Get("post_id") != "" && (len(parts) != 4 || discussions.PostID(values.Get("post_id")) != nil) {
 			return "/"
 		}
 		if len(values.Get("cursor")) > 1024 {

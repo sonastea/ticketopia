@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### 2026-10-07 — Private moderation and durable roles schema v8
+
+- Add hiding/review versions, private reports, append-only decisions and author requests.
+- Keep role membership/audits runtime-read-only; add audited operator grant/revoke CLI.
+  See [moderation](../moderation.md) and [upgrade/grants](../persistence.md).
+- Verify v7 preservation, races/rollback, privacy/restart and immediate role revocation;
+  require drained old traffic. Leave the running database and real role grants unchanged.
+
 ### 2026-10-07 — Recommendation feed and observation schema v7
 
 - Retain private withdrawn publication markers with cleared reasons; backfill

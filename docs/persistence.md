@@ -6,9 +6,10 @@ credentials/private preferences, schema-v3 [private saves/snapshots](saved-event
 schema-v4 [event interest](event-interest.md), and schema-v5
 [public recommendations](event-recommendations.md), and schema-v6
 [event discussions/Helpful](event-discussions.md), plus schema-v7 grouped recommendations
-and observe-only publication measurements. Discovery
+and observe-only publication measurements, and schema-v8
+[private reporting/moderation and durable roles](moderation.md). Discovery
 still reads its existing cache/provider services and does **not** write SQL. There
-are no reporting/moderation, ingestion scheduler, global provider
+are no notification jobs, ingestion scheduler, global provider
 budgets, database HA, or verified production backup/restore in this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
@@ -267,16 +268,16 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 7 only**. Versions 0–6 and 8+ are rejected;
+This binary supports **clean schema version 8 only**. Versions 0–7 and 9+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous discussion binary supports version 6 only.
-For the v6-to-v7 recommendation upgrade, stop/drain v6 traffic, preserve a backup,
-apply the v7 migration with the v7 image, reapply/reconcile runtime table grants,
-then start v7 apps. Do not leave v6 pods serving after migration; they will fail
+old binaries are gone. The previous recommendation binary supports version 7 only.
+For the v7-to-v8 moderation upgrade, stop/drain v7 traffic, preserve a backup,
+apply the v8 migration with the v8 image, reapply/reconcile runtime table grants,
+then start v8 apps. Do not leave v7 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
@@ -323,6 +324,14 @@ user/post Helpful choices. Root creation composes the event/snapshot transaction
 replies, edits, removal, and direct threads need no provider. Runtime cannot DELETE
 posts; INSERT/UPDATE and reaction INSERT/UPDATE/DELETE are explicitly granted.
 See [discussions](event-discussions.md) for retention, limits, and API/UI behavior.
+
+Schema v8 adds independent moderator hiding/review versions, private reports,
+append-only decisions, author requests, and stable account-ID-keyed moderator
+roles/audits. Runtime gets report/request INSERT/UPDATE and decision INSERT only;
+role membership/audits remain SELECT-only. The explicit operator CLI atomically
+grants/revokes roles and records an audit with separate migration credentials.
+No account is promoted by default; current-role checks make revocation effective
+without a restart. See [moderation](moderation.md) for bootstrap, privacy, and retention.
 Schema v7 retains withdrawn recommendations with cleared reasons and a private
 original-publication marker. `recommendation_feed_events` keeps immutable event
 positions, backfilled from earliest surviving endorsements. `recommendation_activity`

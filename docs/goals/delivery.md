@@ -5,7 +5,7 @@ detail pages, the MariaDB connection/migration/identity foundation, and opt-in
 Google accounts/profiles/private preferences, durable private saves, Interested
 with privacy controls/counts/public-opt-in activity, and public recommendations are
 implemented, along with event questions/replies/Helpful and conversation browsing.
-Reporting/moderation and broader persistence remain planned.
+Basic private reporting/moderation is implemented; broader persistence remains planned.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -16,7 +16,7 @@ does not complete a UI outcome, and a cache does not complete durable storage.
 The updated release combines location-based discovery across **all Ticketmaster
 event categories** with event-centered community participation. Category-aware
 discovery, account/profile/preferences, private saves, Interested, and public
-recommendations and discussions/Helpful are implemented; reporting/moderation remain planned.
+recommendations, discussions/Helpful, and basic reporting/moderation are implemented.
 The [design guidelines](../design-guidelines.md) own screen/navigation behavior.
 Section numbers below group capabilities; they do not force reminders/ranking
 to ship before community work.
@@ -177,9 +177,10 @@ Build backend/API and UI together for each small outcome:
   adding/removing Helpful reactions.
 - [ ] Later Backend: Persist followed discussions and preference-aware activity jobs.
 - [ ] Later Frontend: Follow/unfollow conversations and surface useful activity updates.
-- [ ] Backend: Support private reports, authorized moderator review, decision
+- [x] Backend: Support private reports, authorized moderator review, decision
   records, reporter acknowledgment, and appropriate author outcomes.
-- [ ] Frontend: Provide private reporting/status and a moderator review workflow.
+- [x] Frontend: Provide private reporting/status and a moderator review workflow.
+  See [moderation](../moderation.md) for durable roles, bootstrap, privacy and verification.
 - [ ] Later Frontend: Offer post-show Went choices and reflection prompts using the
   same participation and conversation services.
 - [ ] Later: Add distinct Going/Went records and visibility controls, without
