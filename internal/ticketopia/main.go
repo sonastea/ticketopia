@@ -99,6 +99,7 @@ func Execute(ctx context.Context) int {
 	}()
 
 	provider := discovery.New(ctx, cache, logger, providerConfig)
+	defer provider.WaitRefreshes()
 	options = append([]api.Option{api.WithDiscovery(provider)}, options...)
 	api, err := api.NewAPI(ctx, logger, cache, options...)
 	if err != nil {

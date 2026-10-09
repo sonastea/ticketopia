@@ -34,23 +34,39 @@ Missing/due coverage triggers one broadly scoped on-demand collection, independe
 of the configured city list. It clears category/genre/keyword filters and, for city
 searches, artist/venue IDs so later local filters reuse the same coverage. Without
 a city, supplied artist/venue IDs retain their scope. Claims are SQL-fenced across
-replicas with 30-second leases; foreground work is bounded to 12 seconds and ten
-100-event pages. Each page commits public metadata/history and distinct-event
+replicas with 30-second leases; collection is bounded to ten 100-event pages,
+each with a fresh 20-second fetch-and-ingestion deadline. Earlier pages do not
+consume later pages' SQL budget; successful commits renew the lease. Stored
+results, including previously collected empty searches,
+return immediately with their existing freshness/coverage labels while due
+collection runs in the background. A cold search waits at most 12 seconds for
+collection, then reads any committed results with their partial/not-collected
+coverage labels while collection continues. Request cancellation stops the wait,
+not the collection. Collection uses the service lifecycle, not the initiating
+browser's context: a disconnected/timed-out visitor cannot roll back ingestion
+shared by other visitors. Shutdown drains collection before closing SQL/cache.
+Each page commits public metadata/history and distinct-event
 evidence atomically. Page transactions allow at least ten seconds (or the longer
-configured SQL timeout), clipped by the foreground collection deadline; ordinary
+configured SQL timeout), clipped by that page's deadline; ordinary
 reads retain the configured query timeout. Only stable totals matching contiguous pages/distinct events
 establish complete coverage. Interrupted/capped/shifted collections remain partial;
 previous complete success is retained. Failed requests retry after an hour or the
 longer provider reset, partial/capped attempts after the freshness interval. Long
 on-demand ranges may hit the cap; shorten dates or configure one-day scheduling.
 On-demand scopes refresh when requested, not through a permanent new city schedule.
+Failed ingestion also finalizes the scope as failed/partial with a separate
+five-second cleanup deadline, releasing ownership rather than leaving it running
+until lease expiry. HTML is rendered before committing a response, so a render
+failure cannot send partial HTML followed by a second error status/body.
 
 `meta.coverage.status` and website copy distinguish `complete`, `partial`, `stale`,
 and `not_collected`, with complete-date counts and total requested dates. An empty
 uncollected/partial/stale search is never presented as a confirmed no-events result.
 `data_as_of` is null when no successful collection or retained snapshot exists.
 Coverage reports evidence, not an atomic upstream snapshot or ticket inventory.
-Optional taxonomy failures never prevent the stored event list from rendering.
+Optional taxonomy failures never prevent the stored event list from rendering;
+the page waits at most one second for categories while their shared cache refresh
+can continue for later requests.
 Public searches/history contain no save/follow/interest ownership or preferences;
 coverage stores broad public scopes, not users' search keywords or identities.
 

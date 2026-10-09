@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -137,5 +138,46 @@ func TestUnavailableResponsesAreVisibleAndRedacted(t *testing.T) {
 		if strings.HasPrefix(path, "/?") && !strings.Contains(rec.Body.String(), `role="alert"`) {
 			t.Fatal("HTML error not visible")
 		}
+	}
+}
+
+func TestOptionalCategoriesDoNotHoldEventPage(t *testing.T) {
+	fixture := categoryFixture(t)
+	started, release := make(chan struct{}), make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "classifications") {
+			close(started)
+			<-release
+			_, _ = w.Write(fixture)
+			return
+		}
+		fmt.Fprint(w, `{"page":{"number":0,"totalElements":1,"totalPages":1},"_embedded":{"events":[{"id":"ready","name":"Available show"}]}}`)
+	}))
+	defer upstream.Close()
+	cache := kv.NewMemory()
+	defer cache.Close()
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	routes := a.Routes()
+	done := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		response := httptest.NewRecorder()
+		routes.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/?city=Boston", nil))
+		done <- response
+	}()
+	<-started
+	select {
+	case response := <-done:
+		close(release)
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Available show") {
+			t.Fatalf("optional taxonomy lost event results: %d %s", response.Code, response.Body.String())
+		}
+	case <-time.After(2 * time.Second):
+		close(release)
+		<-done
+		t.Fatal("optional taxonomy held usable event results")
+	}
+	// The short page deadline must not cancel the shared taxonomy cache refresh.
+	if categories, err := a.events.Categories(t.Context()); err != nil || len(categories.Items) == 0 {
+		t.Fatalf("optional refresh did not complete for later requests: %+v %v", categories, err)
 	}
 }

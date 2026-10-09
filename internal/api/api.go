@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
@@ -177,7 +178,11 @@ func (a *api) Routes() *echo.Echo {
 }
 
 func render(ctx echo.Context, status int, t templ.Component) error {
-	ctx.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTMLCharsetUTF8)
-	ctx.Response().Writer.WriteHeader(status)
-	return t.Render(ctx.Request().Context(), ctx.Response().Writer)
+	// Do not commit partial HTML when rendering fails (including cancellation).
+	// Let Echo track the successful write so its error handler cannot write twice.
+	var body bytes.Buffer
+	if err := t.Render(ctx.Request().Context(), &body); err != nil {
+		return err
+	}
+	return ctx.Blob(status, echo.MIMETextHTMLCharsetUTF8, body.Bytes())
 }

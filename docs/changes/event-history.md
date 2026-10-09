@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### 2026-10-09 — Keep Discover usable during refresh and cancellation
+
+- Serve retained catalog results immediately during due collection; isolate
+  shared refreshes from browser cancellation and drain them before SQL/cache close.
+- Finalize failed/partial ingestion with bounded cleanup so interrupted writes
+  do not leave the scope running until its lease expires.
+- Give each on-demand page a fresh 20-second fetch/ingestion budget instead of
+  sharing 12 seconds across the entire scan. Bound cold-request waits to 12
+  seconds without canceling collection; regression-test later-page SQL time,
+  partial-to-complete background progress and stalled-page cleanup.
+- Buffer HTML and commit through Echo, preventing partial pages and duplicate
+  response headers when rendering fails; cap the optional page taxonomy wait at
+  one second. Regression-test cancellation, retained reads, failure receipts,
+  shutdown, slow optional metadata and response tracking.
+- See [stored Discover behavior](../event-history.md#stored-discover-and-coverage-aware-reads).
+
 ### 2026-10-08 — Durable observations and budgeted city/date collection
 
 - Finish the website integration in schema 11: existing Discover/event-list API

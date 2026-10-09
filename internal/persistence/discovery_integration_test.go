@@ -38,7 +38,9 @@ func catalogService(t *testing.T, p *Pool, upstream string, budget int) *discove
 	t.Helper()
 	cache := kv.NewMemory()
 	t.Cleanup(func() { _ = cache.Close() })
-	return discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "catalog-fixture", BaseURL: upstream, Catalog: p.Discovery(), Coordinator: p.ProviderBudget("catalog-fixture", budget), DailyBudget: budget})
+	s := discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "catalog-fixture", BaseURL: upstream, Catalog: p.Discovery(), Coordinator: p.ProviderBudget("catalog-fixture", budget), DailyBudget: budget})
+	t.Cleanup(s.WaitRefreshes)
+	return s
 }
 func fixtureCatalog(w http.ResponseWriter, r *http.Request, total int) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -181,6 +183,7 @@ func TestMariaDBDiscoverOnDemandOutageQuotaRestartAndAPI(t *testing.T) {
 	// Expire receipts, exhaust the durable allowance, and retain stored pages.
 	execSQL(t, f.admin, `UPDATE `+f.runtime.Database+`.discovery_scopes SET last_success=TIMESTAMPADD(HOUR,-8,UTC_TIMESTAMP(6)),next_refresh=UTC_TIMESTAMP(6)`)
 	list, err = restarted.Events(t.Context(), q)
+	restarted.WaitRefreshes()
 	if err != nil || !list.Meta.Stale || list.Meta.Coverage.Status != "stale" || list.Total != 105 || calls.Load() != 2 {
 		t.Fatalf("quota fallback %+v %v", list, err)
 	}
@@ -190,6 +193,7 @@ func TestMariaDBDiscoverOnDemandOutageQuotaRestartAndAPI(t *testing.T) {
 	outage.Store(true)
 	restarted = catalogService(t, f.open(t), upstream.URL, 2)
 	list, err = restarted.Events(t.Context(), q)
+	restarted.WaitRefreshes()
 	if err != nil || !list.Meta.Stale || list.Total != 105 || calls.Load() != 3 {
 		t.Fatalf("outage fallback %+v %v calls=%d", list, err, calls.Load())
 	}

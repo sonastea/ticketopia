@@ -121,8 +121,12 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		// pause this search before it reaches the shared provider request gate.
 		page.Events, err = a.events.Events(c.Request().Context(), page.Filters)
 		if !partial {
+			// Taxonomy is optional. Its shared cache refresh can continue, but it
+			// must not hold an otherwise usable page behind a slow provider.
+			catalogCtx, cancel := context.WithTimeout(c.Request().Context(), time.Second)
 			var catalogErr error
-			page.Categories, catalogErr = a.events.Categories(c.Request().Context())
+			page.Categories, catalogErr = a.events.Categories(catalogCtx)
+			cancel()
 			page.CategoriesUnavailable = catalogErr != nil
 		}
 	}

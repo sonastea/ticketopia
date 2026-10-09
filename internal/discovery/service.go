@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -34,6 +35,7 @@ type Service struct {
 	client      *http.Client
 	gate        requestGate
 	flights     singleflight.Group
+	refreshes   sync.WaitGroup
 	now         func() time.Time
 	coordinator Coordinator
 	catalog     Catalog
@@ -63,6 +65,11 @@ func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Conf
 		catalog: config.Catalog, freshFor: config.FreshFor,
 	}
 }
+
+// WaitRefreshes drains on-demand catalog work before cache/database resources are
+// closed. Stop accepting Events calls before waiting; the service context bounds
+// collection and completion has its own short cleanup deadline.
+func (s *Service) WaitRefreshes() { s.refreshes.Wait() }
 
 type eventPage struct {
 	Items      []models.Event `json:"items"`
