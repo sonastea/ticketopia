@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/models"
 )
@@ -15,13 +16,16 @@ type DiscussionView struct {
 	List                       discussions.List
 }
 type DiscussionPage struct {
-	Event                    models.Event
-	Meta                     models.Freshness
-	Root                     *discussions.Post
-	ReplyTo                  *discussions.Post
-	Selected                 *discussions.Post
-	View                     DiscussionView
-	ReturnURL, URL, ParentID string
+	Event                              models.Event
+	Meta                               models.Freshness
+	Root                               *discussions.Post
+	ReplyTo                            *discussions.Post
+	Selected                           *discussions.Post
+	Follow                             *discussionfollows.Follow
+	FollowEnabled, NotificationsPaused bool
+	FollowError                        string
+	View                               DiscussionView
+	ReturnURL, URL, ParentID           string
 }
 type DiscussionCommunityPage struct {
 	Enabled               bool

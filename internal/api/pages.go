@@ -63,6 +63,9 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 }
 
 func safeReturnURL(raw string) string {
+	if strings.HasPrefix(raw, "/me/discussions") || strings.HasPrefix(raw, "/me/notifications") {
+		return safeDiscussionFollowReturn(raw)
+	}
 	if strings.HasPrefix(raw, "/radar") {
 		return safeRadarReturn(raw)
 	}

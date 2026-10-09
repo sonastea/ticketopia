@@ -66,6 +66,8 @@ templ Settings(p Page) {
 				<a href="/me/preferences" aria-current={ layouts.CurrentPage(p.Section == "preferences") }>Preferences</a>
 				<a href="/me/interests" aria-current={ layouts.CurrentPage(p.Section == "interests") }>Interests</a>
 				<a href="/follows">Follows</a>
+				<a href="/me/discussions">Followed discussions</a>
+				<a href="/me/notifications">Reply notifications</a>
 				if p.ModerationEnabled {
 					<a href="/me/reports">Your reports</a><a href="/me/moderation">Moderation outcomes</a>
 					if p.Moderator {
@@ -211,8 +213,8 @@ templ Preferences(p Page) {
 			@input.Input(input.Props{ID:"timezone",Name:"timezone",Value:p.Account.Preferences.Timezone,Required:true,Attributes:templ.Attributes{"maxlength":"64","aria-describedby":"timezone-help"}})
 		}
 		<p id="timezone-help" class="field-note">Use an IANA time zone such as America/Chicago or Europe/Berlin. Event times still use the venue's time zone.</p>
-		<fieldset class="account-checkboxes"><legend>Future notification preferences</legend>
-			<p class="field-note">Reminders and digests aren't delivered yet. These preferences are stored privately for when those features are available.</p>
+		<fieldset class="account-checkboxes"><legend>Notification preferences</legend>
+			<p class="field-note">Pause controls in-app reply notifications for followed discussions. Email reminders and discovery digests aren't delivered yet; those preferences are stored for later.</p>
 			<label><input type="checkbox" name="email_reminders" checked?={ p.Account.Preferences.EmailReminders }/><span>Public on-sale and meaningful event-change emails</span></label>
 			<label><input type="checkbox" name="weekly_digest" checked?={ p.Account.Preferences.WeeklyDigest }/><span>Weekly discovery digest</span></label>
 			<label><input type="checkbox" name="notifications_paused" checked?={ p.Account.Preferences.NotificationsPaused }/><span>Pause all notifications</span></label>

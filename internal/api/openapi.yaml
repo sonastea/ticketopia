@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.11.0
+  version: 1.12.0
   license:
     name: MIT
     identifier: MIT
@@ -13,7 +13,8 @@ info:
     receipts and dated event history. Data is never a live ticket inventory.
     Opt-in Google authentication provides MariaDB-backed profiles and private
     preferences, private personalized radar, durable event saves and artist/venue follows, independent event interest, public
-    recommendations, and asynchronous event discussions with Helpful reactions.
+    recommendations, and asynchronous event discussions with Helpful reactions,
+    private conversation follows and frequency-controlled in-app reply notifications.
     Interest identity is private by default; counts include private choices but
     participant lists and profile activity include only explicitly public choices.
     Account APIs use a browser session or a user-scoped API token;
@@ -1228,6 +1229,142 @@ paths:
         '409': {$ref: '#/components/responses/DiscussionConflict'}
         '429': {$ref: '#/components/responses/AccountRateLimited'}
         '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/events/{event_id}/discussions/{discussion_id}/follow:
+    parameters:
+      - {$ref: '#/components/parameters/DiscussionEventID'}
+      - {$ref: '#/components/parameters/DiscussionID'}
+    get:
+      operationId: getDiscussionFollow
+      summary: Read your private conversation follow
+      description: No query parameters. Missing follow or event/thread mismatch returns 404. Root uses the current moderation-filtered public projection, with no private reporting details.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionFollow'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+    put:
+      operationId: setDiscussionFollow
+      summary: Follow a conversation or replace its notification frequency
+      description: |
+        Private, explicit opt-in; posting does not auto-follow. No historical replay.
+        Immediate delivers each new reply by someone else; daily groups replies until
+        next midnight UTC, weekly until next Monday midnight UTC. Muted keeps the
+        follow without delivery. Account notifications_paused overrides delivery and
+        suppresses enqueue while paused. Frequency changes cancel unread envelopes;
+        unchanged retries preserve follow time and pending notifications. Hidden or
+        removed roots can be retained as follows but do not deliver notifications.
+        No email/push. Strict JSON, no query. Cookie writes require CSRF/same-origin.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [frequency]
+              properties:
+                frequency: {$ref: '#/components/schemas/DiscussionFrequency'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionFollow'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+    delete:
+      operationId: removeDiscussionFollow
+      summary: Unfollow and discard this conversation's notifications
+      description: Owner-only, empty body, no query. Idempotent 204 even when absent. Re-following does not replay old replies. Cookie writes require CSRF/same-origin.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '204': {description: Follow and notifications removed or already absent.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/me/discussions:
+    get:
+      operationId: listFollowedDiscussions
+      summary: List your private followed conversations
+      description: Newest followed first, binary thread ID tie-break. Owner/collection-bound keyset cursors; no snapshot pin. Removed/hidden roots remain content-free placeholders. Private, no-store. Unknown/repeated query parameters are rejected.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/DiscussionCursor'}
+      responses:
+        '200':
+          description: Your follows, never another account's choices.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/DiscussionFollow'}}
+                  next_cursor: {type: [string, 'null']}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/me/notifications:
+    get:
+      operationId: listDiscussionNotifications
+      summary: Read your private in-app reply notification inbox
+      description: |
+        Due envelopes only, newest available_at first with binary ID tie-break and
+        owner/collection-bound keyset cursors. Live visibility is rechecked for root
+        and replies; hidden/removed replies never count or become link targets.
+        Hidden/removed roots suppress the whole envelope. No post excerpts, authors,
+        reports, reasons, notes or private evidence. url selects the latest visible
+        reply independently of reply pagination. Read envelopes remain in the inbox.
+        Account pause or muted follow suppresses inbox delivery. Private, no-store.
+        No historical replay, polling, email, or push transport is provided.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/DiscussionCursor'}
+      responses:
+        '200':
+          description: Due, currently visible reply updates.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/DiscussionNotification'}}
+                  next_cursor: {type: [string, 'null']}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/me/notifications/{notification_id}/read:
+    parameters:
+      - name: notification_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/AccountID'}
+    put:
+      operationId: markDiscussionNotificationRead
+      summary: Mark your delivered notification read
+      description: Empty body, no query. Idempotent for a delivered notification. Not-owned, not-due, muted/paused or hidden updates return 404. Cookie writes require CSRF/same-origin.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '204': {description: Marked read or already read.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
   /api/v1/posts/{post_id}:
     parameters:
       - {$ref: '#/components/parameters/PostID'}
@@ -1705,6 +1842,11 @@ components:
       content:
         application/json:
           schema: {$ref: '#/components/schemas/DiscussionPost'}
+    DiscussionFollow:
+      description: Your private follow with currently filtered root context.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/DiscussionFollow'}
     DiscussionList:
       description: Paginated public contributions with independent visible-root or reply count.
       content:
@@ -1920,6 +2062,33 @@ components:
         helpful: {type: boolean, description: This authenticated viewer's choice; false for guests.}
         event: {$ref: '#/components/schemas/Event'}
         meta: {$ref: '#/components/schemas/Freshness'}
+    DiscussionFrequency:
+      type: string
+      enum: [immediate, daily, weekly, muted]
+    DiscussionFollow:
+      type: object
+      additionalProperties: false
+      required: [event_id, thread_id, frequency, created_at, root]
+      properties:
+        event_id: {$ref: '#/components/schemas/ResourceID'}
+        thread_id: {$ref: '#/components/schemas/AccountID'}
+        frequency: {$ref: '#/components/schemas/DiscussionFrequency'}
+        created_at: {type: string, format: date-time}
+        root: {$ref: '#/components/schemas/DiscussionPost'}
+    DiscussionNotification:
+      type: object
+      additionalProperties: false
+      required: [id, event_id, thread_id, post_id, event_name, reply_count, available_at, read, url]
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        event_id: {$ref: '#/components/schemas/ResourceID'}
+        thread_id: {$ref: '#/components/schemas/AccountID'}
+        post_id: {$ref: '#/components/schemas/AccountID'}
+        event_name: {type: string}
+        reply_count: {type: integer, minimum: 1}
+        available_at: {type: string, format: date-time}
+        read: {type: boolean}
+        url: {type: string, description: 'Same-origin relative URL selecting the latest visible reply, including post_id and fragment.'}
     DiscussionList:
       type: object
       additionalProperties: false

@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/follows"
 	"github.com/sonastea/ticketopia/internal/interests"
@@ -79,6 +80,9 @@ func (a *api) cookie(c echo.Context, kind, raw string, lifetime time.Duration) {
 // Only a local, known page may be resumed. Never redirect to an auth endpoint,
 // encoded slash/backslash, external origin, or user-controlled fragment.
 func safeAuthReturn(raw string) string {
+	if strings.HasPrefix(raw, "/me/discussions") || strings.HasPrefix(raw, "/me/notifications") {
+		return safeDiscussionFollowReturn(raw)
+	}
 	if strings.HasPrefix(raw, "/radar") {
 		return safeRadarReturn(raw)
 	}
@@ -281,7 +285,7 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 404, "post_not_found", "This contribution couldn't be found or changed.", nil
 	case errors.Is(err, discussions.ErrConflict):
 		return 409, "idempotency_conflict", "This retry key was used for a different contribution. Use a new key for a new post.", nil
-	case errors.Is(err, discussions.ErrUnavailable):
+	case errors.Is(err, discussions.ErrUnavailable), errors.Is(err, discussionfollows.ErrUnavailable):
 		return 503, "discussions_unavailable", "Discussions couldn't load or change. Please try again shortly.", nil
 	case errors.Is(err, moderation.ErrForbidden):
 		return 403, "moderator_access_required", "Moderator access is required. Another moderator must handle cases about your own contributions; check your moderation outcomes instead.", nil

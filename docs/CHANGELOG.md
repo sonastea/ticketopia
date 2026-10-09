@@ -5,6 +5,7 @@ one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
 - 2026-10-09 — [Reliable event history](changes/event-history.md)
+- 2026-10-08 — [Followed discussions](changes/followed-discussions.md)
 - 2026-10-08 — [Personal radar and reminders](changes/personal-radar.md)
 - 2026-10-08 — [Private artist and venue follows](changes/follows.md)
 - 2026-10-08 — [Container deployment](changes/deployment.md)

@@ -166,6 +166,9 @@ func TestMariaDBRadarBroadRefreshReuseAndOutage(t *testing.T) {
 	execSQL(t, f.admin, `UPDATE `+f.runtime.Database+`.discovery_scopes SET last_success=TIMESTAMPADD(DAY,-1,UTC_TIMESTAMP(6)),next_refresh=TIMESTAMPADD(DAY,-1,UTC_TIMESTAMP(6))`)
 	failed.Store(true)
 	list, err = service.List(t.Context(), owner.ID, nil)
+	// Retained results return before the background outage attempt finishes;
+	// drain it before asserting provider accounting and durable retry receipts.
+	discover.WaitRefreshes()
 	if err != nil || len(list.Items) != 1 || list.Meta.Coverage.Status != "stale" || !list.Meta.Stale || calls.Load() != 2 {
 		t.Fatal("outage erased records or fabricated fresh coverage", list, err, calls.Load())
 	}

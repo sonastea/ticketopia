@@ -29,6 +29,8 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Followed discussions](followed-discussions.md): private conversation subscriptions,
+  frequency-controlled in-app reply updates and visibility-safe exact reply links.
 - [Personalized radar](radar.md): private nearby matches from follows/category
   preferences, structured explanations, first-run/freshness states and versioned pagination.
 - [Private artist and venue follows](follows.md): authenticated name search,

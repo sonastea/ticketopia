@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/follows"
@@ -33,22 +34,23 @@ import (
 var openAPI []byte
 
 type api struct {
-	logger          zerolog.Logger
-	events          *discovery.Service
-	locations       *location.Resolver
-	ipExtractor     echo.IPExtractor
-	shutdown        <-chan struct{}
-	ready           func(context.Context) error
-	durable         *events.Service
-	accounts        *accounts.Service
-	authConfig      accounts.Config
-	saved           *saved.Service
-	follows         *follows.Service
-	radar           *radar.Service
-	interests       *interests.Service
-	recommendations *recommendations.Service
-	discussions     *discussions.Service
-	moderation      *moderation.Service
+	logger            zerolog.Logger
+	events            *discovery.Service
+	locations         *location.Resolver
+	ipExtractor       echo.IPExtractor
+	shutdown          <-chan struct{}
+	ready             func(context.Context) error
+	durable           *events.Service
+	accounts          *accounts.Service
+	authConfig        accounts.Config
+	saved             *saved.Service
+	follows           *follows.Service
+	radar             *radar.Service
+	interests         *interests.Service
+	recommendations   *recommendations.Service
+	discussions       *discussions.Service
+	discussionFollows *discussionfollows.Service
+	moderation        *moderation.Service
 }
 
 type Option func(*api)
@@ -74,6 +76,9 @@ func WithEventRecommendations(repository recommendations.Repository) Option {
 
 func WithEventDiscussions(repository discussions.Repository) Option {
 	return func(a *api) { a.discussions = discussions.New(repository, interestDetails{a}) }
+}
+func WithDiscussionFollows(repository discussionfollows.Repository) Option {
+	return func(a *api) { a.discussionFollows = discussionfollows.New(repository) }
 }
 func WithModeration(repository moderation.Repository) Option {
 	return func(a *api) { a.moderation = moderation.New(repository) }
@@ -159,6 +164,7 @@ func (a *api) Routes() *echo.Echo {
 	a.interestRoutes(e)
 	a.recommendationRoutes(e)
 	a.discussionRoutes(e)
+	a.discussionFollowRoutes(e)
 	a.moderationRoutes(e)
 	a.accountRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))

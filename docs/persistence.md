@@ -10,11 +10,13 @@ and observe-only publication measurements, and schema-v8
 [private reporting/moderation and durable roles](moderation.md), and schema-v9
 [reliable event history](event-history.md), plus schema-v10
 [private artist/venue follows](follows.md), and schema-v11 stored Discover and public
-history reads. MariaDB discovery uses SQL plus coverage-aware collection/fallback;
+history reads, and schema-v12 [followed discussions and in-app reply notifications](followed-discussions.md).
+MariaDB discovery uses SQL plus coverage-aware collection/fallback;
 database-free mode retains cache/provider services. MariaDB mode shares durable request budgets/pacing/cooldowns.
 Opt-in city/date collection and fresh activity snapshots persist observations,
-artist/venue catalogs, coverage and change evidence. There are no notification
-jobs, database HA, or verified production backup/restore in this slice.
+artist/venue catalogs, coverage and change evidence. Durable in-app reply envelopes
+are implemented; external notification delivery, database HA and verified production
+backup/restore remain outside this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
 [`internal/persistence`](../internal/persistence/), shared durable services in
@@ -292,22 +294,27 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 11 only**. Versions 0–10 and 12+ are rejected;
+This binary supports **clean schema version 12 only**. Versions 0–11 and 13+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous follow binary supports version 10 only.
-For the v10-to-v11 stored Discover upgrade, stop/drain v10 traffic, preserve a backup,
-apply the v11 migration with the v11 image, reapply/reconcile runtime table grants,
-then start v11 apps. Do not leave v10 pods serving after migration; they will fail
+old binaries are gone. The previous stored Discover binary supports version 11 only.
+For the v11-to-v12 followed discussion upgrade, stop/drain v11 traffic, preserve a backup,
+apply the v12 migration with the v12 image, reapply/reconcile runtime table grants,
+then start v12 apps. Do not leave v11 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
 
 ## Durable identity boundary
+
+Schema v12 adds private conversation follows, notification envelopes and reply
+references. Queue writes share the reply transaction; inbox reads recheck live
+visibility and never join reporting evidence. Unfollowing cascades cleanup.
+See [followed discussions](followed-discussions.md).
 
 Schema v11 adds public search place/facet projections, indexed city/date and
 date/name reads, durable on-demand coverage claims/evidence, and missing-event

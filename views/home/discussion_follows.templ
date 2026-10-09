@@ -1,0 +1,141 @@
+package home
+
+import "fmt"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/label"
+import selectcomp "github.com/sonastea/ticketopia/views/components/select"
+
+templ ConversationFollow(event,thread,frequency,csrf,returnURL string,paused bool) {
+	<details class="recommendation-editor">
+		<summary>
+			if frequency=="" {
+				Follow this conversation
+			} else {
+				Following · { frequency }
+			}
+		</summary>
+		<p class="field-note">Following is private. Get in-app updates for new replies from other people, not edits, Helpful, or reports. Daily and weekly replies are grouped at midnight UTC and Monday midnight UTC.</p>
+		if paused {
+			<p class="field-note">All notifications are paused. <a href="/me/preferences" class="text-link">Resume in Preferences</a> to receive future replies.</p>
+		}
+		<form action="/discussion-follow-actions" method="post" class="account-form">
+			<input type="hidden" name="csrf_token" value={ csrf }/>
+			<input type="hidden" name="event_id" value={ event }/>
+			<input type="hidden" name="thread_id" value={ thread }/>
+			<input type="hidden" name="return_to" value={ returnURL }/>
+			@label.Label(label.Props{For:"follow-frequency-"+thread,Class:"field"}) {
+				Reply notification frequency
+				@selectcomp.Native(selectcomp.NativeProps{ID:"follow-frequency-"+thread,Name:"frequency"}) {
+					<option value="immediate" selected?={ frequency=="" || frequency=="immediate" }>Every new reply</option>
+					<option value="daily" selected?={ frequency=="daily" }>Daily summary</option>
+					<option value="weekly" selected?={ frequency=="weekly" }>Weekly summary</option>
+					<option value="muted" selected?={ frequency=="muted" }>Muted · keep in followed discussions</option>
+				}
+			}
+			<div class="account-actions">
+				@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Attributes:templ.Attributes{"name":"action","value":"follow"}}) {
+					if frequency=="" {
+						Follow conversation
+					} else {
+						Save frequency
+					}
+				}
+				if frequency!="" {
+					@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Attributes:templ.Attributes{"name":"action","value":"unfollow"}}) {
+						Unfollow
+					}
+				}
+			</div>
+			if frequency!="" {
+				<p class="field-note">Changing frequency cancels unread updates. Unfollowing removes this conversation's notifications.</p>
+			}
+		</form>
+	</details>
+}
+
+templ FollowedDiscussions(p DiscussionFollowPage) {
+	@layouts.App("profile","Your conversations") {
+		<main id="main" class="destination-page discussion-page">
+			<header>
+				if p.Notifications {
+					<h1>Reply notifications</h1>
+				} else {
+					<h1>Followed discussions</h1>
+				}
+				<p class="intro">Your private way back to event conversations. Updates appear here in Ticketopia; no email or push is sent.</p>
+			</header>
+			<nav class="account-nav" aria-label="Conversation sections">
+				<a href="/me/discussions" aria-current={ layouts.CurrentPage(!p.Notifications) }>Followed discussions</a>
+				<a href="/me/notifications" aria-current={ layouts.CurrentPage(p.Notifications) }>Reply notifications</a>
+				<a href="/me/preferences">Notification preferences</a>
+				<a href="/me">Profile</a>
+			</nav>
+			if p.Paused {
+				<p class="field-note">All notifications are paused. Resume in Preferences to receive future activity. Your follows are kept.</p>
+			}
+			if p.Error!="" {
+				<p role="alert">{ p.Error }</p><a href={ templ.URL(p.URL) } class="text-link">Retry this page</a>
+			} else if p.Notifications {
+				if len(p.Inbox.Items)==0 {
+					<p>No reply updates on this page. Follow a conversation and choose a frequency to receive future replies.</p>
+				}
+				<ul class="discussion-list">
+					for _,n:=range p.Inbox.Items {
+						<li class="discussion-post">
+							<h2>{ n.EventName }</h2>
+							<p><strong>{ fmt.Sprint(n.ReplyCount) }</strong>
+								if n.ReplyCount==1 {
+									new reply ·
+								} else {
+									new replies ·
+								}
+								if n.Read {
+									Read
+									} else {
+									Unread
+								}
+							</p>
+							<time class="event-date" datetime={ n.AvailableAt.Format("2006-01-02T15:04:05Z07:00") }>{ n.AvailableAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time>
+							<div class="account-actions">
+								<a href={ templ.URL(n.URL) } class="text-link">Open conversation at reply</a>
+								if !n.Read {
+									<form action="/discussion-follow-actions" method="post">
+										<input type="hidden" name="csrf_token" value={ p.CSRF }/><input type="hidden" name="notification_id" value={ n.ID }/><input type="hidden" name="return_to" value={ p.URL }/>
+										@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"name":"action","value":"read"}}) {
+											Mark read
+										}
+									</form>
+								}
+							</div>
+						</li>
+					}
+				</ul>
+				if p.Inbox.NextCursor!=nil {
+					<a href={ templ.URL(CollectionNextURL(p.URL,p.Inbox.NextCursor)) } class="text-link">More notifications</a>
+				}
+			} else {
+				if len(p.Follows.Items)==0 {
+					<p>No followed conversations yet. Open a conversation, then choose Follow this conversation.</p><a href="/community/discussions" class="text-link">Browse conversations</a>
+				}
+				<ul class="discussion-list">
+					for _,f:=range p.Follows.Items {
+						<li class="discussion-post">
+							<h2>{ f.Root.Event.Name }</h2><p class="event-date">{ startLabel(f.Root.Event.Start) }</p><p class="event-venue">{ venueLabel(f.Root.Event) }</p>
+							if f.Root.Hidden || f.Root.Removed {
+								<p class="field-note">This conversation's original contribution is no longer visible. Notifications are withheld; remaining replies can still be read.</p>
+							} else {
+								<p class="discussion-body">{ f.Root.Body }</p>
+							}
+							<a href={ templ.URL(ThreadURL(f.EventID,f.ThreadID,p.URL)) } class="text-link">Open conversation</a>
+							@ConversationFollow(f.EventID,f.ThreadID,f.Frequency,p.CSRF,p.URL,p.Paused)
+						</li>
+					}
+				</ul>
+				if p.Follows.NextCursor!=nil {
+					<a href={ templ.URL(CollectionNextURL(p.URL,p.Follows.NextCursor)) } class="text-link">More followed discussions</a>
+				}
+			}
+		</main>
+	}
+}

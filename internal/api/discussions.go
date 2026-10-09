@@ -231,6 +231,16 @@ func (a *api) loadDiscussionPage(c echo.Context, id, thread string, query url.Va
 			return p, 0, err
 		}
 		p.Root = &root
+		if a.discussionFollows != nil && principal.Account.ID != "" {
+			p.FollowEnabled = true
+			p.NotificationsPaused = principal.Account.Preferences.NotificationsPaused
+			follow, followErr := a.discussionFollows.Get(c.Request().Context(), principal.Account.ID, id, thread)
+			if followErr == nil {
+				p.Follow = &follow
+			} else if !errors.Is(followErr, discussions.ErrNotFound) {
+				p.FollowError = "Following couldn't load. Refresh to try again."
+			}
+		}
 		p.Event = root.Event
 		p.Meta = root.Meta
 		if parent != "" {

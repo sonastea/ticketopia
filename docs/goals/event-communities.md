@@ -34,7 +34,7 @@ return and share.**
 - **Helpful thumbs-up:** a positive reaction thanks someone for a useful comment
   or reply. A person can add or remove their reaction. There are no thumbs-down
   reactions or negative voting scores.
-- **Later — Follow the conversation:** people can return to replies and useful activity
+- **Follow the conversation:** people can return to replies and useful activity
   on discussions they choose to follow, with control over notifications.
 - **Later — Going, Went and reflections:** people can declare plans and, after an event, record self-reported
   attendance and share memories or advice that may help future visitors.
@@ -56,7 +56,7 @@ for responsive behavior, shared state, and the authoritative action hierarchy.
 | 5 | Acknowledge that help. | The recipient gives a Helpful thumbs-up, and the contributor can see that their answer helped. |
 | 6 | Report a concern privately. | Someone reports a comment or reply, gives a reason, and receives acknowledgment. |
 | 7 | Resolve a reported concern. | A moderator reviews the context, makes a proportionate decision, and communicates the outcome appropriately. |
-| 8 | Return for a conversation. | Someone returns through an event or direct thread link; followed-discussion notifications are a later enhancement. |
+| 8 | Return for a conversation. | Someone follows a thread, chooses update frequency, and returns to its exact reply through a private in-app notification. See [followed discussions](../followed-discussions.md). |
 | 9 | Contribute after attending. | Someone shares a reflection or venue tip in a discussion; structured Went prompts are later. |
 | Later | Share attendance plans. | Someone marks Going/Went and understands visibility and that attendance is self-reported. |
 
@@ -89,7 +89,7 @@ information.
 
 The basic loop below is [implemented](../moderation.md), with account-ID-keyed
 moderator roles and an audited operator CLI. Warnings and participation restrictions
-remain planned; no notification delivery or public-pilot approval is claimed.
+remain planned; no external notification delivery or public-pilot approval is claimed.
 
 Use a simple, primarily report-driven review process. Ordinary comments appear
 without routine pre-approval; the site owner can act as the initial moderator.

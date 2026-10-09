@@ -50,9 +50,12 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
   A new account starts as
   **Event explorer**; Google real names/photos are not imported. Your email,
   location, categories, notifications, and credentials never enter this projection.
-- `/me/preferences`: private city/country, IANA time zone, and future notification
-  choices. Notifications start paused with email/digest choices off; no delivery
-  occurs in this release. Venue-local event times are unchanged.
+- `/me/preferences`: private city/country, IANA time zone, account-wide notification
+  pause and future email/discovery digest choices. Notifications start paused with
+  email/digest choices off. Resume to receive in-app replies for explicitly followed
+  conversations; external reminders remain planned. Venue-local times are unchanged.
+- `/me/discussions` and `/me/notifications`: private followed conversations and
+  frequency-controlled reply updates. See [followed discussions](followed-discussions.md).
 - `/me/interests`: paginated own event interest with per-event visibility/removal,
   followed by separate private category choices. Catalog failures retain selected
   IDs rather than erasing choices. Categories help rank private Radar; they do not

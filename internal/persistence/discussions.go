@@ -180,6 +180,9 @@ func (r *DiscussionRepository) createOnce(ctx context.Context, c discussions.Cre
 	if err != nil {
 		return discussions.Post{}, false, err
 	}
+	if err = enqueueDiscussionReply(ctx, tx, p, c.Owner); err != nil {
+		return discussions.Post{}, false, err
+	}
 	if err = tx.Commit(); err != nil {
 		return discussions.Post{}, false, err
 	}

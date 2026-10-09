@@ -7,10 +7,10 @@ writing requires sign-in. Conversations are asynchronous, not live chat.
 
 ## Setup and upgrade
 
-Discussions were introduced in schema 6; this binary supports clean schema 8 only.
+Discussions were introduced in schema 6; this binary supports clean schema 12 only.
 Drain old apps, preserve a backup,
 run `ticketopia migrate` with migration credentials, reconcile runtime grants,
-then start schema-8 apps. There is no startup migration or cross-version
+then start schema-12 apps. There is no startup migration or cross-version
 zero-downtime rollout. See [persistence](persistence.md#rolling-update-compatibility).
 Local `make db-setup` applies migrations/grants; testing uses isolated schemas
 and does not upgrade the running development database.
@@ -76,12 +76,13 @@ retain focus and reading position without adding navigation history. Selected
 thread/target/reply-page state is encoded separately from event-result pagination.
 Expansion/return, Back/reload and resizing preserve selection and scoped drafts.
 Storage failures retain in-page drafts only; drafts are neither sent through OAuth
-nor synced across devices. Late responses cannot replace a different selected event. No live polling or
-notification delivery is included.
+nor synced across devices. Late responses cannot replace a different selected event.
+No live polling is included. [Followed discussions](followed-discussions.md) add opt-in
+in-app reply notifications with frequency controls and visibility-safe direct links.
 
 ## API
 
-The [OpenAPI contract](openapi.md) is version **1.8.0**.
+The [OpenAPI contract](openapi.md) is version **1.12.0**.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -160,6 +161,7 @@ The responsive finish review scores compact selection-failure focus and guest
 Reply focus resolved: **ship for those two fixes only**, not whole-application approval.
 
 **Basic private reporting and moderator review are implemented**; see
-[moderation setup and verification](moderation.md). Discussion follows/notifications,
-attendance, and profile-wide contribution feeds remain later work. No public-pilot approval,
+[moderation setup and verification](moderation.md). Private discussion follows and
+in-app reply notifications are implemented; attendance, external notification
+delivery, and profile-wide contribution feeds remain later work. No public-pilot approval,
 multi-pod deployment, or production backup/restore is claimed.

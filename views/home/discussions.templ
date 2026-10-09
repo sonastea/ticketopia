@@ -174,6 +174,16 @@ templ Discussion(p DiscussionPage) {
 templ DiscussionContent(p DiscussionPage) {
 			if p.Root!=nil {
 				<h2>Conversation</h2>
+				if p.FollowEnabled {
+					if p.FollowError!="" {
+						<p role="status" class="field-note">{ p.FollowError }</p>
+					} else if p.Follow!=nil {
+						@ConversationFollow(p.Event.ID,p.Root.ID,p.Follow.Frequency,p.View.CSRF,p.URL,p.NotificationsPaused)
+					} else {
+						@ConversationFollow(p.Event.ID,p.Root.ID,"",p.View.CSRF,p.URL,p.NotificationsPaused)
+					}
+					<a href="/me/notifications" class="text-link">Your reply notifications</a>
+				}
 				@DiscussionPost(*p.Root,p.View,p.URL)
 				if p.selectedOffPage() {
 					<h2>Selected contribution</h2>

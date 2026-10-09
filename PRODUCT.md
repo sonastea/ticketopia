@@ -33,7 +33,9 @@ Community shows each event once at its original first-recommendation position;
 withdrawal/republication cannot bump it. Publication/reactivation measurements are
 observe-only, without recommendation quotas or automatic account restrictions.
 Event discussions provide public questions, replies, owner edit/removal, Helpful
-acknowledgments, direct threads, and city/category browsing.
+acknowledgments, direct threads, and city/category browsing. Private conversation
+follows add immediate or UTC daily/weekly in-app reply updates, muted follows and
+account-wide pause, with visibility-safe links selecting the exact reply.
 Discovery connects selected event/thread discussions to results on wide screens
 and a primary single-column view on compact screens, with dedicated expansion,
 URL selection, tab-local drafts, and browsing-return continuity.
@@ -41,7 +43,7 @@ URL selection, tab-local drafts, and browsing-return continuity.
 contextual keep/hide/restore, shared reasons with private notes, and author second
 review requests. Durable moderator roles are operator-managed with audited
 grant/revoke commands; affected authors cannot access their own case evidence,
-even as moderators. No notification delivery or public-pilot approval is claimed.
+even as moderators. No external notification delivery or public-pilot approval is claimed.
 
 ## Product Purpose
 

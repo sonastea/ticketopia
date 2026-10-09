@@ -31,7 +31,9 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Thread | `/events/{event_id}/discussions/{discussion_id}` | Shareable root/replies, public attribution, owner edit/remove, positive Helpful and native composing |
 | Interests | `/me/interests` | Paginated own event interest and per-event visibility, followed by separate private category preferences |
 | Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
-| Preferences | `/me/preferences` | Private default city, time zone, and future notification preferences |
+| Preferences | `/me/preferences` | Private default city, time zone, global notification pause and future email/discovery preferences |
+| Followed discussions | `/me/discussions` | Private conversation collection and per-thread immediate/daily/weekly or muted reply frequency |
+| Reply notifications | `/me/notifications` | Private due reply updates, read state and exact visible-reply links |
 
 The shell uses a labeled sidebar from **72rem**, a compact rail and list/context
 layout from **62rem**, and a single-column layout with **Discover / Saved /
@@ -79,7 +81,9 @@ Account sections use ordinary links and native forms within the same shell.
 Profile editing leads with an adjacent wide-screen public preview, stacked on
 compact screens. Email and preferences stay private. Invalid writes retain input
 and explain that changes were not saved; settings for future participation and
-notifications do not claim those features are available. Disabled accounts show
+external notifications do not claim those features are available. In-app followed-
+discussion updates honor global pause and recheck visibility; see
+[followed discussions](followed-discussions.md). Disabled accounts show
 truthful configuration/recovery states. See [accounts](accounts.md).
 
 Event dates, titles, venues, sale status, known prices, and source freshness lead.

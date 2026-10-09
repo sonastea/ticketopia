@@ -73,7 +73,7 @@ goal to implementation work and verification checkpoints.
 - [x] Reply to another person's contribution.
 - [x] Edit or remove your own comments and replies.
 - [x] Give or remove a positive Helpful thumbs-up.
-- [ ] Later: Follow a discussion and receive relevant activity updates.
+- [x] Follow/unfollow a discussion and receive frequency-controlled in-app reply updates.
 - [x] Report a concern privately and receive acknowledgment.
 - [x] Review reports as a moderator and communicate clear outcomes.
 - [ ] Later: Record Went and share a post-event reflection.
@@ -122,7 +122,8 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 - [x] Keep dated event observation history across restarts.
 - [x] Keep event discussions and Helpful reactions across restarts.
 - [x] Persist private reports, moderation decisions, author review requests, and moderator roles/audits.
-- [ ] Persist notification jobs.
+- [x] Persist in-app discussion notification envelopes and reply references.
+- [ ] Persist external reminder delivery jobs.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
 
@@ -140,6 +141,8 @@ optional reasons, edit/withdrawal, public attribution, grouped city/category bro
 durable anti-bumping, and observe-only activity measurements without automatic quotas.
 [Event discussions](docs/event-discussions.md) add durable public questions,
 threaded replies, author edit/removal, and independent Helpful reactions.
+[Followed discussions](docs/followed-discussions.md) add private subscriptions,
+immediate/daily/weekly or muted in-app replies, account-wide pause and exact reply links.
 
 ### Container deployment
 

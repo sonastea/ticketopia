@@ -330,6 +330,51 @@ spec:
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Grant
 metadata:
+  name: ticketopia-runtime-discussion-follows
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE, DELETE]
+  database: ticketopia
+  table: discussion_follows
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-discussion-notifications
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE, DELETE]
+  database: ticketopia
+  table: discussion_notifications
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: ticketopia-runtime-discussion-notification-posts
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT]
+  database: ticketopia
+  table: discussion_notification_posts
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
   name: ticketopia-runtime-post-helpful
   namespace: ticketopia
 spec:

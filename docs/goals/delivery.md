@@ -29,9 +29,10 @@ community browsing, and usable desktop/tablet/mobile layouts. Retain basic priva
 reporting and owner moderation before the first public community pilot.
 
 **Retained subsequent milestones:** artist/venue follows, personalized radar,
-on-sale/change reminders and digest, followed-discussion notifications, Going/Went
+on-sale/change reminders and digest, external notification delivery, Going/Went
 and structured post-show prompts. Budgeted scheduled observation history is now
-implemented, independently opt-in.
+implemented, independently opt-in. Private conversation follows and in-app reply
+notifications with frequency controls are [implemented](../followed-discussions.md).
 Minimal durable events/accounts/community records and verified backup/restore
 are MVP foundations; the full ingestion scheduler is not a dependency of posting.
 

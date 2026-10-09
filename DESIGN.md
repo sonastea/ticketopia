@@ -458,6 +458,18 @@ Removed contributions leave content-free placeholders. The labeled composer
 discloses its public audience; errors preserve drafts and confirmed state. See
 [event discussions](docs/event-discussions.md). No new global tokens or assets.
 
+Private follow/unfollow uses a compact native disclosure before the conversation
+root, with a labeled reply-frequency select for every new reply, UTC daily/weekly
+summaries, or muted follows. Account Preferences exposes a native **Pause all
+notifications** checkbox; pause notices keep that account-wide override explicit.
+Followed discussions and the in-app reply inbox inherit account navigation and
+flat, rule-separated, event-named records. Due updates show visible reply counts,
+UTC delivery time, and read state, never contribution excerpts or private reporting
+details. **Open conversation at reply** selects the exact latest visible reply,
+including one outside the current reply page; **Mark read** remains a separate
+native form action. Controls and links work without JavaScript. No email or push
+is sent. See [followed discussions](docs/followed-discussions.md).
+
 Within discovery, compact event/date/venue context and price/sale facts stay above
 questions or the selected root and replies. A native **Event details & actions**
 disclosure contains imagery, participation, ticket links, and source detail rather
@@ -491,7 +503,7 @@ tokens, motion, typography, or raster assets are introduced.
 
 Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale preview/full-event data places a last-known provenance notice immediately before price and sale status, using the existing warning treatment rather than presenting stored availability as live.
 
-Keep event price and sale status ahead of participation controls. Search and pagination retain ordinary links/forms without JavaScript. Event Community lists public recommendations separately from explicitly public participants, with profile links and ordinary pagination; private interest contributes to interest counts without naming anyone. Public profiles show opted-in interest and independently published recommendations, using quiet separators and ordinary event links. Discussion shows public questions and links dedicated threads with replies and Helpful. Opt-in Google account destinations provide profiles/privacy defaults, private preferences, durable private saves, independent event interest, public recommendations, and private personalized Radar; disabled deployments explain that accounts are not enabled. Notification delivery remains planned. Selection and return strategy remain in the linked UX guide and surface contracts.
+Keep event price and sale status ahead of participation controls. Search and pagination retain ordinary links/forms without JavaScript. Event Community lists public recommendations separately from explicitly public participants, with profile links and ordinary pagination; private interest contributes to interest counts without naming anyone. Public profiles show opted-in interest and independently published recommendations, using quiet separators and ordinary event links. Discussion shows public questions and links dedicated threads with replies and Helpful. Opt-in Google account destinations provide profiles/privacy defaults, private preferences, durable private saves, independent event interest, public recommendations, and private personalized Radar; disabled deployments explain that accounts are not enabled. External email/push notification delivery remains planned. Selection and return strategy remain in the linked UX guide and surface contracts.
 
 Account forms inherit the same type, colors, corners, and controls. A separate white, bordered public preview sits beside profile editing on wide screens and stacks below it on compact screens. Real Profile/Preferences/Interests links use the section-link current state. Security follows the form; native disclosure keeps API controls secondary. Google sign-in alone follows the provider-brand exception above; no new global tokens are introduced. See [accounts](docs/accounts.md) and the [account surface contract](.impeccable/surfaces/views-account-settings-templ.md).
 
