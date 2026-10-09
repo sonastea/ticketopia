@@ -2,6 +2,10 @@
 
 ## 2026-10-08 — Unreleased
 
+- Complete schema-11 Discover operator grants and check parity in CI; provide
+  [secure Secret provisioning and a Cilium/Gateway handoff prompt](../kubernetes-bootstrap.md)
+  without applying cluster changes or claiming external routing/TLS verification.
+
 - Fix container validation after the saved-events workflow tests began reading
   sources omitted by the build-context allowlist. Include the root `Makefile`,
   local MariaDB setup wrapper, and runtime-check SQL without sending local

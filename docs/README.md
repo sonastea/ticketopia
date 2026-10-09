@@ -58,6 +58,8 @@ their status; they describe intended work rather than available features.
 - [Container deployment](deployment.md): Docker builds, Coolify settings, health
   checks, graceful shutdown, Kubernetes probes, local pre-commit Docker validation,
   and private GHCR publishing with a self-hosted GitHub Actions runner.
+- [Kubernetes bootstrap and handoff prompt](kubernetes-bootstrap.md): secure Secret
+  provisioning, operator grants, and continuing an existing Cilium/Gateway setup.
 - [UI components](ui-components.md): shadcn-templ installation, themed primitives,
   Tailwind v4 builds, progressive enhancement, and component updates.
 - [Ticketmaster discovery](discovery.md): event/metadata fetching, JSON API,

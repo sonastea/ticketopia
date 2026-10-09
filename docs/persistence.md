@@ -83,10 +83,10 @@ because the schema is clean and SELECT works.
 Migrations remain schema-only: the migration user has no grant option, and the
 application must never self-grant privileges. After adding tables, use local
 `make db-setup` or have an authorized operator reconcile grants before starting
-apps. Permission contract tests keep the startup probes, local runtime grants and
-local verification SQL aligned, even in CI without MariaDB. Readiness remains a
-lightweight schema/version check; permission revocation after startup is not
-periodically probed. Restart the app to revalidate changed grants.
+apps. Permission contract tests keep startup probes, local SQL grants/checks and
+Kubernetes operator runtime Grants aligned, even in CI without MariaDB or a cluster.
+Readiness remains a lightweight schema/version check; permission revocation after
+startup is not periodically probed. Restart the app to revalidate changed grants.
 
 ## Repeatable local development
 
@@ -412,8 +412,10 @@ helm install mariadb-operator oci://ghcr.io/mariadb-operator/charts/mariadb-oper
 
 These are instructions/examples only; **no cluster deployment was performed**.
 Review release-specific Kubernetes compatibility/storage classes first. Replace
-Secret placeholders using your secret manager, add a `ticketopia-provider` Secret
-with `ticketmaster-key`, and provision the namespace-local `ghcr` pull Secret.
+Secret placeholders through separately provisioned Secrets using your secret manager,
+add `ticketopia-provider` with `ticketmaster-key`, and provision the namespace-local
+`ghcr` pull Secret. Follow the [secure provisioning and placeholder-filtering
+instructions](kubernetes-bootstrap.md); do not populate secrets in tracked YAML.
 Job/apps use the moving `edge` tag with `imagePullPolicy: Always`. Follow the
 [production-style staging rollout](deployment.md#production-style-staging-rollout)
 for explicit rollout and manual recovery. Avoid changing `edge` between migration

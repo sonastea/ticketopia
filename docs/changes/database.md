@@ -10,8 +10,8 @@
   rolled-back probes bounded by the startup deadline. Identify missing operation/
   table grants without leaking credentials; keep migrations schema-only.
 - Remind operators to reconcile runtime grants in the migration success log.
-- Keep startup, local grants and setup checks aligned with database-free contract
-  tests; verify individual missing grants, recovery, no data changes and deadlines
+- Align startup, local SQL/operator grants and setup checks in database-free
+  contract tests; verify missing grants, recovery, no data changes and deadlines
   on isolated MariaDB. See [permission validation](../persistence.md#startup-permission-validation).
 
 ### 2026-10-07 — Private moderation and durable roles schema v8

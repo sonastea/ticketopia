@@ -1,4 +1,5 @@
-# Example only. Install pinned operator/CRDs first; replace ALL secret values.
+# Example only. Install pinned operator/CRDs first; provision secrets separately.
+# Exclude these Secret placeholders when applying; see docs/kubernetes-bootstrap.md.
 # One database pod is NOT HA. No backup/restore has been verified here.
 # Review server upgrade/restore compatibility before changing an existing database image.
 # Never downgrade an existing PVC; use fresh storage and a verified logical restore.
@@ -606,6 +607,71 @@ spec:
   privileges: [INSERT, UPDATE]
   database: ticketopia
   table: provider_budgets
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-event-search-places, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, DELETE]
+  database: ticketopia
+  table: event_search_places
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-event-search-facets, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, DELETE]
+  database: ticketopia
+  table: event_search_facets
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-discovery-scopes, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: discovery_scopes
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-discovery-scope-events, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: discovery_scope_events
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-event-detail-tasks, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE, DELETE]
+  database: ticketopia
+  table: event_detail_tasks
   username: ticketopia_runtime
   host: "%"
   grantOption: false

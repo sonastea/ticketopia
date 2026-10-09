@@ -310,6 +310,12 @@ the deployment platform's responsibility.
 
 ## Kubernetes
 
+See [Kubernetes bootstrap and handoff prompt](kubernetes-bootstrap.md) for secret
+provisioning and continuing an existing Cilium/Gateway deployment. The operator
+manifests include all current runtime grants; CI checks them against startup
+requirements without needing a cluster. Public Gateway/HTTPRoute configuration
+remains environment-specific, not supplied by the application manifest.
+
 Kubernetes does **not** use Dockerfile `HEALTHCHECK` instructions. Configure native
 HTTP probes instead; the kubelet calls the pod directly, without running curl or
 the checker. The bundled checker remains useful for Docker and manual diagnostics.
@@ -392,7 +398,9 @@ not immutable promotion of a tested staging artifact.
    Provision `ghcr` as a `kubernetes.io/dockerconfigjson` Secret in `ticketopia` using
    a pull-only `read:packages` PAT with access to the private package; keep its
    credentials out of committed YAML. Also provision `ticketopia-provider` with
-   `ticketmaster-key`. Do not apply the database Secret placeholders unchanged.
+   `ticketmaster-key`. [Provision Secrets separately and filter out their placeholder
+   documents](kubernetes-bootstrap.md#apply-infrastructure-without-overwriting-secrets)
+   before applying `database.yaml`; never overwrite real Secrets with placeholders.
 2. Wait for a successful `main` publication of `edge`. Use a new migration Job name
    per rollout; an existing completed Job will not rerun just because `edge` changed.
    Avoid publishing another build between migration and app rollout: matching tag

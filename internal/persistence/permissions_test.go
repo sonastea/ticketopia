@@ -3,11 +3,14 @@ package persistence
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // Adding a table grant must also add a startup probe and a local setup check;
@@ -61,6 +64,65 @@ func TestRuntimePermissionChecksMatchProvisioning(t *testing.T) {
 	}
 	for query := range localChecks {
 		t.Errorf("local setup check has no startup probe: %s", query)
+	}
+}
+
+func TestOperatorRuntimeGrantsMatchStartupPermissions(t *testing.T) {
+	file, err := os.Open("../../deploy/mariadb/operator/database.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	required := map[string]bool{"*/SELECT": true}
+	for _, check := range runtimeWriteChecks() {
+		required[check.table+"/"+check.operation] = true
+	}
+	seen := map[string]bool{}
+	decoder := yaml.NewDecoder(file)
+	for {
+		var document struct {
+			APIVersion string `yaml:"apiVersion"`
+			Kind       string `yaml:"kind"`
+			Metadata   struct {
+				Name, Namespace string
+			}
+			Spec struct {
+				MariaDBRef struct {
+					Name string
+				} `yaml:"mariaDbRef"`
+				Privileges                      []string
+				Database, Table, Username, Host string
+				GrantOption                     bool `yaml:"grantOption"`
+			}
+		}
+		if err := decoder.Decode(&document); errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			t.Fatal("invalid operator manifest YAML", err)
+		}
+		if document.Kind != "Grant" || document.Spec.Username != "ticketopia_runtime" {
+			continue
+		}
+		if document.APIVersion != "k8s.mariadb.com/v1alpha1" || document.Metadata.Namespace != "ticketopia" ||
+			document.Spec.MariaDBRef.Name != "ticketopia-db" || document.Spec.Database != "ticketopia" ||
+			document.Spec.Host != "%" || document.Spec.GrantOption {
+			t.Errorf("runtime grant has an unexpected target or grant option: %s", document.Metadata.Name)
+		}
+		for _, privilege := range document.Spec.Privileges {
+			key := document.Spec.Table + "/" + privilege
+			if !required[key] {
+				t.Errorf("operator runtime grant is unexpected or broader than startup permissions: %s", key)
+			}
+			if seen[key] {
+				t.Errorf("duplicate operator runtime grant: %s", key)
+			}
+			seen[key] = true
+		}
+	}
+	for key := range required {
+		if !seen[key] {
+			t.Errorf("missing operator runtime grant: %s", key)
+		}
 	}
 }
 
