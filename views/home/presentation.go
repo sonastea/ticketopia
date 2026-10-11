@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
@@ -34,6 +35,8 @@ type SearchPage struct {
 	Discussions           DiscussionView
 	Thread                *DiscussionPage
 	ActionReturnURL       string
+	Activity              map[string]eventactivity.Preview
+	ActivityError         string
 }
 
 type EventPage struct {
@@ -52,11 +55,12 @@ type EventPage struct {
 }
 
 type SaveView struct {
-	Enabled  bool
-	SignedIn bool
-	CSRF     string
-	States   map[string]bool
-	Error    string
+	Reminders bool
+	Enabled   bool
+	SignedIn  bool
+	CSRF      string
+	States    map[string]bool
+	Error     string
 }
 
 type RecommendationView struct {
@@ -287,6 +291,32 @@ func eventPageTitle(page EventPage) string {
 		return "Event unavailable"
 	}
 	return page.Detail.Item.Name
+}
+
+// These are explicitly linked reading previews, not replacements for the full
+// provider description or contribution. Keep Unicode intact and avoid clipping
+// essential event names, dates, venues, or prices.
+func previewText(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	runes := []rune(value)
+	if len(runes) <= 200 {
+		return value
+	}
+	cut := 200
+	for i := 200; i >= 150; i-- {
+		if runes[i] == ' ' {
+			cut = i
+			break
+		}
+	}
+	return string(runes[:cut]) + "…"
+}
+
+func activityCount(count int, singular, plural string) string {
+	if count == 1 {
+		return "1 " + singular
+	}
+	return fmt.Sprintf("%d %s", count, plural)
 }
 
 func eventURL(id, section, returnURL string) string {

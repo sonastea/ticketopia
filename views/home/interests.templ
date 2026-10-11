@@ -35,7 +35,7 @@ templ InterestDetails(id string, view InterestView, returnURL string) {
 			if view.Error != "" {
 				<p class="field-note" role="status">{ view.Error }</p>
 			} else {
-				<p class="interest-count" data-interest-count={ id }><strong>{ fmt.Sprint(view.States[id].Count) }</strong> { interestCountLabel(view.States[id].Count) }</p>
+				<p class="interest-count" data-interest-count={ id } hidden?={ view.States[id].Count == 0 }><strong>{ fmt.Sprint(view.States[id].Count) }</strong> { interestCountLabel(view.States[id].Count) }</p>
 				if view.SignedIn {
 					<details class="interest-privacy" name="interest-privacy" data-interest-privacy hidden?={ !view.States[id].Interested }>
 						<summary>Change visibility</summary>

@@ -26,8 +26,25 @@ edits, removal, Helpful, and direct thread reads do not need Ticketmaster.
 Select an event from discovery to read its **Discussion** alongside results on
 desktop/wide tablet, or as a single primary view on compact screens. Compact
 event facts stay visible; **Event details & actions** discloses participation and
-tickets, and **Open full event details** expands Overview. Public attribution
+tickets, and **Open full event details** expands Overview. Questions and tips,
+public recommendations, and explicitly public interest are shown together below
+the event details without switching preview tabs. Wide workspaces give the selected
+context more width and show discussion and community in parallel, making the first
+question and recommendation readable without scrolling in ordinary desktop views.
+Narrower or enlarged-text layouts stack them; long lists still scroll normally.
+Overview descriptions remain in **Event details & actions**, not ahead of activity.
+A selected conversation replaces the question list while community remains beside
+or below it; dedicated pages retain their
+section navigation. Optional community read failures do not hide event facts or
+the conversation. Public attribution
 is explained before publication.
+
+Discovery rows also show a compact visible question/tip and active recommendation
+preview when available, below supplied event details. Counts exclude hidden/removed
+roots and withdrawn endorsements; **Read conversation** selects the named thread
+without leaving discovery when enhanced. Page-batched reads keep failures local
+and never project private interest or saves. See [discovery](discovery.md#web-ui).
+
 Contributions are required plain text, up to 4000 Unicode characters including
 surrounding whitespace, and must be nonempty after trimming;
 invalid encoding/control characters and overlong text are rejected, not truncated.

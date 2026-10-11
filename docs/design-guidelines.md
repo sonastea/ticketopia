@@ -90,6 +90,16 @@ Event dates, titles, venues, sale status, known prices, and source freshness lea
 Unknown prices never mean free. Distinguish event dates from ticket-sale dates.
 Provider images retain a fixed-ratio fallback when missing or broken.
 
+Discovery rows extend below their identity/image pair with supplied performers,
+separate sale information, and a short description. Public activity adds visible
+root-thread and active recommendation counts with one excerpt of each; no activity
+means no extra community block. These details use the full row width, with activity
+stacking or sharing columns intrinsically. **Read conversation** selects that root
+in context; **Read recommendations** opens its community. Reads are page-batched,
+escape public text, exclude withheld/withdrawn content, and never name private
+interest or saves. Optional failures leave search usable and explain that previews
+could not load. See [discovery](discovery.md#web-ui).
+
 Event titles and Details are real event links. Enhanced title selection highlights
 the matching row and opens Discussion alongside results from 62rem; below that
 threshold it becomes the primary single-column view. Details selects Overview;
@@ -111,11 +121,29 @@ drafts, including native session/CSRF recovery. See [recommendations](event-reco
 Do not fabricate engagement counts or successful actions.
 
 External ticket links name Ticketmaster and do not imply ticket ownership or
-guaranteed availability. Section links use ordinary navigation semantics, not
-partial ARIA-tab behavior. Discussion and Community preserve the event identity.
+guaranteed availability. Event sections use a light-stone segmented group with a
+white current segment, not curved underline buttons. Result rows use quiet
+participation actions; Overview is available inside **More event information**,
+and the title still selects Discussion. Zero-interest counts are visually hidden
+and revealed when positive. The preview has a labeled **Back to results** action
+and a single container boundary. See the [design philosophy](../DESIGN.md#design-philosophy).
+Dedicated event pages retain section links with ordinary navigation semantics,
+not partial ARIA-tab behavior. The discovery preview has no section tabs: questions
+and tips, public recommendations, and public interest appear together below event
+details, including on direct entry and reload. Selecting Overview retains the
+event description inside **Event details & actions**, without pushing activity
+down. On wide workspaces, the selected context takes the larger share of horizontal
+space and discussion/community appear side by side; on smaller or enlarged-text
+layouts they stack. Collapsing navigation can free space for the wider layout.
+From the full-sidebar threshold, selected context fills the usable viewport height
+even with little activity; longer content scrolls inside it. At enlarged text sizes,
+the default context width can shrink to preserve results, and narrow rows stack
+their image/facts instead of leaving a cramped text column.
+Discussion and Community preserve the event identity.
 Community lists explicit endorsements separately from opted-in interest identities;
 Discussion loads recent questions. **Open conversation** selects its root/replies
-in the same context; **Open full conversation** opens the shareable thread page.
+in the same context, with community still available beside or below it;
+**Open full conversation** opens the shareable thread page.
 Compact event identity, date, venue, price and freshness remain above discussion.
 **Event details & actions** discloses imagery, Save/Interested/Recommend and tickets;
 its open state survives same-event section changes.

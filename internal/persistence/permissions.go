@@ -55,6 +55,9 @@ var runtimeTablePermissions = []struct {
 	{"discovery_scopes", "scope_id", false},
 	{"discovery_scope_events", "token", false},
 	{"event_detail_tasks", "token", true},
+	{"event_reminders", "state", false},
+	{"reminder_jobs", "state", false},
+	{"reminder_dispatch", "next_send", false},
 }
 
 type runtimeWriteCheck struct {

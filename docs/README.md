@@ -29,6 +29,10 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Local development services](local-development.md): `ses-setup`, `db-setup` and
+  combined `local-setup`, with isolated MiniStack SES capture and local settings.
+- [Public on-sale email reminders](reminders.md): explicitly configured private
+  reminders, SES delivery, durable jobs and pause/stop controls.
 - [Followed discussions](followed-discussions.md): private conversation subscriptions,
   frequency-controlled in-app reply updates and visibility-safe exact reply links.
 - [Personalized radar](radar.md): private nearby matches from follows/category

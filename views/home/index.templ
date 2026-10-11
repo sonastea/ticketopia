@@ -80,7 +80,7 @@ templ Index(page SearchPage) {
 							}
 						}
 						<ul id="event-list" class="event-list">
-							@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests)
+							@EventRowsWithActivity(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, page.Activity)
 						</ul>
 						@Pagination(page)
 					</section>

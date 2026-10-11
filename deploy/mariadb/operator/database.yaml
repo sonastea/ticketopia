@@ -721,3 +721,42 @@ spec:
   host: "%"
   grantOption: false
   cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-event-reminders, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: event_reminders
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-reminder-jobs, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: reminder_jobs
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata: {name: ticketopia-runtime-reminder-dispatch, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: reminder_dispatch
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip

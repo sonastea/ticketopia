@@ -29,7 +29,7 @@ func (a *api) savesEnabled() bool { return a.enabled() && a.saved != nil }
 
 // All private state is loaded in one bounded query, never per event/provider.
 func (a *api) saveView(c echo.Context, ids []string) home.SaveView {
-	view := home.SaveView{Enabled: a.savesEnabled()}
+	view := home.SaveView{Enabled: a.savesEnabled(), Reminders: a.reminders != nil}
 	if !view.Enabled {
 		return view
 	}
@@ -185,7 +185,7 @@ func (a *api) savedPage(c echo.Context) error {
 	if err != nil {
 		return a.accountPageError(c, err)
 	}
-	page := home.SavedPage{ReturnURL: c.Request().URL.RequestURI(), Saves: home.SaveView{Enabled: a.savesEnabled(), SignedIn: true, CSRF: p.CSRF, States: map[string]bool{}}}
+	page := home.SavedPage{ReturnURL: c.Request().URL.RequestURI(), Saves: home.SaveView{Enabled: a.savesEnabled(), Reminders: a.reminders != nil, SignedIn: true, CSRF: p.CSRF, States: map[string]bool{}}}
 	status := 200
 	if a.saved == nil {
 		err = saved.ErrUnavailable

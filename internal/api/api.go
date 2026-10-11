@@ -17,6 +17,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/follows"
 	"github.com/sonastea/ticketopia/internal/interests"
@@ -26,6 +27,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/moderation"
 	"github.com/sonastea/ticketopia/internal/radar"
 	"github.com/sonastea/ticketopia/internal/recommendations"
+	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/assets"
 )
@@ -49,11 +51,21 @@ type api struct {
 	interests         *interests.Service
 	recommendations   *recommendations.Service
 	discussions       *discussions.Service
+	eventActivity     *eventactivity.Service
 	discussionFollows *discussionfollows.Service
 	moderation        *moderation.Service
+	reminders         *reminders.Service
 }
 
 type Option func(*api)
+
+func WithEventActivity(repository eventactivity.Repository) Option {
+	return func(a *api) { a.eventActivity = eventactivity.New(repository) }
+}
+
+func WithReminders(repository reminders.Repository) Option {
+	return func(a *api) { a.reminders = reminders.New(repository) }
+}
 
 // WithDiscovery shares one provider service between HTTP and scheduled reads.
 // Apply it before options which construct services using discovery.
@@ -159,6 +171,7 @@ func (a *api) Routes() *echo.Echo {
 	e.GET("/", a.retrieveEventsHandler)
 	e.GET("/events/:event_id", a.eventPageHandler)
 	a.savedRoutes(e)
+	a.reminderRoutes(e)
 	a.followRoutes(e)
 	a.radarRoutes(e)
 	a.interestRoutes(e)

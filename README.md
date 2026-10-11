@@ -51,12 +51,12 @@ goal to implementation work and verification checkpoints.
 
 ### Useful reminders
 
-[Reminder goals](docs/goals/personal-radar.md#reminder-promises)
+[Reminder goals](docs/goals/personal-radar.md#reminder-promises) · [SES reminders](docs/reminders.md)
 
-- [ ] Receive a timely public on-sale reminder for a saved event.
+- [x] Receive a timely public on-sale reminder for a saved event (opt-in SES setup).
 - [ ] Receive meaningful date, venue, cancellation, or postponement updates.
 - [ ] Receive a weekly discovery digest.
-- [ ] Change or pause reminders and choose notification preferences.
+- [x] Change or pause on-sale reminders and choose notification preferences.
 
 ### Positive event communities
 
@@ -123,7 +123,7 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 - [x] Keep event discussions and Helpful reactions across restarts.
 - [x] Persist private reports, moderation decisions, author review requests, and moderator roles/audits.
 - [x] Persist in-app discussion notification envelopes and reply references.
-- [ ] Persist external reminder delivery jobs.
+- [x] Persist external on-sale reminder delivery jobs and SES receipts.
 - [ ] Share durable state across application replicas with operator-managed MariaDB.
 - [ ] Back up and successfully restore application data.
 
@@ -197,6 +197,11 @@ normal app restarts do not require it. `make migrate` applies only schema migrat
 to an existing database using your environment/`.env` settings and migration credentials;
 it does not start containers or apply runtime grants.
 
+For local SES API emulation, run `make ses-setup`; `make local-setup` prepares both
+MiniStack SES and MariaDB without an account/auth token. Use the
+loopback `SES_ENDPOINT_URL` settings in [local development](docs/local-development.md).
+These targets do not modify your `.env` or provision production AWS resources.
+
 Accounts are separately opt-in with `AUTH_ENABLED=true`, `AUTH_BASE_URL`,
 `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`; see [Google sign-in setup](docs/accounts.md).
 Discovery stays public. Private saves, Interested, and public recommendations are
@@ -205,8 +210,9 @@ moderation are implemented for discussion posts/replies, with receipts, reversib
 author outcomes, and durable moderator roles. See [moderation](docs/moderation.md)
 for the operator grant/revoke CLI. [Reliable event history](docs/event-history.md)
 adds dated changes, opt-in city/date collection and shared provider budgets.
-The current binary requires schema 11 with stored Discover/coverage and
-[private artist/venue follows](docs/follows.md).
+The current binary requires schema 13, including stored Discover/coverage,
+[private artist/venue follows](docs/follows.md), in-app discussion notifications
+and [public on-sale email reminders](docs/reminders.md).
 Drain older binaries, migrate and reapply grants before starting this version.
 This is not public-pilot approval.
 

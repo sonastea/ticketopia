@@ -5,7 +5,8 @@ implemented with cached Ticketmaster events and metadata. [Private saves](../sav
 retain bookmarks and last-known details. [Private artist/venue follows](../follows.md)
 provide search and cross-session collections. [Personalized radar](../radar.md)
 matches those follows and explicit category/location preferences with explanations.
-Reminders and human pilot checkpoints remain upcoming work.
+[Explicit public on-sale emails](../reminders.md) now run through opt-in SES delivery.
+Meaningful event-change emails, digests and human pilot checkpoints remain upcoming work.
 Google accounts, profiles/privacy defaults, and private category/location/
 notification preferences are [implemented, opt-in](../accounts.md).
 The [delivery checklist](delivery.md) aligns backend and frontend tasks.
@@ -14,7 +15,7 @@ see [location behavior](../location.md).
 
 Discovery supports all Ticketmaster event categories. Private category preferences
 are stored now; private saved events, community interest, recommendations and follows
-are implemented, alongside personalized ranking. Reminders remain agreed subsequent goals,
+are implemented, alongside personalized ranking and explicit on-sale reminders. Later reminder kinds remain agreed subsequent goals,
 not prerequisites for the responsive community MVP. See the
 [release boundary](delivery.md#mvp-release-boundary) and
 [design guidelines](../design-guidelines.md) for the current delivery direction.

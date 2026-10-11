@@ -22,6 +22,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/moderation"
 	"github.com/sonastea/ticketopia/internal/radar"
 	"github.com/sonastea/ticketopia/internal/recommendations"
+	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/account"
 	"github.com/sonastea/ticketopia/views/home"
@@ -255,6 +256,10 @@ func (a *api) requireAPI(c echo.Context, write, browserOnly bool) (accounts.Prin
 func accountError(err error) (int, string, string, map[string]string) {
 	var invalid *accounts.ValidationError
 	switch {
+	case errors.Is(err, reminders.ErrNotFound):
+		return 404, "reminder_not_found", "This reminder could not be found.", nil
+	case errors.Is(err, reminders.ErrUnavailable):
+		return 503, "reminders_unavailable", "Email reminders are not available on this server. Your saves are unchanged.", nil
 	case errors.As(err, &invalid):
 		return 400, "invalid_input", invalid.Error(), map[string]string{invalid.Field: invalid.Message}
 	case errors.Is(err, accounts.ErrUnauthenticated):

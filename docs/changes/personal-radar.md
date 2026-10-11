@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### 2026-10-09 — Explicit public on-sale email reminders
+
+- Add [on-sale reminders](../reminders.md) through shared HTML/API settings,
+  owner-only saved-event opt-in, lead times, status, global pause and stop links.
+- Persist token-fenced settings, occurrence-unique jobs, receipts and shared SES
+  pacing in schema 13; recheck fresh sale evidence and preferences before sending.
+- Disable delivery by default; classify SES rejection separately from uncertain
+  acceptance and never blindly replay abandoned or ambiguous sends.
+- Default the SES region to `us-east-1` (N. Virginia), with an explicit
+  `AWS_REGION` override for identities and production approval in other regions.
+- Add [local development](../local-development.md) with LocalStack `ses-setup`
+  and combined `local-setup`, loopback-only endpoints, forced dummy credentials,
+  HTTP localhost links, captured messages and fail-fast workflow regression tests.
+- Cover sale changes, stale/unknown/past times, pause/stop/unsave, replica claims,
+  restart recovery and quota outcomes. Live provider setup remains an operator step.
+
 ### 2026-10-08 — Explainable personalized radar
 
 - Deliver [Radar](../radar.md) on web and API through one service, using private

@@ -64,9 +64,9 @@ templ Event(page EventPage) {
 }
 
 templ EventContext(page EventPage) {
-	@card.Card(card.Props{Class: "context-inner", Attributes: templ.Attributes{"data-context-id": page.Detail.Item.ID, "data-context-section": page.Section, "data-context-thread": contextThreadID(page)}}) {
-		<div class="context-toolbar"><span>Event & discussion</span>@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantGhost, Size: button.SizeIcon, Class: "icon-button", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview"}}) {
-	@layouts.Icon("close")
+	<div class="context-inner" data-context-id={ page.Detail.Item.ID } data-context-section={ page.Section } data-context-thread={ contextThreadID(page) }>
+		<div class="context-toolbar">@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "context-back text-link", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview and return to results"}}) {
+	@layouts.Icon("back")<span>Back to results</span>
 }
 </div>
 		<div class="context-heading"><h2>{ page.Detail.Item.Name }</h2><p class="event-date">{ startLabel(page.Detail.Item.Start) }</p><p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
@@ -75,27 +75,42 @@ templ EventContext(page EventPage) {
 			}
 			@EventFacts(page.Detail.Item)
 </div>
-		@button.Button(button.Props{Href: sectionURL(page, "overview"), Variant: button.VariantLink, Class: "text-link open-event"}) {
-			<span>Open full event details</span>@layouts.Icon("arrow")
-		}
-		<details class="context-event-details">
-			<summary>Event details & actions</summary>
-			@EventImage(page.Detail.Item, true)
-			@EventParticipation(page, "context-participation-note")
-			@TicketDetails(page.Detail.Item)
-			@Freshness(page.Detail.Meta)
-		</details>
-		@EventSections(page)
-		if page.Thread != nil {
-			<div class="context-thread" data-context-thread-url={ page.Thread.URL }>
-				<a href={ templ.URL(sectionURL(page, "discussion")) } class="text-link" data-panel-link>Back to questions & tips</a>
-				<a href={ templ.URL(page.Thread.URL) } class="text-link">Open full conversation</a>
-				@DiscussionContent(*page.Thread)
-			</div>
-		} else {
-			@EventSectionContent(page)
-		}
-	}
+		<div class="context-tools">
+			@button.Button(button.Props{Href: sectionURL(page, "overview"), Variant: button.VariantLink, Class: "text-link open-event"}) {
+				<span>Open full event details</span>@layouts.Icon("arrow")
+			}
+			<details class="context-event-details">
+				<summary>Event details & actions</summary>
+				@EventImage(page.Detail.Item, true)
+				@EventParticipation(page, "context-participation-note")
+				@TicketDetails(page.Detail.Item)
+				@Freshness(page.Detail.Meta)
+				if page.Section == "overview" {
+					@EventSectionContent(page)
+				}
+			</details>
+		</div>
+		<div class="context-activity">
+			if page.Thread != nil {
+				<div class="context-thread" data-context-thread-url={ page.Thread.URL }>
+					<a href={ templ.URL(sectionURL(page, "discussion")) } class="text-link" data-panel-link>Back to questions & tips</a>
+					<a href={ templ.URL(page.Thread.URL) } class="text-link">Open full conversation</a>
+					@DiscussionContent(*page.Thread)
+				</div>
+			} else {
+				<section class="event-section" aria-labelledby="context-discussion-heading">
+					<h2 id="context-discussion-heading">Questions & tips</h2>
+					@DiscussionPanel(page.Detail.Item.ID, page.Discussions, page.ActionReturnURL)
+				</section>
+			}
+			<section class="event-section" aria-labelledby="context-community-heading">
+				<h2 id="context-community-heading">Community</h2>
+				@RecommendationPanel(page.Detail.Item.ID, page.Recommendations, page.ActionReturnURL)
+				<h3>Public interest</h3>
+				@PublicParticipants(page)
+			</section>
+		</div>
+	</div>
 }
 
 templ EventFacts(event models.Event) {
@@ -128,7 +143,7 @@ templ EventParticipation(page EventPage, noteID string) {
 }
 
 templ EventSections(page EventPage) {
-	<nav class="section-nav" aria-label="Event sections">
+	<nav class="section-nav event-section-nav" aria-label="Event sections">
 		@SectionLink(page, "overview", "Overview")
 		@SectionLink(page, "discussion", "Discussion")
 		@SectionLink(page, "community", "Community")
@@ -223,7 +238,7 @@ templ EventStatus(status string) {
 }
 
 templ SectionLink(page EventPage, section string, text string) {
-	@button.Button(button.Props{Href: sectionURL(page, section), Variant: button.VariantGhost, Attributes: templ.Attributes{"data-panel-link": true, "aria-current": layouts.CurrentPage(page.Section == section)}}) {
+	<a href={ templ.URL(sectionURL(page, section)) } data-panel-link aria-current={ layouts.CurrentPage(page.Section == section) }>
 		{ text }
-	}
+	</a>
 }

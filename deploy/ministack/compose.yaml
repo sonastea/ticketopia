@@ -1,0 +1,17 @@
+# Local SES capture only. No SMTP relay, AWS credentials, Docker socket, or host AWS files.
+name: ticketopia-ses
+services:
+  ministack:
+    image: ministackorg/ministack:1.5.24
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      # Explicitly disable external delivery and durable emulator state.
+      SMTP_HOST: ""
+      PERSIST_STATE: "0"
+    healthcheck:
+      test: ["CMD", "awslocal", "--endpoint-url", "http://localhost:4566", "--region", "us-east-1", "sesv2", "list-email-identities"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+      start_period: 15s

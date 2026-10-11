@@ -68,6 +68,7 @@ templ Settings(p Page) {
 				<a href="/follows">Follows</a>
 				<a href="/me/discussions">Followed discussions</a>
 				<a href="/me/notifications">Reply notifications</a>
+				<a href="/me/reminders">On-sale reminders</a>
 				if p.ModerationEnabled {
 					<a href="/me/reports">Your reports</a><a href="/me/moderation">Moderation outcomes</a>
 					if p.Moderator {
@@ -214,8 +215,8 @@ templ Preferences(p Page) {
 		}
 		<p id="timezone-help" class="field-note">Use an IANA time zone such as America/Chicago or Europe/Berlin. Event times still use the venue's time zone.</p>
 		<fieldset class="account-checkboxes"><legend>Notification preferences</legend>
-			<p class="field-note">Pause controls in-app reply notifications for followed discussions. Email reminders and discovery digests aren't delivered yet; those preferences are stored for later.</p>
-			<label><input type="checkbox" name="email_reminders" checked?={ p.Account.Preferences.EmailReminders }/><span>Public on-sale and meaningful event-change emails</span></label>
+			<p class="field-note">Pause controls in-app reply notifications and configured on-sale emails. On-sale delivery requires email reminders to be enabled on this server and a reminder you explicitly configure. Event-change emails and discovery digests remain planned.</p>
+			<label><input type="checkbox" name="email_reminders" checked?={ p.Account.Preferences.EmailReminders }/><span>Allow explicitly configured public on-sale emails</span></label>
 			<label><input type="checkbox" name="weekly_digest" checked?={ p.Account.Preferences.WeeklyDigest }/><span>Weekly discovery digest</span></label>
 			<label><input type="checkbox" name="notifications_paused" checked?={ p.Account.Preferences.NotificationsPaused }/><span>Pause all notifications</span></label>
 		</fieldset>

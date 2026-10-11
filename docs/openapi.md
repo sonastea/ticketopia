@@ -12,6 +12,7 @@ It describes implemented discovery, [account APIs](accounts.md#sessions-and-api-
 [personalized radar](radar.md#pagination-and-api),
 [private artist/venue search and follows](follows.md#api),
 [private bookmark APIs](saved-events.md#api),
+[explicit on-sale reminder APIs](reminders.md#api-and-verification),
 [event-interest APIs](event-interest.md#api),
 [public-recommendation APIs](event-recommendations.md#api),
 [discussion/Helpful APIs](event-discussions.md#api),

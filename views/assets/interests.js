@@ -43,6 +43,7 @@
       if (node.dataset.interestCount !== id) continue;
       const number = document.createElement('strong'); number.textContent = state.count;
       node.replaceChildren(number, document.createTextNode(state.count === 1 ? ' person interested' : ' people interested'));
+      node.hidden = state.count === 0;
     }
     for (const details of document.querySelectorAll('[data-interest-details]')) {
       if (details.dataset.interestDetails !== id) continue;

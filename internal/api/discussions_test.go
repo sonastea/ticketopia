@@ -3,15 +3,21 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/interests"
+	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 )
 
 type discussionStub struct {
@@ -259,5 +265,90 @@ func TestContextThreadParametersDoNotBecomeDiscoveryFilters(t *testing.T) {
 		if _, _, _, err := webSearch(copy); err == nil {
 			t.Fatal("invalid contextual state accepted", copy)
 		}
+	}
+}
+
+func TestEventContextShowsDiscussionAndCommunityAcrossEntryPoints(t *testing.T) {
+	a, posts, browser, bearer, _, event := discussionAPI(t)
+	if w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Is there a coat check?"}`, bearer, accounts.ID()); w.Code != 201 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := discussionRequest(a, "PUT", "/api/v1/me/event-recommendations/"+event, `{"reason":"A great neighborhood venue"}`, bearer, ""); w.Code != 201 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	public, private := accounts.ID(), accounts.ID()
+	a.interests = interests.New(&interestStub{
+		items: map[string]map[string]interests.Item{
+			public: {event: {Visibility: "public"}}, private: {event: {Visibility: "private"}},
+		},
+		profiles: map[string]accounts.PublicProfile{
+			public: {ID: public, DisplayName: "Public event explorer"}, private: {ID: private, DisplayName: "Private participant must stay hidden"},
+		},
+	}, a.saved)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "classifications") {
+			_, _ = w.Write([]byte(`{"_embedded":{"classifications":[]}}`))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/events.json") {
+			_, _ = w.Write([]byte(`{"page":{"number":0,"size":20,"totalElements":0,"totalPages":0}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":"Interest","name":"Interest fixture"}`))
+	}))
+	defer upstream.Close()
+	cache := kv.NewMemory()
+	defer cache.Close()
+	a.events = discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})
+
+	for _, cookie := range []string{"", browser} {
+		for _, section := range []string{"overview", "discussion", "community"} {
+			for _, panel := range []bool{false, true} {
+				path := "/?city=Berlin&selected_event=" + event + "&section=" + section
+				if panel {
+					path = "/events/" + event + "?section=" + section
+				}
+				t.Run(section+"/"+path+"/"+cookie, func(t *testing.T) {
+					r := httptest.NewRequest("GET", path, nil)
+					if cookie != "" {
+						r.Header.Set("Cookie", "ticketopia_session="+cookie)
+					}
+					if panel {
+						r.Header.Set("X-Ticketopia-Panel", "true")
+					}
+					w := httptest.NewRecorder()
+					a.Routes().ServeHTTP(w, r)
+					if w.Code != 200 {
+						t.Fatal(w.Code, w.Body.String())
+					}
+					body := w.Body.String()
+					for _, want := range []string{"Is there a coat check?", "A great neighborhood venue", "Public event explorer", `id="context-discussion-heading"`, `id="context-community-heading"`} {
+						if !strings.Contains(body, want) {
+							t.Errorf("missing inline activity %q", want)
+						}
+					}
+					if strings.Contains(body, "Private participant must stay hidden") || strings.Contains(body, `aria-label="Event sections"`) {
+						t.Fatal("preview leaked private interest or requires section navigation")
+					}
+				})
+			}
+		}
+	}
+	// Retained threads load the same community without losing their conversation.
+	r := httptest.NewRequest("GET", "/events/"+event+"/discussions/"+posts.post.ID, nil)
+	r.Header.Set("X-Ticketopia-Panel", "true")
+	w := httptest.NewRecorder()
+	a.Routes().ServeHTTP(w, r)
+	for _, want := range []string{"Is there a coat check?", "A great neighborhood venue", "Public event explorer"} {
+		if w.Code != 200 || !strings.Contains(w.Body.String(), want) {
+			t.Fatal("thread preview lost inline activity", w.Code, want)
+		}
+	}
+	// Community outages leave the question, facts, and recovery visible.
+	a.recommendations = recommendations.New(&recommendationStub{unavailable: true}, a.saved)
+	w = httptest.NewRecorder()
+	a.Routes().ServeHTTP(w, r)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "Is there a coat check?") || !strings.Contains(w.Body.String(), "Public recommendations couldn&#39;t load") {
+		t.Fatal("community failure hid conversation or fabricated empty activity", w.Code, w.Body.String())
 	}
 }

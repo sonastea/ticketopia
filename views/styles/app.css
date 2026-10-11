@@ -44,6 +44,10 @@
 .account-sign-in, .account-public { display: grid; gap: 1.5rem; max-inline-size: 40rem; }
 .account-sign-in > .google-sign-in { justify-self: start; }
 .account-preferences { max-inline-size: 44rem; }
+.destination-page.reminders-page { max-inline-size: 70ch; }
+.reminders-page > h2 { margin-block-end: .75rem; }
+.reminders-page > .account-form { margin-block: 1.5rem 1rem; }
+.reminders-page > .field-note { margin-block-start: 1rem; }
 .account-field-grid { display: grid; gap: 1rem; }
 .account-checkboxes { display: grid; gap: .5rem; padding: 0; border: 0; min-inline-size: 0; }
 .account-checkboxes legend { font-size: 1.25rem; font-weight: 750; margin-block: 1rem; }
@@ -298,7 +302,11 @@ h3 {
 .app-workspace {
   min-inline-size: 0;
   padding-block-end: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  container: workspace / inline-size;
 }
+
+/* Discovery can use wide displays without widening dedicated reading pages. */
+.app-shell:has(.discovery-workspace) { max-inline-size: 120rem; }
 
 .sidebar {
   display: none;
@@ -421,6 +429,7 @@ h3 {
 }
 
 .discovery-content {
+  container: results / inline-size;
   min-inline-size: 0;
 }
 
@@ -905,6 +914,17 @@ summary::-webkit-details-marker {
   min-inline-size: 0;
 }
 
+.event-row-extension { grid-column: 1 / -1; min-inline-size: 0; }
+.row-details { display: grid; gap: .5rem; margin-block-end: .75rem; }
+.row-details:empty { display: none; }
+.row-details p, .row-activity p { font-size: .875rem; color: var(--muted); max-inline-size: 70ch; }
+.row-details .row-description { color: var(--ink); }
+.row-activity { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; padding-block: .75rem; border-block-start: 1px solid var(--line); }
+.row-activity h4 { font-size: .875rem; margin-block-end: .25rem; font-variant-numeric: tabular-nums; }
+.row-activity h4 a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
+.row-activity-links { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; }
+.row-activity-links a { display: inline-flex; align-items: center; min-block-size: 2.75rem; font-size: .8125rem; }
+
 .event-copy h3 {
   margin-block: .35rem .4rem;
   margin-inline: 0;
@@ -983,14 +1003,71 @@ summary::-webkit-details-marker {
   display: flex;
   align-items: start;
   flex-wrap: wrap;
-  gap: .35rem;
+  gap: .5rem .75rem;
 }
 
 .event-actions > *, .event-actions .button-quiet {
   max-inline-size: 100%;
 }
 
-.event-actions .button-quiet { flex-shrink: 1; }
+.event-actions .button-quiet {
+  flex-shrink: 1;
+  gap: .5rem;
+  min-inline-size: 2.75rem;
+  padding-block: .625rem;
+  padding-inline: .75rem;
+  border-color: transparent;
+  border-radius: .5rem;
+  background: transparent;
+  line-height: 1.4;
+}
+
+.event-actions .text-link {
+  font-size: .8125rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.event-actions [data-slot="button"].text-link {
+  padding-inline: .5rem;
+}
+
+.event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .event-actions .button-quiet:hover:where(:not(:disabled)) {
+    background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface));
+    border-color: var(--brand);
+    color: var(--brand-dark);
+  }
+
+  .event-actions .button-quiet:hover:where([data-saved="true"], [aria-pressed="true"]) {
+    background: color-mix(in oklch, var(--brand-soft), var(--brand) 8%);
+  }
+}
+
+.event-actions .button-quiet:active:not(:disabled) {
+  background: color-mix(in oklch, var(--brand-soft), var(--brand) 16%);
+  border-color: var(--brand-active);
+  color: var(--brand-active);
+}
+
+.event-actions .button-quiet:disabled {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.event-actions :is(.save-form, .interest-form)[aria-busy="true"] .button-quiet {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--brand);
+  cursor: progress;
+}
 
 .button-quiet {
   display: inline-flex;
@@ -1281,7 +1358,7 @@ summary::-webkit-details-marker {
 
 .genre-label {
   display: inline-block;
-  color: var(--brand);
+  color: var(--muted);
   font-size: .75rem;
   font-weight: 700;
   margin-block-end: .5rem;
@@ -1310,6 +1387,26 @@ summary::-webkit-details-marker {
 }
 
 .context-event-details .event-image { margin-block: .75rem; }
+.context-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: .5rem 1.25rem;
+  margin-block: .5rem .75rem;
+}
+.context-tools .open-event { margin-block-start: 0; }
+.context-tools > .context-event-details[open] { flex-basis: 100%; }
+.context-activity {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  align-items: start;
+  column-gap: 1.5rem;
+}
+.context-activity > * { border-block-start: 1px solid var(--line); }
+.context-activity > .event-section { padding-block: 1.25rem; }
+.context-activity .recommendation-list { margin-block: .75rem; }
+.context-activity .recommendation-list > li { padding-block: .75rem; }
+.context-activity .recommendation-editor { margin-block: .75rem 1rem; }
 .context-thread { padding-block: 1.25rem; }
 .context-thread > .text-link { display: flex; align-items: center; min-block-size: 2.75rem; }
 .context-thread h2 { font-size: 1.125rem; margin-block-start: 1.5rem; }
@@ -1338,6 +1435,7 @@ summary::-webkit-details-marker {
   font-size: .8125rem;
   font-weight: 650;
   border-block-end: 2px solid transparent;
+  border-radius: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1348,6 +1446,65 @@ summary::-webkit-details-marker {
   color: var(--brand);
   border-block-end-color: var(--brand);
   font-weight: 800;
+}
+
+/* Event sections are navigation, with an explicit segmented current state. */
+.event-section-nav {
+  gap: .25rem;
+  padding: .25rem;
+  border: 0;
+  border-radius: .75rem;
+  background: var(--nav-surface);
+}
+
+.event-section-nav a {
+  flex: 1 1 5rem;
+  min-inline-size: 0;
+  padding-inline: .65rem;
+  border: 1px solid transparent;
+  border-radius: .5rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 650;
+  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+
+.event-section-nav a[aria-current="page"] {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--brand);
+  font-weight: 750;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .event-section-nav a:not([aria-current="page"]):hover {
+    background: var(--nav-hover);
+    color: var(--ink);
+  }
+}
+
+.event-section-nav a:active {
+  background: var(--brand-soft);
+  color: var(--brand-active);
+}
+
+.context-back, .row-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  min-block-size: 2.75rem;
+}
+
+.context-back { color: var(--muted); }
+
+@media (forced-colors: active) {
+  .event-section-nav a[aria-current="page"] {
+    border-color: Highlight;
+    color: Highlight;
+  }
+  .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
+    border-color: Highlight;
+  }
 }
 
 .event-section {
@@ -1683,7 +1840,7 @@ summary::-webkit-details-marker {
   }
   .discovery-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-columns: minmax(0, 1fr) min(45%, 20rem);
     gap: 1.5rem;
     padding: 1.5rem;
   }
@@ -2056,10 +2213,11 @@ summary::-webkit-details-marker {
     display: none;
   }
   .discovery-workspace {
-    grid-template-columns: minmax(0, 1fr) 21rem;
+    grid-template-columns: minmax(0, 1fr) min(45%, 21rem);
     padding: 2rem;
     gap: 2rem;
   }
+  .has-selection .event-context { min-block-size: calc(100dvh - 3rem); }
   .event-page, .destination-page {
     padding-block: 2rem;
     padding-inline: 2.5rem;
@@ -2082,6 +2240,21 @@ summary::-webkit-details-marker {
   }
   .field-grid .field:first-child {
     grid-column: span 2;
+  }
+}
+
+/* Use actual workspace space: collapsing navigation also frees room for context. */
+@container workspace (min-width: 64rem) {
+  .discovery-workspace.has-selection {
+    grid-template-columns: minmax(24rem, 2fr) minmax(0, 3fr);
+  }
+}
+
+/* Preserve a readable copy column when enlarged text consumes the workspace. */
+@media (min-width: 40rem) {
+  @container results (max-width: 22rem) {
+    .event-row { grid-template-columns: minmax(0, 1fr); }
+    .event-art { max-inline-size: 8rem; margin-block-end: 1rem; }
   }
 }
 

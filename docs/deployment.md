@@ -49,7 +49,8 @@ stage remains separate: normal image builds do not run tests or ship validation 
 Open <http://localhost:8080>. The [.dockerignore](../.dockerignore) allowlists build
 and validation inputs and excludes local configuration, databases, dependencies,
 and binaries. Keep files read by tests in the allowlist too: the root `Makefile`,
-`scripts/mariadb-setup.sh`, and `deploy/mariadb/runtime-check.sql` support the
+`scripts/mariadb-setup.sh`, `scripts/ses-setup.sh`, local SES Compose source, and
+`deploy/mariadb/runtime-check.sql` support the
 workflow and runtime-permission regression tests. Workflow tests replace external
 tools with fixtures; including these sources does not provision a database or add
 them to the final runtime image.
@@ -63,8 +64,9 @@ The root [`.env.example`](../.env.example) lists all supported application and
 migration settings, with secret placeholders and optional tuning defaults. It
 enables MariaDB, Google accounts/private saves, and IP-based city hints; shared
 caching is optional and has examples for Redis, Valkey, DragonflyDB, and NATS.
-Planned reminders/digests and community participation are not enabled by any
-environment setting. No SMTP or session-signing secret is currently required.
+Public on-sale email is separately opt-in through `REMINDERS_ENABLED` and SES
+configuration; see [reminders](reminders.md). Event-change emails and digests
+remain planned. No SMTP or session-signing secret is currently required.
 
 For a new local configuration, copy the template without overwriting an existing
 `.env`, then replace its placeholders. Keep populated files out of Git. For

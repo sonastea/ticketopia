@@ -1,0 +1,70 @@
+// Isolated MariaDB and synthetic public metadata; never sends live email.
+const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const base = process.env.SAVED_BASE_URL;
+const out = path.resolve(__dirname, '../.impeccable/review');
+const report = {checks: [], screenshots: [], accessibility: [], errors: []};
+const check = (name, value) => {assert.ok(value, name); report.checks.push(name);};
+fs.mkdirSync(out, {recursive: true});
+(async () => {
+  const browser = await chromium.launch({headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE});
+  try {
+    const owner = await browser.newContext({viewport:{width:1440,height:1000}});
+    await owner.addCookies([{name:'ticketopia_session',value:process.env.SAVED_FIXTURE_TOKEN,url:base}]);
+    const me = await (await owner.request.get(base+'/api/v1/me')).json();
+    const event = 'ticketmaster:Browser_1';
+    const endpoint = '/api/v1/me/reminders/'+event+'/public-on-sale';
+    const write = (method, endpoint, data) => owner.request[method](base+endpoint,{data,headers:{'X-CSRF-Token':me.csrf_token}});
+    check('Save synthetic event',(await write('put','/api/v1/me/saved-events/'+event)).status()===201);
+    check('Saving does not subscribe',(await owner.request.get(base+endpoint)).status()===404);
+    const page = await owner.newPage();
+    page.on('pageerror', e=>report.errors.push(e.message));
+    await page.goto(base+'/saved');
+    await page.getByRole('link',{name:'On-sale reminder',exact:true}).click();
+    check('Explicit pending form',await page.getByRole('button',{name:'Save email reminder'}).count()===1);
+    check('Defaults remain paused',(await page.locator('main').innerText()).includes('Delivery is paused'));
+    await page.getByLabel('Minutes before public tickets go on sale').fill('45');
+    await page.getByRole('button',{name:'Save email reminder'}).click();
+    check('Native form persisted',(await (await owner.request.get(base+endpoint)).json()).lead_minutes===45);
+    check('Configuration did not unpause',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===true);
+    const capture = async(name,width,zoom=false)=>{
+      await page.setViewportSize({width,height:1000});
+      await page.evaluate(async zoom=>{document.documentElement.style.fontSize=zoom?'200%':'';await document.fonts.ready;scrollTo(0,0);},zoom);
+      check('Reflow '+name,await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      const file=path.join(out,name+'.png');await page.screenshot({path:file,fullPage:true});report.screenshots.push(file);
+      if(process.env.AXE_SCRIPT){await page.addScriptTag({path:process.env.AXE_SCRIPT});const violations=await page.evaluate(async()=> (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);report.accessibility.push({name,violations});check('Accessibility '+name,!violations.length);}
+    };
+    await capture('reminders-desktop',1440);
+    await capture('reminders-phone',390);
+    await capture('reminders-small',320);
+    await capture('reminders-enlarged-text',390,true);
+    await page.evaluate(()=>document.documentElement.style.fontSize='');
+    const lead=page.getByLabel('Minutes before public tickets go on sale');
+    check('44px input',(await lead.boundingBox()).height>=44);
+    await lead.focus();
+    check('Keyboard outline',await lead.evaluate(el=>{const s=getComputedStyle(el);return s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>0;}));
+    await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});
+    check('Forced colors outline',await lead.evaluate(el=>{const s=getComputedStyle(el);return s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>0;}));
+    await page.emulateMedia({forcedColors:'none',reducedMotion:'no-preference'});
+    await page.goto(base+'/me/reminders');
+    check('Owner collection retains context',(await page.locator('main').innerText()).includes('An event with a very long name'));
+    await capture('reminders-collection',390);
+    const guest=await browser.newContext();
+    check('Guest denied private API',(await guest.request.get(base+'/api/v1/me/reminders')).status()===401);
+    const other=await browser.newContext();
+    await other.addCookies([{name:'ticketopia_session',value:process.env.SAVED_OTHER_TOKEN,url:base}]);
+    check('Another owner cannot read setting',(await other.request.get(base+endpoint)).status()===404);
+    const native=await browser.newContext({javaScriptEnabled:false});
+    await native.addCookies([{name:'ticketopia_session',value:process.env.SAVED_FIXTURE_TOKEN,url:base}]);
+    const nativePage=await native.newPage();await nativePage.goto(base+'/me/reminders/'+event);
+    await nativePage.getByRole('button',{name:'Stop this reminder',exact:true}).click();
+    check('Stop works without JavaScript',(await owner.request.get(base+endpoint)).status()===404);
+    await page.goto(process.env.SAVED_DISABLED_URL+'/me/reminders');
+    check('Disabled server remains usable',(await page.locator('main').innerText()).includes('Email reminders are not enabled'));
+    check('No browser runtime errors',report.errors.length===0);
+    fs.writeFileSync(path.join(out,'reminders-checks.json'),JSON.stringify(report,null,2));
+    console.log(JSON.stringify({checks:report.checks.length,screenshots:report.screenshots.length,accessibility:report.accessibility.length}));
+  } finally {await browser.close();}
+})().catch(error=>{console.error(error);process.exit(1);});

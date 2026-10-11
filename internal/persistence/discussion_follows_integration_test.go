@@ -223,7 +223,7 @@ func TestMariaDBDiscussionFollowUpgradeRollbackAndPagination(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "00012_") {
+		if entry.Name() >= "00012_" {
 			continue
 		}
 		data, err := migrations.ReadFile("migrations/" + entry.Name())

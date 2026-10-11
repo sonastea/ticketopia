@@ -67,6 +67,11 @@ and route semantics remain app-owned; see [DESIGN.md](../DESIGN.md).
   status/help text inside a form being aligned alongside other buttons; align
   controls at the top when wrapping labels make their heights differ. Reuse this
   separation for future inline action feedback instead of offsets or fixed heights.
+  Within this row, quiet actions use white surfaces, control-line borders, and
+  shared spacing; Save and Interested share pale-plum selected states and distinct
+  guarded hover/flat press feedback. Unavailable controls retain muted styling,
+  pending forms keep their plum state. On-sale reminder uses the same outlined
+  control with a bell icon; only Details stays a lighter navigation link.
   Event-section links also wrap, and pagination action minimum widths are capped
   at the available width, rather than overflowing when text is enlarged.
   Filter-summary metadata can shrink and break long words without pushing its

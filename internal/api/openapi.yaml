@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.12.0
+  version: 1.13.0
   license:
     name: MIT
     identifier: MIT
@@ -592,6 +592,95 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/CSRFRejected'}
         '503': {$ref: '#/components/responses/FollowsUnavailable'}
+  /api/v1/me/reminders:
+    get:
+      operationId: listOnSaleReminders
+      summary: List your explicitly configured on-sale reminders
+      description: |
+        Private, no-store. Newest configured first with binary event-ID tie-breaker.
+        Owner- and collection-bound cursors; unknown/repeated parameters rejected.
+        Requires email reminders enabled on this server. No provider reads or sending.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
+      responses:
+        '200':
+          description: Your active reminder settings, including terminal delivery states.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/OnSaleReminder'}}
+                  next_cursor: {type: [string, 'null']}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/RemindersUnavailable'}
+  /api/v1/me/reminders/{event_id}/public-on-sale:
+    parameters:
+      - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+    get:
+      operationId: getOnSaleReminder
+      summary: Read your on-sale reminder setting and state
+      description: No query parameters. Private, no-store. Returns 404 for absent, stopped or another owner's settings.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Your configured setting, not a guarantee of inbox delivery.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OnSaleReminder'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/ReminderNotFound'}
+        '503': {$ref: '#/components/responses/RemindersUnavailable'}
+    put:
+      operationId: setOnSaleReminder
+      summary: Explicitly configure a public on-sale email for your saved event
+      description: |
+        Private, no-store; no query parameters. Requires your own existing save.
+        Strict JSON: only lead_minutes; no null, unknown or duplicate fields.
+        Identical retries preserve settings/claims and never replay an accepted or
+        uncertain occurrence. Global email enable/pause preferences remain unchanged.
+        Worker resolves fresh public sale facts; unknown times remain pending.
+        Cookie writes require CSRF/same-origin checks. Bearer writes do not.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [lead_minutes]
+              properties:
+                lead_minutes: {type: integer, minimum: 1, maximum: 10080}
+      responses:
+        '200':
+          description: Setting stored; worker scheduling and delivery are asynchronous.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OnSaleReminder'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/SavedEventNotFound'}
+        '503': {$ref: '#/components/responses/RemindersUnavailable'}
+    delete:
+      operationId: stopOnSaleReminder
+      summary: Stop an on-sale reminder without removing the event from Saved
+      description: Empty body, no query parameters. Idempotent; private, no-store. Does not recall an in-flight or accepted email. Cookie writes require CSRF/same-origin checks.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters: [{$ref: '#/components/parameters/CSRFToken'}]
+      responses:
+        '204': {description: Stopped or already absent.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/RemindersUnavailable'}
   /api/v1/me/saved-events:
     get:
       operationId: listSavedEvents
@@ -1887,6 +1976,16 @@ components:
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
+    RemindersUnavailable:
+      description: Email reminders disabled or unavailable; saves remain unchanged.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    ReminderNotFound:
+      description: Reminder absent, stopped or not owned by the authenticated account.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     SavedEventNotFound:
       description: This event cannot be resolved for saving, or is not saved by the authenticated owner for a bookmark read.
       content:
@@ -2168,6 +2267,17 @@ components:
               profile: {$ref: '#/components/schemas/PublicProfile'}
               interested_at: {type: string, format: date-time}
         next_cursor: {type: [string, 'null']}
+    OnSaleReminder:
+      type: object
+      required: [event_id, event_name, lead_minutes, state, sale_at, scheduled_at, created_at]
+      properties:
+        event_id: {$ref: '#/components/schemas/ResourceID'}
+        event_name: {type: string}
+        lead_minutes: {type: integer, minimum: 1, maximum: 10080}
+        state: {type: string, enum: [pending_date, scheduled, paused, refresh_failed, sending, pending, accepted, cancelled, expired, failed, uncertain]}
+        sale_at: {type: [string, 'null'], format: date-time}
+        scheduled_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
     SavedEvent:
       type: object
       required: [event, saved_at, meta]

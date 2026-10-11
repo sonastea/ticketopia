@@ -43,14 +43,17 @@ URL selection, tab-local drafts, and browsing-return continuity.
 contextual keep/hide/restore, shared reasons with private notes, and author second
 review requests. Durable moderator roles are operator-managed with audited
 grant/revoke commands; affected authors cannot access their own case evidence,
-even as moderators. No external notification delivery or public-pilot approval is claimed.
+even as moderators. [Explicit on-sale email reminders](docs/reminders.md) add opt-in
+SES delivery and durable jobs independent of browser visits; no discussion/moderation
+emails or public-pilot approval are claimed.
 
 ## Product Purpose
 
 Help someone discover an event, save it privately, express interest, recommend
 it, follow artists and venues, and join useful event-specific conversations. Events are the central objects
-connecting local discovery and community participation. Useful reminders remain
-an agreed subsequent outcome. The discovery foundation uses efficiently cached
+connecting local discovery and community participation. Explicit public on-sale
+reminders are available with SES configured; event-change emails and discovery
+digests remain subsequent outcomes. The discovery foundation uses efficiently cached
 Ticketmaster data; see the [delivery checklist](docs/goals/delivery.md) for scope
 and implementation status.
 

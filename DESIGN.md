@@ -244,7 +244,28 @@ components:
 
 ## Overview
 
-**Creative North Star: "Local frequency"**
+**Creative North Star: "Local frequency, less interface"**
+
+### Design philosophy
+
+A sleek, modern interface earns its clarity through hierarchy and restraint.
+The event is the subject; controls support it. Lead with the title, date, venue,
+and useful facts. Group frequent actions into a quiet, labeled toolbar; disclose
+secondary navigation and administration instead of giving every option a box.
+Keep zero-interest counts silent until there is something to count.
+
+Use one visual grammar per interaction: event-section navigation is a light-stone
+segmented group with a white, bordered current segment and plum text. It does not
+mix button silhouettes with an underline. Inactive participation actions are
+transparent; selected and pending states carry deliberate emphasis. Preserve
+44px targets, explicit privacy labels, and visible keyboard focus as the chrome
+gets quieter. A selected preview has one outer boundary and a labeled return
+action, rather than nested cards or an unexplained close icon.
+
+Modernity comes from precise alignment, readable type, and fewer competing
+surfaces. Retain the plum identity, Manrope, provider photography, and dusty-rose
+date indexes; avoid ornamental shadows, gradients, or motion as substitutes for
+structure. Apply this hierarchy to future features before adding new controls.
 
 Local frequency makes event discovery feel personally assembled: the presence of a record shop, the intimacy of a mixtape, and the clarity of an everyday planning tool. Deep plum actions and pale-plum selection sit within light-stone navigation and near-white reading surfaces; compact dusty-rose date indexes give the collection a warm, human rhythm.
 
@@ -320,10 +341,10 @@ text rather than white.
 - **Title:** `typography.title` for supporting headings; `typography.event-title` for result titles, with the more open leading needed by long names.
 - **Body:** `typography.body` for the base reading size; `typography.body-small` for event descriptions. Observed reading measures are 65ch for introductions, 70ch for event prose, and 75ch for source notes.
 - **Label / action:** `typography.label` for field labels and `typography.action` for primary/secondary controls. Labeled filter inputs remain at the body size with weight 500; search uses ordinary body weight.
-- **Navigation:** `typography.navigation` for full navigation (weight 550), with `typography.navigation-current` for the current destination (weight 700). Group labels use `typography.navigation-group`; rail/bottom-nav labels use .6875rem and the same normal/current weights. Collapsed desktop labels remain accessible and appear as .75rem tooltips (weight 650). Event-section links use `typography.quiet-action`, rising to weight 800 when current.
+- **Navigation:** `typography.navigation` for full navigation (weight 550), with `typography.navigation-current` for the current destination (weight 700). Group labels use `typography.navigation-group`; rail/bottom-nav labels use .6875rem and the same normal/current weights. Collapsed desktop labels remain accessible and appear as .75rem tooltips (weight 650). Event-section links use quiet-action sizing and weight 650, rising to 750 when current, with body leading.
 - **Metadata:** `typography.metadata` for supporting facts and freshness; `typography.small-label` for date lines. Quiet participation uses `typography.quiet-action`, and neutral availability labels use `typography.availability`. Date numbers use `typography.date-number`; month labels use weight 750. Date markers and event-date lines use tabular numerals.
 
-Themed library primitives retain their own utility leading where the app has not overridden it: navigation, quiet buttons, and section links use the `text-sm` ratio (`calc(1.25 / .875)`); availability and sale-status badges use the `text-xs` ratio (`calc(1 / .75)`); search/filter input text uses 1.5. These are observed inherited roles, not a universal 1.6 line-height applied to every control. Plain date lines and sidebar customization labels retain the body leading.
+Themed library primitives retain their own utility leading where the app has not overridden it: button-based navigation and quiet buttons use the `text-sm` ratio (`calc(1.25 / .875)`); availability and sale-status badges use the `text-xs` ratio (`calc(1 / .75)`); search/filter input text uses 1.5. These are observed inherited roles, not a universal 1.6 line-height applied to every control. Event-section links, plain date lines and sidebar customization labels retain the body leading.
 
 Headings balance lines, prose uses pretty wrapping where supported, and inherited
 `overflow-wrap: break-word` handles long provider names without shrinking
@@ -340,7 +361,7 @@ Manrope remains the family for all surrounding account and application UI.
 
 ## Layout
 
-The centered application shell stops at 100rem and fills at least the small
+The centered application shell stops at 100rem (120rem for discovery) and fills at least the small
 viewport height (`100svh`), avoiding document relayout as mobile toolbars move.
 Main content uses normal document scrolling. Fixed-height sidebar UI still uses
 `100dvh`. Reused spacing primitives are the source's `space-1` through `space-7`;
@@ -357,7 +378,19 @@ component-specific insets remain explicit rather than becoming another scale.
 
 The CSS and JavaScript share the 62rem context and 72rem desktop-navigation thresholds. Selection, direct-entry, return-state, and resize strategy belong to the [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state) and [surface contract](.impeccable/surfaces/views-home-index-templ.md), not additional global design rules.
 
-The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100dvh - 3rem)`, vertical overflow, and a stable scrollbar gutter; it is keyboard focusable. The full sidebar is one dynamic viewport tall, with grouped navigation and a footer pushed to the bottom. During customization its navigation region scrolls independently, keeps a stable scrollbar gutter, and becomes keyboard focusable so tools remain reachable at small viewport heights. Ticket panels remain in the page layout. Filters use two equal columns and a 1rem gap until the small-phone or wide-screen adjustments apply.
+Once the actual workspace reaches 64rem, a selected discovery event uses a 2:3
+results/context split, retaining a 24rem minimum results column. Collapsing
+navigation can also unlock this layout. Inside the preview, discussion and
+community use an intrinsic two-column grid with 18rem shrink-safe column minima
+and a 1.5rem gap; narrower previews stack in reading order. Event expansion and
+the native details disclosure share a wrapping row. Overview prose stays inside
+that disclosure so it does not push the first activity out of view. Dedicated
+pages, navigation thresholds, and tokens are unchanged. Default context columns
+cap at their 20rem/21rem roles or 45% of available content width, whichever is
+smaller, so enlarged text does not consume the results column. Discovery results
+are also a container: below 22rem of available space their image/facts stack.
+
+The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100dvh - 3rem)`, vertical overflow, and a stable scrollbar gutter; it is keyboard focusable. From 72rem, selected context has the same minimum height, avoiding a short, wide panel when activity is sparse. The full sidebar is one dynamic viewport tall, with grouped navigation and a footer pushed to the bottom. During customization its navigation region scrolls independently, keeps a stable scrollbar gutter, and becomes keyboard focusable so tools remain reachable at small viewport heights. Ticket panels remain in the page layout. Filters use two equal columns and a 1rem gap until the small-phone or wide-screen adjustments apply.
 
 ## Elevation & Depth
 
@@ -389,7 +422,26 @@ same image frame, so a failed image does not erase the event's place in the list
 
 Compact, confident, plainly labeled controls. Primary actions pair plum with white text; secondary actions use white, plum text, and a control-line border. Both use the frontmatter's action typography and padding with a minimum height of 2.75rem (44px), not a fixed height that clips wrapping labels. Minimum heights, borders, focus outlines, and transitions live in the sidecar snippets because the frontmatter's component schema cannot express them accurately. Hover darkens primary actions and gives secondary actions a pale-plum fill. Pressed primary actions use `brand-active`; there is no pressed translation or raised effect.
 
-Quiet event controls use a transparent fill, quiet border, quiet-action typography, and the same minimum target height. Recommend is a secondary link that opens the native Community composer; Save, Interested, and Recommend explain account-disabled or unavailable states rather than simulate success. Underlined text links offer navigation and small utility actions; the preview-close icon has a 2.75rem target.
+Quiet event controls use transparent fills, quiet-action typography, and the same
+minimum target height. Recommend is a secondary link that opens the native
+Community composer; Save, Interested, and Recommend explain account-disabled or
+unavailable states rather than simulate success. Underlined text links offer
+navigation and small utility actions; the labeled preview return link has a
+2.75rem target. Event-section current text uses weight 750 and inherited body
+leading; its links have their own styles rather than button utility classes.
+
+Inside the shared event-actions row, enabled quiet controls use transparent surfaces
+and borders, .5rem label/icon gaps, and .625rem/.75rem block/inline
+padding. The row wraps intrinsically with .5rem/.75rem block/inline gaps; utility
+links retain lighter, underlined quiet-action type. Save and Interested share
+pale-plum selected states, tinted hover, and a deeper flat press wash. Unavailable
+controls remain muted and transparent; pending forms preserve plum state. No
+shadows or geometry animation are added.
+
+On-sale reminder is a quiet bell-and-label action alongside Save and
+Interested, not an underlined utility link. The shared control carries the same
+styling in collections, discovery previews, and full event pages; it navigates to
+reminder settings without implying enrollment or an active reminder.
 
 Private Save / Remove from Saved controls are implemented when opt-in accounts are enabled. They inherit the quiet control's type, corners, target height, and plum focus outline; a saved event adds pale-plum fill with plum text and border, while hover uses pale plum and dark-plum text. Signed-out visitors get a Sign in to save link; disabled deployments explain the account requirement, and unavailable saved state is labeled rather than guessed. Ordinary POST forms work without JavaScript. Enhanced writes show pending, success, or retry feedback below the shared controls row and synchronize visible row/preview state only after confirmation. Feedback never participates in button alignment or wrapping; controls align at their top edge when labels wrap. Failed writes retain the prior state. Removing from the Saved collection leaves a named confirmation and restores focus to a remaining event's removal control, or the empty-state Discover action.
 
@@ -427,13 +479,26 @@ Desktop collapse hides visual labels without removing their accessible names. CS
 
 Explicit customization reveals section/link drag handles and Move up / Move down controls; links use white draft surfaces. Sections can move, links stay within their section, and Profile stays fixed. Done commits the draft; Cancel or Escape restores the previous order; Reset to default changes only the cancellable draft. Collapse is disabled while editing; leaving the desktop threshold cancels unfinished editing. Preferences are browser-only, not account persistence or cross-device sync. Storage failure leaves current-page controls usable with honest feedback. Without JavaScript, the expanded default navigation remains and enhancement-only tools hide. See the [sidebar preference contract](docs/design-guidelines.md#sidebar-preferences) for behavior details.
 
-Event sections remain real links with a quiet baseline; the current section adds a plum two-pixel bottom border and heavier text. Links wrap onto another row when the available width or enlarged text requires it. Current destinations use `aria-current`, not partial ARIA-tab semantics.
+Event sections remain real links in a light-stone segmented group. The current
+section has a white surface, quiet full border, heavier plum text, and an explicit
+forced-colors border. Inactive hover uses neutral stone, not the current state.
+Links wrap intrinsically with enlarged text; all retain 44px targets. Current
+destinations use `aria-current`, not partial ARIA-tab semantics. Other section
+navigation retains its straight underline with square link corners.
 
 ### Availability Labels
 
 Small neutral rectangles with light-stone fill, muted text, a quiet one-pixel border, and availability corners explain “In development” or a specific unavailable capability. They are informational labels, not selectable filter chips. Do not give them date-marker styling or turn them into a success confirmation.
 
 ### Indexed Event Rows
+
+Discover extends the image/facts pair with supplied performers/teams, separate
+sale information, and a short description spanning the row width. Compact public
+activity follows only when available: visible-root and active recommendation
+counts, one recent excerpt of each, attributed profile links, and direct reading
+links. An intrinsic 16rem-minimum grid shares or stacks those previews; flat rules
+and existing metadata type keep them secondary. Full-width participation controls
+follow the excerpts. Saved, Interested, and Radar retain their existing row content.
 
 The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is pale plum; the title and Details remain real event links. The dusty-rose date marker overlays the lower-left image corner on compact rows, then becomes a horizontal index beneath square artwork. Its short date is decorative beside the full readable date; unknown dates say TBA.
 
@@ -475,7 +540,11 @@ questions or the selected root and replies. A native **Event details & actions**
 disclosure contains imagery, participation, ticket links, and source detail rather
 than leading the panel with artwork. Full-event and full-conversation links open
 dedicated pages. At the existing 62rem threshold, discussion shares the sticky
-context panel alongside results; below it, the selected event/thread becomes the
+context panel alongside results. The preview shows questions/tips, recommendations,
+and public interest as flat, rule-separated sections below event details, without
+section tabs; selected roots/replies replace the question list and retain community
+beside them when space allows, otherwise below. Dedicated event pages keep segmented section navigation.
+Below the context threshold, the selected event/thread becomes the
 single primary view. URL selection, drafts, and return continuity remain in the
 [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state)
 and the discovery surface contract, not new global composition rules.

@@ -162,7 +162,11 @@ func TestMariaDBStartupRequiresRuntimePermissions(t *testing.T) {
 	f.open(t)
 	for _, permission := range runtimeTablePermissions {
 		var count int
-		if err := p.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM "+permission.table).Scan(&count); err != nil || count != 0 {
+		want := 0
+		if permission.table == "reminder_dispatch" {
+			want = 1
+		} // Migration-owned singleton, not a probe insert.
+		if err := p.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM "+permission.table).Scan(&count); err != nil || count != want {
 			t.Fatal("startup permission validation changed application data", permission.table, count, err)
 		}
 	}

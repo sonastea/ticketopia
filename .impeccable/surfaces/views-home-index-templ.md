@@ -16,6 +16,11 @@ preservation of the incumbent UI. Remaining unavailable capabilities stay explic
 
 **THESIS:** Local frequency makes nearby discovery feel personally assembled:
 record-sleeve imagery and a mixtape's clearly indexed dates in a practical app.
+The 2026-10-10 refinement makes that identity quieter: event-first hierarchy,
+transparent participation actions, segmented event sections, and one preview
+boundary. Secondary Overview navigation lives in More event information; zero
+interest counts stay hidden until positive. Back to results replaces the close
+icon. See DESIGN.md's “Local frequency, less interface” philosophy.
 
 **OWN-WORLD:** User-approved deep plum actions and selection on light stone
 navigation and near-white reading surfaces. Dusty rose belongs to date indexing.
@@ -28,16 +33,36 @@ Save privately or mark Interested independently; public identity is opt-in.
 Unavailable participation is explicit, never fabricated.
 
 **FIRST VIEWPORT:** A 14rem grouped, labeled sidebar, dominant results column with
-location/search and disclosed filters, and a 21rem selected-event context area.
+location/search and disclosed filters, and a 21rem default event context area.
+Discovery uses available space up to a 120rem shell. With selection and at least
+64rem of actual workspace, results/context divide 2:3 with a 24rem results minimum;
+collapsing navigation can free this space too.
 Images and aligned date markers lead rows; search is the primary action.
 At 72rem and wider the sidebar can collapse to 4.5rem; its sections and links
 within each section are reorderable in an explicit customization mode. The
 62rem rail and compact four-item bottom navigation keep their existing order.
 The contextual extension selects questions first, with compact event identity,
 native event details/actions, and the selected root/replies in the same panel.
+Questions/tips, recommendations, and public interest appear together below details,
+without preview section tabs. Intrinsic 18rem column minima let discussion/community
+sit side by side when the preview is wide enough, otherwise stack. Selected threads
+replace questions, retaining community beside or below them; Overview prose stays
+in the native event details disclosure so activity stays near the top.
 Expansion opens a dedicated event or shareable thread. Mobile uses a light header
 and a single primary event/thread view with bottom navigation. Selection is pale plum and
 updates matching context without displacing the list.
+
+Discover rows extend vertically with supplied performer/team and sale facts,
+short descriptions, and compact real public question/recommendation previews.
+The extra content spans the row width beneath image/identity; activity shares or
+stacks intrinsic columns. Reading links select the named thread or community
+without separate navigation when enhanced. Events without activity add no empty
+social block. Default context widths may shrink to 45% of the content region when
+enlarged text consumes the workspace; narrow result containers stack image/facts.
+At 72rem+, selected context fills the usable viewport height even when activity
+is sparse, and scrolls internally for longer content. Page-batched public reads
+exclude withheld/withdrawn content and private identities, with local failure
+feedback; the JSON discovery contract remains unchanged.
 
 **FORM:** User-pinned plum/light-stone refresh with Notion-inspired grouped
 icon-and-text navigation, explicit collapse, and browser-local rearrangement.
@@ -60,6 +85,21 @@ Keyboard move controls complement drag handles. Profile stays fixed.
 Event section links and selected-event URLs survive direct entry and resize.
 Provider images remain sourced from normalized Ticketmaster data; no new raster
 assets are authored. Account/community destinations explain their current state.
+
+## Richer discovery rows / verification — 2026-10-10
+
+- In-thread layout review confirms full-width detail/activity excerpts, conditional
+  public previews, steady desktop context height, native links, and preserved
+  dedicated-page navigation. No new tokens, authored imagery, or JSON API fields.
+- [event-context-space-checks.json](../review/event-context-space-checks.json)
+  records 125 passing Chromium checks across desktop/short desktop/ultrawide,
+  tablet, phones, and 200% root text, including row-to-thread/community selection,
+  focus return, long text, forced colors/reduced motion, and no-JavaScript rendering.
+  Fixtures are synthetic and read-only; live OAuth/mutation journeys were not rerun.
+- Full Go race tests with isolated local-MariaDB schemas, production asset build,
+  Docker `make check` (race/vet/build), and the scoped layout detector pass.
+  Enlarged result-copy width improves; inherited sidebar crowding remains outside
+  this refinement. This record is not new independent approval or a WCAG claim.
 
 ## Responsive event/discussion extension / finish record — 2026-10-07
 

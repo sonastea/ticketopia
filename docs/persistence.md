@@ -10,7 +10,8 @@ and observe-only publication measurements, and schema-v8
 [private reporting/moderation and durable roles](moderation.md), and schema-v9
 [reliable event history](event-history.md), plus schema-v10
 [private artist/venue follows](follows.md), and schema-v11 stored Discover and public
-history reads, and schema-v12 [followed discussions and in-app reply notifications](followed-discussions.md).
+history reads, schema-v12 [followed discussions and in-app reply notifications](followed-discussions.md),
+and schema-v13 [on-sale reminder settings, jobs, receipts and dispatch pacing](reminders.md).
 MariaDB discovery uses SQL plus coverage-aware collection/fallback;
 database-free mode retains cache/provider services. MariaDB mode shares durable request budgets/pacing/cooldowns.
 Opt-in city/date collection and fresh activity snapshots persist observations,
@@ -137,6 +138,10 @@ apply all runtime grants, then check TLS/read access and every required write
 permission as the runtime user. The [`runtime check`](../deploy/mariadb/runtime-check.sql)
 uses zero-row writes in a rolled-back transaction; it creates no application data.
 Any failed step stops the command without reporting readiness.
+
+`make local-setup` adds [MiniStack SES capture](local-development.md) before this
+database flow; `make ses-setup` prepares just email emulation. The original
+`db-setup` target remains independent of the email emulator.
 
 The combined `db-setup` target is deliberately pinned to `localhost:3307/ticketopia`
 and the public Compose credentials, overriding inherited and `.env` database

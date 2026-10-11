@@ -1,6 +1,7 @@
 package home
 
 import "fmt"
+import "net/url"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 import "github.com/sonastea/ticketopia/views/components/alert"
@@ -81,5 +82,10 @@ templ SaveControl(eventID string, name string, view SaveView, returnURL string) 
 				@layouts.Icon("saved")<span>{ saveLabel(view.States[eventID]) }</span>
 			}
 		</form>
+		if view.Reminders && view.States[eventID] {
+			@button.Button(button.Props{Href: "/me/reminders/" + url.PathEscape(eventID), Variant: button.VariantOutline, Class: "button-quiet reminder-button", Attributes: templ.Attributes{"aria-label": "On-sale reminder for " + name}}) {
+				@layouts.Icon("bell")<span>On-sale reminder</span>
+			}
+		}
 	}
 }

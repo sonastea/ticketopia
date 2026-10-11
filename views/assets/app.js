@@ -705,10 +705,11 @@
       closeContext();
       return;
     }
-    const thread = event.target.closest('#event-context [data-thread-link]');
+    const thread = event.target.closest('#event-context [data-thread-link], .event-row [data-thread-link]');
     if (thread) {
       event.preventDefault();
       const url = new URL(thread.href);
+      if (thread.closest('.event-row')) lastFocusID = decodeURIComponent(url.pathname.split('/')[2]);
       select(decodeURIComponent(url.pathname.split('/')[2]), 'discussion', true, false, url);
       return;
     }

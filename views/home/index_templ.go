@@ -392,7 +392,7 @@ func Index(page SearchPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventRowsWithActivity(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, page.Activity).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

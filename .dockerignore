@@ -22,6 +22,7 @@
 !scripts/
 scripts/**
 !scripts/mariadb-setup.sh
+!scripts/ses-setup.sh
 !deploy/
 deploy/**
 !deploy/mariadb/
@@ -31,6 +32,9 @@ deploy/mariadb/**
 !deploy/mariadb/operator/
 deploy/mariadb/operator/**
 !deploy/mariadb/operator/database.yaml
+!deploy/ministack/
+deploy/ministack/**
+!deploy/ministack/compose.yaml
 
 # Never send local configuration or data, even from an included directory.
 **/.env*

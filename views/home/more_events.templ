@@ -2,6 +2,7 @@ package home
 
 import "fmt"
 import "github.com/sonastea/ticketopia/internal/models"
+import "github.com/sonastea/ticketopia/internal/eventactivity"
 import "github.com/sonastea/ticketopia/internal/radar"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
@@ -9,7 +10,7 @@ import "github.com/sonastea/ticketopia/views/components/collapsible"
 
 templ MoreEventsList(page SearchPage) {
 	<ul hx-swap-oob="beforeend:#event-list">
-		@EventRows(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests)
+		@EventRowsWithActivity(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, page.Activity)
 	</ul>
 	@Pagination(page)
 }
@@ -19,6 +20,14 @@ templ EventRows(events []models.Event, returnURL string, selectedID string, save
 }
 
 templ EventRowsWithRadar(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item) {
+	@EventRowsContent(events, returnURL, selectedID, saves, actionReturnURL, interests, matches, nil, false)
+}
+
+templ EventRowsWithActivity(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, activity map[string]eventactivity.Preview) {
+	@EventRowsContent(events, returnURL, selectedID, saves, actionReturnURL, interests, nil, activity, true)
+}
+
+templ EventRowsContent(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview, extended bool) {
 	for _, event := range events {
 		<li class="event-row" data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
 			<div class="event-art">
@@ -43,36 +52,89 @@ templ EventRowsWithRadar(events []models.Event, returnURL string, selectedID str
 						@Freshness(item.Meta)
 					</div>
 				}
-				@collapsible.Native(collapsible.Props{Class: "extra-metadata"}) {
-					@collapsible.Summary() {
-						More event information
-					}
-					if artistsLabel(event.Artists) != "" {
-						<p>{ artistsLabel(event.Artists) }</p>
-					}
-					if saleLabel(event) != "" {
-						<p>{ saleLabel(event) }</p>
-					}
-					if event.Source.URL != "" {
-						@button.Button(button.Props{Href: event.Source.URL, Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"aria-label": "View tickets for " + event.Name}}) {
-							<span>View tickets on Ticketmaster</span>@layouts.Icon("external")
-						}
-					}
-				}
-				@EventActions(event.ID, event.Name, saves, actionReturnURL) {
-					@InterestControl(event.ID, event.Name, interests, actionReturnURL)
-					@button.Button(button.Props{Href: eventURL(event.ID, "overview", returnURL), Variant: button.VariantLink, Class: "detail-link", Attributes: templ.Attributes{"data-event-link": true, "data-id": event.ID, "aria-label": "Details for " + event.Name}}) {
-						<span>Details</span>@layouts.Icon("arrow")
-					}
-				}
-				@InterestDetails(event.ID, interests, actionReturnURL)
-				if !isSavedURL(returnURL) && !isInterestsURL(returnURL) && !isRadarURL(returnURL) {
-					@button.Button(button.Props{Href: "#event-context", Variant: button.VariantLink, Class: "context-jump text-link"}) {
-						Jump to event preview
-					}
+				if !extended {
+					@EventRowTools(event, returnURL, saves, actionReturnURL, interests, false)
 				}
 			</div>
+			if extended {
+				<div class="event-row-extension">
+					<div class="row-details">
+						if artistsLabel(event.Artists) != "" {
+							<p><strong>Featuring</strong> { artistsLabel(event.Artists) }</p>
+						}
+						if saleLabel(event) != "" {
+							<p class="sale-date">{ saleLabel(event) }</p>
+						}
+						if event.Info != "" {
+							<p class="row-description">{ previewText(event.Info) }</p>
+						}
+					</div>
+					@EventRowActivity(event.ID, activity[event.ID], returnURL)
+					@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
+				</div>
+			}
 		</li>
+	}
+}
+
+templ EventRowTools(event models.Event, returnURL string, saves SaveView, actionReturnURL string, interests InterestView, extended bool) {
+	@collapsible.Native(collapsible.Props{Class: "extra-metadata"}) {
+		@collapsible.Summary() {
+			More event information
+		}
+		if !extended && artistsLabel(event.Artists) != "" {
+			<p>{ artistsLabel(event.Artists) }</p>
+		}
+		if !extended && saleLabel(event) != "" {
+			<p>{ saleLabel(event) }</p>
+		}
+		<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="text-link row-detail-link" data-event-link data-id={ event.ID } aria-label={ "View event details for " + event.Name }>
+			<span>View event details</span>
+			@layouts.Icon("arrow")
+		</a>
+		if event.Source.URL != "" {
+			@button.Button(button.Props{Href: event.Source.URL, Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"aria-label": "View tickets for " + event.Name}}) {
+				<span>View tickets on Ticketmaster</span>@layouts.Icon("external")
+			}
+		}
+	}
+	@EventActions(event.ID, event.Name, saves, actionReturnURL) {
+		@InterestControl(event.ID, event.Name, interests, actionReturnURL)
+	}
+	@InterestDetails(event.ID, interests, actionReturnURL)
+	if !isSavedURL(returnURL) && !isInterestsURL(returnURL) && !isRadarURL(returnURL) {
+		@button.Button(button.Props{Href: "#event-context", Variant: button.VariantLink, Class: "context-jump text-link"}) {
+			Jump to event preview
+		}
+	}
+}
+
+templ EventRowActivity(id string, preview eventactivity.Preview, returnURL string) {
+	if preview.Question != nil || preview.Recommendation != nil {
+		<div class="row-activity" aria-label="Public event activity">
+			if question := preview.Question; question != nil {
+				<div>
+					<h4><a href={ templ.URL(eventURL(id, "discussion", returnURL)) } class="text-link" data-event-link data-id={ id }>{ activityCount(preview.Questions, "question or tip", "questions & tips") }</a></h4>
+					<p>{ previewText(question.Body) }</p>
+					<div class="row-activity-links">
+						<a href={ templ.URL("/users/" + question.AuthorID) } class="text-link">{ question.AuthorName }</a>
+						<a href={ templ.URL(ThreadURL(id, question.ID, returnURL)) } class="text-link" data-thread-link>Read conversation</a>
+					</div>
+				</div>
+			}
+			if recommendation := preview.Recommendation; recommendation != nil {
+				<div>
+					<h4><a href={ templ.URL(eventURL(id, "community", returnURL)) } class="text-link" data-event-link data-id={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</a></h4>
+					if recommendation.Body != "" {
+						<p>{ previewText(recommendation.Body) }</p>
+					}
+					<div class="row-activity-links">
+						<a href={ templ.URL("/users/" + recommendation.AuthorID) } class="text-link">{ recommendation.AuthorName }</a>
+						<a href={ templ.URL(eventURL(id, "community", returnURL)) } class="text-link" data-event-link data-id={ id }>Read recommendations</a>
+					</div>
+				</div>
+			}
+		</div>
 	}
 }
 
@@ -120,6 +182,9 @@ templ CollectionCoverage(meta models.Freshness) {
 
 templ Pagination(page SearchPage) {
 	<div id="pagination" class="pagination" aria-live="polite">
+		if page.ActivityError != "" {
+			<p class="field-note" role="status">{ page.ActivityError }</p>
+		}
 		if page.Events.NextCursor != nil {
 			@button.Button(button.Props{Href: nextURL(page), Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"hx-get": nextURL(page), "hx-target": "#pagination", "hx-swap": "outerHTML", "hx-indicator": "#pagination", "hx-sync": "this:drop"}}) {
 				<span class="ready-label">Load more events</span><span class="loading-label">Loading events…</span>@layouts.Icon("chevron")

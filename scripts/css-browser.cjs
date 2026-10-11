@@ -27,6 +27,13 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
       }, enlarged);
       check('No horizontal overflow: ' + name, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       check('44px action targets: ' + name, await page.locator('main button:visible, main [data-slot="button"]:visible').evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().height >= 44)));
+      check('Event action labels fit their controls: ' + name, await page.locator('.event-actions [data-slot="button"]:visible').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1 && node.scrollHeight <= node.clientHeight + 1)));
+      if (await page.locator('.reminder-button:visible').count()) {
+        check('Reminder matches the button group, without an underline: ' + name, await page.locator('.reminder-button:visible').evaluateAll(nodes => nodes.every(node => {
+          const css = getComputedStyle(node);
+          return node.matches('a[href]') && node.querySelector('svg[aria-hidden="true"]') && css.borderStyle === 'solid' && parseFloat(css.borderWidth) >= 1 && !css.textDecorationLine.includes('underline');
+        })));
+      }
       check('16px input floor: ' + name, await page.locator('main input:visible, main select:visible, main textarea:visible').evaluateAll(nodes => nodes.every(node => parseFloat(getComputedStyle(node).fontSize) >= 16)));
       if (out) {
         fs.mkdirSync(out, { recursive: true });
@@ -94,6 +101,33 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     const hoverFill = await page.locator('.search-bar button').evaluate(node => getComputedStyle(node).backgroundColor);
     await page.mouse.move(0, 0);
     check('Mouse hover changes primary fill', hoverFill !== await page.locator('.search-bar button').evaluate(node => getComputedStyle(node).backgroundColor));
+    const save = page.locator('.event-actions .save-button').first();
+    const interest = page.locator('.event-actions .interest-button').first();
+    const actionStyle = node => {
+      const css = getComputedStyle(node);
+      return { fill: css.backgroundColor, color: css.color, border: css.borderColor };
+    };
+    await save.evaluate(node => node.dataset.saved = 'false');
+    const unselected = await save.evaluate(actionStyle);
+    check('Save, Interested, and reminder share unselected styling', JSON.stringify(unselected) === JSON.stringify(await interest.evaluate(actionStyle)) && JSON.stringify(unselected) === JSON.stringify(await page.locator('.reminder-button').first().evaluate(actionStyle)));
+    await save.evaluate(node => node.dataset.saved = 'true');
+    await interest.evaluate(node => node.setAttribute('aria-pressed', 'true'));
+    const selected = await save.evaluate(actionStyle);
+    check('Save and Interested share distinct selected styling', selected.fill !== unselected.fill && selected.border !== unselected.border && JSON.stringify(selected) === JSON.stringify(await interest.evaluate(actionStyle)));
+    await save.hover();
+    const selectedHover = await save.evaluate(actionStyle);
+    check('Selected hover remains distinct from rest', selectedHover.fill !== selected.fill);
+    await page.mouse.down();
+    check('Selected press remains distinct from hover', (await save.evaluate(actionStyle)).fill !== selectedHover.fill);
+    await page.mouse.move(0, 0); await page.mouse.up();
+    await save.evaluate(node => node.disabled = true);
+    check('Unavailable action retains muted styling', (await save.evaluate(actionStyle)).color !== selected.color);
+    await save.evaluate(node => node.closest('form').setAttribute('aria-busy', 'true'));
+    check('Pending action retains its plum state', JSON.stringify(await save.evaluate(actionStyle)) === JSON.stringify(selected));
+    await save.evaluate(node => { node.disabled = false; node.closest('form').removeAttribute('aria-busy'); });
+    const actionBoxes = await page.locator('.event-actions').first().evaluate(node => [...node.children].map(child => child.getBoundingClientRect().top));
+    await page.locator('[data-save-feedback]').first().evaluate(node => { node.hidden = false; node.textContent = 'Saved. Return to this event whenever you need its details.'; });
+    check('Feedback does not move the controls', JSON.stringify(actionBoxes) === JSON.stringify(await page.locator('.event-actions').first().evaluate(node => [...node.children].map(child => child.getBoundingClientRect().top))));
     check('Reduced motion disables geometry transitions', await page.locator('.app-shell').evaluate(node => getComputedStyle(node).transitionDuration === '0s'));
     await page.locator('.sidebar-toggle').click();
     // Focus-visible follows the last input modality, not programmatic focus alone.
@@ -102,6 +136,8 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     check('Collapsed tooltip remains available to keyboard focus', await page.locator('.sidebar .nav-link').first().evaluate(node => getComputedStyle(node, '::after').display === 'block'));
     await page.emulateMedia({ forcedColors: 'active' });
     check('Forced-colors focus retains a real outline', await page.locator('.sidebar .nav-link').first().evaluate(node => { const css = getComputedStyle(node); return css.outlineStyle === 'solid' && parseFloat(css.outlineWidth) >= 2; }));
+    await save.focus();
+    check('Event action focus remains visible in forced colors', await save.evaluate(node => { const css = getComputedStyle(node); return css.outlineStyle === 'solid' && parseFloat(css.outlineWidth) >= 2; }));
     await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'no-preference', colorScheme: 'light' });
 
     await page.goto(base + '/me');

@@ -1,0 +1,76 @@
+package account
+
+import "strconv"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/input"
+import "github.com/sonastea/ticketopia/views/components/label"
+
+templ Reminders(p ReminderPage) {
+	@layouts.App("profile", "On-sale reminders") {
+		<main id="main" class="destination-page account-page reminders-page">
+			<h1>On-sale reminders</h1>
+			<p class="intro">Private emails for public ticket sales you choose to remember. Saving an event does not turn reminders on.</p>
+			<nav class="account-nav" aria-label="Reminder navigation"><a href="/saved">Saved events</a><a href="/me/reminders">Your reminders</a><a href="/me/preferences">Email &amp; pause preferences</a></nav>
+			if !p.Enabled {
+				<p>Email reminders are not enabled on this server. Your saved events are unchanged.</p>
+			} else {
+				if p.Account.Preferences.NotificationsPaused || !p.Account.Preferences.EmailReminders {
+					<p class="account-notice" role="status">Delivery is paused. Enable email reminders and turn off Pause all notifications in <a href="/me/preferences" class="text-link">Preferences</a>. Configuring a reminder does not change those choices.</p>
+				}
+				if p.Event != nil {
+					<h2>{ p.Event.Name }</h2>
+					if p.Own != nil {
+						<p role="status">{ reminderState(p.Own.State) }</p>
+						<p class="tabular-nums">Public on-sale: { p.Time(p.Own.SaleAt) }. Reminder: { p.Time(p.Own.ScheduledAt) }.</p>
+					}
+					<form method="post" action={ templ.URL(reminderURL(p.Event.ID)) } class="account-form">
+						@CSRF(p.CSRF)<input type="hidden" name="action" value="set"/>
+						@label.Label(label.Props{For:"reminder-lead",Class:"field"}) {
+							Minutes before public tickets go on sale
+							@input.Input(input.Props{ID:"reminder-lead",Name:"lead_minutes",Type:"number",Value:strconv.Itoa(p.Lead),Required:true,Attributes:templ.Attributes{"min":"1","max":"10080","step":"1","aria-describedby":"reminder-help"}})
+						}
+						<p id="reminder-help" class="field-note">Between one minute and seven days ahead. Unknown times remain pending. Emails go to your private account email in your preferred time zone. No ticket reservation or availability is guaranteed.</p>
+						@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) { Save email reminder }
+					</form>
+					if p.Own != nil {
+						<form method="post" action={ templ.URL(reminderURL(p.Event.ID)) } class="account-actions">
+							@CSRF(p.CSRF)<input type="hidden" name="action" value="stop"/>
+							@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline}) { Stop this reminder }
+						</form>
+					}
+				} else if len(p.List.Items)==0 {
+					<h2>No on-sale reminders yet.</h2><p>Open a saved event's On-sale reminder link to choose when to receive an email.</p>
+					@button.Button(button.Props{Href:"/saved"}) { Choose a saved event }
+				} else {
+					<ul class="account-token-list">
+						for _, item := range p.List.Items {
+							<li><div><a href={ templ.URL(reminderURL(item.EventID)) } class="text-link">{ item.Name }</a><p>{ reminderState(item.State) }</p><p class="field-note tabular-nums">Reminder: { p.Time(item.ScheduledAt) }</p></div></li>
+						}
+					</ul>
+					if p.List.NextCursor != nil {
+						@button.Button(button.Props{Href:p.Next(),Variant:button.VariantOutline}) { More reminders }
+					}
+				}
+				<p class="field-note">Removing an event from Saved stops its reminder. A message already being sent cannot be recalled. Meaningful change emails and weekly digests are not delivered yet.</p>
+			}
+		</main>
+	}
+}
+
+templ ReminderUnsubscribe(token string, done bool) {
+	@layouts.App("profile", "Stop an on-sale reminder") {
+		<main id="main" class="destination-page account-page reminders-page">
+			<h1>Stop an on-sale reminder</h1>
+			if done {
+				<p role="status">This reminder is stopped. Your other reminders and saved events are unchanged.</p>
+			} else {
+				<p>Stop future on-sale emails for this event. No sign-in is needed.</p>
+				<form method="post" action={ templ.URL("/reminders/unsubscribe/"+token) }>
+					@button.Button(button.Props{Type:button.TypeSubmit}) { Stop this reminder }
+				</form>
+			}
+			<a href="/me/reminders" class="text-link">Manage your reminders</a>
+		</main>
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
+	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/saved"
@@ -20,6 +21,26 @@ func TestComponentLinksRejectScriptURLs(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "javascript:") {
 		t.Fatal("component link bypassed templ URL sanitization")
+	}
+}
+
+func TestEventRowDetailsLinkRendersIcon(t *testing.T) {
+	var out bytes.Buffer
+	event := models.Event{ID: "ticketmaster:Details", Name: "Named event"}
+	if err := EventRows([]models.Event{event}, "/", "", SaveView{}, "/", InterestView{}).Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	markup := out.String()
+	if strings.Contains(markup, "@layouts.Icon") {
+		t.Fatal("event row rendered an icon component as literal text")
+	}
+	_, link, found := strings.Cut(markup, `aria-label="View event details for Named event">`)
+	if !found {
+		t.Fatal("missing event details link")
+	}
+	link, _, _ = strings.Cut(link, "</a>")
+	if !strings.Contains(link, "View event details</span>") || !strings.Contains(link, "<svg") {
+		t.Fatal("event details link must render its label and SVG icon", link)
 	}
 }
 
@@ -97,6 +118,63 @@ func TestEmptyPreviewCanReceiveKeyboardFocus(t *testing.T) {
 	}
 }
 
+func TestEventContextActivityIsVisibleBelowDetails(t *testing.T) {
+	for _, section := range []string{"overview", "discussion", "community"} {
+		t.Run(section, func(t *testing.T) {
+			var out bytes.Buffer
+			page := EventPage{Detail: models.EventDetail{Item: models.Event{ID: "ticketmaster:Context", Name: "Local event", Info: "Event description"}}, Section: section}
+			if err := EventContext(page).Render(t.Context(), &out); err != nil {
+				t.Fatal(err)
+			}
+			markup := out.String()
+			details := strings.Index(markup, "</details>")
+			discussion := strings.Index(markup, `id="context-discussion-heading"`)
+			community := strings.Index(markup, `id="context-community-heading"`)
+			if details < 0 || discussion <= details || community <= discussion || strings.Contains(markup, `aria-label="Event sections"`) {
+				t.Fatal("activity must follow event details without section tabs")
+			}
+			if strings.Contains(markup, "Event description") != (section == "overview") {
+				t.Fatal("Overview selection lost the event description")
+			}
+			if section == "overview" && strings.Index(markup, "Event description") > details {
+				t.Fatal("secondary Overview content must stay in the details disclosure, not push activity down")
+			}
+		})
+	}
+}
+
+func TestDiscoveryRowsExposeDetailsAndOnlyRealPublicActivity(t *testing.T) {
+	id := "ticketmaster:Row"
+	event := models.Event{ID: id, Name: "A local show", Info: strings.Repeat("Useful description. ", 30), Artists: []models.Artist{{Name: "The Local Band"}}}
+	var out bytes.Buffer
+	activity := map[string]eventactivity.Preview{id: {
+		Questions: 1, Question: &eventactivity.Contribution{ID: "root", Body: "Where is the entrance?", AuthorID: "author", AuthorName: "Public author"},
+		Recommendations: 2, Recommendation: &eventactivity.Contribution{Body: "<script>Public reason</script>", AuthorID: "author", AuthorName: "Public author"},
+	}}
+	if err := EventRowsWithActivity([]models.Event{event}, "/?city=Berlin", "", SaveView{}, "/", InterestView{}, activity).Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	markup := out.String()
+	for _, want := range []string{"The Local Band", "Useful description.", "1 question or tip", "2 public recommendations", "Where is the entrance?", "&lt;script&gt;Public reason&lt;/script&gt;", "Read conversation", "data-thread-link"} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("missing useful row information %q", want)
+		}
+	}
+	if strings.Count(markup, "The Local Band") != 1 || strings.Contains(markup, event.Info) || strings.Index(markup, "Useful description.") > strings.Index(markup, "<details") {
+		t.Fatal("facts duplicated, description not previewed, or preview hidden in disclosure")
+	}
+	out.Reset()
+	if err := EventRowsWithActivity([]models.Event{event}, "/", "", SaveView{}, "/", InterestView{}, nil).Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "row-activity") || strings.Contains(out.String(), "0 questions") {
+		t.Fatal("event with no known activity fabricated engagement")
+	}
+	if got := previewText(strings.Repeat("界", 201)); got != strings.Repeat("界", 200)+"…" {
+		t.Fatal("preview split a Unicode character", got)
+	}
+}
+
 func TestSaveFeedbackStaysOutsideActionControls(t *testing.T) {
 	event := models.Event{ID: "ticketmaster:Layout", Name: "Layout regression"}
 	view := SaveView{Enabled: true, SignedIn: true, CSRF: "fixture"}
@@ -147,6 +225,38 @@ func TestSaveFeedbackStaysOutsideActionControls(t *testing.T) {
 			}
 			if !hasAttribute(feedback, "hidden") {
 				t.Fatal("empty feedback must not take space before a save")
+			}
+		})
+	}
+}
+
+func TestOnSaleReminderIsAnEventAction(t *testing.T) {
+	id := "ticketmaster:Reminder"
+	for _, tc := range []struct {
+		name      string
+		saved     bool
+		reminders bool
+	}{
+		{"saved with reminders", true, true},
+		{"unsaved", false, true},
+		{"reminders disabled", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			view := SaveView{Enabled: true, SignedIn: true, CSRF: "fixture", Reminders: tc.reminders, States: map[string]bool{id: tc.saved}}
+			if err := SaveControl(id, "Named event", view, "/saved").Render(t.Context(), &out); err != nil {
+				t.Fatal(err)
+			}
+			markup := out.String()
+			if strings.Contains(markup, "reminder-button") != (tc.saved && tc.reminders) {
+				t.Fatal("reminder action must require a saved event and enabled reminders")
+			}
+			if tc.saved && tc.reminders {
+				for _, want := range []string{`href="/me/reminders/ticketmaster:Reminder"`, "button-quiet reminder-button", `aria-label="On-sale reminder for Named event"`, "<span>On-sale reminder</span>"} {
+					if !strings.Contains(markup, want) {
+						t.Errorf("missing reminder action contract %q", want)
+					}
+				}
 			}
 		})
 	}

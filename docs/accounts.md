@@ -51,9 +51,10 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
   **Event explorer**; Google real names/photos are not imported. Your email,
   location, categories, notifications, and credentials never enter this projection.
 - `/me/preferences`: private city/country, IANA time zone, account-wide notification
-  pause and future email/discovery digest choices. Notifications start paused with
+  pause and on-sale email/future discovery digest choices. Notifications start paused with
   email/digest choices off. Resume to receive in-app replies for explicitly followed
-  conversations; external reminders remain planned. Venue-local times are unchanged.
+  conversations. [On-sale emails](reminders.md) additionally require an explicitly
+  configured saved-event reminder and SES enabled on the server. Venue-local times are unchanged.
 - `/me/discussions` and `/me/notifications`: private followed conversations and
   frequency-controlled reply updates. See [followed discussions](followed-discussions.md).
 - `/me/interests`: paginated own event interest with per-event visibility/removal,

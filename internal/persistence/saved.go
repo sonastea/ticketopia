@@ -169,8 +169,24 @@ func (r *SavedRepository) saveOnce(ctx context.Context, owner string, detail mod
 func (r *SavedRepository) Remove(ctx context.Context, owner, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	_, err := r.db.ExecContext(ctx, `DELETE FROM saved_events WHERE account_id=? AND event_id=?`, owner, id)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
+		return safeError("saved event removal", err)
+	}
+	defer tx.Rollback()
+	var who string
+	if err = tx.QueryRowContext(ctx, `SELECT account_id FROM accounts WHERE account_id=? FOR UPDATE`, owner).Scan(&who); err != nil {
+		return safeError("saved event removal", err)
+	}
+	err = stopRemindersTx(ctx, tx, owner, id)
+	if err != nil {
+		return safeError("saved reminder stop", err)
+	}
+	_, err = tx.ExecContext(ctx, `DELETE FROM saved_events WHERE account_id=? AND event_id=?`, owner, id)
+	if err != nil {
+		return safeError("saved event removal", err)
+	}
+	if err = tx.Commit(); err != nil {
 		return safeError("saved event removal", err)
 	}
 	return nil

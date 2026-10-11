@@ -158,14 +158,19 @@ and [cross-client continuity](../design/radar-api.md#shared-backend).
 
 Aligns with the [reminder promises](personal-radar.md#reminder-promises).
 
-- [ ] Backend: Persist reminder settings and idempotent notification jobs; handle
+- [x] Backend: Persist public on-sale settings and occurrence-unique jobs; handle
   time zones, unknown on-sale times, changed dates, cancellation, and delivery retries.
-- [ ] Backend: Deliver public on-sale email, meaningful event changes, and a weekly
-  discovery digest; enforce pause/preferences before each delivery.
-- [ ] Frontend: Offer reminder lead times, pending/sent/failed state, pause/stop
+- [x] Backend: Deliver explicitly configured public on-sale email through SES;
+  enforce pause/preferences and fresh event evidence before each delivery.
+- [ ] Later Backend: Deliver meaningful event changes and a weekly discovery digest.
+- [x] Frontend: Offer on-sale lead times, pending/accepted/failed state, pause/stop
   controls, and email/digest preferences with clear expectations.
 - [ ] Verification: Deliver a timely reminder while the app is closed, prevent
   duplicate/obsolete messages, and prove preference changes affect future jobs.
+
+See [on-sale reminders](../reminders.md) for setup and regression coverage.
+Synthetic delivery runs without browser traffic; live SES/inbox smoke verification
+remains an operator step. SES acceptance is not proof of inbox delivery.
 
 ## 5. Participate in positive event communities
 

@@ -88,4 +88,10 @@ INSERT INTO event_detail_tasks SELECT * FROM event_detail_tasks WHERE FALSE;
 UPDATE event_detail_tasks SET token=token WHERE FALSE;
 DELETE FROM event_detail_tasks WHERE FALSE;
 
+INSERT INTO event_reminders SELECT * FROM event_reminders WHERE FALSE;
+UPDATE event_reminders SET state=state WHERE FALSE;
+INSERT INTO reminder_jobs SELECT * FROM reminder_jobs WHERE FALSE;
+UPDATE reminder_jobs SET state=state WHERE FALSE;
+INSERT INTO reminder_dispatch SELECT * FROM reminder_dispatch WHERE FALSE;
+UPDATE reminder_dispatch SET next_send=next_send WHERE FALSE;
 ROLLBACK;

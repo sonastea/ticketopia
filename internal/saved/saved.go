@@ -40,6 +40,13 @@ type Query struct {
 	Limit  int
 	Cursor *Cursor
 }
+
+func EncodeCursor(owner string, at time.Time, id string) *string {
+	data, _ := json.Marshal(Cursor{1, owner, at.UTC(), id})
+	next := base64.RawURLEncoding.EncodeToString(data)
+	return &next
+}
+
 type Repository interface {
 	Get(context.Context, string, string) (Item, error)
 	Save(context.Context, string, models.EventDetail) (Item, bool, error)

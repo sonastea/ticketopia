@@ -17,6 +17,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/infra"
 	"github.com/sonastea/ticketopia/internal/logger"
 	"github.com/sonastea/ticketopia/internal/persistence"
+	"github.com/sonastea/ticketopia/internal/reminders"
 )
 
 func Execute(ctx context.Context) int {
@@ -33,6 +34,12 @@ func Execute(ctx context.Context) int {
 		return 1
 	}
 	var options []api.Option
+	reminderConfig, err := reminders.ConfigFromEnv()
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid reminder configuration")
+		return 1
+	}
+	var reminderRepository *persistence.ReminderRepository
 	historyConfig, err := history.ConfigFromEnv()
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid event history configuration")
@@ -58,6 +65,10 @@ func Execute(ctx context.Context) int {
 		logger.Error().Msg("Authentication requires PERSISTENCE_MODE=mariadb")
 		return 1
 	}
+	if reminderConfig.Enabled && (!config.Enabled || !authConfig.Enabled || providerConfig.APIKey == "") {
+		logger.Error().Msg("Email reminders require MariaDB, accounts, and a Ticketmaster key")
+		return 1
+	}
 	if config.Enabled {
 		pool, err := persistence.Open(ctx, config)
 		if err != nil {
@@ -81,11 +92,17 @@ func Execute(ctx context.Context) int {
 		// Shared snapshot fallback is public metadata, independent of accounts.
 		options = append(options, api.WithSavedEvents(pool.Saved()))
 		if authConfig.Enabled {
+			if reminderConfig.Enabled {
+				reminderRepository = pool.Reminders()
+				reminderRepository.SetSendInterval(reminderConfig.Interval)
+				options = append(options, api.WithReminders(reminderRepository))
+			}
 			options = append(options, api.WithRadar(pool.Radar(), providerConfig.FreshFor))
 			options = append(options, api.WithFollows(pool.Follows()))
 			options = append(options, api.WithEventInterests(pool.Interests()))
 			options = append(options, api.WithEventRecommendations(pool.Recommendations()))
 			options = append(options, api.WithEventDiscussions(pool.Discussions()))
+			options = append(options, api.WithEventActivity(pool.EventActivity()))
 			options = append(options, api.WithDiscussionFollows(pool.DiscussionFollows()))
 			options = append(options, api.WithModeration(pool.Moderation()))
 			options = append(options, api.WithAccounts(authConfig, accounts.New(pool.Accounts(), accounts.NewGoogle(ctx, authConfig))))
@@ -101,6 +118,20 @@ func Execute(ctx context.Context) int {
 
 	provider := discovery.New(ctx, cache, logger, providerConfig)
 	defer provider.WaitRefreshes()
+	if reminderRepository != nil {
+		sender, err := reminders.NewSES(ctx, reminderConfig)
+		if err != nil {
+			logger.Error().Err(err).Msg("SES initialization failed")
+			return 1
+		}
+		workerCtx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			reminders.NewWorker(reminderRepository, provider, sender, logger, reminderConfig.Interval).Run(workerCtx)
+		}()
+		defer func() { cancel(); <-done }()
+	}
 	options = append([]api.Option{api.WithDiscovery(provider)}, options...)
 	api, err := api.NewAPI(ctx, logger, cache, options...)
 	if err != nil {

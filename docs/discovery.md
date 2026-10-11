@@ -58,6 +58,23 @@ imply Music. The neutral Featuring section can contain performers or teams and
 is omitted when no attractions are supplied. Prices do not establish fee
 inclusion or ticket inventory.
 
+Discover rows expose supplied performers/teams, separate ticket-sale information,
+and a short description beneath the essential facts, using the full row width.
+When public activity exists, they show visible question/tip and active recommendation
+counts plus one recent excerpt of each, with named authors and reading links.
+Rows grow vertically with those previews; events without activity add no empty
+community block or invented count. **Read conversation** selects that thread in
+the preview, and **Read recommendations** selects its community; ordinary links
+open dedicated pages without JavaScript.
+
+In accounts-enabled MariaDB mode, `internal/eventactivity` reads only the current
+results page (up to 100 event IDs) through two batched SQL queries, not one query
+or provider call per row. Hidden/removed root text, withdrawn endorsements, private
+saves, and private-interest identities never enter these previews. Read failures
+leave event results usable with a local unavailable message, not guessed zeroes.
+Previews refresh on a new page read; they are not a live activity feed. This HTML
+enrichment does not change the JSON event API, discovery sorting, or cache keys.
+
 Load-more keeps all filters and starts at page zero. MariaDB paginates all matching
 stored results; database-free mode stops at Ticketmaster's paging cap.
 With JavaScript it appends rows; without JavaScript
@@ -88,7 +105,12 @@ A new form submission starts at the first page.
   labeled rail and a 20rem preview; below 62rem the app uses bottom navigation
   and a single primary event/thread view on selection. Dedicated pages remain
   available for expansion and ordinary no-JavaScript links. The intermediate threshold leaves room for
-  the navigation rail and readable results. The full shell caps at 100rem.
+  the navigation rail and readable results. Discovery caps at 120rem; other pages
+  cap at 100rem. At 64rem of actual workspace, selected results/context divide 2:3,
+  and discussion/community can sit side by side. The selected desktop preview fills
+  the usable viewport height, scrolling internally for longer activity. At enlarged
+  text sizes, the default preview takes at most 45% of the content width, and narrow
+  results stack image/facts rather than squeezing prose beside the image.
 - Location stays visible above search. **Change city** opens the native Filters
   disclosure and focuses City. The same GET form exposes country, dates, category,
   genre, and date-ascending/date-descending/name-ascending sorting. Inputs and

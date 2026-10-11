@@ -146,6 +146,19 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	}
 	page.Saves = a.saveView(c, ids)
 	page.Interests = a.interestView(c, ids)
+	if a.eventActivity != nil && !page.NeedsLocation && page.Error == "" {
+		// Only this results page is enriched, never the entire result set or the
+		// separately selected event. Optional failure leaves discovery usable.
+		activityIDs := make([]string, 0, len(page.Events.Items))
+		for _, event := range page.Events.Items {
+			activityIDs = append(activityIDs, event.ID)
+		}
+		var activityErr error
+		page.Activity, activityErr = a.eventActivity.Previews(c.Request().Context(), activityIDs)
+		if activityErr != nil {
+			page.ActivityError = "Community previews couldn't load. Open an event to check its activity."
+		}
+	}
 	if partial {
 		if page.NeedsLocation {
 			return c.String(http.StatusBadRequest, "Choose a city before loading events.")
@@ -179,17 +192,13 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			_, page.SelectionError = errorMessage(selectionErr)
 		} else {
 			page.Selected = &detail
-			if section == "community" {
-				page.Recommendations = a.recommendationView(c, selectedID)
-			}
-			if section == "discussion" && page.Thread == nil {
+			community := home.EventPage{Detail: detail}
+			a.loadEventCommunity(c, &community)
+			page.Recommendations = community.Recommendations
+			page.Participants = community.Participants
+			page.ParticipantsError = community.ParticipantsError
+			if page.Thread == nil {
 				page.Discussions = a.discussionView(c, selectedID)
-			}
-			if a.interestEnabled() && section == "community" {
-				page.Participants, selectionErr = a.interests.Participants(c.Request().Context(), selectedID, nil)
-				if selectionErr != nil {
-					page.ParticipantsError = "Public participants couldn't load. Refresh to try again."
-				}
 			}
 		}
 	}

@@ -138,18 +138,12 @@ func (a *api) eventPageHandler(c echo.Context) error {
 		if err == nil {
 			page.Saves = a.saveView(c, []string{id})
 			page.Interests = a.interestView(c, []string{id})
-			if page.Section == "community" {
-				page.Recommendations = a.recommendationView(c, id)
+			panel := c.Request().Header.Get("X-Ticketopia-Panel") == "true"
+			if panel || page.Section == "community" {
+				a.loadEventCommunity(c, &page)
 			}
-			if page.Section == "discussion" {
+			if panel || page.Section == "discussion" {
 				page.Discussions = a.discussionView(c, id)
-			}
-			if a.interestEnabled() && page.Section == "community" {
-				page.Participants, err = a.interests.Participants(c.Request().Context(), id, nil)
-				if err != nil {
-					page.ParticipantsError = "Public participants couldn't load. Refresh to try again."
-					err = nil
-				}
 			}
 		}
 	}
@@ -165,6 +159,20 @@ func (a *api) eventPageHandler(c echo.Context) error {
 		return render(c, status, home.EventContext(page))
 	}
 	return render(c, status, home.Event(page))
+}
+
+// Context previews show community alongside discussion, independently of the
+// selected section. Optional community failures must not hide event details.
+func (a *api) loadEventCommunity(c echo.Context, page *home.EventPage) {
+	id := page.Detail.Item.ID
+	page.Recommendations = a.recommendationView(c, id)
+	if a.interestEnabled() {
+		var err error
+		page.Participants, err = a.interests.Participants(c.Request().Context(), id, nil)
+		if err != nil {
+			page.ParticipantsError = "Public participants couldn't load. Refresh to try again."
+		}
+	}
 }
 
 func destinationHandler(active, title string) echo.HandlerFunc {

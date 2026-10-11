@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 2026-10-10 — Quieter event views and segmented navigation
+
+- Establish “Local frequency, less interface” in the [design philosophy](../../DESIGN.md#design-philosophy):
+  event-first hierarchy, restrained action styling, and one visual grammar per control.
+- Replace event underline buttons with responsive segmented navigation, including
+  an explicit forced-colors current state and real link semantics.
+- Quiet participation toolbars, move row Overview navigation into the metadata
+  disclosure, mute genre labels, and hide zero-interest counts until positive.
+- Simplify the preview to one container and a labeled Back to results action.
+- Preserve private/public labels, independent saves/interests, reminder access,
+  and the discussion-first selection and return-state contracts.
+- Verify Chromium/WebKit responsive fixtures, 200% text, long content, touch,
+  forced colors, and reduced motion; verify live count updates from zero to one
+  and back using mocked responses. Home package race tests, vet, and build pass.
+
 ### 2026-10-07 — Modern CSS conventions
 
 - Adopt [Good CSS](https://good-css.com/) in repository agent guidance and the

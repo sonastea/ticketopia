@@ -306,6 +306,9 @@ func runActivityBrowser(t *testing.T, script string) {
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
 		options := []api.Option{}
 		if enabled {
+			if script == os.Getenv("REMINDER_BROWSER_SCRIPT") {
+				options = append(options, api.WithReminders(p.Reminders()))
+			}
 			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(p.Recommendations()), api.WithEventDiscussions(p.Discussions()), api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()))
 		}
 		app, err := api.NewAPI(t.Context(), zerolog.Nop(), store, options...)

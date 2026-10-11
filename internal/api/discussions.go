@@ -199,6 +199,7 @@ func (a *api) discussionCollectionPage(c echo.Context) error {
 	}
 	if c.Request().Header.Get("X-Ticketopia-Panel") == "true" {
 		page := home.EventPage{Detail: models.EventDetail{Item: p.Event, Meta: p.Meta}, Section: "discussion", ReturnURL: p.ReturnURL, ActionReturnURL: p.URL, Thread: &p, Saves: a.saveView(c, []string{id}), Interests: a.interestView(c, []string{id})}
+		a.loadEventCommunity(c, &page)
 		return render(c, http.StatusOK, home.EventContext(page))
 	}
 	return render(c, status, home.Discussion(p))
