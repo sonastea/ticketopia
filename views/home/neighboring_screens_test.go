@@ -2,6 +2,9 @@ package home
 
 import (
 	"bytes"
+	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +17,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
+	"golang.org/x/net/html"
 )
 
 func renderNeighbor(t *testing.T, component templ.Component) string {
@@ -23,6 +27,49 @@ func renderNeighbor(t *testing.T, component templ.Component) string {
 		t.Fatal(err)
 	}
 	return out.String()
+}
+
+func neighborElements(root *html.Node, tag string) []*html.Node {
+	var nodes []*html.Node
+	var visit func(*html.Node)
+	visit = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == tag {
+			nodes = append(nodes, n)
+		}
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			visit(child)
+		}
+	}
+	visit(root)
+	return nodes
+}
+
+func neighborAttributes(n *html.Node) map[string]string {
+	attrs := map[string]string{}
+	for _, a := range n.Attr {
+		attrs[a.Key] = a.Val
+	}
+	return attrs
+}
+
+func neighborText(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	var text strings.Builder
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		text.WriteString(neighborText(child))
+	}
+	return text.String()
+}
+
+func neighborDocument(t *testing.T, markup string) *html.Node {
+	t.Helper()
+	doc, err := html.Parse(strings.NewReader(markup))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc
 }
 
 func TestPublicCollectionIdentityOpensOverview(t *testing.T) {
@@ -37,25 +84,52 @@ func TestPublicCollectionIdentityOpensOverview(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			body := renderNeighbor(t, component)
-			href := `href="` + eventURL(event.ID, "overview", origin) + `"`
-			if strings.Count(body, href) != 2 {
-				t.Fatalf("artwork/title must share Overview and return context: %s", body)
+			doc := neighborDocument(t, body)
+			var artwork, title, section, conversation string
+			linkCounts := map[string]int{}
+			for _, link := range neighborElements(doc, "a") {
+				attrs := neighborAttributes(link)
+				linkCounts[attrs["href"]]++
+				if slices.Contains(strings.Fields(attrs["class"]), "event-image-link") {
+					artwork = attrs["href"]
+					if attrs["aria-label"] != "Overview — "+event.Name {
+						t.Fatal("artwork lost its accessible event identity")
+					}
+				}
+				if link.Parent.Data == "h3" && neighborText(link) == event.Name {
+					title = attrs["href"]
+				}
+				if text := neighborText(link); text == "Recommendations" || text == "Questions & tips" {
+					section = attrs["href"]
+				} else if strings.HasPrefix(neighborText(link), "Open conversation") {
+					conversation = attrs["href"]
+				}
 			}
-			if !strings.Contains(body, `aria-label="Overview — Event with &lt;long&gt; title"`) {
-				t.Fatal("missing accessible artwork identity")
+			if artwork == "" || artwork != title || linkCounts[title] != 2 {
+				t.Fatalf("artwork/title must share an Overview destination: %q / %q", artwork, title)
 			}
+			assertNeighborURL(t, title, "/events/"+event.ID, "", origin)
 			for _, forbidden := range []string{"data-save-form", "data-interest-form", "ticket-link"} {
 				if strings.Contains(body, forbidden) {
 					t.Fatal("public person row repeats private/ticket toolbar")
 				}
 			}
-			if name == "conversations" && (!strings.Contains(body, "Open conversation") || !strings.Contains(body, "Questions &amp; tips") || !strings.Contains(body, "/discussions/root")) {
-				t.Fatal("lost direct section/thread entry")
+			if name == "conversations" {
+				assertNeighborURL(t, section, "/events/"+event.ID, "discussion", origin)
+				assertNeighborURL(t, conversation, "/events/"+event.ID+"/discussions/root", "", origin)
 			}
-			if name == "recommendations" && !strings.Contains(body, "Recommendations</a>") {
-				t.Fatal("lost direct recommendation entry")
+			if name == "recommendations" || name == "community" {
+				assertNeighborURL(t, section, "/events/"+event.ID, "community", origin)
 			}
 		})
+	}
+}
+
+func assertNeighborURL(t *testing.T, raw, path, section, origin string) {
+	t.Helper()
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.Path != path || u.Query().Get("section") != section || u.Query().Get("return_to") != origin {
+		t.Fatalf("destination %q: want local %s, section=%q, return_to=%q", raw, path, section, origin)
 	}
 }
 
@@ -74,14 +148,22 @@ func TestFollowSearchDisclosureStates(t *testing.T) {
 		{"collection error", FollowsPage{Enabled: true, List: collection, Error: "Unavailable"}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.page.SearchOpen() != tc.open {
-				t.Fatal("incorrect search state")
-			}
 			body := renderNeighbor(t, Follows(tc.page))
-			if strings.Contains(body, `class="follow-search" open`) != tc.open {
+			doc := neighborDocument(t, body)
+			searches := neighborElements(doc, "details")
+			// Filter to search rather than depend on attribute serialization order.
+			searches = slices.DeleteFunc(searches, func(n *html.Node) bool {
+				return !slices.Contains(strings.Fields(neighborAttributes(n)["class"]), "follow-search")
+			})
+			if len(searches) != 1 {
+				t.Fatal("expected one native search disclosure")
+			}
+			_, open := neighborAttributes(searches[0])["open"]
+			if open != tc.open {
 				t.Fatal("native disclosure disagrees")
 			}
-			if !strings.Contains(body, `method="get" action="/follows"`) || !strings.Contains(body, "Following doesn't publish interest") {
+			forms := neighborElements(searches[0], "form")
+			if len(forms) == 0 || neighborAttributes(forms[0])["method"] != "get" || neighborAttributes(forms[0])["action"] != "/follows" || !strings.Contains(body, "Following doesn't publish interest") {
 				t.Fatal("lost search/private controls")
 			}
 		})
@@ -89,19 +171,60 @@ func TestFollowSearchDisclosureStates(t *testing.T) {
 }
 
 func TestReplyRecordsKeepAvailabilityAndDistinctConversations(t *testing.T) {
-	at := time.Date(2026, 10, 11, 13, 42, 0, 0, time.UTC)
-	p := DiscussionFollowPage{Notifications: true, URL: "/me/notifications", Inbox: discussionfollows.Page[discussionfollows.Notification]{Items: []discussionfollows.Notification{
+	at := time.Date(2026, 10, 11, 15, 42, 0, 0, time.FixedZone("CEST", 2*60*60))
+	p := DiscussionFollowPage{Notifications: true, CSRF: "viewer-csrf", URL: "/me/notifications?limit=2", Inbox: discussionfollows.Page[discussionfollows.Notification]{Items: []discussionfollows.Notification{
 		{ID: "one", EventName: "Same event", ReplyCount: 3, AvailableAt: at, URL: "/events/e/discussions/one?post_id=r#post-r"},
 		{ID: "two", EventName: "Same event", ReplyCount: 1, AvailableAt: at.Add(time.Minute), Read: true, URL: "/events/e/discussions/two?post_id=s#post-s"},
 	}}}
 	body := renderNeighbor(t, FollowedDiscussions(p))
-	for _, want := range []string{`data-notification-read="false"`, `data-notification-read="true"`, `<strong>Unread</strong>`, "Available <time", "13:42 UTC", "13:43 UTC", "3</strong>", "1</strong>", `href="/events/e/discussions/one?post_id=r#post-r"`, `href="/events/e/discussions/two?post_id=s#post-s"`} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("missing %s", want)
-		}
+	doc := neighborDocument(t, body)
+	records := slices.DeleteFunc(neighborElements(doc, "li"), func(n *html.Node) bool {
+		_, record := neighborAttributes(n)["data-notification-read"]
+		return !record
+	})
+	if len(records) != len(p.Inbox.Items) {
+		t.Fatal("notifications for distinct conversations were collapsed")
 	}
-	if strings.Count(body, "Open conversation at reply") != 2 || strings.Count(body, "Mark read</button>") != 1 {
-		t.Fatal("collapsed distinct conversations or changed read action")
+	for i, item := range p.Inbox.Items {
+		record := records[i]
+		text := strings.Join(strings.Fields(neighborText(record)), " ")
+		state, count := "Unread", "3 new replies"
+		if item.Read {
+			state, count = "Read", "1 new reply"
+		}
+		if !strings.Contains(text, count+" · "+state) || neighborAttributes(record)["data-notification-read"] != strconv.FormatBool(item.Read) {
+			t.Fatalf("notification %s lost its own count/read state: %s", item.ID, text)
+		}
+		times := neighborElements(record, "time")
+		if len(times) != 1 || neighborAttributes(times[0])["datetime"] != item.AvailableAt.Format(time.RFC3339) || neighborText(times[0]) != item.AvailableAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") || !strings.Contains(neighborText(times[0].Parent), "Available ") {
+			t.Fatalf("notification %s lost actual availability/UTC labeling", item.ID)
+		}
+		links := neighborElements(record, "a")
+		if len(links) != 1 || neighborAttributes(links[0])["href"] != item.URL || strings.TrimSpace(neighborText(links[0])) != "Open conversation at reply" {
+			t.Fatalf("notification %s no longer opens its exact reply", item.ID)
+		}
+		forms := neighborElements(record, "form")
+		if item.Read {
+			if len(forms) != 0 {
+				t.Fatal("read notification still offers Mark read")
+			}
+			continue
+		}
+		if len(forms) != 1 || neighborAttributes(forms[0])["method"] != "post" || neighborAttributes(forms[0])["action"] != "/discussion-follow-actions" {
+			t.Fatal("unread notification lost its native read form")
+		}
+		fields := map[string]string{}
+		for _, input := range neighborElements(forms[0], "input") {
+			attrs := neighborAttributes(input)
+			fields[attrs["name"]] = attrs["value"]
+		}
+		if fields["notification_id"] != item.ID || fields["return_to"] != p.URL || fields["csrf_token"] != p.CSRF {
+			t.Fatal("Mark read targets the wrong notification, return page or viewer credential")
+		}
+		buttons := neighborElements(forms[0], "button")
+		if len(buttons) != 1 || neighborAttributes(buttons[0])["name"] != "action" || neighborAttributes(buttons[0])["value"] != "read" || strings.TrimSpace(neighborText(buttons[0])) != "Mark read" {
+			t.Fatal("unread notification lost its explicit Mark read action")
+		}
 	}
 }
 
@@ -117,7 +240,8 @@ func TestContributionsKeepHiddenTextAndComposerBoundaries(t *testing.T) {
 	if strings.Count(body, "<textarea") != 1 || strings.Count(body, "<button") != 1 || !strings.Contains(body, `name="parent_id" value="target"`) || !strings.Contains(body, `name="idempotency_key" value="preserved-key"`) {
 		t.Fatal("composer controls/draft metadata changed")
 	}
-	if strings.Index(body, "contribution will be public") > strings.Index(body, "Publish reply") {
+	audience, publish := strings.Index(body, "contribution will be public"), strings.Index(body, "Publish reply")
+	if audience < 0 || publish < 0 || audience > publish {
 		t.Fatal("public audience must be explained beside the publishing action")
 	}
 }
