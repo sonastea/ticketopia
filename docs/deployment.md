@@ -367,8 +367,9 @@ and [geolocation limits](location.md#ip-lookup-and-caching).
 
 ### Planned MariaDB persistence
 
-Status: The **connection/migration/identity foundation is implemented**; deployed
-multi-pod operation, broader persistence, HA, and backup/restore remain planned.
+Status: Durable application state and migration support are implemented. Cluster
+multi-pod operation, upgrades/migrations and populated-data backup/restore will be
+verified after Kubernetes deployment; HA remains optional and unverified.
 The [persistence guide](persistence.md) covers all configuration, local MariaDB,
 failed-DDL recovery, rolling-update compatibility, pinned operator examples, and
 connection budgeting. See the [database plan](design/database.md) for future state.
@@ -443,8 +444,8 @@ three application pods do not change that. Before production availability claims
 select/test any required replication/Galera/MaxScale topology, storage/node placement,
 failover, and pooled-connection/uncertain-write recovery. Independently configure
 off-volume backups, retention, and successful restoration into a fresh instance;
-PVCs/replicas are not backups. Scheduled ingestion and cross-pod external budgets
-are later work, not provided by this foundation.
+PVCs/replicas are not backups. Scheduled ingestion and cross-pod provider budgets
+are implemented, but their deployed behavior still needs cluster verification.
 
 Verify writes through one app pod are visible through another and that app restarts,
 rolling updates, and recovery do not lose data before checking the broader

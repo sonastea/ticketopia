@@ -31,7 +31,7 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Thread | `/events/{event_id}/discussions/{discussion_id}` | Shareable root/replies, public attribution, owner edit/remove, positive Helpful and native composing |
 | Interests | `/me/interests` | Paginated own event interest and per-event visibility, followed by separate private category preferences |
 | Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
-| Preferences | `/me/preferences` | Separate location/time-zone and notification groups; on-sale email permission, global pause, reply-frequency links and a non-interactive digest availability note |
+| Preferences | `/me/preferences` | Separate location/time-zone and notification groups; short email/pause explanations, in-app reply links and optional email-delivery details; no out-of-scope digest promotion |
 | On-sale reminders | `/me/reminders` | Private event-named rows with recorded targets/time zones and readiness; event settings offer preset/custom lead times, a non-guaranteed preview and native Save/Stop |
 | Followed discussions | `/me/discussions` | Private conversation collection and per-thread immediate/daily/weekly or muted reply frequency |
 | Reply notifications | `/me/notifications` | Private due reply updates, read state and exact visible-reply links |

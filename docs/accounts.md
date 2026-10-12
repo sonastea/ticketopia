@@ -7,13 +7,13 @@ browser sessions, public profiles/private preferences, personal API tokens, and
 Accounts require MariaDB; there is no memory fallback. [Personalized radar](radar.md)
 uses private follows/category/location preferences. Explicit [on-sale emails](reminders.md)
 and [in-app reply updates](followed-discussions.md) are implemented; event-change
-emails and digests remain planned.
+emails and weekly discovery digests are out of scope.
 
 ## Enable accounts
 
 First follow the [MariaDB setup](persistence.md#repeatable-local-development), apply
-schema version **10**, and reapply the runtime grants. Discovery remains usable with
-`AUTH_ENABLED` unset/false. When enabled, missing/invalid configuration or SQL
+the current required schema version **13**, and reapply the runtime grants. Discovery
+remains usable with `AUTH_ENABLED` unset/false. When enabled, missing/invalid configuration or SQL
 startup failures stop the server before it listens.
 
 1. In [Google Auth Platform](https://console.cloud.google.com/auth/overview), create
@@ -58,9 +58,18 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
   email/digest choices off. Resume to receive in-app replies for explicitly followed
   conversations. [On-sale emails](reminders.md) additionally require an explicitly
   configured saved-event reminder and SES enabled on the server. Venue-local times are unchanged.
-  Weekly digest is labeled **Not available yet**, with no HTML form field: unrelated
-  saves and validation rerenders retain its stored value by omitting that patch.
-  The JSON preference contract still accepts `weekly_digest`.
+  Notifications uses short labels and local help: **Email me on-sale reminders**
+  permits email, **Pause all notifications** stops both channels without erasing
+  settings, and **Replies in the app** links **Choose reply frequency** and
+  **Read reply updates**. Control labels and help form one clickable row, with
+  descriptions aligned beneath the label and action links separate from prose.
+  Help uses readable .875rem type and compact line spacing rather than oversized
+  inline link boxes; parent-owned gaps separate choices and a quiet rule separates replies.
+  Optional **About email delivery** details explain server support and missed reminders.
+  Out-of-scope digests/change emails are not advertised. No HTML digest field is
+  submitted: unrelated saves and validation rerenders retain its stored value by
+  omitting that patch. The JSON contract still accepts `weekly_digest` for compatibility;
+  it does not enable digest delivery.
 - `/me/discussions` and `/me/notifications`: private followed conversations and
   frequency-controlled reply updates. See [followed discussions](followed-discussions.md).
 - `/me/interests`: paginated own event interest with per-event visibility/removal,

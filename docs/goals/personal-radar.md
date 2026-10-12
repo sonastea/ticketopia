@@ -6,7 +6,8 @@ retain bookmarks and last-known details. [Private artist/venue follows](../follo
 provide search and cross-session collections. [Personalized radar](../radar.md)
 matches those follows and explicit category/location preferences with explanations.
 [Explicit public on-sale emails](../reminders.md) now run through opt-in SES delivery.
-Meaningful event-change emails, digests and human pilot checkpoints remain upcoming work.
+Human pilot checkpoints remain. Weekly discovery digests and additional
+sale/price/event-change emails are out of scope; existing on-sale reminders remain.
 Google accounts, profiles/privacy defaults, and private category/location/
 notification preferences are [implemented, opt-in](../accounts.md).
 The [delivery checklist](delivery.md) aligns backend and frontend tasks.
@@ -15,15 +16,17 @@ see [location behavior](../location.md).
 
 Discovery supports all Ticketmaster event categories. Private category preferences
 are stored now; private saved events, community interest, recommendations and follows
-are implemented, alongside personalized ranking and explicit on-sale reminders. Later reminder kinds remain agreed subsequent goals,
-not prerequisites for the responsive community MVP. See the
+are implemented, alongside personalized ranking and explicit on-sale reminders.
+Current work is everyday use, small flow/copy fixes and release verification,
+not more notification kinds. See the
 [release boundary](delivery.md#mvp-release-boundary) and
 [design guidelines](../design-guidelines.md) for the current delivery direction.
 
 ## Goal
 
 Help someone discover relevant events nearby, save the ones they care about,
-and remember when tickets go on sale or plans change.
+and optionally remember when tickets go on sale. Ticket-provider purchase, price
+and transactional change notifications are not this app's responsibility.
 
 The original live-music audience remains supported, alongside people exploring
 sports, arts, and other Ticketmaster categories who miss announcements or do not
@@ -78,15 +81,17 @@ checkpoints, not claims of product-market fit.
   source ticket link, and any known advertised price or public on-sale date.
   Event dates and sale dates are distinct; unknown dates/prices are explicit.
 - Useful results early in the first visit, followed by an easy way to keep them.
-- A weekly discovery digest and meaningful updates at a pace chosen by the user.
+- A useful list to revisit, with dated event history and opt-in on-sale reminders;
+  no weekly digest or additional change-email promise.
 
 ## Reminder promises
 
 - Timing makes sense in the user's time zone, including daylight-saving changes.
 - An on-sale reminder requires a known future sale time. Unknown times remain
   pending; saving an already-on-sale event does not create a late sale reminder.
-- Date, venue, cancellation, and postponement updates describe what changed.
-  Seeing an event for the first time is distinct from detecting a later change.
+- In-app date, venue, cancellation, and postponement history describes what changed.
+  Seeing an event for the first time is distinct from detecting a later change;
+  it does not promise a change email.
 - Changed sale dates update pending reminders. Cancellation, removal, or a pause
   prevents obsolete reminders from being sent.
 - Each notification corresponds to a distinct intended reminder or meaningful

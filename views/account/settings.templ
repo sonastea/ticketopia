@@ -199,13 +199,40 @@ templ Preferences(p Page) {
 			@input.Input(input.Props{ID:"timezone",Name:"timezone",Value:p.Account.Preferences.Timezone,Required:true,Attributes:templ.Attributes{"maxlength":"64","aria-describedby":"timezone-help"}})
 		}
 		<p id="timezone-help" class="field-note">Use an IANA time zone such as America/Chicago or Europe/Berlin. Reminder times use this zone; event dates still use the venue's time zone.</p>
-		<fieldset class="account-checkboxes"><legend>Notifications</legend>
-			<label><input type="checkbox" name="email_reminders" aria-describedby="email-reminders-help" checked?={ p.Account.Preferences.EmailReminders }/><span>Allow explicitly configured public on-sale emails</span></label>
-			<p id="email-reminders-help" class="field-note">Give permission to email your private account address. Choose each saved event and its timing in <a href="/me/reminders" class="text-link">On-sale reminders</a>. Permission alone does not create a reminder; delivery also requires server support.</p>
-			<label><input type="checkbox" name="notifications_paused" aria-describedby="notification-pause-help" checked?={ p.Account.Preferences.NotificationsPaused }/><span>Pause all notifications</span></label>
-			<p id="notification-pause-help" class="field-note">Withhold configured on-sale emails and in-app reply updates without removing your choices. Turn pause off to resume eligible updates; missed emails are not guaranteed to catch up.</p>
-			<p class="field-note">Reply updates stay in Ticketopia, not email. Set each conversation's frequency in <a href="/me/discussions" class="text-link">Followed discussions</a>; read available updates in <a href="/me/notifications" class="text-link">Reply notifications</a>.</p>
-			<p class="field-note"><strong>Weekly discovery digest</strong> — Not available yet. Event-change emails are not available yet either.</p>
+		<fieldset class="account-checkboxes notification-preferences"><legend>Notifications</legend>
+			<div class="notification-options">
+				<div class="notification-option">
+					<label>
+						<input type="checkbox" name="email_reminders" aria-labelledby="email-reminders-label" aria-describedby="email-reminders-help" checked?={ p.Account.Preferences.EmailReminders }/>
+						<span class="notification-copy">
+							<span id="email-reminders-label" class="notification-title">Email me on-sale reminders</span>
+							<span id="email-reminders-help" class="field-note">For saved events you choose. Saving alone won’t send email.</span>
+						</span>
+					</label>
+					<a href="/me/reminders" class="text-link notification-settings-link">Choose events &amp; timing</a>
+				</div>
+				<div class="notification-option">
+					<label>
+						<input type="checkbox" name="notifications_paused" aria-labelledby="notification-pause-label" aria-describedby="notification-pause-help" checked?={ p.Account.Preferences.NotificationsPaused }/>
+						<span class="notification-copy">
+							<span id="notification-pause-label" class="notification-title">Pause all notifications</span>
+							<span id="notification-pause-help" class="field-note">Stops on-sale emails and new reply updates. Uncheck to resume; your settings stay saved.</span>
+						</span>
+					</label>
+				</div>
+			</div>
+			<div class="notification-replies">
+				<h3>Replies in the app</h3>
+				<p class="field-note">Updates from conversations you follow. These stay in Ticketopia, not email.</p>
+				<div class="notification-links">
+					<a href="/me/discussions" class="text-link">Choose reply frequency</a>
+					<a href="/me/notifications" class="text-link">Read reply updates</a>
+				</div>
+			</div>
+			<details class="account-more notification-delivery">
+				<summary>About email delivery</summary>
+				<p class="field-note">Reminders go to your account email when delivery is enabled on this server. Missed reminders may expire while paused.</p>
+			</details>
 		</fieldset>
 		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
 			Save preferences

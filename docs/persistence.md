@@ -16,8 +16,8 @@ MariaDB discovery uses SQL plus coverage-aware collection/fallback;
 database-free mode retains cache/provider services. MariaDB mode shares durable request budgets/pacing/cooldowns.
 Opt-in city/date collection and fresh activity snapshots persist observations,
 artist/venue catalogs, coverage and change evidence. Durable in-app reply envelopes
-are implemented; external notification delivery, database HA and verified production
-backup/restore remain outside this slice.
+and opt-in on-sale email jobs are implemented; database HA and verified cluster
+operation/populated-data backup/restore remain outside this slice.
 
 The [database plan](design/database.md) owns the broader direction. Code lives in
 [`internal/persistence`](../internal/persistence/), shared durable services in
@@ -299,22 +299,31 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 12 only**. Versions 0–11 and 13+ are rejected;
+This binary supports **clean schema version 13 only**. Versions 0–12 and 14+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous stored Discover binary supports version 11 only.
-For the v11-to-v12 followed discussion upgrade, stop/drain v11 traffic, preserve a backup,
-apply the v12 migration with the v12 image, reapply/reconcile runtime table grants,
-then start v12 apps. Do not leave v11 pods serving after migration; they will fail
+old binaries are gone. The previous followed-discussion binary supports version 12 only.
+For the v12-to-v13 on-sale reminder upgrade, stop/drain v12 traffic, preserve a backup,
+apply the v13 migration with the v13 image, reapply/reconcile runtime table grants,
+then start v13 apps. Do not leave v12 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
 a claim that a three-pod rollout was exercised.
 
+Cluster verification is deferred until Kubernetes deployment: exercise serialized
+migration Jobs, reconciled grants, shared state/concurrent writes across replicas,
+pod restarts and same-schema rolling updates, plus restoration of populated data
+and jobs into a fresh database. Keep these milestones open until observed; PVCs
+and successful backup creation alone are not recovery verification.
+
 ## Durable identity boundary
+
+Schema v13 adds private on-sale reminder settings, occurrence-unique delivery jobs,
+SES receipts and a shared dispatch pacing gate. See [reminders](reminders.md).
 
 Schema v12 adds private conversation follows, notification envelopes and reply
 references. Queue writes share the reply transaction; inbox reads recheck live

@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### 2026-10-12 — Shorter notification preferences
+
+- Replace permission jargon with **Email me on-sale reminders**, short local
+  explanations for permission/pause, and named links for in-app reply frequency/inbox.
+- Disclose server-delivery/expiry caveats under **About email delivery** and remove
+  out-of-scope digest/change-email notes. Preserve checkbox behavior, accessible
+  descriptions, native forms and the existing JSON/digest compatibility contract.
+- Refine the visual grouping with Good CSS: align help under checkbox labels,
+  strengthen label/help hierarchy and use parent-owned gaps. Move 44px action
+  links out of prose so they no longer stretch line boxes; separate in-app replies
+  with a quiet rule. Keep native controls, the existing font/palette and focus/press feedback.
+- Keep checkbox-row hover/press feedback to a plum title tint, not a full-width
+  rectangular background; preserve the full clickable label/help area.
+- See [preferences](../accounts.md#profiles-privacy-and-preferences) and
+  [release priorities](../goals/delivery.md#current-focus-use-refine-and-verify).
+- Verify the built app with 112 isolated Chromium checks/21 clean axe views,
+  including compact/enlarged-text preferences, keyboard disclosure, native/touch
+  checkbox grouping and retained legacy digest values. Inspect focused desktop,
+  390px and 320px captures; retain 44px action targets without stretching prose.
+
 ### 2026-10-12 — Family-local account navigation
 
 - Share presentation-only navigation across account, Radar, follows, reminders,

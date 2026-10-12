@@ -8,7 +8,10 @@ edit/withdrawal, event/profile attribution, and city/category browsing.
 edit/removal, Helpful reactions, direct threads, and city/category browsing.
 [Private reporting and moderation](../moderation.md) implement receipts, authorized
 keep/hide/restore, author outcomes/second reviews, and durable moderator roles.
-[Personal radar and reminders](personal-radar.md) remain planned.
+[Personal radar, on-sale reminders](personal-radar.md) and
+[followed-discussion reply updates](../followed-discussions.md) are implemented.
+Current priorities are everyday use, small flow fixes and human verification;
+structured attendance/reflection features remain optional later work.
 
 ## Goal
 

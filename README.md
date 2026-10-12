@@ -21,6 +21,12 @@ has been verified. The linked goals and designs describe the expected outcomes.
 The [backend and frontend delivery checklist](docs/goals/delivery.md) maps each
 goal to implementation work and verification checkpoints.
 
+**Current focus:** use the app, find small nuisances and flow problems, and fix
+them in place. The event discovery redesign and neighboring-screen cohesion are
+complete; another broad UI pass or feature sprint is not the next milestone.
+See [release verification priorities](docs/goals/delivery.md#current-focus-use-refine-and-verify)
+for manual checks, pilot feedback, and Kubernetes checks after deployment.
+
 ### Event data foundation
 
 [Discovery guide](docs/discovery.md) · [Cache behavior](docs/cache.md) · [Reliable history](docs/event-history.md)
@@ -56,9 +62,13 @@ goal to implementation work and verification checkpoints.
 [Reminder goals](docs/goals/personal-radar.md#reminder-promises) · [SES reminders](docs/reminders.md)
 
 - [x] Receive a timely public on-sale reminder for a saved event (opt-in SES setup).
-- [ ] Receive meaningful date, venue, cancellation, or postponement updates.
-- [ ] Receive a weekly discovery digest.
 - [x] Choose preset/custom on-sale reminder timing, inspect delivery readiness, and change or pause notification preferences.
+
+Weekly discovery digests and additional sale/price/event-change email reminders
+are out of scope. Ticket purchase, price monitoring and transactional change
+notifications belong with the ticket provider. Existing opt-in on-sale reminders
+and in-app discussion replies remain supported; dated event history stays visible
+in the app.
 
 ### Positive event communities
 
@@ -136,7 +146,8 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 The optional foundation uses MariaDB through `database/sql` and pinned
 `go-sql-driver/mysql`, with embedded Goose migrations and `mariadb-operator`
 deployment examples. Discovery stays database-free by default; broader durable
-features and exercised multi-pod deployment remain planned. Opt-in
+features are implemented; exercised multi-pod deployment and populated-data
+backup/restore verification await Kubernetes deployment. Opt-in
 [Google accounts](docs/accounts.md) store profiles, preferences, and credentials;
 [private saves](docs/saved-events.md) retain bookmarks and last-known event details.
 [Private follows](docs/follows.md) add artist/venue search and owner-only collections.

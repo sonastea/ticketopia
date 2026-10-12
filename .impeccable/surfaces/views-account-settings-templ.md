@@ -7,6 +7,28 @@ related_targets: ["views/account/presentation.go"]
 
 # Account destinations
 
+## Notification copy refinement — 2026-10-12
+
+- Keep the existing Operate surface, palette, native forms and preference semantics.
+  Use **Email me on-sale reminders**, short control-local help, **Replies in the app**
+  links, and optional **About email delivery** details for server/expiry caveats.
+- Group labels/help in one native checkbox target, align descriptions beneath titles,
+  use .875rem/1.5 help and parent-owned gaps, and put 44px links on separate rows.
+  A quiet rule separates reply settings; keep first-line checkbox alignment on wraps.
+- Hover/press tints the title only, without a rectangular row fill. The full native
+  label/help target and keyboard focus remain unchanged.
+- Remove digest/change-email availability notes: those notification kinds are now
+  out of scope, not future promises. HTML still preserves the legacy stored digest
+  value by omitting its patch; the JSON compatibility contract is unchanged.
+- Everyday app use and bounded nuisance/flow fixes replace another broad cohesion
+  pass. See [verification priorities](../../docs/goals/delivery.md#current-focus-use-refine-and-verify).
+- Verify 112 synthetic Chromium checks and 21 clean axe views with isolated MariaDB;
+  inspect desktop, 390px, 320px and enlarged-text captures, including focused settings.
+  Keyboard disclosure and native/touch checkbox grouping work. The detector has no
+  findings in the new rules; the full stylesheet flags existing documented Google
+  branding and type/radius values outside this change.
+  Styling is scoped to Notifications; no tokens, notification behavior or shipping raster assets change.
+
 ## Neighboring-screen extension — 2026-10-12
 
 Shared account-family navigation and intrinsic profile-preview stacking now ship;

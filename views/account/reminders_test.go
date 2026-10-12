@@ -122,7 +122,10 @@ func TestPreferencesDigestIsNotAFormControl(t *testing.T) {
 		if strings.Contains(html, `name="weekly_digest"`) {
 			t.Fatal("HTML must not submit digest")
 		}
-		for _, want := range []string{"Location &amp; time zone", "Notifications", "Not available yet", "notification-pause-help", "/me/reminders", "/me/discussions", "/me/notifications"} {
+		if strings.Contains(html, "Weekly discovery digest") || strings.Contains(html, "Not available yet") {
+			t.Fatal("preferences must not advertise out-of-scope notifications")
+		}
+		for _, want := range []string{"Location &amp; time zone", "Notifications", "email-reminders-help", "notification-pause-help", "/me/reminders", "/me/discussions", "/me/notifications"} {
 			if !strings.Contains(html, want) {
 				t.Errorf("missing %q", want)
 			}

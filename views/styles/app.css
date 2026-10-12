@@ -77,6 +77,26 @@
 .account-checkboxes legend { font-size: 1.25rem; font-weight: 750; margin-block: 1rem; }
 .account-checkboxes label { display: flex; align-items: center; gap: .75rem; min-block-size: 2.75rem; padding-block: .5rem; cursor: pointer; }
 .account-checkboxes input { flex: none; inline-size: 1.25rem; block-size: 1.25rem; accent-color: var(--brand); }
+/* Keep notification help with its control; tall action links stay out of prose. */
+.notification-preferences { gap: var(--space-5); }
+.notification-preferences legend { margin-block: var(--space-4) var(--space-3); }
+.notification-options { display: grid; gap: var(--space-4); }
+.notification-option { display: grid; }
+.notification-option > label { align-items: start; line-height: 1.5; }
+@media (hover: hover) and (pointer: fine) {
+  .notification-option > label:hover .notification-title { color: var(--brand); }
+}
+.notification-option > label:active .notification-title { color: var(--brand-active); }
+.notification-option input { margin-block-start: calc((1lh - 1.25rem) / 2); }
+.notification-copy { display: grid; gap: var(--space-1); }
+.notification-title { font-weight: 650; }
+.notification-preferences .field-note { margin-block: 0; font-size: .875rem; line-height: 1.5; }
+.notification-settings-link { justify-self: start; margin-inline-start: 2rem; }
+.notification-replies { display: grid; gap: var(--space-2); padding-block-start: var(--space-5); border-block-start: 1px solid var(--line); }
+.notification-replies h3 { font-size: 1rem; font-weight: 650; letter-spacing: normal; }
+.notification-links { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5); }
+.notification-delivery > summary { font-size: .875rem; }
+.notification-delivery > .field-note { margin-block-start: var(--space-2); }
 .account-token-details summary { cursor: pointer; min-block-size: 2.75rem; padding-block: .75rem; font-weight: 750; }
 .account-token-details > p, .account-token-details > .field, .account-token-details > form { margin-block: 1rem; }
 .account-token-details .account-form { max-inline-size: 36rem; }

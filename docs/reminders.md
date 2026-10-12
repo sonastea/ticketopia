@@ -2,8 +2,10 @@
 
 Implemented with opt-in accounts, Amazon SES, and MariaDB **schema 13**. A Go
 worker runs independently of browser visits. Saving, Interested, recommending,
-posting, and following do **not** subscribe anyone. Meaningful event-change emails
-and weekly discovery digests remain planned.
+posting, and following do **not** subscribe anyone. Weekly discovery digests and
+additional sale/price/event-change emails are out of scope. Ticket-provider
+transactional notifications are not Ticketopia's responsibility; existing on-sale
+delivery and dated in-app event history remain supported.
 
 ## Choose, change, pause, or stop
 
@@ -34,10 +36,14 @@ email use the account's time zone. Global pause also retains its existing effect
 on in-app discussion notifications.
 
 Preferences separates **Location & time zone** from **Notifications**, with email
-permission, pause, on-sale settings and per-conversation frequency explained beside
-their controls. Weekly digest is a quiet **Not available yet** note, not a checkbox
-or hidden field. HTML saves (including validation rerenders) do not patch the
-stored digest choice; its existing JSON preference contract remains available.
+permission and pause grouped with short descriptions beneath their labels.
+**Choose events & timing** is a separate action, not a tall inline prose link.
+**Replies in the app** links **Choose reply frequency** and **Read reply updates**;
+**About email delivery** discloses
+server support and expiry of missed reminders. Digest/change-email roadmap notes
+are removed. HTML saves (including validation rerenders) do not patch the stored
+digest choice; its existing JSON preference contract remains for compatibility,
+not a delivery promise.
 
 Unknown or TBD sale times stay pending. Known future sales whose lead time has
 already elapsed can be reminded immediately after enrollment. Already-on-sale

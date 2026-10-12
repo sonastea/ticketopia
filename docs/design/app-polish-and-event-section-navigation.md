@@ -8,7 +8,9 @@ not a replacement visual direction.
 
 ## Summary
 
-Polish existing journeys before adding event-change emails or digests. Preserve
+The broad cohesion pass is complete. Continue using the app and fixing small
+nuisances, copy and flow issues; event-change emails and digests are out of scope.
+See [current verification priorities](../goals/delivery.md#current-focus-use-refine-and-verify). Preserve
 Manrope, plum actions, light-stone surfaces, dusty-rose dates, provider imagery,
 and flat, rule-separated content from [DESIGN.md](../../DESIGN.md).
 

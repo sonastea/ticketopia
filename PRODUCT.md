@@ -52,10 +52,18 @@ emails or public-pilot approval are claimed.
 Help someone discover an event, save it privately, express interest, recommend
 it, follow artists and venues, and join useful event-specific conversations. Events are the central objects
 connecting local discovery and community participation. Explicit public on-sale
-reminders are available with SES configured; event-change emails and discovery
-digests remain subsequent outcomes. The discovery foundation uses efficiently cached
+reminders are available with SES configured. Weekly discovery digests and additional
+sale/price/event-change emails are out of scope; ticket-provider transactional
+notifications are not Ticketopia's responsibility. In-app event history and discussion
+reply updates remain supported. The discovery foundation uses efficiently cached
 Ticketmaster data; see the [delivery checklist](docs/goals/delivery.md) for scope
 and implementation status.
+
+The current phase is using the app and addressing small nuisances, unclear copy,
+and flow problems—not another broad UI redesign or feature sprint. Neighboring-screen
+cohesion with event discovery is complete. Manual device/accessibility checks and
+small-pilot feedback remain; cluster upgrades/migrations, shared-replica state,
+publishing and backup/restore will be verified after Kubernetes deployment.
 
 ## Brand Personality
 

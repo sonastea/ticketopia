@@ -6,7 +6,8 @@ Google accounts/profiles/private preferences, durable private saves, Interested
 with privacy controls/counts/public-opt-in activity, and public recommendations are
 implemented, along with event questions/replies/Helpful and conversation browsing.
 Basic private reporting/moderation and reliable scheduled event history are implemented;
-broader persistence remains planned.
+durable follows, radar, discussion notifications and on-sale reminders are also implemented.
+Cluster operation and populated-data backup/restore remain unverified.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -28,10 +29,10 @@ reasons, event root posts/threaded replies/Helpful reactions, simple city/catego
 community browsing, and usable desktop/tablet/mobile layouts. Retain basic private
 reporting and owner moderation before the first public community pilot.
 
-**Retained subsequent milestones:** artist/venue follows, personalized radar,
-on-sale/change reminders and digest, external notification delivery, Going/Went
-and structured post-show prompts. Budgeted scheduled observation history is now
-implemented, independently opt-in. Private conversation follows and in-app reply
+**Implemented beyond MVP:** artist/venue follows, personalized radar, opt-in on-sale
+email delivery and independently opt-in scheduled observation history.
+**Later, optional:** Going/Went and structured post-show prompts.
+Private conversation follows and in-app reply
 notifications with frequency controls are [implemented](../followed-discussions.md).
 Minimal durable events/accounts/community records and verified backup/restore
 are MVP foundations; the full ingestion scheduler is not a dependency of posting.
@@ -40,6 +41,36 @@ are MVP foundations; the full ingestion scheduler is not a dependency of posting
 algorithms, personalized social activity feeds, managed groups/large-scale
 community tooling, map/list discovery, games, and venue analysis. Category/location
 scopes and explicit endorsements provide useful recommendations without these.
+
+## Current focus: use, refine, and verify
+
+The event discovery redesign and neighboring-screen UI cohesion are complete.
+Use the existing app, note small nuisances and awkward flows, and make bounded
+copy/interaction fixes based on that experience rather than start another broad polish pass.
+
+Weekly discovery digests and additional sale/price/event-change email reminders
+are **out of scope**, not deferred delivery obligations. Ticket-provider purchase,
+price and transactional change notifications are not Ticketopia's responsibility.
+Keep existing opt-in on-sale reminders, dated in-app event history and discussion
+reply notifications; this scope decision does not remove them.
+
+Next verification priorities:
+
+- Manual phone/tablet, cross-browser and screen-reader journeys; automated responsive
+  fixtures already cover the implemented journeys, but do not replace these checks.
+- Three people in a well-covered city: find a relevant event, save and return;
+  also try question → reply → Helpful and private reporting/moderation before a public pilot.
+- A live SES/inbox smoke test only if existing on-sale email delivery will be enabled.
+- **After Kubernetes deployment:** verify runner/GHCR publication, state shared across
+  app replicas, concurrent writes/read-after-write, pod restarts and same-schema rolls,
+  serialized schema upgrades and runtime-grant reconciliation, and restoration of
+  populated application data/jobs into a fresh database. Rehearse failover only if HA is configured.
+
+Keep those deployment checks open until exercised. Schema-changing upgrades currently
+require draining older apps, migrating and reconciling grants, then starting the new
+apps; do not assume zero downtime. Backups must be restored successfully before
+public-pilot data is relied on. Going/Went, structured reflections, dashboards and
+another-client verification can wait for a concrete need from use/feedback.
 
 ## 1. Find an event worth considering
 
@@ -162,9 +193,8 @@ Aligns with the [reminder promises](personal-radar.md#reminder-promises).
   time zones, unknown on-sale times, changed dates, cancellation, and delivery retries.
 - [x] Backend: Deliver explicitly configured public on-sale email through SES;
   enforce pause/preferences and fresh event evidence before each delivery.
-- [ ] Later Backend: Deliver meaningful event changes and a weekly discovery digest.
 - [x] Frontend: Offer on-sale lead times, pending/accepted/failed state, pause/stop
-  controls, and email/digest preferences with clear expectations.
+  controls, and email permission with clear expectations.
 - [ ] Verification: Deliver a timely reminder while the app is closed, prevent
   duplicate/obsolete messages, and prove preference changes affect future jobs.
 
@@ -194,8 +224,8 @@ Build backend/API and UI together for each small outcome:
   reactions, enforcing ownership and preserving removed reply context.
 - [x] Frontend: Provide readable threads, composing/replying/editing/removal, and
   adding/removing Helpful reactions.
-- [ ] Later Backend: Persist followed discussions and preference-aware activity jobs.
-- [ ] Later Frontend: Follow/unfollow conversations and surface useful activity updates.
+- [x] Backend: Persist followed discussions and preference-aware activity jobs.
+- [x] Frontend: Follow/unfollow conversations and surface useful in-app reply updates.
 - [x] Backend: Support private reports, authorized moderator review, decision
   records, reporter acknowledgment, and appropriate author outcomes.
 - [x] Frontend: Provide private reporting/status and a moderator review workflow.

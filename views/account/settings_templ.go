@@ -1049,7 +1049,7 @@ func Preferences(p Page) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<p id=\"timezone-help\" class=\"field-note\">Use an IANA time zone such as America/Chicago or Europe/Berlin. Reminder times use this zone; event dates still use the venue's time zone.</p><fieldset class=\"account-checkboxes\"><legend>Notifications</legend> <label><input type=\"checkbox\" name=\"email_reminders\" aria-describedby=\"email-reminders-help\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<p id=\"timezone-help\" class=\"field-note\">Use an IANA time zone such as America/Chicago or Europe/Berlin. Reminder times use this zone; event dates still use the venue's time zone.</p><fieldset class=\"account-checkboxes notification-preferences\"><legend>Notifications</legend><div class=\"notification-options\"><div class=\"notification-option\"><label><input type=\"checkbox\" name=\"email_reminders\" aria-labelledby=\"email-reminders-label\" aria-describedby=\"email-reminders-help\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1059,7 +1059,7 @@ func Preferences(p Page) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "><span>Allow explicitly configured public on-sale emails</span></label><p id=\"email-reminders-help\" class=\"field-note\">Give permission to email your private account address. Choose each saved event and its timing in <a href=\"/me/reminders\" class=\"text-link\">On-sale reminders</a>. Permission alone does not create a reminder; delivery also requires server support.</p><label><input type=\"checkbox\" name=\"notifications_paused\" aria-describedby=\"notification-pause-help\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "> <span class=\"notification-copy\"><span id=\"email-reminders-label\" class=\"notification-title\">Email me on-sale reminders</span> <span id=\"email-reminders-help\" class=\"field-note\">For saved events you choose. Saving alone won’t send email.</span></span></label> <a href=\"/me/reminders\" class=\"text-link notification-settings-link\">Choose events &amp; timing</a></div><div class=\"notification-option\"><label><input type=\"checkbox\" name=\"notifications_paused\" aria-labelledby=\"notification-pause-label\" aria-describedby=\"notification-pause-help\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1069,7 +1069,7 @@ func Preferences(p Page) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "><span>Pause all notifications</span></label><p id=\"notification-pause-help\" class=\"field-note\">Withhold configured on-sale emails and in-app reply updates without removing your choices. Turn pause off to resume eligible updates; missed emails are not guaranteed to catch up.</p><p class=\"field-note\">Reply updates stay in Ticketopia, not email. Set each conversation's frequency in <a href=\"/me/discussions\" class=\"text-link\">Followed discussions</a>; read available updates in <a href=\"/me/notifications\" class=\"text-link\">Reply notifications</a>.</p><p class=\"field-note\"><strong>Weekly discovery digest</strong> — Not available yet. Event-change emails are not available yet either.</p></fieldset>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "> <span class=\"notification-copy\"><span id=\"notification-pause-label\" class=\"notification-title\">Pause all notifications</span> <span id=\"notification-pause-help\" class=\"field-note\">Stops on-sale emails and new reply updates. Uncheck to resume; your settings stay saved.</span></span></label></div></div><div class=\"notification-replies\"><h3>Replies in the app</h3><p class=\"field-note\">Updates from conversations you follow. These stay in Ticketopia, not email.</p><div class=\"notification-links\"><a href=\"/me/discussions\" class=\"text-link\">Choose reply frequency</a> <a href=\"/me/notifications\" class=\"text-link\">Read reply updates</a></div></div><details class=\"account-more notification-delivery\"><summary>About email delivery</summary><p class=\"field-note\">Reminders go to your account email when delivery is enabled on this server. Missed reminders may expire while paused.</p></details></fieldset>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1158,7 +1158,7 @@ func Interests(p Page) templ.Component {
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(category.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 228, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 255, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 			if templ_7745c5c3_Err != nil {
@@ -1181,7 +1181,7 @@ func Interests(p Page) templ.Component {
 			var templ_7745c5c3_Var45 string
 			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(category.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 228, Col: 135}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 255, Col: 135}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 			if templ_7745c5c3_Err != nil {
@@ -1200,7 +1200,7 @@ func Interests(p Page) templ.Component {
 			var templ_7745c5c3_Var46 string
 			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 231, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 258, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 			if templ_7745c5c3_Err != nil {
@@ -1213,7 +1213,7 @@ func Interests(p Page) templ.Component {
 			var templ_7745c5c3_Var47 string
 			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(id)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 231, Col: 116}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 258, Col: 116}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 			if templ_7745c5c3_Err != nil {
@@ -1304,7 +1304,7 @@ func Public(p accounts.PublicProfile, list interests.List, returnURL string, mes
 			var templ_7745c5c3_Var51 string
 			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(p.DisplayName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 246, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 273, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
@@ -1322,7 +1322,7 @@ func Public(p accounts.PublicProfile, list interests.List, returnURL string, mes
 				var templ_7745c5c3_Var52 string
 				templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(p.Bio)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 248, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 275, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 				if templ_7745c5c3_Err != nil {
@@ -1350,7 +1350,7 @@ func Public(p accounts.PublicProfile, list interests.List, returnURL string, mes
 				var templ_7745c5c3_Var53 string
 				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 256, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/settings.templ`, Line: 283, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 				if templ_7745c5c3_Err != nil {

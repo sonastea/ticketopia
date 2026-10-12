@@ -17,13 +17,13 @@ their status; they describe intended work rather than available features.
 - [App polish and in-place event sections](design/app-polish-and-event-section-navigation.md):
   implemented in-place event sections, clearer reminders/preferences, shared
   account navigation and event-first neighboring screens, with verification records.
-- [Backend and frontend delivery checklist](goals/delivery.md): aligned product
-  outcomes, implementation tasks, and verification checkpoints.
+- [Backend and frontend delivery checklist](goals/delivery.md): current focus on
+  everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and
   reminder goals, with small user outcomes and pilot checkpoints.
 - [Positive event communities](goals/event-communities.md): MVP interest,
   recommendations, threaded discussions, Helpful reactions, reports/moderation,
-  and retained later attendance and notification goals.
+  implemented discussion notifications and optional later attendance goals.
 - [Radar API](design/radar-api.md): a proposed shared backend for web, mobile,
   and other clients, including community participation.
 - [Database plan](design/database.md): MariaDB foundation and broader planned
