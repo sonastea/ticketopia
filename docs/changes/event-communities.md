@@ -4,6 +4,19 @@
 
 ## Unreleased
 
+### 2026-10-12 — Event-first neighboring screens
+
+- Community and public-profile artwork/title open Overview together; named
+  Recommendations, Questions & tips and conversation links retain direct entry.
+  Event/date/venue precede attribution/text without per-person Tickets/Save.
+- Place public-audience guidance beside writing actions; keep owner/report tools
+  quieter without changing drafts, pagination, publication/anti-bumping or privacy.
+- Verify recommendations/public-profile and discussion journeys with 193 Chromium
+  checks and 36 clean axe views; broaden race/vet/Docker validation and preserve
+  stable event-section DOM/document-request and collection-return regressions.
+  See [recommendations](../event-recommendations.md), [discussions](../event-discussions.md)
+  and the [phase-3 record](../../.impeccable/surfaces/views-layouts-account-nav-templ.md).
+
 ### 2026-10-10 — Inline event-context activity
 
 - Show questions/tips, public recommendations, and public interest together below

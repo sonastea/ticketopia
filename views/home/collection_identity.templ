@@ -1,0 +1,19 @@
+package home
+
+import "github.com/sonastea/ticketopia/internal/models"
+
+// Public collections share Overview identity links, not participation toolbars.
+templ CollectionEventArt(event models.Event, returnURL string) {
+	<div class="event-art">
+		<a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="event-image-link" aria-label={ "Overview — " + event.Name }>
+			@EventImage(event,false)
+		</a>
+		<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start,"Jan") }</span><strong>{ datePart(event.Start,"2") }</strong></div>
+	</div>
+}
+
+templ CollectionEventHeading(event models.Event, returnURL string) {
+	<p class="event-date">{ startLabel(event.Start) }</p>
+	<h3><a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="text-link">{ event.Name }</a></h3>
+	<p class="event-venue">{ venueLabel(event) }</p>
+}

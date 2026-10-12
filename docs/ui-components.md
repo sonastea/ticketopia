@@ -76,6 +76,13 @@ and route semantics remain app-owned; see [DESIGN.md](../DESIGN.md).
   at the available width, rather than overflowing when text is enlarged.
   Filter-summary metadata can shrink and break long words without pushing its
   disclosure icon outside the control.
+- Personal destinations use `layouts.AccountNav(current, permissions)` from
+  `views/layouts/account_nav.templ`. Inputs are presentation-only; handlers still
+  authorize reads/writes and supply current Safety/moderator visibility. Current
+  family links remain outside the native secondary-family disclosure, avoiding
+  account/home circular imports. Community/public-profile collections reuse
+  `home.CollectionEventArt` and `home.CollectionEventHeading` for Overview identity
+  and return context; these primitives never add participation controls.
 
 Ordinary headings, content links, semantic landmarks, lists, and provider images
 remain HTML; they are not interactive widget substitutes.

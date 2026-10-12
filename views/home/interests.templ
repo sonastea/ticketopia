@@ -103,9 +103,12 @@ templ PublicInterestEvents(list interests.List, returnURL string) {
 		if len(list.Items) == 0 {
 			<p>No public event interest on this page.</p>
 		}
-		<ul class="public-interest-list">
+		<ul class="public-interest-list recommendation-list">
 			for _, item := range list.Items {
-				<li><a class="text-link" href={ templ.URL(eventURL(item.Event.ID, "overview", "/")) }>{ item.Event.Name }</a><p class="field-note">{ startLabel(item.Event.Start) } · { venueLabel(item.Event) }</p></li>
+				<li class="recommendation-event">
+					@CollectionEventArt(item.Event,returnURL)
+					<div class="recommendation-copy">@CollectionEventHeading(item.Event,returnURL)<p class="field-note">Public event interest</p></div>
+				</li>
 			}
 		</ul>
 		if list.NextCursor != nil {

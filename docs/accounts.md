@@ -78,6 +78,22 @@ Successful profile/preferences writes redirect back to their section. Sign-in
 resumes an allowlisted local `return_to` page, including event/filter context;
 cancelled sign-ins preserve it for retry. It never resumes an external/auth URL.
 
+### Your space navigation
+
+Account screens show their current family's links directly, with the current
+location labeled. Native **More in your space** groups other destinations:
+**Account** (Profile & privacy, Preferences), **Your events** (Radar, Interests,
+Artists & venues), **Updates** (On-sale reminders, Followed discussions, Reply
+notifications), and **Safety** (reports/outcomes when enabled; review queue only
+for moderators). Links use normal document navigation and work without JavaScript.
+Profile editing and its public preview sit beside each other when space allows,
+stack on phones/enlarged text, and keep security/API tools secondary.
+
+Public event interest and recommendations use shared image/date/title/venue rows.
+Artwork and title open Overview with the profile's pagination return context;
+named Recommendations links still open that section directly. No per-person
+Tickets/Save toolbar or private activity is added.
+
 The sign-in CTA uses Google's current gradient G, Google Sans Medium, and the
 [blue-filled button treatment](https://developers.google.com/identity/gsi/web/reference/js-reference#theme)
 documented by Google Identity: blue fill, white text, and a white logo tile.
@@ -137,3 +153,10 @@ Browser checks cover desktop/tablet/320–390px, 200% text, ordinary no-JS forms
 validation, public privacy, token creation/revocation, and automated accessibility.
 Real Google consent/sign-in still requires your OAuth credentials and callback
 configuration; no live Google account or production deployment is claimed.
+
+The isolated account-navigation pass uses `ACCOUNT_BROWSER_SCRIPT="$PWD/scripts/account-navigation-browser.cjs"`
+with `TestMariaDBAccountBrowserReview`, `MARIADB_TEST_ADDR`, `PLAYWRIGHT_MODULE`,
+and optional `AXE_SCRIPT`/`CHROMIUM_EXECUTABLE`. It verifies family navigation,
+long public content, preview stacking, desktop/rail/tablet/phone/short/text layouts,
+keyboard/forced-colors focus and native touch links. See the
+[phase-3 surface record](../.impeccable/surfaces/views-layouts-account-nav-templ.md).

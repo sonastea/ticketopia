@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 2026-10-12 — Family-local account navigation
+
+- Share presentation-only navigation across account, Radar, follows, reminders,
+  conversations and Safety destinations. Show the current family directly and
+  disclose other grouped families; preserve all routes and role gates.
+- Keep profile preview beside editing when it fits and stacked on phones/text
+  enlargement; leave security/API tools secondary. Fix expanded sidebar/footer
+  overlap in short viewports without changing shell thresholds.
+- Verify 37 Chromium checks/eight clean axe views plus route/permission tests;
+  see [accounts](../accounts.md#your-space-navigation) and the
+  [phase-3 record](../../.impeccable/surfaces/views-layouts-account-nav-templ.md).
+
 ### 2026-10-11 — Clear, digest-preserving notification preferences
 
 - Group Location & time zone separately from Notifications; explain email

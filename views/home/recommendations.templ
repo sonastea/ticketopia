@@ -35,10 +35,10 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 					<form action={ recommendationAction(id) } method="post" class="account-form" data-recommendation-form data-recommendation-id={ id }>
 						<input type="hidden" name="csrf_token" value={ v.CSRF }/>
 						<input type="hidden" name="return_to" value={ returnURL }/>
-						<p class="field-note">Your display name, profile link, and reason will be public on this event, in Community, and on your profile. Interest privacy does not hide recommendations.</p>
 						<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span>
 							<textarea name="reason" rows="3" maxlength="500" data-recommendation-reason autofocus?={ v.Open }>{ v.reason() }</textarea>
 						</label>
+						<p class="field-note composer-audience">Your display name, profile link, and reason will be public on this event, in Community, and on your profile. Interest privacy does not hide recommendations.</p>
 						<div class="account-actions">
 							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
 								if v.Own != nil {
@@ -81,16 +81,11 @@ templ RecommendationList(list recommendations.List,showEvent bool,returnURL stri
 			for _,item := range list.Items {
 				<li class={ templ.KV("recommendation-event",showEvent) }>
 					if showEvent {
-						<div class="event-art">
-							@EventImage(item.Event,false)
-							<div class="date-marker" aria-hidden="true"><span>{ datePart(item.Event.Start,"Jan") }</span><strong>{ datePart(item.Event.Start,"2") }</strong></div>
-						</div>
+						@CollectionEventArt(item.Event,returnURL)
 					}
 					<div class="recommendation-copy">
 						if showEvent {
-							<p class="event-date">{ startLabel(item.Event.Start) }</p>
-							<h3><a href={ templ.URL(eventURL(item.Event.ID,"community",returnURL)) } class="text-link">{ item.Event.Name }</a></h3>
-							<p class="event-venue">{ venueLabel(item.Event) }</p>
+							@CollectionEventHeading(item.Event,returnURL)
 							@EventFacts(item.Event)
 						}
 						<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event</p>
@@ -104,6 +99,9 @@ templ RecommendationList(list recommendations.List,showEvent bool,returnURL stri
 						</p>
 						if showEvent && !item.Meta.DataAsOf.IsZero() {
 							<p class="freshness">Last-known event details updated { freshnessLabel(item.Meta.DataAsOf) }.</p>
+						}
+						if showEvent {
+							<a href={ templ.URL(eventURL(item.Event.ID,"community",returnURL)) } class="text-link">Recommendations</a>
 						}
 					</div>
 				</li>
@@ -175,14 +173,9 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string) {
 		<ul class="recommendation-list">
 			for _,group:=range feed.Items {
 				<li class="recommendation-event">
-					<div class="event-art">
-						@EventImage(group.Event,false)
-						<div class="date-marker" aria-hidden="true"><span>{ datePart(group.Event.Start,"Jan") }</span><strong>{ datePart(group.Event.Start,"2") }</strong></div>
-					</div>
+					@CollectionEventArt(group.Event,returnURL)
 					<div class="recommendation-copy">
-						<p class="event-date">{ startLabel(group.Event.Start) }</p>
-						<h3><a href={ templ.URL(eventURL(group.Event.ID,"community",returnURL)) } class="text-link">{ group.Event.Name }</a></h3>
-						<p class="event-venue">{ venueLabel(group.Event) }</p>
+						@CollectionEventHeading(group.Event,returnURL)
 						@EventFacts(group.Event)
 						<p class="field-note"><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) } · <time datetime={ group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>First recommended { group.FirstRecommendedAt.UTC().Format("Jan 2, 2006") }</time></p>
 						<ul class="community-recommenders">
@@ -195,7 +188,10 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string) {
 								</li>
 							}
 						</ul>
-						<a href={ templ.URL(recommendationListURL(group.Event.ID,returnURL)) } class="text-link">See all recommendations for this event</a>
+						<div class="account-actions">
+							<a href={ templ.URL(eventURL(group.Event.ID,"community",returnURL)) } class="text-link">Recommendations</a>
+							<a href={ templ.URL(recommendationListURL(group.Event.ID,returnURL)) } class="text-link">See all recommendations for this event</a>
+						</div>
 						if !group.Meta.DataAsOf.IsZero() {
 							<p class="freshness">Last-known event details updated { freshnessLabel(group.Meta.DataAsOf) }.</p>
 						}

@@ -10,7 +10,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/kv"
+	"github.com/sonastea/ticketopia/internal/moderation"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 )
 
@@ -53,6 +55,29 @@ func TestSelectedEventFailureDoesNotReplaceResults(t *testing.T) {
 			actions := strings.Index(body, `data-event-actions`)
 			if price := strings.Index(body, "USD 20"); price < 0 || price >= actions || strings.Index(body, "Canceled") >= actions {
 				t.Fatal("decision-critical price/cancellation must precede participation controls")
+			}
+		}
+	}
+}
+
+func TestAccountFamilyNavigationRoutesAndRoles(t *testing.T) {
+	a, _, browser, _, _, _ := discussionAPI(t)
+	a.discussionFollows = discussionfollows.New(&discussionFollowStub{})
+	repo := &moderationStub{}
+	a.moderation = moderation.New(repo)
+	for _, moderator := range []bool{false, true} {
+		repo.allowed = moderator
+		for _, path := range []string{"/me", "/me/preferences", "/me/interests", "/follows", "/radar", "/me/reminders", "/me/discussions", "/me/notifications"} {
+			w := accountRequest(a, "GET", path, "", browser, "", "", "", "")
+			body := w.Body.String()
+			if !strings.Contains(body, `class="account-navigation"`) || !strings.Contains(body, `href="`+path+`" aria-current="page"`) || !strings.Contains(body, "More in your space") {
+				t.Fatalf("%s lost current family navigation: %d %s", path, w.Code, body)
+			}
+			if !strings.Contains(body, `href="/me/reports"`) || strings.Contains(body, `href="/moderation"`) != moderator {
+				t.Fatalf("%s changed Safety role gate", path)
+			}
+			if w.Header().Get("Cache-Control") != "private, no-store" {
+				t.Fatalf("%s lost private response", path)
 			}
 		}
 	}

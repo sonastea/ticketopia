@@ -64,6 +64,27 @@ When browser storage is unavailable, controls still work for the current page
 and feedback explains that the order cannot be remembered. Without JavaScript,
 the default expanded sidebar remains usable and enhancement-only controls hide.
 The intermediate rail and mobile bottom navigation retain their fixed order.
+Expanded desktop navigation scrolls within its own region in short viewports,
+instead of overlapping the fixed Profile/footer controls.
+
+### Account families and neighboring screens
+
+Use shared presentation-only `layouts.AccountNav` for personal destinations.
+The current **Account**, **Your events**, **Updates**, or enabled **Safety** family
+is visible directly, with ordinary links and `aria-current`; other families sit in
+native **More in your space**. Reports/outcomes retain their enablement gate and
+review tools their moderator gate. Do not background-swap unrelated destinations.
+Profile preview remains beside editing when it fits, stacked otherwise; security
+and API access stay secondary. See [accounts](accounts.md#your-space-navigation).
+
+Community and public-profile rows share linked Overview artwork/title, full event
+date and venue before authors/reasons or conversation text. Named section/thread
+links retain direct entry, sorting and pagination. Do not add per-person event
+toolbars. Follow search opens on first use/submission/errors and can compact on
+collection revisits; existing artist/venue management remains visible and private.
+Conversation records expose real frequency/counts, UTC availability and textual
+read state. Open conversation is primary, Mark read secondary. Publication has one
+clear action with its public audience nearby; owner/report controls remain quieter.
 
 ### Discovery controls
 

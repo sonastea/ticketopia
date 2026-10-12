@@ -7,6 +7,13 @@ related_targets: ["views/home/discussions.templ", "views/account/settings.templ"
 
 # Followed discussions
 
+## Neighboring-screen extension — 2026-10-12
+
+Shared Updates navigation, readable follow frequency/actual counts, explicit
+Available UTC/read labels and primary Open conversation now ship. Mark read stays
+secondary; exact reply links and distinct conversations remain. The
+[phase-3 record](views-layouts-account-nav-templ.md) records 87 checks/14 clean axe views.
+
 Mode: Operate. Continue the existing discussion/account composition, not a new
 visual identity. In-app delivery proceeds after the user's instruction to continue.
 

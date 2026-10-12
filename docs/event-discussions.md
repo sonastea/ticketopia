@@ -23,27 +23,21 @@ edits, removal, Helpful, and direct thread reads do not need Ticketmaster.
 
 ## Web experience
 
-Select an event from discovery to read its **Discussion** alongside results on
-desktop/wide tablet, or as a single primary view on compact screens. Compact
-event facts stay visible; **Event details & actions** discloses participation and
-tickets, and **Open full event details** expands Overview. Questions and tips,
-public recommendations, and explicitly public interest are shown together below
-the event details without switching preview tabs. Wide workspaces give the selected
-context more width and show discussion and community in parallel, making the first
-question and recommendation readable without scrolling in ordinary desktop views.
-Narrower or enlarged-text layouts stack them; long lists still scroll normally.
-Overview descriptions remain in **Event details & actions**, not ahead of activity.
-A selected conversation replaces the question list while community remains beside
-or below it; dedicated pages retain their
-section navigation. Optional community read failures do not hide event facts or
-the conversation. Public attribution
-is explained before publication.
+Select **Questions & tips** in the event's shared Overview / Questions & tips /
+Recommendations navigation. Same-event switches replace only the section region,
+keeping identity/actions mounted, on Discover and event pages. A selected thread
+keeps community beside it when space permits and below it otherwise. Optional read
+failures stay local; narrow/enlarged-text layouts stack and long lists scroll normally.
+Discovery rows show visible-question and active-recommendation count links, not
+excerpts or author toolbars; counts exclude withheld/withdrawn contributions.
+See [discovery](discovery.md#web-ui) and [responsive UX](design-guidelines.md).
 
-Discovery rows also show a compact visible question/tip and active recommendation
-preview when available, below supplied event details. Counts exclude hidden/removed
-roots and withdrawn endorsements; **Read conversation** selects the named thread
-without leaving discovery when enhanced. Page-batched reads keep failures local
-and never project private interest or saves. See [discovery](discovery.md#web-ui).
+Community conversation rows lead with linked Overview artwork/title and event
+date/venue, then author/time and conversation text. Named **Questions & tips** and
+**Open conversation** links preserve direct section/thread entry and filters/cursors.
+Composers keep one writing action with public-attribution guidance beside publishing.
+Owner edit/removal and private report links stay visually secondary without weakening
+permission gates; drafts, retry keys, reply targets, placeholders and pagination are unchanged.
 
 Contributions are required plain text, up to 4000 Unicode characters including
 surrounding whitespace, and must be nonempty after trimming;

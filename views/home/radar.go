@@ -5,9 +5,11 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/radar"
+	"github.com/sonastea/ticketopia/views/layouts"
 )
 
 type RadarPage struct {
+	Navigation       layouts.AccountNavPermissions
 	Enabled          bool
 	ReturnURL, Error string
 	List             radar.List

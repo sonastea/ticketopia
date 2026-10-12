@@ -73,6 +73,7 @@ func (a *api) radarPage(c echo.Context) error {
 	if err != nil {
 		return a.accountPageError(c, err)
 	}
+	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	if a.radar == nil {
 		err = radar.ErrUnavailable
 	} else {

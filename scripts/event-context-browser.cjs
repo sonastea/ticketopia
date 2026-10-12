@@ -122,6 +122,7 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
       await host.locator('[data-event-section="overview"]').click(); await idle();
       await host.locator('[data-recommend-intent]').click(); await idle();
       check(mode + ': Recommend opens and focuses composer after transitions', await host.locator('[data-recommendation-form] textarea').evaluate(n => n === document.activeElement));
+      check(mode + ': recommendation audience stays beside publishing action', await host.locator('[data-recommendation-form] .composer-audience').isVisible());
       await host.locator('[data-recommendation-form] textarea').fill('Retained recommendation draft');
       await host.locator('[data-event-section="overview"]').click(); await idle();
       await host.locator('[data-event-section="community"]').click(); await idle();

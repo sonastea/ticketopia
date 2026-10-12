@@ -6,15 +6,21 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/follows"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/views/layouts"
 )
 
 type FollowsPage struct {
+	Navigation                                            layouts.AccountNavPermissions
 	Enabled, Searched                                     bool
 	CSRF, ReturnURL, Kind, Keyword, City, Country, Filter string
 	Error, SearchError                                    string
 	List                                                  follows.List
 	Search                                                models.CatalogList
 	States                                                map[string]bool
+}
+
+func (p FollowsPage) SearchOpen() bool {
+	return p.Searched || p.Keyword != "" || p.SearchError != "" || p.Error != "" || len(p.List.Items) == 0
 }
 
 func (p FollowsPage) nextFollowURL(search bool) string {

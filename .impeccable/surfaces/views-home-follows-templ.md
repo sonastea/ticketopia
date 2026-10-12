@@ -7,6 +7,13 @@ related_targets: ["views/home/follows.go"]
 
 # Private artist and venue follows
 
+## Neighboring-screen extension — 2026-10-12
+
+Shared Your events navigation and a native first-use/search/error-open disclosure
+separate finding from managing follows; populated revisits may compact search.
+The [phase-3 record](views-layouts-account-nav-templ.md) records 60 checks/eight clean
+axe views and retains native forms, owner scoping, kind independence and cursors.
+
 Mode: Operate. Extend the existing account/collection experience; preserve the
 incumbent shell, typography, palette, controls and compact navigation.
 

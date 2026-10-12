@@ -46,7 +46,11 @@ func Radar(page RadarPage) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"main\" class=\"destination-page radar-page\"><header class=\"account-heading\"><h1>Your radar</h1><p class=\"intro\">Nearby events connected to the artists, venues, and categories you choose. Your radar and preferences stay private; no reminders are sent.</p></header><nav class=\"account-nav\" aria-label=\"Account sections\"><a href=\"/radar\" aria-current=\"page\">Radar</a> <a href=\"/me/preferences\">Location preferences</a> <a href=\"/me/interests\">Category preferences</a> <a href=\"/follows\">Follows</a></nav>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"main\" class=\"destination-page radar-page\"><header class=\"account-heading\"><h1>Your radar</h1><p class=\"intro\">Nearby events connected to the artists, venues, and categories you choose. Your radar and preferences stay private; no reminders are sent.</p></header>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = layouts.AccountNav("radar", page.Navigation).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -97,7 +101,7 @@ func Radar(page RadarPage) templ.Component {
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(page.Error)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 27, Col: 20}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 22, Col: 20}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -188,7 +192,7 @@ func Radar(page RadarPage) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(page.List.Scope.City)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 37, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 32, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -201,7 +205,7 @@ func Radar(page RadarPage) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(page.List.Scope.Country)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 37, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 32, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -214,7 +218,7 @@ func Radar(page RadarPage) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(page.List.Scope.StartDate)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 37, Col: 111}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 32, Col: 111}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -227,7 +231,7 @@ func Radar(page RadarPage) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(page.List.Scope.EndDate)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 37, Col: 143}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/radar.templ`, Line: 32, Col: 143}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {

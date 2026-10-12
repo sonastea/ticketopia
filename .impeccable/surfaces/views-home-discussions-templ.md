@@ -7,6 +7,13 @@ related_targets: ["views/home/event.templ", "views/home/recommendations.templ"]
 
 # Event discussions
 
+## Neighboring-screen extension — 2026-10-12
+
+Community artwork/title open Overview; named Questions & tips/thread links retain
+direct entry. Public attribution sits beside publishing; owner/report controls
+are quieter without changing single-composer/draft/moderation behavior. The
+[phase-3 record](views-layouts-account-nav-templ.md) records 69 checks/14 clean axe views.
+
 Mode: Operate. User confirmed the question → reply → Helpful loop, owner
 edit/remove, direct thread links, and city/category browsing. Moderation gates
 the public pilot and remains a separate milestone.

@@ -213,6 +213,7 @@ func (a *api) followsPage(c echo.Context) error {
 		return a.accountPageError(c, err)
 	}
 	page.CSRF = p.CSRF
+	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	search, collection, err := followPageQueries(c.QueryParams())
 	if err != nil {
 		status, _, message, _ := accountError(err)

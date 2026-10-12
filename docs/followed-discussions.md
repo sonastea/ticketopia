@@ -20,6 +20,13 @@ the latest visible reply even outside the first reply page. Mark read separately
 opening a link does not silently change state. Read updates remain in the inbox.
 Native forms and links work without JavaScript.
 
+Both pages share the **Updates** navigation family. Followed records lead with
+event/date/venue, actual reply count and readable frequency, then the visible
+root or its content-free placeholder. **Open conversation** is primary; frequency
+editing stays independent. Inbox records show the actual **Available** UTC time,
+explicit **Unread**/**Read** text and exact-reply action; **Mark read** is secondary.
+Distinct conversations stay separate even when they belong to the same event.
+
 Accounts start with **Pause all notifications** enabled. Resume in Preferences to
 receive future replies. Pause overrides every conversation frequency: no replies
 created during the pause are queued, and the inbox is withheld until resumed.

@@ -8,9 +8,11 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/reminders"
+	"github.com/sonastea/ticketopia/views/layouts"
 )
 
 type ReminderPage struct {
+	Navigation      layouts.AccountNavPermissions
 	Account         accounts.Account
 	CSRF, ReturnURL string
 	Enabled         bool

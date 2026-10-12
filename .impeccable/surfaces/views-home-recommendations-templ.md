@@ -7,6 +7,13 @@ related_targets: ["views/home/event.templ", "views/account/settings.templ"]
 
 # Public recommendations
 
+## Neighboring-screen extension — 2026-10-12
+
+Community/public-profile artwork and title share Overview links and return context;
+named Recommendations/full-list entry and grouped anti-bumping remain. Publication
+audience sits beside the writing action. The [phase-3 record](views-layouts-account-nav-templ.md)
+records 124 checks/22 clean axe views; no new tokens or shipping rasters.
+
 Mode: Operate. The user confirmed publishing an optional 500-character reason,
 edit/withdraw, public event/profile attribution, and city/category browsing.
 Extend the incumbent system; no new identity, global tokens, or raster assets.

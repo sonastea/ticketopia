@@ -15,21 +15,16 @@ templ Follows(page FollowsPage) {
 				<h1>Artists &amp; venues</h1>
 				<p class="intro">Keep the artists and places you care about in one private collection. Your follows stay with your account across visits and devices.</p>
 			</header>
-			<nav class="account-nav" aria-label="Account sections">
-				<a href="/radar">Radar</a>
-				<a href="/me">Profile &amp; privacy</a>
-				<a href="/me/preferences">Preferences</a>
-				<a href="/me/interests">Interests</a>
-				<a href="/follows" aria-current="page">Follows</a>
-			</nav>
+			@layouts.AccountNav("follows", page.Navigation)
 			if !page.Enabled {
 				<p>Following requires accounts, which aren't enabled on this server.</p>
 				@button.Button(button.Props{Href: "/", Class: "action"}) {
 					Discover events
 				}
 			} else {
-				<section class="follow-search" aria-labelledby="follow-search-heading">
-					<h2 id="follow-search-heading">Find an artist or venue</h2>
+				<details class="follow-search" open?={ page.SearchOpen() }>
+					<summary>Find an artist or venue</summary>
+					<p class="field-note">Search for a new follow. Manage your existing artists and venues below.</p>
 					<form method="get" action="/follows" class="account-form">
 						<div class="follow-search-fields">
 							@label.Label(label.Props{For: "follow-kind", Class: "field"}) {
@@ -89,7 +84,7 @@ templ Follows(page FollowsPage) {
 							}
 						}
 					}
-				</section>
+				</details>
 				<section class="account-section" aria-labelledby="your-follows-heading">
 					<h2 id="your-follows-heading">Your follows</h2>
 					<p class="field-note">Only you can see these. Following doesn't publish interest, reserve tickets, or send reminders.</p>

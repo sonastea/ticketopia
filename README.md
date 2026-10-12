@@ -88,6 +88,8 @@ goal to implementation work and verification checkpoints.
 - [x] Collapse the desktop sidebar and rearrange sections/destinations with
   browser-local preferences.
 - [x] Use themed shadcn-templ components throughout the existing responsive UI.
+- [x] Navigate account families consistently and use event-first community,
+  public-profile, follows, and conversation screens without losing native controls.
 - [x] Preview real event details alongside results and open a dedicated event page.
 - [x] Switch event sections in place on Discover and event pages, keeping identity,
   actions, drafts, reading position, and collection-return continuity.

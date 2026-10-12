@@ -60,22 +60,7 @@ templ Settings(p Page) {
 	@layouts.App(p.Active(), p.Title()) {
 		<main id="main" class="destination-page account-page">
 			<header class="account-heading"><h1>{ p.Title() }</h1><p class="intro">Make this space feel like yours. Your email and preferences stay private.</p></header>
-			<nav class="account-nav" aria-label="Account sections">
-				<a href="/radar">Radar</a>
-				<a href="/me" aria-current={ layouts.CurrentPage(p.Section == "profile") }>Profile &amp; privacy</a>
-				<a href="/me/preferences" aria-current={ layouts.CurrentPage(p.Section == "preferences") }>Preferences</a>
-				<a href="/me/interests" aria-current={ layouts.CurrentPage(p.Section == "interests") }>Interests</a>
-				<a href="/follows">Follows</a>
-				<a href="/me/discussions">Followed discussions</a>
-				<a href="/me/notifications">Reply notifications</a>
-				<a href="/me/reminders">On-sale reminders</a>
-				if p.ModerationEnabled {
-					<a href="/me/reports">Your reports</a><a href="/me/moderation">Moderation outcomes</a>
-					if p.Moderator {
-						<a href="/moderation">Moderator review queue</a>
-					}
-				}
-			</nav>
+			@layouts.AccountNav(p.Section, layouts.AccountNavPermissions{ModerationEnabled:p.ModerationEnabled,Moderator:p.Moderator})
 			if p.Error != "" {
 				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
 					<h2>Changes weren't saved</h2><p>{ p.Error }</p>

@@ -28,7 +28,11 @@ runtime grants. This feature does not migrate a database at application startup.
 ## Web behavior
 
 - **Follows** is in desktop Your space and the profile's account navigation; compact
-  screens keep the existing four-destination navigation and reach it through Profile.
+  screens keep the existing four-destination navigation and reach **Artists & venues**
+  through Profile's **More in your space → Your events** group.
+- **Find an artist or venue** is a native disclosure, open on first use, submitted
+  searches and errors. A collection revisit can compact it without hiding existing
+  follows; reopening it needs no JavaScript. Search and management remain separate.
 - Choose Artists or Venues and search by name. Venue results include supplied
   address/city/state/country to distinguish similar names, or “Location not supplied”
   when unavailable. After selecting Venues and searching, optional city/country

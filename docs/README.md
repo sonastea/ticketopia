@@ -15,8 +15,8 @@ their status; they describe intended work rather than available features.
   event-first list and overview redesign, direct ticket actions, simpler
   mobile journeys, contextual community, and delivery acceptance criteria.
 - [App polish and in-place event sections](design/app-polish-and-event-section-navigation.md):
-  in-place event sections and clearer reminders/preferences are implemented;
-  extending the event-first design to neighboring screens remains proposed.
+  implemented in-place event sections, clearer reminders/preferences, shared
+  account navigation and event-first neighboring screens, with verification records.
 - [Backend and frontend delivery checklist](goals/delivery.md): aligned product
   outcomes, implementation tasks, and verification checkpoints.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and

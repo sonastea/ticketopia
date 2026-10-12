@@ -82,24 +82,7 @@ fs.mkdirSync(out, {recursive: true});
     await Promise.all([page.waitForNavigation({waitUntil:'networkidle'}),page.getByRole('button', {name: 'Publish reply'}).click()]);
     await page.goto(base + thread);
     check('Reply-to-reply names its target with one visual level', await page.getByRole('link', {name: /In reply to/}).count() === 1 && await page.locator('.discussion-replies .discussion-replies').count() === 0);
-    const capture = async (name, width, zoom = false) => {
-      if (process.env.DISCUSSION_SKIP_CAPTURES === 'true') return;
-      await page.setViewportSize({width, height: 1000});
-      await page.evaluate(async zoom => {document.documentElement.style.fontSize = zoom ? '200%' : ''; await document.fonts.ready; scrollTo(0,0);}, zoom);
-      check('No horizontal overflow: ' + name, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-      const file = path.join(out, name + '.png');
-      await page.screenshot({path: file, fullPage: true}); report.screenshots.push(file);
-      if (process.env.AXE_SCRIPT) {
-        await page.addScriptTag({path: process.env.AXE_SCRIPT});
-        const violations = await page.evaluate(async () => (await axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);
-        report.accessibility.push({name, violations}); check('Accessibility: ' + name, !violations.length);
-      }
-    };
-    await capture('discussion-desktop', 1440);
-    await capture('discussion-tablet', 1024);
-    await capture('discussion-mobile', 390);
-    await capture('discussion-small-mobile', 320);
-    await capture('discussion-text-zoom', 390, true);
+    await require('./secondary-screen-review.cjs')({page,name:'discussion',check,report,out});
     await page.evaluate(() => document.documentElement.style.fontSize = '');
     const guestPage = await guest.newPage();
     await guestPage.goto(base + thread);
@@ -109,6 +92,8 @@ fs.mkdirSync(out, {recursive: true});
     check('Other users cannot edit root', (await other.request.patch(base + '/api/v1/posts/' + root.id, {data: {body: 'Hijacked'}, headers: {'X-CSRF-Token': otherMe.csrf_token}})).status() === 404);
     await page.goto(base + '/community/discussions?city=Berlin&category_id=sports&limit=1');
     check('City/category conversation browsing', await page.locator('.discussion-list li').count() === 1);
+    check('Conversation card identity opens Overview',await page.locator('.event-image-link').getAttribute('href')===await page.locator('.recommendation-event h3 a').getAttribute('href') && !(await page.locator('.event-image-link').getAttribute('href')).includes('section='));
+    await require('./secondary-screen-review.cjs')({page,name:'community-conversations',check,report,out});
     await page.getByRole('link', {name: /Open conversation/}).click();
     check('Direct thread retains community return', new URL(page.url()).searchParams.get('return_to') === '/community/discussions?city=Berlin&category_id=sports&limit=1');
     const fallback = await owner.newPage();

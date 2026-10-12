@@ -8,12 +8,7 @@ import "github.com/sonastea/ticketopia/views/components/button"
 import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 
 templ ModerationLinks(moderator bool,active string) {
-	<nav class="account-nav" aria-label="Reporting and moderation">
-		<a href="/me">Profile</a><a href="/me/reports" aria-current={ layouts.CurrentPage(active=="reports") }>Your reports</a><a href="/me/moderation" aria-current={ layouts.CurrentPage(active=="outcomes") }>Your moderation outcomes</a>
-		if moderator {
-			<a href="/moderation" aria-current={ layouts.CurrentPage(active=="queue") }>Moderator review queue</a>
-		}
-	</nav>
+	@layouts.AccountNav(active, layouts.AccountNavPermissions{ModerationEnabled:true,Moderator:moderator})
 }
 
 templ ReportConcern(p ReportPage) {

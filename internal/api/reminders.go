@@ -96,6 +96,7 @@ func (a *api) remindersPage(c echo.Context) error {
 		return a.accountPageError(c, err)
 	}
 	page := account.ReminderPage{Account: p.Account, CSRF: p.CSRF, Enabled: a.reminders != nil, Lead: 30, Now: time.Now(), ReturnURL: c.Request().URL.RequestURI()}
+	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	if a.reminders == nil {
 		return render(c, 200, account.Reminders(page))
 	}
@@ -199,6 +200,7 @@ func (a *api) reminderWritePage(c echo.Context) error {
 		return c.Redirect(303, "/me/reminders/"+url.PathEscape(id)+"?saved=stopped")
 	}
 	page := account.ReminderPage{Account: p.Account, CSRF: p.CSRF, Enabled: true, Lead: 30, Now: time.Now()}
+	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	if err = a.loadReminderDetail(c, &page, id); err != nil {
 		return a.accountPageError(c, err)
 	}

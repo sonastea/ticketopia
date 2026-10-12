@@ -7,6 +7,13 @@ related_targets: ["views/home/discussions.templ", "views/account/settings.templ"
 
 # Private reporting and moderator review
 
+## Neighboring-screen extension — 2026-10-12
+
+Safety uses the shared family-local navigation; report/outcome enablement and
+moderator gates remain, with ordinary document links and visible current location.
+The [phase-3 record](views-layouts-account-nav-templ.md) covers shared rendering/
+route role gates; no evidence, report, outcome or moderation behavior changed.
+
 Mode: Operate. Confirmed reporting/review loop; durable moderator roles with an
 operator grant/revoke CLI, not an administrator web UI or notification delivery.
 

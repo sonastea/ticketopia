@@ -7,6 +7,13 @@ related_targets: ["views/account/presentation.go"]
 
 # Account destinations
 
+## Neighboring-screen extension — 2026-10-12
+
+Shared account-family navigation and intrinsic profile-preview stacking now ship;
+security/API controls remain secondary. The [phase-3 record](views-layouts-account-nav-templ.md)
+owns this slice's rendering/role/native navigation checks and eight clean axe views.
+Existing public/private boundaries and the incumbent tokens remain unchanged.
+
 Mode: Operate. Extend the existing Profile/Interests destinations and established
 visual world; no redesign. The user selected direct Google OAuth2 sign-in.
 

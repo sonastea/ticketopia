@@ -151,6 +151,7 @@ func (a *api) discussionFollowPage(c echo.Context) error {
 		return a.accountPageError(c, err)
 	}
 	page := home.DiscussionFollowPage{CSRF: p.CSRF, URL: c.Request().URL.RequestURI(), Notifications: c.Path() == "/me/notifications", Paused: p.Account.Preferences.NotificationsPaused}
+	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	if page.Notifications {
 		page.Inbox, err = a.discussionFollows.Notifications(c.Request().Context(), p.Account.ID, c.QueryParams())
 	} else {

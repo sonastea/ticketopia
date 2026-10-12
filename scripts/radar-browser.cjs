@@ -92,7 +92,7 @@ fs.mkdirSync(out, { recursive: true });
     check('Guest sign-in preserves task', guestPage.url().includes('/auth/sign-in?return_to='));
     await guestPage.goto(process.env.RADAR_DISABLED_URL + '/radar');
     check('Disabled accounts explain requirement', await guestPage.getByText("Radar requires accounts, which aren't enabled", { exact: false }).isVisible());
-    await page.goto(base + '/me'); await page.locator('main').getByRole('link', { name: 'Radar', exact: true }).click();
+    await page.goto(base + '/me'); await page.locator('.account-more summary').click(); await page.locator('.account-navigation').getByRole('link', { name: 'Radar', exact: true }).click();
     check('Compact Profile navigation reaches Radar', new URL(page.url()).pathname === '/radar');
     check('No JavaScript errors', report.consoleErrors.length === 0);
     fs.writeFileSync(path.join(out, 'radar-report.json'), JSON.stringify(report, null, 2)); console.log(JSON.stringify(report, null, 2));

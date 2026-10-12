@@ -42,13 +42,11 @@ templ DiscussionRoots(list discussions.List,showEvent bool,returnURL string) {
 			for _,post:=range list.Items {
 				<li class={ templ.KV("recommendation-event",showEvent) }>
 					if showEvent {
-						<div class="event-art">@EventImage(post.Event,false)</div>
+						@CollectionEventArt(post.Event,returnURL)
 					}
 					<div class="recommendation-copy">
 						if showEvent {
-							<p class="event-date">{ startLabel(post.Event.Start) }</p>
-							<h3><a href={ templ.URL(eventURL(post.EventID,"discussion",returnURL)) } class="text-link">{ post.Event.Name }</a></h3>
-							<p class="event-venue">{ venueLabel(post.Event) }</p>
+							@CollectionEventHeading(post.Event,returnURL)
 						}
 						if post.Removed {
 							<p class="field-note">This contribution was removed. Replies are still available.</p>
@@ -58,7 +56,12 @@ templ DiscussionRoots(list discussions.List,showEvent bool,returnURL string) {
 							@PostAttribution(post)
 							<p class="discussion-body">{ post.Body }</p>
 						}
-						<a href={ templ.URL(ThreadURL(post.EventID,post.ID,DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>Open conversation · { fmt.Sprint(post.ReplyCount) } replies</a>
+						<div class="account-actions">
+							<a href={ templ.URL(ThreadURL(post.EventID,post.ID,DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>Open conversation · { fmt.Sprint(post.ReplyCount) } replies</a>
+							if showEvent {
+								<a href={ templ.URL(eventURL(post.EventID,"discussion",returnURL)) } class="text-link">Questions &amp; tips</a>
+							}
+						</div>
 					</div>
 				</li>
 			}
@@ -96,7 +99,7 @@ templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
 			<div class="discussion-actions">
 				<a href={ templ.URL(replyURL(returnURL,post.ID)) } class="text-link" data-thread-link>Reply</a>
 				if v.ModerationEnabled && (post.Profile==nil || post.Profile.ID!=v.ViewerID) {
-					<a href={ templ.URL("/posts/"+post.ID+"/report") } class="text-link">Report privately</a>
+					<a href={ templ.URL("/posts/"+post.ID+"/report") } class="text-link discussion-utility">Report privately</a>
 				}
 				if v.ViewerID!="" {
 					<form action="/discussion-actions" method="post" data-discussion-form>
@@ -111,7 +114,7 @@ templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
 			}
 			</div>
 			if post.Profile!=nil && post.Profile.ID==v.ViewerID {
-				<details class="discussion-editor recommendation-editor">
+				<details class="discussion-editor recommendation-editor discussion-owner-editor">
 					<summary>Edit your contribution</summary>
 					@DiscussionComposer(discussionForm(post,v,"edit",returnURL),"Your contribution","Save changes")
 				</details>
@@ -144,11 +147,11 @@ templ DiscussionMetadata(f DiscussionForm) {
 templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
 	<form action="/discussion-actions" method="post" class="account-form discussion-composer" data-discussion-form data-discussion-draft={ f.draftScope() }>
 		@DiscussionMetadata(f)
-		<p class="field-note">Your display name, profile link, and contribution will be public. Private interest and saves do not hide posts. Keep it relevant and respectful; don't share private information.</p>
 		if f.ParentID!="" {
 			<p class="field-note">Replying to <a href={ templ.URL("#post-"+f.ParentID) } class="text-link">the selected contribution</a>.</p>
 		}
 		<label class="field">{ fieldLabel } <span>(up to 4000 characters)</span><textarea name="body" rows="4" maxlength="4000" required>{ f.Body }</textarea></label>
+		<p class="field-note composer-audience">Your display name, profile link, and contribution will be public. Private interest and saves do not hide posts. Keep it relevant and respectful; don't share private information.</p>
 		if f.CSRF!="" {
 			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":f.Action}}) {
 				{ submitLabel }

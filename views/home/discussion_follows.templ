@@ -12,7 +12,7 @@ templ ConversationFollow(event,thread,frequency,csrf,returnURL string,paused boo
 			if frequency=="" {
 				Follow this conversation
 			} else {
-				Following · { frequency }
+				Following · { conversationFrequency(frequency) }
 			}
 		</summary>
 		<p class="field-note">Following is private. Get in-app updates for new replies from other people, not edits, Helpful, or reports. Daily and weekly replies are grouped at midnight UTC and Monday midnight UTC.</p>
@@ -65,14 +65,9 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 				}
 				<p class="intro">Your private way back to event conversations. Updates appear here in Ticketopia; no email or push is sent.</p>
 			</header>
-			<nav class="account-nav" aria-label="Conversation sections">
-				<a href="/me/discussions" aria-current={ layouts.CurrentPage(!p.Notifications) }>Followed discussions</a>
-				<a href="/me/notifications" aria-current={ layouts.CurrentPage(p.Notifications) }>Reply notifications</a>
-				<a href="/me/preferences">Notification preferences</a>
-				<a href="/me">Profile</a>
-			</nav>
+			@layouts.AccountNav(ternary(p.Notifications,"notifications","discussions"), p.Navigation)
 			if p.Paused {
-				<p class="field-note">All notifications are paused. Resume in Preferences to receive future activity. Your follows are kept.</p>
+				<p class="field-note">All notifications are paused. <a href="/me/preferences" class="text-link">Resume in Preferences</a> to receive future activity. Your follows are kept.</p>
 			}
 			if p.Error!="" {
 				<p role="alert">{ p.Error }</p><a href={ templ.URL(p.URL) } class="text-link">Retry this page</a>
@@ -82,9 +77,9 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 				}
 				<ul class="discussion-list">
 					for _,n:=range p.Inbox.Items {
-						<li class="discussion-post">
+						<li class="discussion-post conversation-record" data-notification-read={ fmt.Sprint(n.Read) }>
 							<h2>{ n.EventName }</h2>
-							<p><strong>{ fmt.Sprint(n.ReplyCount) }</strong>
+							<p class="conversation-meta"><strong>{ fmt.Sprint(n.ReplyCount) }</strong>
 								if n.ReplyCount==1 {
 									new reply ·
 								} else {
@@ -93,12 +88,12 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 								if n.Read {
 									Read
 									} else {
-									Unread
+									<strong>Unread</strong>
 								}
 							</p>
-							<time class="event-date" datetime={ n.AvailableAt.Format("2006-01-02T15:04:05Z07:00") }>{ n.AvailableAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time>
+							<p class="field-note">Available <time datetime={ n.AvailableAt.Format("2006-01-02T15:04:05Z07:00") }>{ n.AvailableAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
 							<div class="account-actions">
-								<a href={ templ.URL(n.URL) } class="text-link">Open conversation at reply</a>
+								@button.Button(button.Props{Href:n.URL,Variant:button.VariantOutline,Class:"action action-secondary"}) { Open conversation at reply }
 								if !n.Read {
 									<form action="/discussion-follow-actions" method="post">
 										<input type="hidden" name="csrf_token" value={ p.CSRF }/><input type="hidden" name="notification_id" value={ n.ID }/><input type="hidden" name="return_to" value={ p.URL }/>
@@ -120,14 +115,15 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 				}
 				<ul class="discussion-list">
 					for _,f:=range p.Follows.Items {
-						<li class="discussion-post">
+						<li class="discussion-post conversation-record">
 							<h2>{ f.Root.Event.Name }</h2><p class="event-date">{ startLabel(f.Root.Event.Start) }</p><p class="event-venue">{ venueLabel(f.Root.Event) }</p>
+							<p class="conversation-meta"><strong>{ fmt.Sprint(f.Root.ReplyCount) }</strong> { ternary(f.Root.ReplyCount==1,"reply","replies") } · Reply updates: { conversationFrequency(f.Frequency) }</p>
 							if f.Root.Hidden || f.Root.Removed {
 								<p class="field-note">This conversation's original contribution is no longer visible. Notifications are withheld; remaining replies can still be read.</p>
 							} else {
 								<p class="discussion-body">{ f.Root.Body }</p>
 							}
-							<a href={ templ.URL(ThreadURL(f.EventID,f.ThreadID,p.URL)) } class="text-link">Open conversation</a>
+							@button.Button(button.Props{Href:ThreadURL(f.EventID,f.ThreadID,p.URL),Variant:button.VariantOutline,Class:"action action-secondary"}) { Open conversation }
 							@ConversationFollow(f.EventID,f.ThreadID,f.Frequency,p.CSRF,p.URL,p.Paused)
 						</li>
 					}

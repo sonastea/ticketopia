@@ -7,6 +7,13 @@ related_targets: ["views/account/reminders.go", "views/account/settings.templ"]
 
 # On-sale reminders and preferences
 
+## Neighboring-screen extension — 2026-10-12
+
+Reminder pages now use shared Updates navigation; Saved stays directly reachable
+and preferences/help links remain local. Timing/delivery/privacy behavior is
+unchanged. The [phase-3 record](views-layouts-account-nav-templ.md) records shared
+navigation and the rerun 100-check/21-clean-axe reminder regression harness.
+
 Mode: Operate. Part 2 of the [app-polish plan](../../docs/design/app-polish-and-event-section-navigation.md),
 extending the incumbent account surfaces, not replacing their visual world.
 

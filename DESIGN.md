@@ -592,7 +592,19 @@ Event context and ticket information use white, quietly bordered containers with
 
 Keep event price and sale status ahead of participation controls. Search and pagination retain ordinary links/forms without JavaScript. Event Community lists public recommendations separately from explicitly public participants, with profile links and ordinary pagination; private interest contributes to interest counts without naming anyone. Public profiles show opted-in interest and independently published recommendations, using quiet separators and ordinary event links. Discussion shows public questions and links dedicated threads with replies and Helpful. Opt-in Google account destinations provide profiles/privacy defaults, private preferences, durable private saves, independent event interest, public recommendations, and private personalized Radar; disabled deployments explain that accounts are not enabled. Explicit on-sale emails and in-app reply updates are implemented; event-change emails, digests and push remain planned. Selection and return strategy remain in the linked UX guide and surface contracts.
 
-Account forms inherit the same type, colors, corners, and controls. A separate white, bordered public preview sits beside profile editing on wide screens and stacks below it on compact screens. Real Profile/Preferences/Interests links use the section-link current state. Security follows the form; native disclosure keeps API controls secondary. Google sign-in alone follows the provider-brand exception above; no new global tokens are introduced. See [accounts](docs/accounts.md) and the [account surface contract](.impeccable/surfaces/views-account-settings-templ.md).
+Account forms inherit the same type, colors, corners, and controls. A separate white, bordered public preview uses an intrinsic grid beside profile editing when it fits and stacks below it on compact/enlarged-text screens. Family-local navigation shows the current Account, Your events, Updates, or enabled Safety family directly with an underline and `aria-current`; native **More in your space** groups the others. Safety preserves report enablement and moderator role gates. Security follows the form; native disclosure keeps API controls secondary. Google sign-in alone follows the provider-brand exception above; no new global tokens are introduced. See [accounts](docs/accounts.md) and the [account surface contract](.impeccable/surfaces/views-account-settings-templ.md).
+
+Community/public-profile artwork and titles share Overview destinations and return
+context; event/date/venue lead attribution and text. Named recommendation/question/
+thread links remain direct entries, without per-person event toolbars. Artist/venue
+search is a native disclosure open for first use, submissions and errors, compactable
+on revisits. Followed conversations expose actual counts and readable frequency;
+notifications expose Available UTC times and explicit read state. Open conversation
+is primary, Mark read secondary. Publication audience sits beside the writing
+action, with owner/report tools quieter. Expanded desktop navigation scrolls within
+its region in short viewports rather than overlapping the footer. These bounded
+extensions preserve the existing tokens, thresholds, flat surfaces, targets and
+focus; see the [neighboring-screen record](.impeccable/surfaces/views-layouts-account-nav-templ.md).
 
 Reminder settings use event-first identity, an Overview link, distinct public-sale
 time, saved configuration and truthful readiness before the native lead-time

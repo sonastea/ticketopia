@@ -12,7 +12,8 @@ templ Reminders(p ReminderPage) {
 		<main id="main" class="destination-page account-page reminders-page">
 			<h1>On-sale reminders</h1>
 			<p class="intro">Private emails for public ticket sales you choose to remember. Saving an event does not turn reminders on.</p>
-			<nav class="account-nav" aria-label="Reminder navigation"><a href="/saved">Saved events</a><a href="/me/reminders">Your reminders</a><a href="/me/preferences">Email &amp; pause preferences</a></nav>
+			@layouts.AccountNav("reminders", p.Navigation)
+			<a href="/saved" class="text-link">Saved events</a>
 			if !p.Enabled {
 				<p>Email reminders are not enabled on this server. Your saved events are unchanged.</p>
 			} else {

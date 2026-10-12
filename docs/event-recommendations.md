@@ -64,6 +64,11 @@ separate section lists public-opt-in interest identities; these are not endorsem
 `/community` lists **one entry per event** with optional city, country-code, and
 category filters. One active endorsement is sufficient. Each entry shows the active
 endorsement count, up to three named reasons, and a link to the full paginated list.
+Artwork and event title open Overview together, preserving the filtered collection
+or public-profile return page. Named **Recommendations** and full-list links remain
+direct entries. Event/date/venue lead attribution and reasons; rows do not repeat
+Tickets/Save for each author. The public audience sits beside the publish/save
+action in the single native composer.
 Previews sort by original publication time and binary account ID descending. Events
 sort by immutable **first-recommendation time**, then binary event ID descending,
 not personalized ranking. Additional authors, edits, withdrawal and republication

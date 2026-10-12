@@ -15,7 +15,12 @@
 .radar-match { display: grid; gap: .25rem; margin-block: .75rem; }
 .radar-reasons { padding-inline-start: 1.25rem; color: var(--brand); font-size: .9375rem; }
 .radar-scope { font-variant-numeric: tabular-nums; margin-block-end: .75rem; }
-.follow-search { display: grid; gap: 1rem; }
+.follow-search > summary { inline-size: fit-content; max-inline-size: 100%; min-block-size: 2.75rem; padding-block: .6rem; color: var(--brand); font-weight: 700; cursor: pointer; }
+.follow-search > :not(summary) { margin-block-start: 1rem; }
+.follow-search > summary:active { background: var(--brand-soft); color: var(--brand-active); }
+@media (hover: hover) and (pointer: fine) {
+  .follow-search > summary:hover { background: var(--nav-hover); }
+}
 .follow-search-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
 .follow-list { list-style: none; padding: 0; margin: 0; }
 .follow-list > li { display: flex; flex-wrap: wrap; align-items: start; gap: 1rem; padding-block: 1.25rem; border-block-start: 1px solid var(--line); }
@@ -29,12 +34,22 @@
 .account-nav { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin-block: 1.5rem 2rem; border-block-end: 1px solid var(--line); }
 .account-nav a { min-block-size: 2.75rem; padding-block: .6rem; color: var(--muted); }
 .account-nav a[aria-current="page"] { color: var(--brand); border-block-end: 2px solid var(--brand); font-weight: 750; }
+.account-navigation { display: grid; gap: .75rem; margin-block: 1.5rem 2rem; }
+.account-navigation .account-nav { margin-block: 0; }
+.account-family { min-inline-size: 0; }
+.account-family-label { color: var(--muted); font-size: .875rem; font-weight: 700; }
+.account-more > summary { inline-size: fit-content; max-inline-size: 100%; min-block-size: 2.75rem; padding-block: .6rem; color: var(--brand); cursor: pointer; }
+.account-more-families { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1.25rem 2rem; padding-block: 1rem; }
+:is(.account-nav a, .account-more > summary):active { color: var(--brand-active); background: var(--brand-soft); }
+@media (hover: hover) and (pointer: fine) {
+  :is(.account-nav a, .account-more > summary):hover { color: var(--brand); background: var(--nav-hover); }
+}
 .account-form { display: grid; gap: 1rem; min-inline-size: 0; }
 .account-form h2:not(:first-child) { margin-block-start: 1rem; }
 .account-form > .action { justify-self: start; }
 .account-form textarea { field-sizing: content; min-block-size: 8rem; max-block-size: 24rem; inline-size: 100%; resize: vertical; padding-block: .6rem; padding-inline: .7rem; border: 1px solid var(--control-line); border-radius: .5rem; background: var(--surface); color: var(--ink); font: inherit; font-size: max(16px, 1rem); font-weight: 500; }
 .account-form .field { line-height: 1.6; }
-.account-profile-layout { display: grid; gap: 2rem; }
+.account-profile-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 2rem; }
 .account-preview { align-self: start; display: grid; gap: 1rem; padding: 1.5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-inline-size: 0; }
 .account-display-name { font-size: 1.125rem; font-weight: 750; }
 .account-bio { white-space: pre-wrap; max-inline-size: 70ch; }
@@ -69,7 +84,6 @@
 .account-token-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-block-start: 1px solid var(--line); }
 .account-token-list li > div { min-inline-size: 0; overflow-wrap: break-word; }
 @media (min-width: 40rem) { .account-field-grid { grid-template-columns: 2fr 1fr; } }
-@media (min-width: 62rem) { .account-profile-layout { grid-template-columns: minmax(0, 1fr) minmax(16rem, .65fr); } }
 
 @font-face {
   font-family: Manrope;
@@ -1987,6 +2001,13 @@ summary::-webkit-details-marker {
     min-inline-size: 0;
     min-block-size: 0;
   }
+  body:not(.nav-collapsed) .desktop-nav {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    align-content: start;
+    padding: .25rem;
+  }
   .nav-group {
     display: grid;
     gap: .15rem;
@@ -2451,6 +2472,8 @@ summary::-webkit-details-marker {
   .recommendation-editor > summary:hover { background: var(--brand-soft); }
 }
 .recommendation-editor .account-form { margin-block-start: 1rem; }
+.composer-audience { max-inline-size: 70ch; }
+.recommendation-editor > summary:active { background: var(--brand-soft); color: var(--brand-active); }
 .recommendation-editor .account-actions > button { max-inline-size: 100%; }
 .recommendation-editor [data-recommendation-error] { color: var(--error); }
 .recommendation-list { list-style: none; padding: 0; margin-block: 1rem 1.5rem; margin-inline: 0; }
@@ -2466,6 +2489,9 @@ summary::-webkit-details-marker {
 .community-recommenders > li + li { margin-block-start: 1rem; }
 .community-page .recommendation-copy > .field-note { font-variant-numeric: tabular-nums; }
 .recommendation-event { display: grid; gap: 1rem; }
+.recommendation-event .event-image-link { display: block; border-radius: var(--radius); }
+.recommendation-event .event-image-link:active { opacity: .8; }
+.recommendation-event .date-marker { pointer-events: none; }
 .recommendation-editor [aria-busy="true"] { opacity: .7; }
 .discussion-page { max-inline-size: 72rem; }
 .discussion-event-heading { margin-block: 1.5rem 2rem; margin-inline: 0; }
@@ -2478,6 +2504,17 @@ summary::-webkit-details-marker {
 .discussion-actions form { min-inline-size: 0; }
 .discussion-actions button[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
 .discussion-removal > summary { color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+.discussion-owner-editor { margin-block: .25rem 0; }
+.discussion-owner-editor > summary { border: 0; padding-inline: 0; font-weight: 550; }
+.discussion-utility, .discussion-removal > summary { color: var(--muted); font-size: .8125rem; }
+.discussion-removal > summary:active { background: var(--brand-soft); color: var(--brand-active); }
+.conversation-record { display: grid; justify-items: start; gap: .5rem; padding-block: 1.5rem; }
+.conversation-record > * { max-inline-size: 100%; }
+.conversation-record [data-slot="button"] { max-inline-size: 100%; flex-shrink: 1; }
+.conversation-record h2 { font-size: 1.125rem; font-weight: 750; }
+.conversation-meta, .conversation-record time { font-variant-numeric: tabular-nums; }
+.conversation-record .account-actions { margin-block-start: .5rem; align-items: start; }
+.conversation-record .recommendation-editor { margin-block: .25rem 0; max-inline-size: 100%; }
 .discussion-replies { padding-inline-start: var(--space-reply-indent); border-inline-start: 1px solid var(--line); }
 .discussion-reply-composer { margin-block-start: 2rem; scroll-margin-block-start: 1rem; }
 .discussion-composer textarea { scroll-margin-block-end: calc(6rem + env(safe-area-inset-bottom, 0px)); }

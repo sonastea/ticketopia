@@ -1,0 +1,70 @@
+package layouts
+
+// AccountNavPermissions contains presentation state only. Authorization stays in handlers.
+type AccountNavPermissions struct {
+	ModerationEnabled bool
+	Moderator bool
+}
+
+type accountDestination struct {
+	Key, Href, Label string
+}
+
+type accountFamily struct {
+	Label string
+	Links []accountDestination
+}
+
+func accountFamilies(p AccountNavPermissions) []accountFamily {
+	families := []accountFamily{
+		{"Account", []accountDestination{{"profile", "/me", "Profile & privacy"}, {"preferences", "/me/preferences", "Preferences"}}},
+		{"Your events", []accountDestination{{"radar", "/radar", "Radar"}, {"interests", "/me/interests", "Interests"}, {"follows", "/follows", "Artists & venues"}}},
+		{"Updates", []accountDestination{{"reminders", "/me/reminders", "On-sale reminders"}, {"discussions", "/me/discussions", "Followed discussions"}, {"notifications", "/me/notifications", "Reply notifications"}}},
+	}
+	if p.ModerationEnabled {
+		links := []accountDestination{{"reports", "/me/reports", "Your reports"}, {"outcomes", "/me/moderation", "Moderation outcomes"}}
+		if p.Moderator {
+			links = append(links, accountDestination{"queue", "/moderation", "Moderator review queue"})
+		}
+		families = append(families, accountFamily{"Safety", links})
+	}
+	return families
+}
+
+func (f accountFamily) contains(current string) bool {
+	for _, link := range f.Links {
+		if link.Key == current { return true }
+	}
+	return false
+}
+
+templ AccountNav(current string, permissions AccountNavPermissions) {
+	<nav class="account-navigation" aria-label="Your space">
+		for _, family := range accountFamilies(permissions) {
+			if family.contains(current) {
+				@AccountFamily(family, current)
+			}
+		}
+		<details class="account-more">
+			<summary>More in your space</summary>
+			<div class="account-more-families">
+				for _, family := range accountFamilies(permissions) {
+					if !family.contains(current) {
+						@AccountFamily(family, current)
+					}
+				}
+			</div>
+		</details>
+	</nav>
+}
+
+templ AccountFamily(family accountFamily, current string) {
+	<div class="account-family" role="group" aria-label={ family.Label }>
+		<p class="account-family-label">{ family.Label }</p>
+		<div class="account-nav">
+			for _, link := range family.Links {
+				<a href={ templ.URL(link.Href) } aria-current={ CurrentPage(link.Key == current) }>{ link.Label }</a>
+			}
+		</div>
+	</div>
+}

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-10-12 — Scannable conversations and reply updates
+
+- Share Updates navigation; lead followed records with event context, actual
+  reply count and readable frequency. Prioritize Open conversation over read/tools.
+- Label Available UTC times and textual read state; retain distinct conversations,
+  exact reply links, visibility filtering, frequency changes and native Mark read.
+- Verify 87 Chromium checks/14 clean axe views, including 200%-text action wrapping;
+  see [followed discussions](../followed-discussions.md) and the
+  [phase-3 record](../../.impeccable/surfaces/views-layouts-account-nav-templ.md).
+
 ### 2026-10-08 — Private conversation follows and reply notifications
 
 - Follow/unfollow individual conversations; choose immediate, UTC daily/weekly,

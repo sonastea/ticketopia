@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-10-12 — Separate finding and managing follows
+
+- Use shared Your events navigation and native search disclosure, open for first
+  use, submitted searches and errors; compact search on populated collection revisits.
+- Preserve independent artist/venue actions and GET cursors, privacy and native forms.
+- Verify 60 Chromium checks/eight clean axe views including first use/revisit/error,
+  desktop/rail/tablet/390/320px/short/200%-text and native touch controls.
+  See [follows](../follows.md#web-behavior) and the
+  [phase-3 record](../../.impeccable/surfaces/views-layouts-account-nav-templ.md).
+
 ### 2026-10-08 — Private artist and venue follows
 
 - Add authenticated, cached artist/venue name search and ordinary web Follow/Unfollow
