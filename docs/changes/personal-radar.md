@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### 2026-10-11 — Reminder timing and readiness polish
+
+- Implement [part 2 of app polish](../design/app-polish-and-event-section-navigation.md):
+  native preset/custom timing, retained invalid input, inline errors and clear
+  Save/Stop confirmations, without changing global consent or the JSON API.
+- Lead settings/rows with event identity, distinct public-sale/target times and
+  account time zones; explain unknown/past/elapsed timing and each delivery state
+  without promising delivery or treating SES acceptance as inbox confirmation.
+- Separate preference groups and retire the interactive digest field without
+  modifying stored digest values; keep native forms and owner-only pagination.
+- Verify spring/fall DST, strict fields, consent and session ownership in Go;
+  100 isolated browser checks and 21 zero-violation axe views cover timing,
+  readiness, privacy, touch/native forms and responsive/error/empty layouts.
+  See [reminders](../reminders.md) and the
+  [surface record](../../.impeccable/surfaces/views-account-reminders-templ.md).
+- Regenerate templates/CSS and build embedded assets; pass full MariaDB-backed
+  race tests, vet, Docker `make check` and the neighboring collection/conversation
+  browser regressions. Live SES/inbox confirmation remains an operator step.
+
 ### 2026-10-09 — Explicit public on-sale email reminders
 
 - Add [on-sale reminders](../reminders.md) through shared HTML/API settings,
@@ -54,6 +73,6 @@
   IP city, remembered manual choices, and a city-entry fallback. See the
   [location guide](../location.md).
 
-Saves, follows and personalized matches are now delivered; reminders and human
-pilot checkpoints remain planned. Runtime discovery changes are recorded in its
+Saves, follows, personalized matches and explicit on-sale reminders are delivered;
+event-change emails, digests and human pilot checkpoints remain planned. Runtime discovery changes are recorded in its
 [feature history](discovery.md).

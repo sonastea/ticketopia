@@ -1,10 +1,11 @@
 package account
 
-import "strconv"
+import "github.com/sonastea/ticketopia/internal/reminders"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 import "github.com/sonastea/ticketopia/views/components/input"
 import "github.com/sonastea/ticketopia/views/components/label"
+import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 
 templ Reminders(p ReminderPage) {
 	@layouts.App("profile", "On-sale reminders") {
@@ -15,47 +16,77 @@ templ Reminders(p ReminderPage) {
 			if !p.Enabled {
 				<p>Email reminders are not enabled on this server. Your saved events are unchanged.</p>
 			} else {
+				if p.Notice != "" {
+					<p class="reminder-confirmation" role="status">{ p.Notice }</p>
+				}
 				if p.Account.Preferences.NotificationsPaused || !p.Account.Preferences.EmailReminders {
-					<p class="account-notice" role="status">Delivery is paused. Enable email reminders and turn off Pause all notifications in <a href="/me/preferences" class="text-link">Preferences</a>. Configuring a reminder does not change those choices.</p>
+					<p class="account-notice" role="status">Delivery is paused by email permission or global pause. Review <a href="/me/preferences" class="text-link">Preferences</a> to allow eligible sends. Saving timing does not change those choices.</p>
 				}
 				if p.Event != nil {
-					<h2>{ p.Event.Name }</h2>
-					if p.Own != nil {
-						<p role="status">{ reminderState(p.Own.State) }</p>
-						<p class="tabular-nums">Public on-sale: { p.Time(p.Own.SaleAt) }. Reminder: { p.Time(p.Own.ScheduledAt) }.</p>
-					}
-					<form method="post" action={ templ.URL(reminderURL(p.Event.ID)) } class="account-form">
-						@CSRF(p.CSRF)<input type="hidden" name="action" value="set"/>
-						@label.Label(label.Props{For:"reminder-lead",Class:"field"}) {
-							Minutes before public tickets go on sale
-							@input.Input(input.Props{ID:"reminder-lead",Name:"lead_minutes",Type:"number",Value:strconv.Itoa(p.Lead),Required:true,Attributes:templ.Attributes{"min":"1","max":"10080","step":"1","aria-describedby":"reminder-help"}})
+					<section class="reminder-detail" aria-labelledby="reminder-event-heading">
+						<h2 id="reminder-event-heading">{ p.Event.Name }</h2>
+						<a href={ templ.URL("/events/"+p.Event.ID+"?section=overview") } class="text-link">Event Overview</a>
+						<p class="tabular-nums"><strong>Public ticket sale:</strong> { p.SaleTime() }</p>
+						<p class="field-note">This is the ticket-sale time, not the event date. Times below use your account time zone: { p.Zone() }.</p>
+						if p.Own != nil {
+							<p><strong>Saved timing:</strong> { reminderLead(p.Own.LeadMinutes) } before public sale.</p>
+							@ReminderReadiness(*p.Own)
+							<p class="tabular-nums"><strong>Reminder target:</strong> { p.Time(p.Own.ScheduledAt) }</p>
+						} else {
+							<p><strong>Not configured.</strong> Choose a lead time and save to set up this reminder.</p>
 						}
-						<p id="reminder-help" class="field-note">Between one minute and seven days ahead. Unknown times remain pending. Emails go to your private account email in your preferred time zone. No ticket reservation or availability is guaranteed.</p>
+					</section>
+					<form method="post" action={ templ.URL(reminderURL(p.Event.ID)) } class="account-form" novalidate data-reminder-timing data-sale-at={ p.SaleISO() } data-timezone={ p.Zone() } data-event-status={ p.Event.Status }>
+						@CSRF(p.CSRF)<input type="hidden" name="action" value="set"/>
+						<div class="field">
+							@label.Label(label.Props{For:"reminder-timing"}) { Remind me before public sale }
+							@selectcomp.Native(selectcomp.NativeProps{ID:"reminder-timing",Name:"timing",Attributes:templ.Attributes{"required":true,"aria-describedby":"reminder-help reminder-error"}}) {
+								if p.Submitted && p.TimingChoice() != "30" && p.TimingChoice() != "60" && p.TimingChoice() != "1440" && p.TimingChoice() != "custom" {
+									<option value={ p.Choice } selected>Choose a lead time</option>
+								}
+								<option value="30" selected?={ p.TimingChoice() == "30" }>30 minutes</option>
+								<option value="60" selected?={ p.TimingChoice() == "60" }>1 hour</option>
+								<option value="1440" selected?={ p.TimingChoice() == "1440" }>1 day</option>
+								<option value="custom" selected?={ p.TimingChoice() == "custom" }>Custom</option>
+							}
+						</div>
+						@label.Label(label.Props{For:"reminder-lead",Class:"field reminder-custom"}) {
+							Custom lead time in minutes
+							@input.Input(input.Props{ID:"reminder-lead",Name:"lead_minutes",Type:"number",Value:p.CustomValue(),Attributes:templ.Attributes{"min":"1","max":"10080","step":"1","aria-describedby":"reminder-help reminder-error"}})
+						}
+						<p id="reminder-help" class="field-note">Custom uses 1–10080 whole minutes (up to seven days), only when Custom is selected. Saving does not grant email permission or turn off global pause. No ticket reservation or availability is guaranteed.</p>
+						<p id="reminder-error" class="reminder-error" role="alert" hidden?={ p.Error == "" }>{ p.Error }</p>
+						<div class="reminder-preview"><strong>Timing preview</strong><p data-reminder-preview aria-live="polite" class="tabular-nums">{ p.Preview() }</p></div>
 						@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) { Save email reminder }
 					</form>
 					if p.Own != nil {
 						<form method="post" action={ templ.URL(reminderURL(p.Event.ID)) } class="account-actions">
 							@CSRF(p.CSRF)<input type="hidden" name="action" value="stop"/>
-							@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline}) { Stop this reminder }
+							@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"action action-secondary"}) { Stop this reminder }
 						</form>
 					}
 				} else if len(p.List.Items)==0 {
 					<h2>No on-sale reminders yet.</h2><p>Open a saved event's On-sale reminder link to choose when to receive an email.</p>
-					@button.Button(button.Props{Href:"/saved"}) { Choose a saved event }
+					@button.Button(button.Props{Href:"/saved",Class:"action"}) { Choose a saved event }
 				} else {
-					<ul class="account-token-list">
+					<ul class="reminder-list">
 						for _, item := range p.List.Items {
-							<li><div><a href={ templ.URL(reminderURL(item.EventID)) } class="text-link">{ item.Name }</a><p>{ reminderState(item.State) }</p><p class="field-note tabular-nums">Reminder: { p.Time(item.ScheduledAt) }</p></div></li>
+							<li><h2><a href={ templ.URL(reminderURL(item.EventID)) } class="text-link">{ item.Name }</a></h2><p class="tabular-nums"><strong>Reminder target:</strong> { p.Time(item.ScheduledAt) }</p>@ReminderReadiness(item)</li>
 						}
 					</ul>
 					if p.List.NextCursor != nil {
-						@button.Button(button.Props{Href:p.Next(),Variant:button.VariantOutline}) { More reminders }
+						@button.Button(button.Props{Href:p.Next(),Variant:button.VariantOutline,Class:"action action-secondary"}) { More reminders }
 					}
 				}
 				<p class="field-note">Removing an event from Saved stops its reminder. A message already being sent cannot be recalled. Meaningful change emails and weekly digests are not delivered yet.</p>
 			}
 		</main>
 	}
+}
+
+templ ReminderReadiness(item reminders.Item) {
+	<p><strong>{ reminderState(item.State) }</strong></p>
+	<p class="field-note">{ reminderStateDetail(item.State) }</p>
 }
 
 templ ReminderUnsubscribe(token string, done bool) {

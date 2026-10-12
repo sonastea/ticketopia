@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-10-11 — Clear, digest-preserving notification preferences
+
+- Group Location & time zone separately from Notifications; explain email
+  permission/global pause locally and link on-sale settings and reply frequency.
+- Replace weekly digest's checkbox with **Not available yet**. HTML never patches
+  `WeeklyDigest`, including validation rerenders; forged fields are rejected and
+  the JSON contract is unchanged. See [accounts](../accounts.md).
+- Cover both stored digest values, invalid-zone rerenders and category-only saves;
+  the [reminder polish verification](personal-radar.md) includes responsive,
+  accessibility and changed-session preference checks.
+
 ### 2026-10-06 — Direct Google sign-in, durable accounts, and private saves
 
 - Deliver direct Google code/PKCE/OIDC sign-in using pinned `x/oauth2` and

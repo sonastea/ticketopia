@@ -1,6 +1,61 @@
 (() => {
   'use strict';
 
+  // Native timing forms are authoritative. Enhancement only reveals Custom and
+  // previews the target; it never changes consent or promises a scheduled send.
+  for (const form of document.querySelectorAll('[data-reminder-timing]')) {
+    const choice = form.elements.timing;
+    const custom = form.elements.lead_minutes;
+    const field = form.querySelector('.reminder-custom');
+    const preview = form.querySelector('[data-reminder-preview]');
+    const update = () => {
+      const isCustom = choice.value === 'custom';
+      field.hidden = !isCustom;
+      custom.disabled = !isCustom;
+      custom.required = isCustom;
+      const value = isCustom ? custom.value : choice.value;
+      const lead = Number(value);
+      if (!['30', '60', '1440', 'custom'].includes(choice.value) || !/^\d+$/.test(value) || !Number.isInteger(lead) || lead < 1 || lead > 10080) {
+        preview.textContent = 'Choose 1–10080 whole minutes to preview the target.';
+        return;
+      }
+      if (['cancelled', 'canceled', 'postponed'].includes(form.dataset.eventStatus)) {
+        preview.textContent = 'The event is cancelled or postponed; delivery is withheld.';
+        return;
+      }
+      if (!form.dataset.saleAt) {
+        preview.textContent = 'Pending a known public-sale time; no target is scheduled yet.';
+        return;
+      }
+      const sale = new Date(form.dataset.saleAt);
+      const now = Date.now();
+      if (sale.getTime() <= now) {
+        preview.textContent = 'Public tickets are already on sale; no late reminder will be sent.';
+        return;
+      }
+      const due = new Date(sale.getTime() - lead * 60000);
+      if (due.getTime() <= now) {
+        preview.textContent = 'This lead time has already elapsed. A future sale can be eligible immediately after saving, subject to preferences and fresh evidence.';
+        return;
+      }
+      try {
+        const time = new Intl.DateTimeFormat(undefined, {timeZone: form.dataset.timezone,
+          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short'}).format(due);
+        preview.textContent = `Target: ${time} (${form.dataset.timezone}). Delivery depends on preferences, fresh event details and email service availability.`;
+      } catch {
+        preview.textContent = `Target: ${due.toISOString()} (UTC). Delivery depends on preferences, fresh event details and email service availability.`;
+      }
+    };
+    choice.addEventListener('change', update);
+    custom.addEventListener('input', update);
+    update();
+  }
+  if (document.querySelector('.reminders-page, .account-preferences')) {
+    window.addEventListener('pageshow', event => {
+      if (event.persisted) location.reload(); // Revalidate owner/session-specific forms.
+    });
+  }
+
   const filters = document.getElementById('filters');
   const category = document.getElementById('category');
   const genre = document.getElementById('genre');

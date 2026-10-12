@@ -21,9 +21,18 @@ fs.mkdirSync(out, {recursive: true});
     check('Saving does not subscribe',(await owner.request.get(base+endpoint)).status()===404);
     const page = await owner.newPage();
     page.on('pageerror', e=>report.errors.push(e.message));
+    const capture = async(name,width,zoom=false,height=1000,target=page)=>{
+      await target.setViewportSize({width,height});
+      await target.evaluate(async zoom=>{document.documentElement.style.fontSize=zoom?'200%':'';await document.fonts.ready;scrollTo(0,0);},zoom);
+      check('Reflow '+name,await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      if(!process.env.REMINDER_CAPTURE_ONLY || process.env.REMINDER_CAPTURE_ONLY===name) {
+        const file=path.join(out,name+'.png');await target.screenshot({path:file,fullPage:true});report.screenshots.push(file);
+      }
+      if(process.env.AXE_SCRIPT){await target.addScriptTag({path:process.env.AXE_SCRIPT});const violations=await target.evaluate(async()=> (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);report.accessibility.push({name,violations});check('Accessibility '+name,!violations.length);}
+    };
     await page.goto(base+'/saved');
     check('Collections do not repeat reminder controls',await page.locator('.reminder-button').count()===0);
-    await page.locator('.event-link').click();
+    await page.locator('.event-link[href*="Browser_1"]').first().click();
     await page.locator('[data-save-form] button').click();
     await page.locator('.reminder-button').waitFor({state:'hidden'});
     check('Confirmed unsave hides reminder settings',true);
@@ -33,23 +42,40 @@ fs.mkdirSync(out, {recursive: true});
     await page.locator('.reminder-button').click();
     check('Explicit pending form',await page.getByRole('button',{name:'Save email reminder'}).count()===1);
     check('Defaults remain paused',(await page.locator('main').innerText()).includes('Delivery is paused'));
-    await page.getByLabel('Minutes before public tickets go on sale').fill('45');
+    const timing = page.getByLabel('Remind me before public sale', {exact:true});
+    const custom = page.getByLabel('Custom lead time in minutes', {exact:true});
+    check('Native preset select',await timing.evaluate(el=>el.tagName==='SELECT'));
+    check('Default 30 minutes',await timing.inputValue()==='30');
+    check('Preset hides Custom',!await custom.isVisible());
+    for(const [choice,minutes] of [['60',60],['1440',1440],['30',30]]) {
+      await timing.selectOption(choice);
+      await page.getByRole('button',{name:'Save email reminder'}).click();
+      check('Preset persisted '+choice,(await (await owner.request.get(base+endpoint)).json()).lead_minutes===minutes);
+      check('Saved confirmation '+choice,(await page.locator('main').innerText()).includes('Reminder timing saved'));
+    }
+    await timing.selectOption('custom');
+    await custom.fill('10081');
+    await page.getByRole('button',{name:'Save email reminder'}).click();
+    check('Nearby range error',(await page.locator('#reminder-error').innerText()).includes('10080'));
+    check('Invalid custom retained',await custom.inputValue()==='10081' && await timing.inputValue()==='custom');
+    check('Invalid choice did not write',(await (await owner.request.get(base+endpoint)).json()).lead_minutes===30);
+    await capture('reminders-error-desktop',1440);
+    await capture('reminders-error-phone',390);
+    await custom.fill('45');
     await page.getByRole('button',{name:'Save email reminder'}).click();
     check('Native form persisted',(await (await owner.request.get(base+endpoint)).json()).lead_minutes===45);
     check('Configuration did not unpause',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===true);
-    const capture = async(name,width,zoom=false)=>{
-      await page.setViewportSize({width,height:1000});
-      await page.evaluate(async zoom=>{document.documentElement.style.fontSize=zoom?'200%':'';await document.fonts.ready;scrollTo(0,0);},zoom);
-      check('Reflow '+name,await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-      const file=path.join(out,name+'.png');await page.screenshot({path:file,fullPage:true});report.screenshots.push(file);
-      if(process.env.AXE_SCRIPT){await page.addScriptTag({path:process.env.AXE_SCRIPT});const violations=await page.evaluate(async()=> (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);report.accessibility.push({name,violations});check('Accessibility '+name,!violations.length);}
-    };
+    check('Saved non-preset uses Custom',await timing.inputValue()==='custom' && await custom.inputValue()==='45');
+    check('Unknown sale remains unscheduled',(await page.locator('main').innerText()).includes('Time not announced') && (await page.locator('[data-reminder-preview]').innerText()).includes('no target is scheduled'));
     await capture('reminders-desktop',1440);
+    await capture('reminders-rail',1050);
+    await capture('reminders-tablet',768);
     await capture('reminders-phone',390);
     await capture('reminders-small',320);
+    await capture('reminders-short',390,false,480);
     await capture('reminders-enlarged-text',390,true);
     await page.evaluate(()=>document.documentElement.style.fontSize='');
-    const lead=page.getByLabel('Minutes before public tickets go on sale');
+    const lead=page.getByLabel('Custom lead time in minutes',{exact:true});
     check('44px input',(await lead.boundingBox()).height>=44);
     await lead.focus();
     check('Keyboard outline',await lead.evaluate(el=>{const s=getComputedStyle(el);return s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>0;}));
@@ -59,6 +85,46 @@ fs.mkdirSync(out, {recursive: true});
     await page.goto(base+'/me/reminders');
     check('Owner collection retains context',(await page.locator('main').innerText()).includes('An event with a very long name'));
     await capture('reminders-collection',390);
+    check('Collection has account time zone',(await page.locator('main').innerText()).includes('America/Chicago'));
+    for(const [state,label,detail] of [
+      ['pending_date','Pending sale time','no target is scheduled'],['scheduled','Scheduled','not guaranteed'],
+      ['paused','Paused','Your timing choice is retained'],['refresh_failed','Waiting for fresh evidence','delivery is withheld'],
+      ['sending','Sending','already being sent'],['pending','Waiting to retry','original deadline'],
+      ['accepted','SES accepted','inbox delivery is not confirmed'],['uncertain','Uncertain','not automatically resent'],
+      ['failed','Failed','Operator review'],['expired','Expired','No late email'],['cancelled','Stopped','cancelled/postponed']]) {
+      const row=page.locator('.reminder-list li').filter({has:page.getByRole('heading',{name:'Reminder fixture — '+state,exact:true})});
+      check('Truthful collection state '+state,(await row.innerText()).includes(label) && (await row.innerText()).includes(detail));
+    }
+    await capture('reminders-collection-desktop',1440);
+    await write('put','/api/v1/me/saved-events/ticketmaster:Browser_0');
+    await page.goto(base+'/me/reminders/ticketmaster:Browser_0');
+    check('Future sale preview has target',(await page.locator('[data-reminder-preview]').innerText()).includes('Target:'));
+    await timing.selectOption('1440');
+    check('Elapsed lead explains immediate eligibility',(await page.locator('[data-reminder-preview]').innerText()).includes('eligible immediately'));
+    await timing.selectOption('60');
+    await capture('reminders-known-sale',1440);
+    await write('put','/api/v1/me/saved-events/ticketmaster:Browser_2');
+    await page.goto(base+'/me/reminders/ticketmaster:Browser_2');
+    check('Past sale has no late reminder',(await page.locator('[data-reminder-preview]').innerText()).includes('no late reminder'));
+    await page.goto(base+'/me/preferences');
+    check('Digest is not interactive',await page.locator('[name="weekly_digest"]').count()===0);
+    check('Digest availability is explicit',(await page.locator('main').innerText()).includes('Not available yet'));
+    await page.getByLabel('City', {exact:false}).fill('Chicago');
+    await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+    check('Unrelated preference save retains digest',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).weekly_digest===true);
+    await page.getByLabel('Time zone',{exact:true}).fill('Not/AZone');
+    await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+    check('Preference validation retains input',await page.getByLabel('Time zone',{exact:true}).inputValue()==='Not/AZone');
+    check('Preference validation retains digest',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).weekly_digest===true);
+    await capture('preferences-error-phone',390);
+    await page.goto(base+'/me/preferences');
+    await capture('preferences-desktop',1440);
+    await capture('preferences-rail',1050);
+    await capture('preferences-tablet',768);
+    await capture('preferences-phone',390);
+    await capture('preferences-small',320);
+    await capture('preferences-short',390,false,480);
+    await capture('preferences-enlarged-text',390,true);
     const guest=await browser.newContext();
     check('Guest denied private API',(await guest.request.get(base+'/api/v1/me/reminders')).status()===401);
     const other=await browser.newContext();
@@ -67,12 +133,30 @@ fs.mkdirSync(out, {recursive: true});
     const native=await browser.newContext({javaScriptEnabled:false});
     await native.addCookies([{name:'ticketopia_session',value:process.env.SAVED_FIXTURE_TOKEN,url:base}]);
     const nativePage=await native.newPage();await nativePage.goto(base+'/me/reminders/'+event);
+    check('Custom visible without JavaScript',await nativePage.getByLabel('Custom lead time in minutes',{exact:true}).isVisible());
+    await nativePage.getByLabel('Remind me before public sale',{exact:true}).selectOption('custom');
+    await nativePage.getByLabel('Custom lead time in minutes',{exact:true}).fill('75');
+    await nativePage.getByRole('button',{name:'Save email reminder',exact:true}).click();
+    check('Custom saves without JavaScript',(await (await owner.request.get(base+endpoint)).json()).lead_minutes===75);
     await nativePage.getByRole('button',{name:'Stop this reminder',exact:true}).click();
     check('Stop works without JavaScript',(await owner.request.get(base+endpoint)).status()===404);
+    const touch=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+    await touch.addCookies([{name:'ticketopia_session',value:process.env.SAVED_FIXTURE_TOKEN,url:base}]);
+    const touchPage=await touch.newPage();await touchPage.goto(base+'/me/reminders/'+event);
+    await Promise.all([touchPage.waitForURL('**?saved=reminder'),touchPage.getByRole('button',{name:'Save email reminder',exact:true}).tap()]);
+    check('Touch save retains consent',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===true);
+    await touch.addCookies([{name:'ticketopia_session',value:process.env.SAVED_OTHER_TOKEN,url:base}]);
+    await Promise.all([touchPage.waitForNavigation(),touchPage.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})))]);
+    check('BFCache changed session cannot retain private reminder form',await touchPage.locator('[data-reminder-timing]').count()===0);
+    await touchPage.goto(base+'/me/preferences');
+    check('Changed session preferences are revalidated',await touchPage.getByLabel('City',{exact:false}).inputValue()==='');
+    await touchPage.goto(base+'/me/reminders');
+    check('Other owner has an empty collection',(await touchPage.locator('main').innerText()).includes('No on-sale reminders yet'));
+    await capture('reminders-empty-phone',390,false,1000,touchPage);
     await page.goto(process.env.SAVED_DISABLED_URL+'/me/reminders');
     check('Disabled server remains usable',(await page.locator('main').innerText()).includes('Email reminders are not enabled'));
     check('No browser runtime errors',report.errors.length===0);
     fs.writeFileSync(path.join(out,'reminders-checks.json'),JSON.stringify(report,null,2));
     console.log(JSON.stringify({checks:report.checks.length,screenshots:report.screenshots.length,accessibility:report.accessibility.length}));
   } finally {await browser.close();}
-})().catch(error=>{console.error(error);process.exit(1);});
+})().catch(error=>{fs.writeFileSync(path.join(out,'reminders-checks.json'),JSON.stringify(report,null,2));console.error(error);process.exit(1);});

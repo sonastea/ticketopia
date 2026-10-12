@@ -197,7 +197,7 @@ templ Profile(p Page) {
 templ Preferences(p Page) {
 	<form action="/me/preferences" method="post" class="account-form account-preferences" aria-labelledby="preferences-heading">
 		@CSRF(p.CSRF)
-		<h2 id="preferences-heading">Your default location</h2>
+		<h2 id="preferences-heading">Location &amp; time zone</h2>
 		<p class="field-note">Used when discovery has no city selected or remembered in this browser. You can always search somewhere else.</p>
 		<div class="account-field-grid">
 			@label.Label(label.Props{For:"preferred-city",Class:"field"}) {
@@ -213,12 +213,14 @@ templ Preferences(p Page) {
 			Time zone
 			@input.Input(input.Props{ID:"timezone",Name:"timezone",Value:p.Account.Preferences.Timezone,Required:true,Attributes:templ.Attributes{"maxlength":"64","aria-describedby":"timezone-help"}})
 		}
-		<p id="timezone-help" class="field-note">Use an IANA time zone such as America/Chicago or Europe/Berlin. Event times still use the venue's time zone.</p>
-		<fieldset class="account-checkboxes"><legend>Notification preferences</legend>
-			<p class="field-note">Pause controls in-app reply notifications and configured on-sale emails. On-sale delivery requires email reminders to be enabled on this server and a reminder you explicitly configure. Event-change emails and discovery digests remain planned.</p>
-			<label><input type="checkbox" name="email_reminders" checked?={ p.Account.Preferences.EmailReminders }/><span>Allow explicitly configured public on-sale emails</span></label>
-			<label><input type="checkbox" name="weekly_digest" checked?={ p.Account.Preferences.WeeklyDigest }/><span>Weekly discovery digest</span></label>
-			<label><input type="checkbox" name="notifications_paused" checked?={ p.Account.Preferences.NotificationsPaused }/><span>Pause all notifications</span></label>
+		<p id="timezone-help" class="field-note">Use an IANA time zone such as America/Chicago or Europe/Berlin. Reminder times use this zone; event dates still use the venue's time zone.</p>
+		<fieldset class="account-checkboxes"><legend>Notifications</legend>
+			<label><input type="checkbox" name="email_reminders" aria-describedby="email-reminders-help" checked?={ p.Account.Preferences.EmailReminders }/><span>Allow explicitly configured public on-sale emails</span></label>
+			<p id="email-reminders-help" class="field-note">Give permission to email your private account address. Choose each saved event and its timing in <a href="/me/reminders" class="text-link">On-sale reminders</a>. Permission alone does not create a reminder; delivery also requires server support.</p>
+			<label><input type="checkbox" name="notifications_paused" aria-describedby="notification-pause-help" checked?={ p.Account.Preferences.NotificationsPaused }/><span>Pause all notifications</span></label>
+			<p id="notification-pause-help" class="field-note">Withhold configured on-sale emails and in-app reply updates without removing your choices. Turn pause off to resume eligible updates; missed emails are not guaranteed to catch up.</p>
+			<p class="field-note">Reply updates stay in Ticketopia, not email. Set each conversation's frequency in <a href="/me/discussions" class="text-link">Followed discussions</a>; read available updates in <a href="/me/notifications" class="text-link">Reply notifications</a>.</p>
+			<p class="field-note"><strong>Weekly discovery digest</strong> — Not available yet. Event-change emails are not available yet either.</p>
 		</fieldset>
 		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
 			Save preferences

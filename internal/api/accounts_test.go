@@ -83,6 +83,40 @@ func (r *accountStub) UpdatePreferences(_ context.Context, id string, p accounts
 	}
 	return r.account, nil
 }
+
+func TestHTMLPreferencesPreserveStoredDigestIncludingValidation(t *testing.T) {
+	for _, initial := range []bool{false, true} {
+		a, repo, browser, bearer, csrf := accountAPI(t)
+		repo.account.Preferences.WeeklyDigest = initial
+		for _, zone := range []string{"America/Chicago", "Not/AZone"} {
+			body := url.Values{"city": {"Chicago"}, "country": {"US"}, "timezone": {zone}, "email_reminders": {"on"}, "notifications_paused": {"on"}, "csrf_token": {csrf}}
+			w := accountRequest(a, "POST", "/me/preferences", body.Encode(), browser, "", "", "", "application/x-www-form-urlencoded")
+			want := 303
+			if zone == "Not/AZone" {
+				want = 400
+			}
+			if w.Code != want || repo.account.Preferences.WeeklyDigest != initial {
+				t.Fatal("HTML changed digest", w.Code, w.Body.String())
+			}
+			if want == 400 && (strings.Contains(w.Body.String(), `name="weekly_digest"`) || !strings.Contains(w.Body.String(), `value="Not/AZone"`)) {
+				t.Fatal("validation lost form contract")
+			}
+		}
+		w := accountRequest(a, "POST", "/me/preferences", "timezone=UTC&weekly_digest=on&csrf_token="+csrf, browser, "", "", "", "application/x-www-form-urlencoded")
+		if w.Code != 400 || repo.account.Preferences.WeeklyDigest != initial {
+			t.Fatal("hidden/client digest trusted")
+		}
+		w = accountRequest(a, "POST", "/me/preferences", "section=interests&csrf_token="+csrf, browser, "", "", "", "application/x-www-form-urlencoded")
+		if w.Code != 303 || repo.account.Preferences.WeeklyDigest != initial {
+			t.Fatal("category save changed digest")
+		}
+		// The separately supported JSON preference contract still changes digest.
+		w = accountRequest(a, "PATCH", "/api/v1/me/preferences", `{"weekly_digest":true}`, "", bearer, "", "", "")
+		if w.Code != 200 || !repo.account.Preferences.WeeklyDigest {
+			t.Fatal("JSON digest contract changed", w.Code)
+		}
+	}
+}
 func (r *accountStub) ListTokens(_ context.Context, id string, now time.Time) ([]accounts.Credential, error) {
 	result := []accounts.Credential{}
 	for _, c := range r.credentials {

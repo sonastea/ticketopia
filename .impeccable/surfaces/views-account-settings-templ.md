@@ -59,3 +59,15 @@ surrounding account UI retains Manrope and the incumbent world.
   Manrope, existing account links/forms, image/date rows, flat borders, plum states,
   and visible focus. DESIGN.md frontmatter and all aesthetics remain unchanged;
   no new tokens or raster assets, and `.impeccable/design.json` is not regenerated.
+
+## Reminder/preferences extension — 2026-10-11
+
+- Preferences keeps this Operate surface and its existing account navigation.
+  Location & time zone and Notifications are distinct; permission/global pause
+  explain their scope beside controls and link reminders/reply frequency.
+- Digest is a non-interactive availability note. HTML omits the stored-value
+  patch rather than trusting a hidden field; JSON is unchanged.
+- The [reminder finish record](views-account-reminders-templ.md) covers the shared
+  100 browser checks, 21 zero-violation axe views and desktop/compact/error/text
+  captures. No new palette/type/motion/raster assets; neighboring account-family
+  navigation remains part 3, not silently included in this slice.

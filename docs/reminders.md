@@ -9,16 +9,35 @@ and weekly discovery digests remain planned.
 
 Save an event, then choose the bell-marked **On-sale reminder** button in the event
 view's **Your plans & community** group. Lists keep Tickets and Save; settings
-appear only after a confirmed save when reminders are supported. Configure
-1–10080 minutes (up to seven days) before public tickets go on sale. The default
-form value is 30 minutes, not an automatic subscription. Manage settings at
+appear only after a confirmed save when reminders are supported. Choose **30
+minutes**, **1 hour**, **1 day**, or **Custom** in a native select. Custom accepts
+1–10080 whole minutes (up to seven days), retaining previously saved non-preset
+values. The default is 30 minutes, not an automatic subscription. Manage settings at
 `/me/reminders`; each event has its own form and stop control.
+
+Settings lead with the event name and an **Event Overview** link, public ticket-sale
+time (not the event date), saved timing, delivery readiness and the worker's
+recorded target. Times name the account's IANA zone and local abbreviation, with
+DST applied to the target instant. A separate **Timing preview** shows the proposed
+target; it is not a delivery promise or a new schedule. Unknown sale times stay
+unscheduled; elapsed lead times for a future sale explain immediate eligibility.
+The custom field is visible without JavaScript; enhancement reveals it only for
+Custom and updates the preview. The server validates and normalizes every HTML
+choice into `lead_minutes`; repeated fields remain invalid. Invalid submissions
+retain the choice and custom value with a nearby error; successful saves/stops
+return a named confirmation. Saving timing never changes email consent or pause.
 
 In [Preferences](accounts.md), enable email reminders and turn off
 Pause all notifications to permit delivery. Configuring a reminder does not
 change those preferences. Account email stays private; dates in the form and
 email use the account's time zone. Global pause also retains its existing effect
 on in-app discussion notifications.
+
+Preferences separates **Location & time zone** from **Notifications**, with email
+permission, pause, on-sale settings and per-conversation frequency explained beside
+their controls. Weekly digest is a quiet **Not available yet** note, not a checkbox
+or hidden field. HTML saves (including validation rerenders) do not patch the
+stored digest choice; its existing JSON preference contract remains available.
 
 Unknown or TBD sale times stay pending. Known future sales whose lead time has
 already elapsed can be reminded immediately after enrollment. Already-on-sale
@@ -82,6 +101,12 @@ reputation alerts before a real pilot. Optional configuration-set event publishi
 can provide delivery evidence externally; Ticketopia does not ingest those events
 or label provider acceptance as confirmed inbox delivery.
 
+Reminder rows lead with event name, recorded target/time zone and a concise state
+plus its explanation. Settings distinguish pending date, scheduled, paused,
+missing fresh evidence, sending, SES rejection awaiting retry, **SES accepted**,
+uncertain, failed, expired and stopped. SES acceptance is never inbox confirmation.
+Changing timing does not replay a terminal outcome for the same sale timestamp.
+
 ## Durability and outcomes
 
 `event_reminders` stores private intent, schedule and token-fenced leases;
@@ -116,4 +141,8 @@ Unit, handler and isolated MariaDB tests cover unknown/past/changed times,
 pause/stop/unsave, leases across independent pools, restart receipts, stale refresh
 withholding, expiration, explicit SES rejection and uncertain acceptance.
 Synthetic browser fixtures verify native forms and responsive states without
-sending live mail. A real SES recipient/inbox smoke test remains an operator step.
+sending live mail. The phase-2 fixture covers presets/custom errors, consent,
+digest retention, all readiness states, owner/guest/changed-session privacy,
+native/touch controls, keyboard/forced-colors focus and compact/enlarged-text
+reflow. Back/Forward BFCache restores revalidate private forms rather than retaining
+another session's settings. A real SES recipient/inbox smoke test remains an operator step.

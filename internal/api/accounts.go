@@ -646,7 +646,7 @@ func (a *api) updateAccountPage(preferences bool) echo.HandlerFunc {
 		privateAccountResponse(c)
 		allowed := []string{"display_name", "bio", "interest_visibility"}
 		if preferences {
-			allowed = []string{"city", "country", "timezone", "category_ids", "email_reminders", "weekly_digest", "notifications_paused", "section"}
+			allowed = []string{"city", "country", "timezone", "category_ids", "email_reminders", "notifications_paused", "section"}
 		}
 		if err := parseAccountForm(c, allowed...); err != nil {
 			return a.accountPageError(c, err)
@@ -679,10 +679,12 @@ func (a *api) updateAccountPage(preferences bool) echo.HandlerFunc {
 				p.Account.Preferences.CategoryIDs = ids
 			} else {
 				city, country, zone := c.FormValue("city"), c.FormValue("country"), c.FormValue("timezone")
-				email, digest, paused := c.FormValue("email_reminders") == "on", c.FormValue("weekly_digest") == "on", c.FormValue("notifications_paused") == "on"
-				patch = accounts.PreferencesPatch{City: &city, Country: &country, Timezone: &zone, EmailReminders: &email, WeeklyDigest: &digest, NotificationsPaused: &paused}
+				email, paused := c.FormValue("email_reminders") == "on", c.FormValue("notifications_paused") == "on"
+				// Digest delivery is unavailable. HTML never patches its stored choice,
+				// including validation rerenders; the JSON contract remains unchanged.
+				patch = accounts.PreferencesPatch{City: &city, Country: &country, Timezone: &zone, EmailReminders: &email, NotificationsPaused: &paused}
 				p.Account.Preferences.City, p.Account.Preferences.Country, p.Account.Preferences.Timezone = city, country, zone
-				p.Account.Preferences.EmailReminders, p.Account.Preferences.WeeklyDigest, p.Account.Preferences.NotificationsPaused = email, digest, paused
+				p.Account.Preferences.EmailReminders, p.Account.Preferences.NotificationsPaused = email, paused
 			}
 			_, err = a.accounts.UpdatePreferences(c.Request().Context(), p.Account.ID, patch)
 		}

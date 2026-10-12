@@ -285,8 +285,49 @@ func runActivityBrowser(t *testing.T, script string) {
 		detail.Item.Name = name
 		detail.Item.Images = nil
 		detail.Meta.DataAsOf = now
+		if script == os.Getenv("REMINDER_BROWSER_SCRIPT") {
+			detail.Item.PublicSale.Start = nil
+			if i == 0 {
+				sale := now.Add(2 * time.Hour)
+				detail.Item.PublicSale.Start = &sale
+			}
+			if i == 2 {
+				sale := now.Add(-time.Hour)
+				detail.Item.PublicSale.Start = &sale
+			}
+		}
 		entries = append(entries, detail.Item)
 		seed("ticketmaster:v1:event:"+detail.Item.ID, detail.Item)
+	}
+	if script == os.Getenv("REMINDER_BROWSER_SCRIPT") {
+		// Secondary-screen presentation fixtures only: no worker or sender runs.
+		zone, digest := "America/Chicago", true
+		if _, err := auth.UpdatePreferences(t.Context(), owner.ID, accounts.PreferencesPatch{Timezone: &zone, WeeklyDigest: &digest}); err != nil {
+			t.Fatal(err)
+		}
+		for _, state := range []string{"pending_date", "scheduled", "paused", "refresh_failed", "sending", "pending", "accepted", "uncertain", "failed", "expired", "cancelled"} {
+			detail := savedDetail("Reminder_" + state)
+			detail.Item.Name = "Reminder fixture — " + state
+			detail.Meta.DataAsOf = now
+			sale, due := now.Add(48*time.Hour), now.Add(47*time.Hour)
+			detail.Item.PublicSale.Start = &sale
+			if state == "pending_date" {
+				detail.Item.PublicSale.Start = nil
+			}
+			if _, _, err := p.Saved().Save(t.Context(), owner.ID, detail); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := p.Reminders().Set(t.Context(), owner.ID, detail.Item.ID, 60); err != nil {
+				t.Fatal(err)
+			}
+			var saleAt, targetAt any = sale, due
+			if state == "pending_date" || state == "refresh_failed" {
+				saleAt, targetAt = nil, nil
+			}
+			if _, err := p.db.ExecContext(t.Context(), `UPDATE event_reminders SET state=?,sale_at=?,scheduled_at=? WHERE account_id=? AND event_id=?`, state, saleAt, targetAt, owner.ID, detail.Item.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "sports", Name: "Sports"}, Genres: []models.Genre{}}})
 	q, err := discovery.ParseQuery(url.Values{"city": {"Chicago"}, "limit": {"2"}}, now)

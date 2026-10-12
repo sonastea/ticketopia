@@ -590,9 +590,19 @@ tokens, motion, typography, or raster assets are introduced.
 
 Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale preview/full-event data places a last-known provenance notice immediately before price and sale status, using the existing warning treatment rather than presenting stored availability as live.
 
-Keep event price and sale status ahead of participation controls. Search and pagination retain ordinary links/forms without JavaScript. Event Community lists public recommendations separately from explicitly public participants, with profile links and ordinary pagination; private interest contributes to interest counts without naming anyone. Public profiles show opted-in interest and independently published recommendations, using quiet separators and ordinary event links. Discussion shows public questions and links dedicated threads with replies and Helpful. Opt-in Google account destinations provide profiles/privacy defaults, private preferences, durable private saves, independent event interest, public recommendations, and private personalized Radar; disabled deployments explain that accounts are not enabled. External email/push notification delivery remains planned. Selection and return strategy remain in the linked UX guide and surface contracts.
+Keep event price and sale status ahead of participation controls. Search and pagination retain ordinary links/forms without JavaScript. Event Community lists public recommendations separately from explicitly public participants, with profile links and ordinary pagination; private interest contributes to interest counts without naming anyone. Public profiles show opted-in interest and independently published recommendations, using quiet separators and ordinary event links. Discussion shows public questions and links dedicated threads with replies and Helpful. Opt-in Google account destinations provide profiles/privacy defaults, private preferences, durable private saves, independent event interest, public recommendations, and private personalized Radar; disabled deployments explain that accounts are not enabled. Explicit on-sale emails and in-app reply updates are implemented; event-change emails, digests and push remain planned. Selection and return strategy remain in the linked UX guide and surface contracts.
 
 Account forms inherit the same type, colors, corners, and controls. A separate white, bordered public preview sits beside profile editing on wide screens and stacks below it on compact screens. Real Profile/Preferences/Interests links use the section-link current state. Security follows the form; native disclosure keeps API controls secondary. Google sign-in alone follows the provider-brand exception above; no new global tokens are introduced. See [accounts](docs/accounts.md) and the [account surface contract](.impeccable/surfaces/views-account-settings-templ.md).
+
+Reminder settings use event-first identity, an Overview link, distinct public-sale
+time, saved configuration and truthful readiness before the native lead-time
+select. Custom minutes, inline validation, a rule-separated target preview and
+Save/Stop use existing account primitives. Collections are flat, event-named rows
+with account-zone target times and concise states; SES accepted is not confirmed
+inbox delivery. Preferences separates Location & time zone from Notifications;
+permission/pause help sits at its controls, and unavailable digest delivery is a
+quiet note, never a checkbox. See [reminders](docs/reminders.md) and the
+[reminder surface record](.impeccable/surfaces/views-account-reminders-templ.md).
 
 [Radar](docs/radar.md) inherits event collection rows, with readable follow/category
 reasons in the event copy before direct ticket and private Save actions. The header
@@ -616,7 +626,7 @@ native links. No design tokens, motion or shipping raster assets change; see the
 ### Don't:
 - Don't add cast shadows, glass effects, or raised hover cards to this flat, border-defined system.
 - Don't force provider photographs into monochrome or substitute decorative stock imagery for event identity.
-- Don't conflate private saves, event interest, recommendations, discussion posts, Helpful, private reports, or category preferences. Basic reporting/moderation and explicit-preference Radar are implemented; reminder delivery remains planned. Don't imply public-pilot approval, fabricate participation counts, imply that interest/recommendation confirms attendance or ticket ownership, or imply that saving reserves tickets.
+- Don't conflate private saves, event interest, recommendations, discussion posts, Helpful, private reports, or category preferences. Basic reporting/moderation, explicit-preference Radar and opt-in on-sale reminders are implemented; event-change emails and digests remain planned. Don't imply confirmed inbox delivery or public-pilot approval, fabricate participation counts, imply that interest/recommendation confirms attendance or ticket ownership, or imply that saving reserves tickets.
 - Don't use promotional clutter or manufactured urgency to compete with practical event information.
 - Don't promote route-specific composition or synthesized sidecar tonal ramps into new global design tokens.
 - Don't reuse date paper for selected rows, current navigation, availability labels, caret, or focus.

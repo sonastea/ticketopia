@@ -1,6 +1,6 @@
 # App polish and in-place event sections
 
-**Status:** Part 1 implemented; parts 2–3 remain proposed.
+**Status:** Parts 1–2 implemented; part 3 remains proposed.
 **Date:** 2026-10-11.
 **Baseline:** `b6c61ad` (event-first redesign) and its parent `a3f34a9`
 (on-sale reminders). Extends the [implemented discovery redesign](event-discovery-redesign.md),
@@ -25,8 +25,10 @@ pass: clearer decisions, predictable controls, and fewer interruptions.
 ## Baseline gaps and boundaries
 
 The section-navigation gaps below describe the pre-implementation baseline.
-Part 1 now uses a validated section fragment and stable event shell; reminder and
-neighboring-screen gaps remain open. See the [implemented journey guide](../design-guidelines.md#discovery-to-discussion-journeys-and-shared-state).
+Part 1 now uses a validated section fragment and stable event shell; part 2 adds
+preset/custom timing, truthful readiness and digest-preserving preferences.
+Neighboring-screen gaps remain open. See the [implemented journey guide](../design-guidelines.md#discovery-to-discussion-journeys-and-shared-state)
+and [reminder guide](../reminders.md).
 
 - Discover already intercepts section links, but `select()` in
   `views/assets/app.js` replaces all of `#event-context` with loading UI and then
@@ -119,7 +121,7 @@ ranking system, global SPA router, automatic dark mode, or deployment work.
   all sections or persist private section HTML in storage. Existing privacy-driven
   revalidation on cross-document/BFCache returns is not removed by this change.
 
-## 2. Reminders and preferences
+## 2. Reminders and preferences (implemented)
 
 **Reminder detail:** event name and an Overview link; public-sale time; delivery
 readiness; lead-time choice; scheduled target; Save/Stop controls. Event dates and
@@ -189,9 +191,9 @@ behavior tests plus batched desktop/mobile captures before moving on.
   entry, Recommend intent, rapid switching, failed fetches and late writes work.
 - [x] Keyboard focus and reading position remain useful; drafts survive switches
   and blocked storage. Native links/forms and modified clicks still work.
-- [ ] Preset/custom reminder choices, time-zone/DST cases, unknown/past sale times,
+- [x] Preset/custom reminder choices, time-zone/DST cases, unknown/past sale times,
   pause/consent and all delivery states are truthful; errors preserve input.
-- [ ] Saving unrelated preferences does not erase the stored digest choice. Owner,
+- [x] Saving unrelated preferences does not erase the stored digest choice. Owner,
   another user, guest and changed-session cases retain their existing privacy rules.
 - [ ] Desktop, rail, tablet, 390/320px, short viewport and 200%-text layouts cover
   long titles/content, empty/error states, touch, reduced motion and forced colors.
@@ -206,5 +208,10 @@ During implementation, regenerate with `npm run generate` and `npm run css`, bui
 embedded assets, and run focused checks; broaden to race tests/vet and `make check`
 for the shared navigation/assets changes. Update the implemented UX/feature guides,
 visual/surface records and feature histories only when the corresponding slice ships.
-Parts 2–3 retain their proposed acceptance criteria; the first slice's verification
-is recorded in the discovery feature history and surface record.
+Part 3 retains its proposed acceptance criteria, including neighboring-screen
+layout coverage. Part 2 verified desktop/rail/tablet, 390/320px, short viewport and
+200%-text reminder/preferences layouts, with 100 isolated browser checks and 21
+zero-violation axe views. Spring/fall DST and strict HTML/API contracts have Go
+coverage. The first slice's verification is recorded in the discovery feature
+history and surface record; the second in the [personal-radar history](../changes/personal-radar.md)
+and [reminder surface record](../../.impeccable/surfaces/views-account-reminders-templ.md).

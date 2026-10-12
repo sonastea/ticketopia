@@ -58,7 +58,7 @@ goal to implementation work and verification checkpoints.
 - [x] Receive a timely public on-sale reminder for a saved event (opt-in SES setup).
 - [ ] Receive meaningful date, venue, cancellation, or postponement updates.
 - [ ] Receive a weekly discovery digest.
-- [x] Change or pause on-sale reminders and choose notification preferences.
+- [x] Choose preset/custom on-sale reminder timing, inspect delivery readiness, and change or pause notification preferences.
 
 ### Positive event communities
 

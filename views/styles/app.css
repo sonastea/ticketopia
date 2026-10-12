@@ -48,6 +48,15 @@
 .reminders-page > h2 { margin-block-end: .75rem; }
 .reminders-page > .account-form { margin-block: 1.5rem 1rem; }
 .reminders-page > .field-note { margin-block-start: 1rem; }
+.reminder-detail, .reminder-preview, .reminder-list > li { display: grid; gap: .5rem; }
+.reminder-detail > .text-link { justify-self: start; }
+.reminder-preview { padding-block: 1rem; border-block: 1px solid var(--line); }
+.reminder-error { color: var(--error); }
+.reminder-confirmation { margin-block: 1rem; color: var(--brand); font-weight: 650; }
+.reminder-list { list-style: none; padding: 0; margin: 0; }
+.reminder-list > li { padding-block: 1.5rem; border-block-start: 1px solid var(--line); }
+.reminder-list h2 { font-size: 1.125rem; font-weight: 750; }
+.reminder-list h2 > a { font: inherit; }
 .account-field-grid { display: grid; gap: 1rem; }
 .account-checkboxes { display: grid; gap: .5rem; padding: 0; border: 0; min-inline-size: 0; }
 .account-checkboxes legend { font-size: 1.25rem; font-weight: 750; margin-block: 1rem; }

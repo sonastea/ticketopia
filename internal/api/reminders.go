@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
@@ -94,34 +95,27 @@ func (a *api) remindersPage(c echo.Context) error {
 	if err != nil {
 		return a.accountPageError(c, err)
 	}
-	page := account.ReminderPage{Account: p.Account, CSRF: p.CSRF, Enabled: a.reminders != nil, Lead: 30, ReturnURL: c.Request().URL.RequestURI()}
+	page := account.ReminderPage{Account: p.Account, CSRF: p.CSRF, Enabled: a.reminders != nil, Lead: 30, Now: time.Now(), ReturnURL: c.Request().URL.RequestURI()}
 	if a.reminders == nil {
 		return render(c, 200, account.Reminders(page))
 	}
 	if c.Param("event_id") == "" {
 		page.List, err = a.reminders.List(c.Request().Context(), p.Account.ID, c.QueryParams())
 	} else {
-		if len(c.QueryParams()) != 0 {
-			return a.accountPageError(c, &accounts.ValidationError{Field: "query", Message: "this route does not accept query parameters"})
+		values := c.QueryParams()
+		if len(values) != 0 && (len(values) != 1 || len(values["saved"]) != 1 || (values.Get("saved") != "reminder" && values.Get("saved") != "stopped")) {
+			return a.accountPageError(c, &accounts.ValidationError{Field: "query", Message: "unsupported reminder query"})
 		}
 		id, idErr := savedEventID(c)
 		if idErr != nil {
 			return a.accountPageError(c, idErr)
 		}
-		if a.saved == nil {
-			return a.accountPageError(c, reminders.ErrUnavailable)
-		}
-		item, getErr := a.saved.Get(c.Request().Context(), p.Account.ID, id)
-		if getErr != nil {
-			return a.accountPageError(c, getErr)
-		}
-		page.Event = &item.Event
-		configured, getErr := a.reminders.Get(c.Request().Context(), p.Account.ID, id)
-		if getErr == nil {
-			page.Own = &configured
-			page.Lead = configured.LeadMinutes
-		} else if !errors.Is(getErr, reminders.ErrNotFound) {
-			err = getErr
+		err = a.loadReminderDetail(c, &page, id)
+		switch values.Get("saved") {
+		case "reminder":
+			page.Notice = "Reminder timing saved. Email permission and global pause are unchanged."
+		case "stopped":
+			page.Notice = "This reminder is stopped. Your saved event and other reminders are unchanged. A message already being sent cannot be recalled."
 		}
 	}
 	if err != nil {
@@ -129,11 +123,52 @@ func (a *api) remindersPage(c echo.Context) error {
 	}
 	return render(c, 200, account.Reminders(page))
 }
+
+func (a *api) loadReminderDetail(c echo.Context, page *account.ReminderPage, id string) error {
+	if a.saved == nil {
+		return reminders.ErrUnavailable
+	}
+	item, err := a.saved.Get(c.Request().Context(), page.Account.ID, id)
+	if err != nil {
+		return err
+	}
+	page.Event = &item.Event
+	configured, err := a.reminders.Get(c.Request().Context(), page.Account.ID, id)
+	if err == nil {
+		page.Own = &configured
+		page.Lead = configured.LeadMinutes
+	} else if !errors.Is(err, reminders.ErrNotFound) {
+		return err
+	}
+	return nil
+}
+
+// HTML timing choices normalize to the existing service/JSON lead_minutes.
+// Legacy minute-only submissions remain valid; every field is still single-valued.
+func reminderFormLead(c echo.Context) (int, error) {
+	choice := c.FormValue("timing")
+	if choice != "" && choice != "custom" {
+		switch choice {
+		case "30", "60", "1440":
+			lead, _ := strconv.Atoi(choice)
+			return lead, nil
+		default:
+			return 0, &accounts.ValidationError{Field: "timing", Message: "choose 30 minutes, 1 hour, 1 day, or Custom"}
+		}
+	}
+	if _, present := c.Request().PostForm["timing"]; present && choice == "" {
+		return 0, &accounts.ValidationError{Field: "timing", Message: "choose a lead time"}
+	}
+	lead, err := strconv.Atoi(c.FormValue("lead_minutes"))
+	if err != nil {
+		return 0, &accounts.ValidationError{Field: "lead_minutes", Message: "choose 1–10080 whole minutes (up to seven days)"}
+	}
+	return lead, reminders.Lead(lead)
+}
+
 func (a *api) reminderWritePage(c echo.Context) error {
 	privateAccountResponse(c)
-	if err := parseAccountForm(c, "action", "lead_minutes"); err != nil {
-		return a.accountPageError(c, err)
-	}
+	formErr := parseAccountForm(c, "action", "timing", "lead_minutes")
 	p, err := a.principal(c, true)
 	if err != nil {
 		return a.accountPageError(c, err)
@@ -148,22 +183,54 @@ func (a *api) reminderWritePage(c echo.Context) error {
 	if err != nil {
 		return a.accountPageError(c, err)
 	}
-	switch c.FormValue("action") {
-	case "stop":
-		err = a.reminders.Remove(c.Request().Context(), p.Account.ID, id)
-	case "set":
-		lead, parseErr := strconv.Atoi(c.FormValue("lead_minutes"))
-		if parseErr != nil {
-			return a.accountPageError(c, &accounts.ValidationError{Field: "lead_minutes", Message: "choose a number of minutes"})
+	// Authenticate and verify CSRF before rereading any owner-only detail for an
+	// invalid form. Malformed/oversized bodies remain generic failures.
+	if formErr != nil {
+		var validation *accounts.ValidationError
+		if !errors.As(formErr, &validation) || validation.Field == "body" || validation.Field == "query" {
+			return a.accountPageError(c, formErr)
 		}
-		_, err = a.reminders.Set(c.Request().Context(), p.Account.ID, id, lead)
-	default:
-		err = &accounts.ValidationError{Field: "action", Message: "choose set or stop"}
 	}
-	if err != nil {
+	if formErr == nil && c.FormValue("action") == "stop" {
+		// Preserve idempotent stop, including an event already removed from Saved.
+		if err = a.reminders.Remove(c.Request().Context(), p.Account.ID, id); err != nil {
+			return a.accountPageError(c, err)
+		}
+		return c.Redirect(303, "/me/reminders/"+url.PathEscape(id)+"?saved=stopped")
+	}
+	page := account.ReminderPage{Account: p.Account, CSRF: p.CSRF, Enabled: true, Lead: 30, Now: time.Now()}
+	if err = a.loadReminderDetail(c, &page, id); err != nil {
 		return a.accountPageError(c, err)
 	}
-	return c.Redirect(303, "/me/reminders/"+url.PathEscape(id))
+	page.Submitted = true
+	page.Choice, page.Custom = c.FormValue("timing"), c.FormValue("lead_minutes")
+	if _, present := c.Request().PostForm["timing"]; !present {
+		page.Choice = "custom"
+	}
+	err = formErr
+	if err == nil {
+		switch c.FormValue("action") {
+		case "set":
+			lead, parseErr := reminderFormLead(c)
+			if parseErr != nil {
+				err = parseErr
+				break
+			}
+			_, err = a.reminders.Set(c.Request().Context(), p.Account.ID, id, lead)
+		default:
+			err = &accounts.ValidationError{Field: "action", Message: "choose set or stop"}
+		}
+	}
+	if err != nil {
+		status, _, message, _ := accountError(err)
+		var validation *accounts.ValidationError
+		if errors.As(err, &validation) {
+			message = validation.Message
+		}
+		page.Error = "Changes weren't saved. " + message
+		return render(c, status, account.Reminders(page))
+	}
+	return c.Redirect(303, "/me/reminders/"+url.PathEscape(id)+"?saved=reminder")
 }
 func (a *api) unsubscribePage(c echo.Context) error {
 	privateAccountResponse(c)
