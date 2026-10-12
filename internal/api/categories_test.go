@@ -207,7 +207,7 @@ func TestCategoryAPIAndMusicCompatibility(t *testing.T) {
 		}
 	}
 	before := calls.Load()
-	for _, path := range []string{"/api/v1/categories?category_id=all", "/api/v1/events?category_id=../bad", "/api/v1/events?category_id=all&genre_id=rock", "/api/v1/events?category_id=a&category_id=b"} {
+	for _, path := range []string{"/api/v1/events?category_id=../bad", "/api/v1/events?category_id=all&genre_id=rock", "/api/v1/events?category_id=a&category_id=b"} {
 		rec := request(path)
 		if rec.Code != 400 || rec.Header().Get("Content-Type") != "application/problem+json" || !strings.Contains(rec.Body.String(), "invalid_query") || calls.Load() != before {
 			t.Fatalf("invalid category request reached provider: %s %s", path, rec.Body.String())

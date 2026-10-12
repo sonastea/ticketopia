@@ -37,6 +37,8 @@ their status; they describe intended work rather than available features.
 
 - [Local development services](local-development.md): `ses-setup`, `db-setup` and
   combined `local-setup`, with isolated MiniStack SES capture and local settings.
+- [Behavior-focused testing](testing.md): regression risks, unit/HTTP/rendering/SQL
+  boundaries, avoiding redundant assertions, and opt-in validation commands.
 - [Public on-sale email reminders](reminders.md): explicitly configured private
   reminders, SES delivery, durable jobs and pause/stop controls.
 - [Followed discussions](followed-discussions.md): private conversation subscriptions,

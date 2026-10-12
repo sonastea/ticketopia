@@ -128,6 +128,43 @@ func TestSESOutcomesAndPrivateCopy(t *testing.T) {
 		t.Fatal(state)
 	}
 }
+
+func TestReminderLeadAndEmailRespectDSTTransitions(t *testing.T) {
+	for _, tc := range []struct {
+		name, sale, due, zone, label string
+	}{
+		{"spring forward", "2026-03-08T03:15:00-04:00", "2026-03-08T06:45:00Z", "America/New_York", "Sunday 8 March 2026, 03:15 EDT"},
+		{"first fall hour", "2026-11-01T01:15:00-04:00", "2026-11-01T04:45:00Z", "America/New_York", "Sunday 1 November 2026, 01:15 EDT"},
+		{"repeated fall hour", "2026-11-01T01:15:00-05:00", "2026-11-01T05:45:00Z", "America/New_York", "Sunday 1 November 2026, 01:15 EST"},
+		{"account timezone crosses date", "2026-10-13T00:15:00Z", "2026-10-12T23:45:00Z", "America/Los_Angeles", "Monday 12 October 2026, 17:15 PDT"},
+		{"invalid timezone falls back to UTC", "2026-10-13T00:15:00Z", "2026-10-12T23:45:00Z", "Invalid/Zone", "Tuesday 13 October 2026, 00:15 UTC"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sale, err := time.Parse(time.RFC3339, tc.sale)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantDue, err := time.Parse(time.RFC3339, tc.due)
+			if err != nil {
+				t.Fatal(err)
+			}
+			state, at, due := Schedule(models.Event{PublicSale: models.PublicSale{Start: &sale}}, 30, sale.Add(-time.Hour))
+			if state != "scheduled" || at == nil || due == nil || !at.Equal(sale) || !due.Equal(wantDue) {
+				t.Fatalf("lead must be 30 elapsed minutes, not wall-clock minutes: %s %v %v", state, at, due)
+			}
+			f := &fakeSES{}
+			s := &SES{client: f, config: Config{From: "notify@example.com", BaseURL: "https://events.example"}}
+			if state, _ := s.Send(t.Context(), Delivery{To: "private@example.com", Name: "DST show", SaleAt: *at, Timezone: tc.zone}); state != "accepted" {
+				t.Fatal("email not accepted", state)
+			}
+			body := aws.ToString(f.input.Content.Simple.Body.Text.Data)
+			if !strings.Contains(body, "go on sale "+tc.label+".") {
+				t.Fatal("email shows the wrong local sale time", body)
+			}
+		})
+	}
+}
+
 func TestConfigOptIn(t *testing.T) {
 	t.Setenv("SES_ENDPOINT_URL", "")
 	t.Setenv("REMINDERS_ENABLED", "")

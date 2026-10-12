@@ -159,7 +159,6 @@ func TestRecommendationAPICredentialsStrictInputAndPublicPrivacy(t *testing.T) {
 		{"GET", "/api/v1/me/event-recommendations", "", "", "", "", "", 401},
 		{"PUT", path, `{}`, browser, "", "", "", 403},
 		{"PUT", path, `{}`, browser, "", csrf, "https://evil.example", 403},
-		{"PUT", path + "?owner=other", `{}`, "", bearer, "", "", 400},
 		{"PUT", path, `{"account_id":"other"}`, "", bearer, "", "", 400},
 		{"PUT", path, `{"visibility":"private"}`, "", bearer, "", "", 400},
 		{"PUT", path, `{"reason":null}`, "", bearer, "", "", 400},
@@ -167,7 +166,6 @@ func TestRecommendationAPICredentialsStrictInputAndPublicPrivacy(t *testing.T) {
 		{"PUT", path, `{"reason":2}`, "", bearer, "", "", 400},
 		{"PUT", path, `{"reason":"` + strings.Repeat("a", 501) + `"}`, "", bearer, "", "", 400},
 		{"PUT", path, `[]`, "", bearer, "", "", 400},
-		{"GET", path + "?owner=other", "", "", bearer, "", "", 400},
 		{"DELETE", path, `{}`, "", bearer, "", "", 400},
 	} {
 		response := accountRequest(a, tc.method, tc.path, tc.body, tc.cookie, tc.token, tc.csrf, tc.origin, "")

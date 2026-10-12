@@ -67,9 +67,10 @@ func TestMariaDBDiscoverSQLFiltersAndPagination(t *testing.T) {
 		e.Name = fmt.Sprintf("Show %02d", i)
 		e.Venues[0].CountryCode = "DE"
 		if i%2 == 0 {
-			e.Artists = []models.Artist{{ID: "ticketmaster:Artist", Name: "AB 100%_"}}
+			e.Artists = []models.Artist{{ID: "ticketmaster:Artist", Name: "AB 100%_="}}
 		} else {
-			e.Artists = []models.Artist{{ID: "ticketmaster:artist", Name: "Other"}}
+			// This decoy would match 100%_ if SQL wildcards were not escaped.
+			e.Artists = []models.Artist{{ID: "ticketmaster:artist", Name: "Other 100XY"}}
 		}
 		if i == 0 {
 			e.Venues = append(e.Venues, models.Venue{ID: "ticketmaster:other", Place: models.Place{Name: "Other arena", City: "Paris", CountryCode: "FR"}})
@@ -89,6 +90,9 @@ func TestMariaDBDiscoverSQLFiltersAndPagination(t *testing.T) {
 		{"category_id=sports&genre_id=ball&artist_id=ticketmaster:Artist", 18, "sql-00"},
 		{"artist_id=ticketmaster:artist", 18, "sql-03"},
 		{"keyword=100%25_", 18, "sql-00"},
+		{"keyword=%25", 18, "sql-00"},
+		{"keyword=_", 18, "sql-00"},
+		{"keyword=%3D", 18, "sql-00"},
 		{"keyword=AB", 18, "sql-00"},
 		{"keyword=arena", 36, "sql-00"},
 		{"venue_id=ticketmaster:other", 1, "sql-00"},

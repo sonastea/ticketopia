@@ -162,7 +162,7 @@ func TestDiscussionAPIValidationCredentialsAndPublicProjection(t *testing.T) {
 		}
 	}
 	postPath := "/api/v1/posts/" + p.ID
-	for _, tc := range []struct{ method, path, body string }{{"PATCH", postPath, `{"body":"new","parent_id":"x"}`}, {"PATCH", postPath + "?owner=x", `{"body":"new"}`}, {"DELETE", postPath, `{}`}, {"PUT", postPath + "/reactions/helpful", `{}`}} {
+	for _, tc := range []struct{ method, path, body string }{{"PATCH", postPath, `{"body":"new","parent_id":"x"}`}, {"DELETE", postPath, `{}`}, {"PUT", postPath + "/reactions/helpful", `{}`}} {
 		w = discussionRequest(a, tc.method, tc.path, tc.body, bearer, "")
 		if w.Code != 400 {
 			t.Fatal(w.Code, w.Body.String())

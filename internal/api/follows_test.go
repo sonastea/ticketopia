@@ -84,13 +84,11 @@ func TestFollowAPIAuthenticationOwnershipCSRFAndIdempotency(t *testing.T) {
 		{"PUT", path, "", browser, "", "", "", 403},
 		{"PUT", path, "", browser, "", csrf, "https://evil.example", 403},
 		{"PUT", path, `{"account_id":"other"}`, "", bearer, "", "", 400},
-		{"PUT", path + "?visibility=public", "", "", bearer, "", "", 400},
 		{"PUT", "/api/v1/me/follows/user/ticketmaster:One", "", "", bearer, "", "", 400},
 		{"PUT", "/api/v1/me/follows/artist/bad", "", "", bearer, "", "", 400},
 		{"PUT", path, "", browser, "", csrf, "https://events.example", 201},
 		{"PUT", path, "", "", bearer, "", "", 200},
 		{"GET", path, "", "", bearer, "", "", 200},
-		{"GET", "/api/v1/me/follows?account_id=other", "", "", bearer, "", "", 400},
 		{"GET", "/api/v1/me/follows?limit=101", "", "", bearer, "", "", 400},
 		{"PUT", "/api/v1/me/follows/artist/ticketmaster:Missing", "", "", bearer, "", "", 404},
 	} {

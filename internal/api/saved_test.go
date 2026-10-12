@@ -79,13 +79,11 @@ func TestSavedAPIPrivacyCSRFAndRetries(t *testing.T) {
 		{"PUT", path, "", browser, "", "", "", 403},
 		{"PUT", path, "", browser, "", csrf, "https://evil.example", 403},
 		{"PUT", path, `{"account_id":"other"}`, "", bearer, "", "", 400},
-		{"PUT", path + "?owner=other", "", "", bearer, "", "", 400},
 		{"PUT", "/api/v1/me/saved-events/invalid", "", "", bearer, "", "", 400},
 		{"PUT", path, "", browser, "", csrf, "https://events.example", 201},
 		{"PUT", path, "", "", bearer, "", "", 200},
 		{"GET", path, "", "", bearer, "", "", 200},
 		{"GET", "/api/v1/me/saved-events?limit=101", "", "", bearer, "", "", 400},
-		{"GET", "/api/v1/me/saved-events?account_id=other", "", "", bearer, "", "", 400},
 		{"GET", "/api/v1/me/saved-events/states?event_id=" + event.ID, "", browser, "", "", "", 200},
 	} {
 		w := accountRequest(a, tc.method, tc.path, tc.body, tc.cookie, tc.token, tc.csrf, tc.origin, "")

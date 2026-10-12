@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -13,11 +15,13 @@ import (
 
 type moderationStub struct {
 	moderation.Repository
-	allowed bool
-	report  moderation.Report
-	who     string
-	writes  int
-	err     error
+	allowed   bool
+	report    moderation.Report
+	who       string
+	writes    int
+	err       error
+	decisions int
+	review    moderation.Review
 }
 
 func (r *moderationStub) IsModerator(context.Context, string) (bool, error) { return r.allowed, r.err }
@@ -41,6 +45,67 @@ func (r *moderationStub) Reports(_ context.Context, who string, _ moderation.Que
 		return []moderation.Report{r.report}, nil
 	}
 	return nil, nil
+}
+
+func (r *moderationStub) Decide(_ context.Context, who, post string, review moderation.Review) (moderation.Outcome, error) {
+	r.decisions++
+	r.who, r.review = who, review
+	return moderation.Outcome{PostID: post, Action: review.Action, Reason: review.Reason}, nil
+}
+
+func TestModerationDecisionsRequireModeratorCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name                     string
+		moderator, browser, csrf bool
+		roleError                error
+		want                     int
+		code                     string
+	}{
+		{"ordinary API token", false, false, false, nil, 403, "moderator_access_required"},
+		{"ordinary browser session", false, true, true, nil, 403, "moderator_access_required"},
+		{"moderator browser without CSRF", true, true, false, nil, 403, "csrf_failed"},
+		{"role lookup unavailable", true, false, false, moderation.ErrUnavailable, 503, "moderation_unavailable"},
+		{"moderator API token", true, false, false, nil, 201, ""},
+		{"moderator browser session", true, true, true, nil, 201, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, _, browser, bearer, csrf, _ := discussionAPI(t)
+			principal, err := a.accounts.Authenticate(t.Context(), bearer, "api")
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := &moderationStub{allowed: tc.moderator, err: tc.roleError}
+			a.moderation = moderation.New(r)
+			version := int64(3)
+			review := moderation.Review{Action: "hide", Reason: "Reviewed concern", ExpectedVersion: &version, ExpectedUpdatedAt: time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)}
+			body, err := json.Marshal(review)
+			if err != nil {
+				t.Fatal(err)
+			}
+			post := accounts.ID()
+			cookie, token, proof := "", bearer, ""
+			if tc.browser {
+				cookie, token = browser, ""
+			}
+			if tc.csrf {
+				proof = csrf
+			}
+			w := accountRequest(a, "POST", "/api/v1/moderation/posts/"+post+"/decisions", string(body), cookie, token, proof, "", "")
+			if w.Code != tc.want || w.Header().Get("Cache-Control") != "private, no-store" {
+				t.Fatal(w.Code, w.Body.String())
+			}
+			if tc.want != http.StatusCreated {
+				if r.decisions != 0 {
+					t.Fatal("unauthorized request reached decision storage")
+				}
+				if !strings.HasPrefix(w.Header().Get("Content-Type"), "application/problem+json") || !strings.Contains(w.Body.String(), `"code":"`+tc.code+`"`) {
+					t.Fatal("missing authorization error response")
+				}
+			} else if r.decisions != 1 || r.who != principal.Account.ID || r.review.ExpectedVersion == nil || *r.review.ExpectedVersion != version || !r.review.ExpectedUpdatedAt.Equal(review.ExpectedUpdatedAt) {
+				t.Fatal("authorized decision lost its reviewer or race guards")
+			}
+		})
+	}
 }
 func TestPrivateReportsHTTPValidationAndDraftRecovery(t *testing.T) {
 	a, posts, browser, bearer, csrf, event := discussionAPI(t)

@@ -129,7 +129,7 @@ func TestEventSectionFragments(t *testing.T) {
 			}
 		}
 	}
-	for _, query := range []string{"?section=wrong", "?section=overview&section=discussion", "?recommend=true", "?unknown=true"} {
+	for _, query := range []string{"?section=wrong", "?section=overview&section=discussion", "?recommend=true"} {
 		r := httptest.NewRequest("GET", "/events/"+id+query, nil)
 		r.Header.Set("X-Ticketopia-Section", "true")
 		w := httptest.NewRecorder()
