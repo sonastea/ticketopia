@@ -219,6 +219,13 @@ func interestLabel(visibility string) string {
 	}
 	return "Private"
 }
+
+func interestButtonText(view InterestView, id, returnURL string) string {
+	if isInterestsURL(returnURL) && view.States[id].Interested {
+		return "Remove interest · " + interestLabel(view.visibility(id))
+	}
+	return "Interested · " + interestLabel(view.visibility(id))
+}
 func interestVerb(selected bool) string {
 	if selected {
 		return "remove"

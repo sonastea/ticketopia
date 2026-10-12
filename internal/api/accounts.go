@@ -337,6 +337,19 @@ func (a *api) accountPageError(c echo.Context, err error) error {
 	}
 	return render(c, status, account.Failure(detail))
 }
+
+func (a *api) eventTaskError(c echo.Context, err error, returnURL string) error {
+	privateAccountResponse(c)
+	status, _, detail, _ := accountError(err)
+	if status == http.StatusTooManyRequests {
+		c.Response().Header().Set("Retry-After", "600")
+	}
+	target := safeRecommendationReturn(returnURL)
+	if target == "/me" {
+		target = "/"
+	}
+	return render(c, status, account.EventTaskFailure(detail, target, a.enabled() && errors.Is(err, accounts.ErrUnauthenticated)))
+}
 func decodeAccountJSON(c echo.Context, target any) error {
 	media, _, err := mime.ParseMediaType(c.Request().Header.Get("Content-Type"))
 	if err != nil || media != "application/json" {

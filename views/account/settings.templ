@@ -52,6 +52,24 @@ templ Failure(message string) {
 	}
 }
 
+// Task failures keep native recovery in the event journey, not the account area.
+templ EventTaskFailure(message string, returnURL string, signIn bool) {
+	@layouts.App("discover", "Event request couldn't finish") {
+		<main id="main" class="destination-page account-page">
+			@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
+				<h1>Event request couldn't finish</h1><p>{ message }</p>
+				<p>Return to the event or collection to check its current state, then try again.</p>
+				<div class="account-actions">
+					<a href={ templ.URL(returnURL) } class="text-link">Return and try again</a>
+					if signIn {
+						<a href={ templ.URL("/auth/sign-in?return_to=" + url.QueryEscape(returnURL)) } class="text-link">Sign in to continue here</a>
+					}
+				</div>
+			}
+		</main>
+	}
+}
+
 templ CSRF(token string) {
 	<input type="hidden" name="csrf_token" value={ token }/>
 }

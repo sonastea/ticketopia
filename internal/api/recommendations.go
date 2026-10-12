@@ -339,26 +339,28 @@ func safeProfileReturn(raw string) string {
 	return u.String()
 }
 func (a *api) eventRecommendationsPage(c echo.Context) error {
+	recovery := safeReturnURL(c.QueryParam("return_to"))
 	if err := a.publicRecommendationCheck(c); err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
 	id, err := savedEventID(c)
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
+	recovery = "/events/" + url.PathEscape(id) + "?section=community&return_to=" + url.QueryEscape(recovery)
 	values := c.QueryParams()
 	if len(values["return_to"]) > 1 {
-		return a.accountPageError(c, &accounts.ValidationError{Field: "return_to", Message: "use one return destination"})
+		return a.eventTaskError(c, &accounts.ValidationError{Field: "return_to", Message: "use one return destination"}, recovery)
 	}
 	origin := safeReturnURL(values.Get("return_to"))
 	values.Del("return_to")
 	list, err := a.recommendations.Event(c.Request().Context(), id, values)
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
 	detail, err := a.eventDetail(c.Request().Context(), id)
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
 	return render(c, 200, home.EventRecommendations(detail.Item, list, c.Request().URL.RequestURI(), origin))
 }

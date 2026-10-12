@@ -22,13 +22,9 @@ templ InterestControl(id string, name string, view InterestView, returnURL strin
 			<input type="hidden" name="return_to" value={ returnURL }/>
 			<input type="hidden" name="action" value={ interestVerb(view.States[id].Interested) }/>
 			<input type="hidden" name="visibility" value={ view.visibility(id) }/>
-			@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet interest-button",Attributes:templ.Attributes{"aria-pressed":fmt.Sprint(view.States[id].Interested),"aria-label":"Interested · " + interestLabel(view.visibility(id)) + " — " + interestActionLabel(view.States[id].Interested) + " interest for " + name}}) {
+			@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet interest-button",Attributes:templ.Attributes{"aria-pressed":fmt.Sprint(view.States[id].Interested),"aria-label":interestButtonText(view,id,returnURL) + " — " + interestActionLabel(view.States[id].Interested) + " interest for " + name}}) {
 				@layouts.Icon("interests")<span>
-					if isInterestsURL(returnURL) && view.States[id].Interested {
-						Remove interest
-					} else {
-						{ "Interested · " + interestLabel(view.visibility(id)) }
-					}
+					{ interestButtonText(view,id,returnURL) }
 				</span>
 			}
 		</form>
@@ -145,8 +141,11 @@ templ ParticipantList(list interests.Participants) {
 templ InterestedUsers(event models.Event, list interests.Participants, returnURL string, origin string) {
 	@layouts.App("community", "Interested in " + event.Name) {
 		<main id="main" class="destination-page">
-			<a class="text-link" href={ templ.URL(eventURL(event.ID, "community", origin)) }>Back to event</a>
+			@CollectionReturn(origin)
+			<a class="text-link" href={ templ.URL(eventURL(event.ID, "community", origin)) }>Back to Recommendations</a>
 			<h1>People interested in { event.Name }</h1>
+			<p class="event-date">{ startLabel(event.Start) }</p><p class="event-venue">{ venueLabel(event) }</p>
+			<a class="text-link" href={ templ.URL(eventURL(event.ID, "overview", origin)) }>Event Overview</a>
 			<p class="intro">Only explicitly public interest is listed. Private interest contributes to counts without naming anyone.</p>
 			@ParticipantList(list)
 			if list.NextCursor != nil {

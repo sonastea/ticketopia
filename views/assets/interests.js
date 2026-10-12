@@ -35,8 +35,9 @@
         form.elements.action.value = state.interested ? 'remove' : 'set';
         const button = form.querySelector('button');
         button.setAttribute('aria-pressed', String(state.interested));
-        button.setAttribute('aria-label', `Interested · ${label(visibility)} — ${state.interested ? 'Remove' : 'Mark'} interest for ${form.dataset.eventName}`);
-        button.querySelector('span').textContent = form.dataset.interestCollection === 'true' && state.interested ? 'Remove interest' : `Interested · ${label(visibility)}`;
+        const text = form.dataset.interestCollection === 'true' && state.interested ? `Remove interest · ${label(visibility)}` : `Interested · ${label(visibility)}`;
+        button.setAttribute('aria-label', `${text} — ${state.interested ? 'Remove' : 'Mark'} interest for ${form.dataset.eventName}`);
+        button.querySelector('span').textContent = text;
       }
     }
     for (const node of document.querySelectorAll('[data-interest-count]')) {

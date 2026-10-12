@@ -211,7 +211,7 @@ func (a *api) savePage(c echo.Context) error {
 		if strings.Contains(c.Request().Header.Get("Accept"), "application/json") {
 			return accountProblem(c, err)
 		}
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, c.Request().PostForm.Get("return_to"))
 	}
 	if err := parseAccountForm(c, "action", "return_to"); err != nil {
 		return failure(err)

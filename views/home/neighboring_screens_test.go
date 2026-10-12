@@ -125,6 +125,23 @@ func TestPublicCollectionIdentityOpensOverview(t *testing.T) {
 	}
 }
 
+func TestCollectionPrivacyAndFreshnessRemainVisible(t *testing.T) {
+	for _, visibility := range []string{"private", "public"} {
+		view := InterestView{Enabled: true, SignedIn: true, States: map[string]interests.State{"e": {Interested: true, Visibility: visibility}}}
+		markup := renderNeighbor(t, InterestControl("e", "Event", view, "/me/interests?cursor=next"))
+		label := "Remove interest · " + interestLabel(visibility)
+		if !strings.Contains(markup, label) || !strings.Contains(markup, `aria-label="`+label+` —`) {
+			t.Fatal("collection lost visible privacy or label-in-name", markup)
+		}
+	}
+	meta := models.Freshness{DataAsOf: time.Now().UTC(), Stale: true}
+	markup := renderNeighbor(t, CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: models.Event{ID: "e", Status: "onsale"}, Meta: meta, Count: 1}}}, "/community"))
+	warning, facts := strings.Index(markup, "Showing last-known details"), strings.Index(markup, "Price and sale status")
+	if warning < 0 || warning > facts || !strings.Contains(markup, "is-stale") {
+		t.Fatal("stale warning must precede sale facts", markup)
+	}
+}
+
 func assertNeighborURL(t *testing.T, raw, path, section, origin string) {
 	t.Helper()
 	u, err := url.Parse(raw)

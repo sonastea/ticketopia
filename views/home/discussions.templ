@@ -164,10 +164,11 @@ templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
 templ Discussion(p DiscussionPage) {
 	@layouts.App("community","Discussion · "+p.Event.Name) {
 		<main id="main" class="destination-page discussion-page" data-discussion-viewer={ p.View.ViewerID }>
-			if p.ReturnURL != "/" {
-				<a href={ templ.URL(p.ReturnURL) } class="text-link back-link" data-return-results>Back to browsing</a>
-			}
-			<a href={ templ.URL(eventURL(p.Event.ID,"discussion",p.ReturnURL)) } class="text-link">Back to event</a>
+			@CollectionReturn(p.ReturnURL)
+			<div class="account-actions">
+				<a href={ templ.URL(eventURL(p.Event.ID,"discussion",p.ReturnURL)) } class="text-link" data-panel-link>Back to Questions &amp; tips</a>
+				<a href={ templ.URL(eventURL(p.Event.ID,"overview",p.ReturnURL)) } class="text-link" data-panel-link>Event Overview</a>
+			</div>
 			<header class="discussion-event-heading"><h1>{ p.Event.Name }</h1><p class="event-date">{ startLabel(p.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Event) }</p></header>
 			@DiscussionContent(p)
 		</main>

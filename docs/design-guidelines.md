@@ -38,8 +38,9 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 
 The shell uses a labeled sidebar from **72rem**, a compact rail and list/context
 layout from **62rem**, and a single-column layout with **Discover / Saved /
-Community / Profile** bottom navigation below 62rem. Full event pages use a ticket
-column when space permits. Exact dimensions and image transitions live in
+Community / Profile** bottom navigation below 62rem. Full event pages pair
+facts/actions with artwork when space permits, stacking facts first otherwise.
+Exact dimensions and image transitions live in
 [DESIGN.md](../DESIGN.md#layout).
 
 ### Sidebar preferences
@@ -89,8 +90,9 @@ clear action with its public audience nearby; owner/report controls remain quiet
 ### Discovery controls
 
 Search filters use a native disclosure on every layout. Category changes reset
-genre selection and offer only compatible options. Results are ordered by date;
-there is no user-selectable sort, filter-chip strip, or map view. Explicit
+genre selection and offer only compatible options. Results default to soonest date;
+native sorting also offers latest date and name A–Z. There is no filter-chip strip
+or map view. Explicit
 **Load more events** pagination also works as ordinary navigation without JavaScript.
 
 Keep normal document scrolling. The bounded desktop event preview can scroll
@@ -233,8 +235,8 @@ entry without return context provides a Discover link.
   intermediate widths use either readable list/context columns or that primary view.
 - Compact context is already the full event journey and omits the desktop-only
   **Open event page** expansion. Failed reads still expose standalone recovery.
-- Saved, Interests, and Radar retain their original collection cursor, scroll,
-  and focused event across standalone event-section navigation. Without browser
+- Saved, Interests, Radar, Community and public profiles retain their original
+  collection cursor, scroll, and focused event across standalone event-section navigation. Without browser
   history/storage, the normal return link retains the validated collection URL.
 - Cancel obsolete requests and reject stale responses. Never display event A's
   details under event B's identity.
@@ -284,6 +286,12 @@ Detailed scope lives in [community goals](goals/event-communities.md) and the
   must roll back. Reporting and moderation precede a public participation pilot.
 
 ## Accessibility and verification
+
+Collection interest removal visibly includes Private/Public. Community and profile
+recommendation freshness precedes price/sale facts, with explicit stale warnings.
+Standalone conversation/recommendation/participant pages name their section return
+and offer Event Overview. Native Save/Interested failures retain a validated task
+destination and sign-in continuity instead of redirecting recovery to Profile.
 
 Target WCAG 2.2 AA: semantic landmarks/headings, a skip link, labeled fields and
 navigation, visible focus, meaningful reading order, reduced motion, and keyboard

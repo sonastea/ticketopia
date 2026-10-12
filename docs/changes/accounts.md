@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### 2026-10-12 — Event journey consistency
+
+- Keep native Save/Interested failures and direct community-read failures in their
+  validated event/collection journey, including sign-in return continuity.
+- Show Private/Public beside collection removal; restore public-list scroll/focus
+  across event sections; name drill-down section returns and provide Overview.
+- Put stale recommendation caveats before availability facts; align Artists & venues
+  labels and remove reminder copy advertising out-of-scope notification kinds.
+- Correct stale sorting, ticket-layout and quiet-control guidance. See the
+  [interaction guide](../design-guidelines.md). Moderation case-first links are unchanged.
+- Verify public-list section returns with isolated Chromium fixtures and 16
+  desktop/compact/enlarged-text layouts. Existing bottom-nav labels overlap at 200%
+  text; that shared-shell issue remains a separate follow-up.
+
 ### 2026-10-12 — Shorter notification preferences
 
 - Replace permission jargon with **Email me on-sale reminders**, short local

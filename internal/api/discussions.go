@@ -192,11 +192,11 @@ func (a *api) discussionCollectionPage(c echo.Context) error {
 	c.Response().Header().Set("Vary", "X-Ticketopia-Panel, X-Ticketopia-Section")
 	id, err := savedEventID(c)
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, c.QueryParam("return_to"))
 	}
 	p, status, err := a.loadDiscussionPage(c, id, c.Param("discussion_id"), c.QueryParams(), c.Request().URL.RequestURI())
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, c.Request().URL.RequestURI())
 	}
 	if c.Request().Header.Get("X-Ticketopia-Panel") == "true" {
 		page := home.EventPage{Detail: models.EventDetail{Item: p.Event, Meta: p.Meta}, Section: "discussion", ReturnURL: p.ReturnURL, ActionReturnURL: p.URL, Thread: &p, Saves: a.saveView(c, []string{id}), Interests: a.interestView(c, []string{id})}

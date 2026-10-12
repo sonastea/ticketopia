@@ -516,10 +516,11 @@
     } catch { /* The normal return link still preserves filters without storage. */ }
   };
   const collectionPaths = new Set(['/saved', '/me/interests', '/radar']);
+  const isCollectionPath = path => collectionPaths.has(path) || path === '/community' || path === '/community/discussions' || /^\/users\/[^/]+$/.test(path);
   const validJourney = journey => {
     try {
       const origin = new URL(journey.origin);
-      return origin.origin === location.origin && (origin.pathname === '/' || collectionPaths.has(origin.pathname)) && Number.isInteger(journey.steps) && journey.steps > 0 && journey.steps < history.length;
+      return origin.origin === location.origin && (origin.pathname === '/' || isCollectionPath(origin.pathname)) && Number.isInteger(journey.steps) && journey.steps > 0 && journey.steps < history.length;
     } catch { return false; }
   };
 
@@ -755,13 +756,14 @@
     }
   };
   if (!workspace) {
-    if (collectionPaths.has(location.pathname)) {
+    if (isCollectionPath(location.pathname)) {
       document.addEventListener('click', event => {
         if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         const link = event.target.closest('[data-event-link]');
         if (!link) return;
         history.replaceState({ ...history.state, ticketopiaCollection: {
           url: location.href, scroll: scrollY, focus: link.dataset.id,
+          linkIndex: [...document.querySelectorAll('[data-event-link]')].filter(item => item.dataset.id === link.dataset.id).indexOf(link),
         } }, '', location.href);
         stageReturn(new URL(link.href), { origin: location.href, steps: 1 });
       });
@@ -770,7 +772,8 @@
         if (saved?.url !== location.href) return;
         requestAnimationFrame(() => {
           scrollTo(0, saved.scroll);
-          [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === saved.focus)?.focus({ preventScroll: true });
+          const links = [...document.querySelectorAll('[data-event-link]')].filter(link => link.dataset.id === saved.focus);
+          (links[saved.linkIndex] || links.find(link => link.matches('.event-link')) || links[0])?.focus({ preventScroll: true });
         });
       });
     }
@@ -795,7 +798,7 @@
     });
     document.addEventListener('click', event => {
       if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target.closest('.section-nav a, [data-panel-link], [data-thread-link]');
+      const link = event.target.closest('a[href]');
       if (!link) return;
       const url = new URL(link.href);
       const host = sectionHost();
@@ -809,7 +812,7 @@
         return;
       }
       const journey = history.state?.ticketopiaReturn;
-      if (url.origin === location.origin && validJourney(journey)) stageReturn(url, { ...journey, steps: journey.steps + 1 });
+      if (url.origin === location.origin && url.pathname.startsWith('/events/') && validJourney(journey)) stageReturn(url, { ...journey, steps: journey.steps + 1 });
     });
     addEventListener('popstate', () => {
       if (!sectionRegion()) return;

@@ -2,10 +2,38 @@ package home
 
 import "github.com/sonastea/ticketopia/internal/models"
 
+templ CollectionEventFreshness(meta models.Freshness) {
+	if meta.Stale {
+		@Freshness(meta)
+	} else if !meta.DataAsOf.IsZero() {
+		<p class="freshness">Last-known event details updated { freshnessLabel(meta.DataAsOf) }.</p>
+	}
+}
+
+templ CollectionReturn(origin string) {
+	<a href={ templ.URL(origin) } class="text-link back-link" data-return-results>
+		if isCommunityURL(origin) {
+			Back to Community
+		} else if isProfileURL(origin) {
+			Back to profile
+		} else if isSavedURL(origin) {
+			Back to Saved
+		} else if isInterestsURL(origin) {
+			Back to Interests
+		} else if isRadarURL(origin) {
+			Back to Radar
+		} else if origin == "/" {
+			Discover events
+		} else {
+			Back to browsing
+		}
+	</a>
+}
+
 // Public collections share Overview identity links, not participation toolbars.
 templ CollectionEventArt(event models.Event, returnURL string) {
 	<div class="event-art">
-		<a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="event-image-link" aria-label={ "Overview — " + event.Name }>
+		<a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="event-image-link" data-event-link data-id={ event.ID } aria-label={ "Overview — " + event.Name }>
 			@EventImage(event,false)
 		</a>
 		<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start,"Jan") }</span><strong>{ datePart(event.Start,"2") }</strong></div>
@@ -14,6 +42,6 @@ templ CollectionEventArt(event models.Event, returnURL string) {
 
 templ CollectionEventHeading(event models.Event, returnURL string) {
 	<p class="event-date">{ startLabel(event.Start) }</p>
-	<h3><a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="text-link">{ event.Name }</a></h3>
+	<h3><a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="text-link" data-event-link data-id={ event.ID }>{ event.Name }</a></h3>
 	<p class="event-venue">{ venueLabel(event) }</p>
 }

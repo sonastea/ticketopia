@@ -220,7 +220,7 @@ func (a *api) interestPage(c echo.Context) error {
 		if strings.Contains(c.Request().Header.Get("Accept"), "application/json") {
 			return accountProblem(c, err)
 		}
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, c.Request().PostForm.Get("return_to"))
 	}
 	if err := parseAccountForm(c, "action", "visibility", "return_to"); err != nil {
 		return failure(err)
@@ -280,26 +280,28 @@ func safeInterestReturn(raw string) string {
 	return safeSaveReturn(raw)
 }
 func (a *api) participantsPage(c echo.Context) error {
+	recovery := safeReturnURL(c.QueryParam("return_to"))
 	if err := a.publicInterestCheck(c); err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
 	id, err := savedEventID(c)
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
+	recovery = "/events/" + url.PathEscape(id) + "?section=community&return_to=" + url.QueryEscape(recovery)
 	values := c.QueryParams()
 	if len(values["return_to"]) > 1 {
-		return a.accountPageError(c, &accounts.ValidationError{Field: "return_to", Message: "use one return destination"})
+		return a.eventTaskError(c, &accounts.ValidationError{Field: "return_to", Message: "use one return destination"}, recovery)
 	}
 	origin := safeReturnURL(values.Get("return_to"))
 	values.Del("return_to")
 	detail, err := a.eventDetail(c.Request().Context(), id)
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
 	list, err := a.interests.Participants(c.Request().Context(), id, values)
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.eventTaskError(c, err, recovery)
 	}
 	if origin != "/" {
 		values.Set("return_to", origin)

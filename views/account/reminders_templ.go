@@ -631,7 +631,7 @@ func Reminders(p ReminderPage) templ.Component {
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, " <p class=\"field-note\">Removing an event from Saved stops its reminder. A message already being sent cannot be recalled. Meaningful change emails and weekly digests are not delivered yet.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, " <p class=\"field-note\">Removing an event from Saved stops its reminder. A message already being sent cannot be recalled.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
