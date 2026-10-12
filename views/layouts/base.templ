@@ -82,13 +82,13 @@ templ App(active string, title string) {
 				</header>
 				{ children... }
 			</div>
+			<nav class="bottom-nav" aria-label="Main navigation">
+				@NavLink("/", "Discover", "discover", active == "discover")
+				@NavLink("/saved", "Saved", "saved", active == "saved")
+				@NavLink("/community", "Community", "community", active == "community")
+				@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests" || active == "follows" || active == "radar")
+			</nav>
 		</div>
-		<nav class="bottom-nav" aria-label="Main navigation">
-			@NavLink("/", "Discover", "discover", active == "discover")
-			@NavLink("/saved", "Saved", "saved", active == "saved")
-			@NavLink("/community", "Community", "community", active == "community")
-			@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests" || active == "follows" || active == "radar")
-		</nav>
 	}
 }
 

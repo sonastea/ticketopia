@@ -43,6 +43,11 @@ facts/actions with artwork when space permits, stacking facts first otherwise.
 Exact dimensions and image transitions live in
 [DESIGN.md](../DESIGN.md#layout).
 
+Compact navigation reflows into additional rows when enlarged text needs more
+space. Full destination labels remain inside their targets; a sticky, normal-flow
+shell row reserves the actual navigation/safe-area height without a fixed spacer
+or JavaScript measurement. Document scrolling and destination order are unchanged.
+
 ### Sidebar preferences
 
 From 72rem, the light sidebar groups **Discover / Community** under Browse and

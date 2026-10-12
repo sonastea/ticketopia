@@ -116,6 +116,12 @@ Actual sidebar/preview scroll areas retain `overflow-y: auto`, stable gutters,
 and contained overscroll. Textareas grow from 8rem to 24rem with `field-sizing`
 where supported, retaining native scrolling and manual resizing otherwise.
 
+Compact navigation uses an intrinsic grid, with constrained labels and 44px
+targets. It reflows to two rows at 320px/390px with 200% text. Its sticky shell row
+reserves actual height, including the bottom safe area, so page content remains
+reachable without a guessed spacer or JavaScript measurement. The intermediate
+rail remains fixed and desktop navigation is unchanged.
+
 Modern features follow the existing Tailwind v4 browser baseline (Chrome 111+,
 Safari 16.4+, Firefox 128+). `light-dark()` requires Chrome 123+/Safari 17.5+;
 older browsers retain explicit light-token fallbacks, without library dark-mode

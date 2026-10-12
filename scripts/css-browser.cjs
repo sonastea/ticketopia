@@ -17,8 +17,8 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     page.on('pageerror', error => report.errors.push(error.message));
     // Isolated fixtures intentionally do not implement mutations.
     await page.addInitScript(() => document.addEventListener('submit', event => event.preventDefault()));
-    const capture = async (name, width, route, enlarged = false) => {
-      await page.setViewportSize({ width, height: 900 });
+    const capture = async (name, width, route, enlarged = false, height = 900) => {
+      await page.setViewportSize({ width, height });
       await page.goto(base + route);
       await page.evaluate(async enlarged => {
         document.documentElement.style.fontSize = enlarged ? '200%' : '';
@@ -26,6 +26,20 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
         scrollTo(0, 0);
       }, enlarged);
       check('No horizontal overflow: ' + name, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      if (await page.locator('.bottom-nav').isVisible()) {
+        check('Navigation labels stay inside 44px targets: ' + name, await page.locator('.bottom-nav .nav-link').evaluateAll(nodes => nodes.every(node => {
+          const control = node.getBoundingClientRect(), label = node.querySelector('.nav-label').getBoundingClientRect();
+          return control.width >= 44 && control.height >= 44 && control.top >= 0 && control.bottom <= innerHeight + 1 && label.left >= control.left - 1 && label.right <= control.right + 1 && label.top >= control.top && label.bottom <= control.bottom && node.scrollWidth <= node.clientWidth + 1;
+        })));
+        check('Compact navigation reserves its actual height: ' + name, await page.evaluate(() => {
+          const nav = document.querySelector('.bottom-nav');
+          if (getComputedStyle(nav).position !== 'sticky') return true; // The intermediate rail is fixed.
+          scrollTo(0, document.documentElement.scrollHeight);
+          const clear = document.querySelector('.app-workspace').getBoundingClientRect().bottom <= nav.getBoundingClientRect().top + 1;
+          scrollTo(0, 0);
+          return clear;
+        }));
+      }
       check('44px action targets: ' + name, await page.locator('main button:visible, main [data-slot="button"]:visible').evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().height >= 44)));
       check('Event action labels fit their controls: ' + name, await page.locator('.event-actions [data-slot="button"]:visible').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1 && node.scrollHeight <= node.clientHeight + 1)));
       if (await page.locator('.reminder-button:visible').count()) {
@@ -45,7 +59,10 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
       for (const [name, route] of [['discovery', '/'], ['preview', '/?selected=true'], ['event', '/events/ticketmaster:CSS_0'], ['profile', '/me'], ['sign-in', '/auth/sign-in'], ['composer', '/events/ticketmaster:CSS_0?section=community']]) {
         for (const width of [1440, 1024, 390, 320]) await capture(name + '-' + width, width, route);
         await capture(name + '-200-text', 390, route, true);
+        await capture(name + '-200-text-320', 320, route, true);
       }
+      await capture('profile-short', 390, '/me', false, 480);
+      await capture('profile-short-200-text', 320, '/me', true, 480);
     }
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(base + '/');
@@ -169,6 +186,19 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     await nativePage.locator('#filters summary').click();
     check('Native filters work without JavaScript', await nativePage.locator('#city').isVisible());
     check('Open native filter fields retain the 16px floor', await nativePage.locator('input:visible, select:visible').evaluateAll(nodes => nodes.every(node => parseFloat(getComputedStyle(node).fontSize) >= 16)));
+    await nativePage.evaluate(async () => { document.documentElement.style.fontSize = '200%'; await document.fonts.ready; });
+    check('Native enlarged navigation keeps complete labels', await nativePage.locator('.bottom-nav .nav-label').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1)));
+    await nativePage.locator('.bottom-nav').getByRole('link', { name: 'Profile', exact: true }).click();
+    await nativePage.waitForURL(base + '/me');
+    check('Native compact navigation reaches its destination', (await nativePage.locator('.bottom-nav a[aria-current="page"]').textContent()).trim() === 'Profile');
+    await nativePage.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
+    await nativePage.keyboard.press('Tab');
+    const compactLink = nativePage.locator('.bottom-nav').getByRole('link', { name: 'Saved', exact: true });
+    await compactLink.focus();
+    check('Compact keyboard focus remains visible in forced colors', await compactLink.evaluate(node => {
+      const css = getComputedStyle(node);
+      return node.matches(':focus-visible') && css.outlineStyle === 'solid' && parseFloat(css.outlineWidth) >= 2;
+    }));
     await native.close();
     check('No browser runtime errors', report.errors.length === 0);
     console.log(JSON.stringify(report, null, 2));

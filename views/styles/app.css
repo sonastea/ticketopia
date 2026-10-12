@@ -337,14 +337,15 @@ h3 {
 }
 
 .app-shell {
+  display: grid;
+  grid-template-rows: 1fr auto;
   max-inline-size: 100rem;
   margin-inline: auto;
-  min-block-size: 100svh;
+  min-block-size: 100dvh;
 }
 
 .app-workspace {
   min-inline-size: 0;
-  padding-block-end: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   container: workspace / inline-size;
 }
 
@@ -430,12 +431,14 @@ h3 {
 }
 
 .bottom-nav {
-  position: fixed;
+  /* Its normal-flow row reserves the bar's actual enlarged-text/safe-area height. */
+  position: sticky;
   z-index: 20;
   inset-block-end: 0;
   inset-inline: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6em), 1fr));
+  font-size: .6875rem;
   gap: .25rem;
   padding-block: .45rem calc(.45rem + env(safe-area-inset-bottom, 0px));
   padding-inline: .65rem;
@@ -450,11 +453,15 @@ h3 {
   min-block-size: 3.25rem;
   padding-block: .35rem;
   padding-inline: .1rem;
-  font-size: .6875rem;
+  font-size: inherit;
   min-inline-size: 0;
   white-space: normal;
   overflow-wrap: break-word;
   text-align: center;
+}
+
+.bottom-nav .nav-label {
+  max-inline-size: 100%;
 }
 
 .bottom-nav .nav-link[aria-current="page"] {
@@ -1871,12 +1878,14 @@ summary::-webkit-details-marker {
 
 @media (min-width: 62rem) {
   .app-shell {
+    display: block;
     padding-inline-start: 5.5rem;
   }
   .app-workspace {
     padding-block-end: 0;
   }
   .bottom-nav {
+    position: fixed;
     inline-size: 5.5rem;
     inset-inline-end: auto;
     inset-block: 0;
