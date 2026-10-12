@@ -144,6 +144,7 @@
     if (writing.has(id)) return;
     writing.add(id); ++stateTurn;
     const body = new URLSearchParams(new FormData(form));
+    const csrf = body.get('csrf_token');
     const trigger = event.submitter || form.querySelector('button');
     const hadFocus = form.contains(document.activeElement);
     let focusTarget = trigger;
@@ -159,6 +160,7 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Interest could not be updated. Try again.');
+      if (!forms(id).some(item => item.elements.csrf_token.value === csrf)) return;
       update(data.event_id, data.state);
       clearFeedback();
       announce(data.state.interested ? `Interest saved as ${data.state.visibility}.` : 'Your interest was removed.');
@@ -175,7 +177,7 @@
         location.reload();
       }
     } catch (error) {
-      feedback(form, error.name === 'AbortError' ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger);
+      if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, error.name === 'AbortError' ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger);
     } finally {
       clearTimeout(timeout); writing.delete(id);
       controls.forEach(node => { node.removeAttribute('aria-busy'); node.querySelectorAll('button, select').forEach(control => { control.disabled = false; }); });
@@ -183,6 +185,7 @@
     }
   });
   document.addEventListener('ticketopia:state-restored', refresh);
+  document.addEventListener('ticketopia:viewer-changed', () => { ++stateTurn; });
   window.addEventListener('pageshow', event => {
     if (!event.persisted) return;
     if (!forms().length && document.querySelector('[data-interest-count], [data-public-participants], .account-public')) location.reload();

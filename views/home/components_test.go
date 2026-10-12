@@ -33,6 +33,28 @@ func TestProviderSaleStatesStayExplicit(t *testing.T) {
 	}
 }
 
+func TestEventSectionRegionOwnsOnlyContextArtwork(t *testing.T) {
+	page := EventPage{Detail: models.EventDetail{Item: models.Event{ID: "ticketmaster:Region", Name: "Region event"}}, Section: "overview", ReturnURL: "/saved", ActionReturnURL: "/events/ticketmaster:Region?return_to=%2Fsaved"}
+	for _, panel := range []bool{false, true} {
+		var out bytes.Buffer
+		if err := EventSectionRegion(page, panel).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		markup := out.String()
+		if strings.Contains(markup, `class="event-image`) != panel {
+			t.Fatal("standalone identity artwork moved into section")
+		}
+		for _, want := range []string{"data-event-section-region", `data-event-id="ticketmaster:Region"`, `data-section="overview"`, `data-presentation="` + eventPresentation(panel) + `"`, "data-section-status", "data-section-body"} {
+			if !strings.Contains(markup, want) {
+				t.Fatal("missing fragment contract", want)
+			}
+		}
+		if strings.Contains(markup, "event-primary-actions") || strings.Contains(markup, "event-section-nav") || strings.Contains(markup, "event-participation") {
+			t.Fatal("section region contains persistent shell")
+		}
+	}
+}
+
 func TestEventRowOpensOverviewAndExposesTickets(t *testing.T) {
 	var out bytes.Buffer
 	event := models.Event{ID: "ticketmaster:Details", Name: "Named event"}

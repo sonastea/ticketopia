@@ -54,6 +54,13 @@ type EventPage struct {
 	ActionReturnURL   string
 }
 
+func eventPresentation(panel bool) string {
+	if panel {
+		return "context"
+	}
+	return "standalone"
+}
+
 type SaveView struct {
 	Reminders bool
 	Enabled   bool
@@ -336,6 +343,11 @@ func eventURL(id, section, returnURL string) string {
 
 func sectionURL(page EventPage, section string) string {
 	return eventURL(page.Detail.Item.ID, section, page.ReturnURL)
+}
+
+// EventActionURL uses only the validated return context and selected section.
+func EventActionURL(page EventPage) string {
+	return sectionURL(page, page.Section)
 }
 func recommendURL(page EventPage) string {
 	u, _ := url.Parse(sectionURL(page, "community"))

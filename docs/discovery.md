@@ -138,7 +138,7 @@ A new form submission starts at the first page.
   HTML-only `recommend=true` opens
   the composer in Community; it is not a discovery/API filter.
 - Back restores previous selection; loaded result pages, focus, and scroll are
-  retained in browser history across the event's full-page section links. A
+  retained in browser history across the event's in-place section links. A
   one-use, same-tab session-storage handoff carries the originating history entry;
   if storage is unavailable, a normal return
    link still preserves validated search filters and event/thread selection.
@@ -157,7 +157,31 @@ A new form submission starts at the first page.
   `/community/discussions` collection. Recommend is a secondary link to
   the Community composer, with explicit public attribution and independent state.
 - Detail reads can fall back to durable last-known snapshots when current provider
-  data is unavailable. Public metadata never includes private bookmark state.
+   data is unavailable. Public metadata never includes private bookmark state.
+
+### In-place event sections
+
+Discover and standalone event pages enhance the same real section links. Only
+the section body changes; identity, Tickets/Save, navigation, participation, and
+source/history remain mounted. Pending clicks keep the previous body labeled,
+failures keep its URL with local Retry/native recovery, and success commits one
+history entry with current-link and return-target updates. Back/Forward re-fetch
+the requested section without pushing, restoring reading position and scoped drafts.
+Failed history reads show a local requested-section error instead of stale content.
+
+`GET /events/{event_id}` accepts `X-Ticketopia-Section: true` for an HTML section
+region plus inert canonical shell metadata. Also send `X-Ticketopia-Panel: true`
+for context presentation and selection-aware action returns; omit it for standalone
+semantics. Both headers are in `Vary`, responses are `private, no-store`, and input
+validation/status codes are preserved. The client rejects redirects, whole sign-in
+documents, and mismatched event/section/mode/thread responses. Full pages/panels
+remain available; the JSON API is unchanged.
+
+Only the selected section's optional lists are fetched. Overview retains Recommend
+capability without community/discussion reads. Explicitly selected conversations
+retain their companion community. Fresh metadata reconciles permissions, facts,
+warnings and CSRF without recreating unchanged controls. No private section HTML
+is persisted. See the [journey contract](design-guidelines.md#discovery-to-discussion-journeys-and-shared-state).
 
 ### UI source and assets
 

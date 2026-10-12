@@ -188,7 +188,8 @@ func (a *api) discussionView(c echo.Context, id string) home.DiscussionView {
 	return v
 }
 func (a *api) discussionCollectionPage(c echo.Context) error {
-	c.Response().Header().Set("Vary", "X-Ticketopia-Panel")
+	privateAccountResponse(c)
+	c.Response().Header().Set("Vary", "X-Ticketopia-Panel, X-Ticketopia-Section")
 	id, err := savedEventID(c)
 	if err != nil {
 		return a.accountPageError(c, err)
@@ -200,6 +201,9 @@ func (a *api) discussionCollectionPage(c echo.Context) error {
 	if c.Request().Header.Get("X-Ticketopia-Panel") == "true" {
 		page := home.EventPage{Detail: models.EventDetail{Item: p.Event, Meta: p.Meta}, Section: "discussion", ReturnURL: p.ReturnURL, ActionReturnURL: p.URL, Thread: &p, Saves: a.saveView(c, []string{id}), Interests: a.interestView(c, []string{id})}
 		a.loadEventCommunity(c, &page)
+		if c.Request().Header.Get("X-Ticketopia-Section") == "true" {
+			return render(c, status, home.EventSectionResponse(page, true))
+		}
 		return render(c, http.StatusOK, home.EventContext(page))
 	}
 	return render(c, status, home.Discussion(p))

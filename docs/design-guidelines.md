@@ -187,7 +187,22 @@ sections use stable IDs, `section`, and a validated `return_to` context. Direct
 entry without return context provides a Discover link.
 
 - Explicit selection creates navigable history. Back restores selection/results,
-  loaded pages where browser state is available, scroll, and focus.
+   loaded pages where browser state is available, scroll, and focus.
+- Same-event sections switch in place on Discover and standalone event pages.
+  Identity, ticket/save controls, navigation, participation, and source/history
+  remain mounted; only the section body changes. Overview artwork stays inside
+  the context section, while standalone identity artwork stays in its header.
+  Loading keeps the previous body visibly labeled. Success updates the URL and
+  active link together, keeps link focus, and announces completion without moving
+  to the event title. Current-section clicks are no-ops; Recommend opens its composer.
+  Modified clicks and JavaScript-disabled links still use their native destinations.
+- Failed switches keep the previous body and URL with local Retry and an ordinary
+  section link. Failed Back/Forward reads show an error for the requested section,
+  not old content with a new label. Requests are aborted/superseded and time out
+  after 12 seconds. Section HTML is never stored in browser history or storage.
+  Fresh reads reconcile facts, warnings, permissions, action return targets and
+  CSRF. Changed sessions withhold previously loaded private result controls until
+  a fresh ordinary results read; cross-document/BFCache revalidation still applies.
 - Reload and shared URLs reconstruct the selected event, section, thread, reply
   target and discussion page. Filter
   changes reset pagination and selection.
@@ -213,7 +228,7 @@ Drafts survive validation/network failures and responsive transitions. Load only
 the selected conversation's initial page; keep public metadata separate from
 viewer-specific state and permission-filtered responses. See the
 [API plan](design/radar-api.md#contextual-loading-and-client-state).
-Confirmed discussion actions refresh only the selected context. Helpful, editing
+Confirmed discussion actions refresh only the selected section. Helpful, editing
 and removal preserve action focus/reading position without adding navigation entries;
 publication selects the thread. Native forms and canonical thread links remain
 available without enhancement. Scoped drafts use this tab's session storage;

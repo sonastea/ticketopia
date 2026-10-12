@@ -35,27 +35,16 @@ templ Event(page EventPage) {
 }
 				}
 			} else {
-				<article class="event-main">
+				<article class="event-main" data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF }>
 					<div class="event-identity">
 						<div>
-							<div class="event-heading">
-								<div class="date-marker" aria-hidden="true"><span>{ datePart(page.Detail.Item.Start, "Jan") }</span><strong>{ datePart(page.Detail.Item.Start, "2") }</strong></div>
-								<div>
-									<h1>{ page.Detail.Item.Name }</h1>
-									<p class="event-date">{ startLabel(page.Detail.Item.Start) }</p>
-									<p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
-									if page.Detail.Meta.Stale {
-										@Freshness(page.Detail.Meta)
-									}
-									@EventFacts(page.Detail.Item)
-								</div>
-							</div>
+							@EventHeading(page, false)
 							@EventPrimaryActions(page)
 						</div>
 						@EventImage(page.Detail.Item, true)
 					</div>
 					@EventSections(page)
-					@EventSectionContent(page)
+					@EventSectionRegion(page, false)
 					@EventParticipation(page, "event-participation-note")
 					@EventProvenance(page)
 				</article>
@@ -66,22 +55,14 @@ templ Event(page EventPage) {
 }
 
 templ EventContext(page EventPage) {
-	<div class="context-inner" data-context-id={ page.Detail.Item.ID } data-context-section={ page.Section } data-context-thread={ contextThreadID(page) }>
+	<div class="context-inner" data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF } data-context-id={ page.Detail.Item.ID } data-context-section={ page.Section } data-context-thread={ contextThreadID(page) }>
 		<div class="context-toolbar">
 			@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "context-back text-link", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview and return to results"}}) {
 				@layouts.Icon("back")
 				<span>Back to results</span>
 			}
 		</div>
-		<div class="context-heading">
-			<h2>{ page.Detail.Item.Name }</h2>
-			<p class="event-date">{ startLabel(page.Detail.Item.Start) }</p>
-			<p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
-			if page.Detail.Meta.Stale {
-				@Freshness(page.Detail.Meta)
-			}
-			@EventFacts(page.Detail.Item)
-		</div>
+		@EventHeading(page, true)
 		@EventPrimaryActions(page)
 		<div class="context-tools">
 			@button.Button(button.Props{Href: sectionURL(page, "overview"), Variant: button.VariantLink, Class: "text-link open-event"}) {
@@ -89,28 +70,85 @@ templ EventContext(page EventPage) {
 			}
 		</div>
 		@EventSections(page)
-		if page.Section == "overview" || page.Section == "" {
-			@EventImage(page.Detail.Item, true)
-		}
-		<div class={ "context-content", templ.KV("context-activity", page.Thread != nil) }>
-			if page.Thread != nil {
-				<div class="context-thread" data-context-thread-url={ page.Thread.URL }>
-					<a href={ templ.URL(sectionURL(page, "discussion")) } class="text-link" data-panel-link>Back to questions & tips</a>
-					<a href={ templ.URL(page.Thread.URL) } class="text-link">Open full conversation</a>
-					@DiscussionContent(*page.Thread)
-				</div>
-				<section class="event-section" aria-label="Event community">
-					<h2>Recommendations</h2>
-					@RecommendationPanel(page.Detail.Item.ID, page.Recommendations, page.ActionReturnURL)
-					<h3>Public interest</h3>
-					@PublicParticipants(page)
-				</section>
-			} else {
-				@EventSectionContent(page)
-			}
-		</div>
+		@EventSectionRegion(page, true)
 		@EventParticipation(page, "context-participation-note")
 		@EventProvenance(page)
+	</div>
+}
+
+// Fragment metadata is inert: the client reconciles persistent controls only
+// after validating the event, section, presentation mode and HTTP response.
+templ EventSectionResponse(page EventPage, panel bool) {
+	@EventSectionRegion(page, panel)
+	<template data-event-shell-state>
+		<div data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF }>
+			@EventHeading(page, panel)
+			@EventPrimaryActions(page)
+			if !panel {
+				@EventImage(page.Detail.Item, true)
+			}
+			@EventSections(page)
+			if panel {
+				@EventParticipation(page, "context-participation-note")
+			} else {
+				@EventParticipation(page, "event-participation-note")
+			}
+			@EventProvenance(page)
+		</div>
+	</template>
+}
+
+templ EventHeading(page EventPage, panel bool) {
+	if panel {
+		<div class="context-heading" data-shell-facts>
+			<h2>{ page.Detail.Item.Name }</h2>
+			@EventHeadingFacts(page)
+		</div>
+	} else {
+		<div class="event-heading" data-shell-facts>
+			<div class="date-marker" aria-hidden="true"><span>{ datePart(page.Detail.Item.Start, "Jan") }</span><strong>{ datePart(page.Detail.Item.Start, "2") }</strong></div>
+			<div>
+				<h1>{ page.Detail.Item.Name }</h1>
+				@EventHeadingFacts(page)
+			</div>
+		</div>
+	}
+}
+
+templ EventHeadingFacts(page EventPage) {
+	<p class="event-date">{ startLabel(page.Detail.Item.Start) }</p>
+	<p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
+	if page.Detail.Meta.Stale {
+		@Freshness(page.Detail.Meta)
+	}
+	@EventFacts(page.Detail.Item)
+}
+
+templ EventSectionRegion(page EventPage, panel bool) {
+	<div data-event-section-region data-event-id={ page.Detail.Item.ID } data-section={ page.Section } data-presentation={ eventPresentation(panel) } data-action-return={ page.ActionReturnURL } data-section-thread={ contextThreadID(page) }>
+		<p class="field-note" data-section-status role="status" hidden></p>
+		<div data-section-body>
+			if panel && (page.Section == "overview" || page.Section == "") {
+				@EventImage(page.Detail.Item, true)
+			}
+			<div class={ "context-content", templ.KV("context-activity", page.Thread != nil) }>
+				if page.Thread != nil {
+					<div class="context-thread" data-context-thread-url={ page.Thread.URL }>
+						<a href={ templ.URL(sectionURL(page, "discussion")) } class="text-link" data-panel-link>Back to questions & tips</a>
+						<a href={ templ.URL(page.Thread.URL) } class="text-link">Open full conversation</a>
+						@DiscussionContent(*page.Thread)
+					</div>
+					<section class="event-section" aria-label="Event community">
+						<h2>Recommendations</h2>
+						@RecommendationPanel(page.Detail.Item.ID, page.Recommendations, page.ActionReturnURL)
+						<h3>Public interest</h3>
+						@PublicParticipants(page)
+					</section>
+				} else {
+					@EventSectionContent(page)
+				}
+			</div>
+		</div>
 	</div>
 }
 
@@ -152,11 +190,9 @@ templ EventParticipation(page EventPage, noteID string) {
 			<div class="event-action-group" data-event-actions>
 				<div class="event-actions">
 					@InterestControl(page.Detail.Item.ID, page.Detail.Item.Name, page.Interests, page.ActionReturnURL)
-					if page.Section != "community" {
-						@button.Button(button.Props{Href: recommendURL(page), Variant: button.VariantOutline, Class: "button-quiet", Attributes: templ.Attributes{"data-panel-link": true}}) {
-							@layouts.Icon("community")
-							<span>Recommend</span>
-						}
+					@button.Button(button.Props{Href: recommendURL(page), Variant: button.VariantOutline, Class: "button-quiet", Attributes: templ.Attributes{"data-panel-link": true, "data-recommend-intent": true, "hidden": page.Section == "community"}}) {
+						@layouts.Icon("community")
+						<span>Recommend</span>
 					}
 					@ReminderControl(page.Detail.Item.ID, page.Detail.Item.Name, page.Saves)
 				</div>
@@ -274,7 +310,7 @@ templ EventStatus(status string) {
 }
 
 templ SectionLink(page EventPage, section string, text string) {
-	<a href={ templ.URL(sectionURL(page, section)) } data-panel-link aria-current={ layouts.CurrentPage(page.Section == section || (page.Section == "" && section == "overview")) }>
+	<a href={ templ.URL(sectionURL(page, section)) } data-panel-link data-event-section={ section } aria-current={ layouts.CurrentPage(page.Section == section || (page.Section == "" && section == "overview")) }>
 		{ text }
 	</a>
 }

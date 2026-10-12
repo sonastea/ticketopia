@@ -25,6 +25,7 @@ type discussionStub struct {
 	post        discussions.Post
 	input       discussions.Create
 	unavailable bool
+	listCalls   int
 }
 
 func (r *discussionStub) Snapshot(context.Context) (time.Time, error) { return time.Now().UTC(), nil }
@@ -59,6 +60,7 @@ func (r *discussionStub) Get(_ context.Context, viewer, id string) (discussions.
 	return r.post, nil
 }
 func (r *discussionStub) List(context.Context, string, string, string, discussions.Query) ([]discussions.Post, int, error) {
+	r.listCalls++
 	if r.unavailable {
 		return nil, 0, discussions.ErrUnavailable
 	}
@@ -232,7 +234,7 @@ func TestContextThreadUsesRetainedEventAndIsolatesReplyFailure(t *testing.T) {
 		r.Header.Set("X-Ticketopia-Panel", "true")
 		w := httptest.NewRecorder()
 		a.Routes().ServeHTTP(w, r)
-		if w.Code != 200 || strings.Contains(w.Body.String(), "<html") || !strings.Contains(w.Body.String(), `data-context-thread="`+thread+`"`) || !strings.Contains(w.Body.String(), "A retained question") || w.Header().Get("Cache-Control") != "private, no-store" || w.Header().Get("Vary") != "X-Ticketopia-Panel" {
+		if w.Code != 200 || strings.Contains(w.Body.String(), "<html") || !strings.Contains(w.Body.String(), `data-context-thread="`+thread+`"`) || !strings.Contains(w.Body.String(), "A retained question") || w.Header().Get("Cache-Control") != "private, no-store" || w.Header().Get("Vary") != "X-Ticketopia-Panel, X-Ticketopia-Section" {
 			t.Fatal("thread fragment lost event context or private response boundary", w.Code, w.Body.String())
 		}
 		if unavailable && (!strings.Contains(w.Body.String(), "Retry replies") || !strings.Contains(w.Body.String(), "Open full conversation")) {

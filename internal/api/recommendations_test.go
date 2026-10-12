@@ -33,6 +33,7 @@ type recommendationStub struct {
 	items       map[string]map[string]recommendations.Item
 	profiles    map[string]accounts.PublicProfile
 	unavailable bool
+	listCalls   int
 }
 
 func (r *recommendationStub) Get(_ context.Context, owner, id string) (recommendations.Item, error) {
@@ -74,6 +75,7 @@ func (r *recommendationStub) Count(_ context.Context, id string) (int, error) {
 	return count, nil
 }
 func (r *recommendationStub) List(_ context.Context, owner, event string, q recommendations.Query) ([]recommendations.Item, error) {
+	r.listCalls++
 	if r.unavailable {
 		return nil, recommendations.ErrUnavailable
 	}

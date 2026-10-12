@@ -108,6 +108,7 @@
     saving.add(id);
     ++saveStateTurn;
     const trigger = form.querySelector('button');
+    const csrf = form.elements.csrf_token.value;
     const hadFocus = document.activeElement === trigger;
     const controls = saveForms(id);
     controls.forEach(item => { item.setAttribute('aria-busy', 'true'); item.querySelector('button').disabled = true; });
@@ -121,6 +122,7 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Your save could not be updated. Try again.');
+      if (!saveForms(id).some(item => item.elements.csrf_token.value === csrf)) return;
       updateSave(data.event_id, data.saved);
       saveFeedback(data.saved ? 'Event saved privately.' : 'Event removed from Saved.', id, form);
       if (location.pathname === '/saved') {
@@ -133,7 +135,7 @@
         location.reload();
       }
     } catch (error) {
-      saveFeedback(error.name === 'AbortError' ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true);
+      if (saveForms(id).some(item => item.elements.csrf_token.value === csrf)) saveFeedback(error.name === 'AbortError' ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true);
     } finally {
       clearTimeout(timeout);
       saving.delete(id);
@@ -467,6 +469,236 @@
   };
 
   const workspace = document.querySelector('[data-results-url]');
+  // One request generation owns full selections and narrow same-event reads.
+  let request;
+  let generation = 0;
+  let renderedURL = location.href;
+  const sectionNames = { overview: 'Overview', discussion: 'Questions & tips', community: 'Recommendations' };
+  const sectionHost = () => document.querySelector('[data-event-shell]');
+  const sectionRegion = () => sectionHost()?.querySelector('[data-event-section-region]');
+  const rememberSection = () => {
+    const region = sectionRegion();
+    if (!region || renderedURL !== location.href) return;
+    const active = document.activeElement;
+    history.replaceState({ ...history.state, ticketopiaSection: {
+      url: location.href, documentScroll: scrollY,
+      scroll: document.getElementById('event-context')?.scrollTop || 0,
+      section: active?.dataset.eventSection || '',
+      draft: active?.closest('[data-discussion-draft]')?.dataset.discussionDraft || '',
+      recommendation: Boolean(active?.closest('[data-recommendation-form]')),
+      focus: sectionHost().contains(active) ? active.id : '',
+    } }, '', location.href);
+  };
+  let scrollFrame;
+  const recordSectionPosition = () => {
+    if (scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; rememberSection(); });
+  };
+  addEventListener('scroll', recordSectionPosition, true);
+  document.addEventListener('focusin', recordSectionPosition);
+  addEventListener('pagehide', rememberSection);
+  // Reconcile server facts/permissions without unmounting unchanged controls.
+  // Native disclosure state belongs to the reader, not to each fragment read.
+  const reconcile = (old, fresh) => {
+    if (old.isEqualNode(fresh) && !old.querySelector?.('input[type="hidden"]')) {
+      // Enhanced actions change live hidden-input values without changing their
+      // serialized attributes. Fresh return/CSRF/action values still win.
+      if (old.matches?.('input[type="hidden"]')) old.value = fresh.value;
+      return;
+    }
+    if (old.nodeType !== fresh.nodeType || old.nodeName !== fresh.nodeName) {
+      old.replaceWith(fresh.cloneNode(true));
+      return;
+    }
+    if (old.nodeType === Node.TEXT_NODE) { old.textContent = fresh.textContent; return; }
+    if (old.nodeType !== Node.ELEMENT_NODE) return;
+    for (const attr of [...old.attributes]) {
+      if (old.matches('details') && attr.name === 'open') continue;
+      if (!fresh.hasAttribute(attr.name)) old.removeAttribute(attr.name);
+    }
+    for (const attr of fresh.attributes) {
+      if (old.matches('details') && attr.name === 'open') continue;
+      if (old.getAttribute(attr.name) !== attr.value) old.setAttribute(attr.name, attr.value);
+    }
+    if (old.matches('input[type="hidden"]')) old.value = fresh.value;
+    const children = [...fresh.childNodes];
+    for (let i = 0; i < children.length; i++) {
+      if (!old.childNodes[i]) old.append(children[i].cloneNode(true));
+      else reconcile(old.childNodes[i], children[i]);
+    }
+    while (old.childNodes.length > children.length) old.lastChild.remove();
+  };
+  const openRecommendation = host => {
+    const editor = host.querySelector('[data-recommendation-editor]');
+    if (editor) editor.open = true;
+    (editor?.querySelector('textarea') || host.querySelector('[data-event-recommendations] a[href^="/auth/sign-in"]'))?.focus();
+  };
+  const sectionError = (region, section, url, next, retry, retain) => {
+    const message = region.querySelector('[data-section-status]');
+    message.classList.remove('sr-only');
+    message.hidden = false;
+    message.replaceChildren(document.createTextNode(sectionNames[section] + ' could not be loaded.' + (retain ? ' Still showing ' + sectionNames[region.dataset.section] + '. ' : ' ')));
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'button-quiet'; button.textContent = 'Retry';
+    button.dataset.sectionRetry = ''; button.addEventListener('click', retry);
+    const link = document.createElement('a');
+    link.href = url.href; link.className = 'text-link'; link.textContent = 'Open ' + sectionNames[section];
+    message.append(button, document.createTextNode(' '), link);
+    if (!retain) {
+      region.querySelector('[data-section-body]').replaceChildren();
+      region.dataset.section = section;
+      region.dataset.sectionThread = '';
+      region.dataset.actionReturn = next.pathname + next.search;
+      for (const input of sectionHost().querySelectorAll('input[name="return_to"]')) input.value = region.dataset.actionReturn;
+      if (region.dataset.presentation === 'context') {
+        sectionHost().dataset.contextSection = section;
+        sectionHost().dataset.contextThread = '';
+      }
+      const recommend = sectionHost().querySelector('[data-recommend-intent]');
+      if (recommend) recommend.hidden = section === 'community';
+      for (const item of sectionHost().querySelectorAll('[data-event-section]')) {
+        if (item.dataset.eventSection === section) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+      }
+    }
+  };
+  const switchSection = async (url, next, push = true, recommend = false, confirmation = null, force = false) => {
+    const host = sectionHost();
+    const region = sectionRegion();
+    const section = url.pathname.includes('/discussions') ? 'discussion' : url.searchParams.get('section') || 'overview';
+    const panel = region.dataset.presentation === 'context';
+    const activated = document.activeElement;
+    const saved = !push && !confirmation && history.state?.ticketopiaSection?.url === location.href ? history.state.ticketopiaSection : null;
+    request?.abort();
+    const turn = ++generation;
+    if (!force && push && region.dataset.section === section && !region.dataset.sectionThread && !url.pathname.includes('/discussions') && !region.querySelector('[data-section-retry]') && (!recommend || new URL(location.href).searchParams.get('recommend') === 'true')) {
+      region.removeAttribute('aria-busy');
+      region.querySelector('[data-section-status]').hidden = true;
+      if (recommend) openRecommendation(host);
+      return;
+    }
+    if (push) rememberSection();
+    // Existing draft mechanisms also retain programmatic reply/key changes and
+    // in-memory drafts when browser storage is blocked.
+    document.dispatchEvent(new Event('ticketopia:remember-drafts'));
+    request = new AbortController();
+    const currentRequest = request;
+    const timeout = setTimeout(() => currentRequest.abort(), 12000);
+    const message = region.querySelector('[data-section-status]');
+    const previousSection = region.dataset.section;
+    message.hidden = false;
+    message.classList.remove('sr-only');
+    message.textContent = 'Loading ' + sectionNames[section] + '. Still showing ' + sectionNames[previousSection] + '.';
+    region.setAttribute('aria-busy', 'true');
+    try {
+      const headers = { 'X-Ticketopia-Section': 'true' };
+      if (panel) headers['X-Ticketopia-Panel'] = 'true';
+      const response = await fetch(url, { signal: currentRequest.signal, headers, credentials: 'same-origin' });
+      if (turn !== generation || !host.isConnected) return;
+      if (response.status === 401 || response.redirected) {
+        for (const form of host.querySelectorAll('[data-save-form], [data-interest-form], [data-discussion-form], [data-recommendation-form]')) {
+          const link = document.createElement('a');
+          link.href = url.href; link.className = 'text-link'; link.textContent = 'Reload to check your account';
+          form.replaceWith(link);
+        }
+        host.querySelectorAll('[data-reminder-id]').forEach(link => link.remove());
+      }
+      if (!response.ok || response.redirected || !response.headers.get('Content-Type')?.includes('text/html')) throw new Error('Section unavailable');
+      const parsed = new DOMParser().parseFromString(await response.text(), 'text/html');
+      if (turn !== generation || !host.isConnected) return;
+      const fresh = parsed.body.querySelector(':scope > [data-event-section-region]');
+      const metadata = parsed.body.querySelector(':scope > template[data-event-shell-state]');
+      const shell = metadata?.content.querySelector('[data-event-shell]');
+      const thread = url.pathname.includes('/discussions/') ? decodeURIComponent(url.pathname.split('/')[4]) : '';
+      if (parsed.body.children.length !== 2 || !fresh || !shell?.hasAttribute('data-viewer-key') || fresh.dataset.eventId !== host.dataset.eventShell || shell.dataset.eventShell !== host.dataset.eventShell || fresh.dataset.section !== section || fresh.dataset.presentation !== region.dataset.presentation || fresh.dataset.sectionThread !== thread || !fresh.dataset.actionReturn || fresh.querySelector('script')) throw new Error('Unrecognized section');
+      for (const selector of ['[data-shell-facts]', '.event-primary-actions', '.event-section-nav', '.event-participation', '.event-provenance']) {
+        const old = host.querySelector(selector), replacement = shell.querySelector(selector);
+        if (!old || !replacement) throw new Error('Missing event controls');
+      }
+      // Reconcile all sensitive state, including signed-out controls, fresh CSRF,
+      // permissions and warnings. No private fragment HTML enters browser storage.
+      if (host.dataset.viewerKey !== shell.dataset.viewerKey) {
+        ++saveStateTurn;
+        document.dispatchEvent(new Event('ticketopia:viewer-changed'));
+        // Loaded result rows belong to the previous session too. Withhold their
+        // private controls until an ordinary, fresh results read reconciles them.
+        for (const group of document.querySelectorAll('[data-event-actions], [data-interest-details]')) {
+          if (host.contains(group)) continue;
+          const reload = document.createElement('a');
+          reload.href = workspace?.dataset.resultsUrl || location.href;
+          reload.className = 'text-link'; reload.textContent = 'Reload account controls';
+          group.replaceChildren(reload);
+        }
+        const state = { ...history.state }; delete state.ticketopiaResults;
+        history.replaceState(state, '', location.href);
+      }
+      host.dataset.viewerKey = shell.dataset.viewerKey;
+      for (const selector of ['[data-shell-facts]', '.event-primary-actions', '.event-section-nav', '.event-participation', '.event-provenance']) reconcile(host.querySelector(selector), shell.querySelector(selector));
+      if (!panel) reconcile(host.querySelector('.event-identity > .event-image'), shell.querySelector('.event-image'));
+      region.querySelector('[data-section-body]').replaceChildren(...fresh.querySelector('[data-section-body]').childNodes);
+      Object.assign(region.dataset, fresh.dataset);
+      if (panel) {
+        host.dataset.contextSection = section;
+        host.dataset.contextThread = thread;
+      }
+      if (push) {
+        const state = { ...history.state };
+        delete state.ticketopiaSection; delete state.ticketopiaPanel;
+        if (validJourney(state.ticketopiaReturn)) state.ticketopiaReturn = { ...state.ticketopiaReturn, steps: state.ticketopiaReturn.steps + 1 };
+        history.pushState(state, '', next);
+      }
+      renderedURL = location.href;
+      window.htmx?.process(host);
+      document.dispatchEvent(new Event('ticketopia:section-loaded'));
+      message.hidden = false;
+      message.classList.add('sr-only');
+      message.textContent = confirmation?.notice || sectionNames[section] + ' loaded.';
+      await new Promise(resolve => requestAnimationFrame(() => {
+        if (turn !== generation) { resolve(); return; }
+        if (saved) {
+          const context = document.getElementById('event-context');
+          if (context) context.scrollTop = saved.scroll;
+          scrollTo(0, saved.documentScroll);
+          let target = [...host.querySelectorAll('[data-discussion-draft]')].find(form => form.dataset.discussionDraft === saved.draft)?.querySelector('textarea');
+          if (saved.recommendation) target = host.querySelector('[data-recommendation-form] textarea');
+          target ||= [...host.querySelectorAll('[data-event-section]')].find(link => link.dataset.eventSection === saved.section);
+          target ||= saved.focus ? document.getElementById(saved.focus) : null;
+          if (target) {
+            const disclosure = target.closest('details'); if (disclosure) disclosure.open = true;
+            target.focus({ preventScroll: true });
+          }
+        } else if (recommend) openRecommendation(host);
+        else if (confirmation) {
+          const post = [...region.querySelectorAll('.discussion-post')].find(item => item.id === 'post-' + confirmation.post);
+          let target = post;
+          if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') target = post?.querySelector('button[aria-pressed]');
+          else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary');
+          if (target) { if (target === post) target.tabIndex = -1; target.focus({ preventScroll: true }); }
+          if (confirmation.action !== 'create') {
+            if (panel) document.getElementById('event-context').scrollTop = confirmation.scroll;
+            scrollTo(0, confirmation.documentScroll);
+          }
+        } else if (url.hash === '#discussion-composer') (region.querySelector('#discussion-composer textarea') || region.querySelector('#discussion-composer a[href^="/auth/sign-in"]'))?.focus();
+        else {
+          // Persistent links usually keep focus themselves. Do not reclaim it
+          // after the reader has already moved to a newly loaded control.
+          if (activated.isConnected && host.contains(activated) && document.activeElement === document.body) activated.focus({ preventScroll: true });
+          const nav = host.querySelector('.event-section-nav');
+          const rect = nav.getBoundingClientRect();
+          const bounds = panel && matchMedia('(min-width: 62rem)').matches ? document.getElementById('event-context').getBoundingClientRect() : { top: 0, bottom: innerHeight };
+          if (rect.bottom < bounds.top || rect.top > bounds.bottom) nav.scrollIntoView({ block: 'nearest' });
+        }
+        rememberSection();
+        resolve();
+      }));
+    } catch {
+      if (turn !== generation || !host.isConnected) return;
+      sectionError(region, section, url, next, () => switchSection(url, next, push, recommend, confirmation, true), push || Boolean(confirmation));
+    } finally {
+      clearTimeout(timeout);
+      if (turn === generation) region.removeAttribute('aria-busy');
+    }
+  };
   if (!workspace) {
     if (collectionPaths.has(location.pathname)) {
       document.addEventListener('click', event => {
@@ -511,12 +743,37 @@
       const link = event.target.closest('.section-nav a, [data-panel-link], [data-thread-link]');
       if (!link) return;
       const url = new URL(link.href);
+      const host = sectionHost();
+      if (host && host.contains(link) && link.matches('[data-panel-link]') && url.origin === location.origin && url.pathname === location.pathname) {
+        event.preventDefault();
+        switchSection(url, url, true, url.searchParams.get('recommend') === 'true');
+        return;
+      }
       if (url.href === location.href) {
         event.preventDefault();
         return;
       }
       const journey = history.state?.ticketopiaReturn;
       if (url.origin === location.origin && validJourney(journey)) stageReturn(url, { ...journey, steps: journey.steps + 1 });
+    });
+    addEventListener('popstate', () => {
+      if (!sectionRegion()) return;
+      const url = new URL(location.href);
+      switchSection(url, url, false, url.searchParams.get('recommend') === 'true', null, true);
+    });
+    addEventListener('pageshow', event => {
+      if (event.persisted && sectionRegion()) {
+        const url = new URL(location.href);
+        switchSection(url, url, false, url.searchParams.get('recommend') === 'true', null, true);
+      }
+    });
+    document.addEventListener('ticketopia:discussion-saved', event => {
+      if (!sectionRegion()?.contains(event.target)) return;
+      const url = new URL(location.href);
+      const target = new URL(event.detail.location, location.origin);
+      if (event.detail.action === 'create' && target.pathname.includes('/discussions/')) return;
+      event.preventDefault();
+      switchSection(url, url, false, false, { ...event.detail, documentScroll: scrollY }, true);
     });
     return;
   }
@@ -525,8 +782,6 @@
   const previewTemplate = name => document.getElementById('preview-' + name + '-template').content.cloneNode(true);
   const status = document.getElementById('selection-status');
   const desktop = matchMedia('(min-width: 62rem)');
-  let request;
-  let generation = 0;
   let lastFocusID = new URL(location.href).searchParams.get('selected_event') || '';
   let resultsScroll = history.state?.ticketopiaResults?.scroll ?? scrollY;
 
@@ -617,6 +872,27 @@
     link.href = url.href;
   };
   const select = async (id, section, push = true, recommend = false, conversation = null, confirmation = null) => {
+    const next = new URL(location.href);
+    next.searchParams.set('selected_event', id);
+    if (section !== 'overview') next.searchParams.set('section', section);
+    else next.searchParams.delete('section');
+    if (recommend) next.searchParams.set('recommend', 'true');
+    else next.searchParams.delete('recommend');
+    for (const key of ['selected_thread', 'reply_to', 'discussion_cursor']) next.searchParams.delete(key);
+    if (conversation) {
+      const parts = conversation.pathname.split('/');
+      if (parts[4]) next.searchParams.set('selected_thread', decodeURIComponent(parts[4]));
+      if (conversation.searchParams.has('reply_to')) next.searchParams.set('reply_to', conversation.searchParams.get('reply_to'));
+      if (conversation.searchParams.has('cursor')) next.searchParams.set('discussion_cursor', conversation.searchParams.get('cursor'));
+    }
+    const url = conversation || detailURL(id, section, recommend);
+    url.searchParams.set('return_to', workspace.dataset.resultsUrl);
+    if (sectionHost()?.dataset.eventShell === id) {
+      if (push) { rememberPanel(); rememberResults(); }
+      await switchSection(url, next, push, recommend, confirmation, !push || Boolean(confirmation));
+      markSelection(new URL(location.href).searchParams.get('selected_event'));
+      return;
+    }
     const panelHadFocus = context.contains(document.activeElement);
     const savedPanel = !push && history.state?.ticketopiaPanel?.url === location.href ? history.state.ticketopiaPanel : null;
     request?.abort();
@@ -627,36 +903,31 @@
       if (desktop.matches || !workspace.classList.contains('has-selection')) resultsScroll = scrollY;
       rememberPanel();
       rememberResults();
-      const next = new URL(location.href);
-      next.searchParams.set('selected_event', id);
-      if (section !== 'overview') next.searchParams.set('section', section);
-      else next.searchParams.delete('section');
-      if (recommend) next.searchParams.set('recommend', 'true');
-      else next.searchParams.delete('recommend');
-      for (const key of ['selected_thread', 'reply_to', 'discussion_cursor']) next.searchParams.delete(key);
-      if (conversation) {
-        const parts = conversation.pathname.split('/');
-        if (parts[4]) next.searchParams.set('selected_thread', decodeURIComponent(parts[4]));
-        if (conversation.searchParams.has('reply_to')) next.searchParams.set('reply_to', conversation.searchParams.get('reply_to'));
-        if (conversation.searchParams.has('cursor')) next.searchParams.set('discussion_cursor', conversation.searchParams.get('cursor'));
-      }
-      const state = { ...history.state };
-      delete state.ticketopiaPanel;
-      history.pushState(state, '', next);
     }
+    // Reveal the initial/different-event loading and recovery surface on compact
+    // layouts; its URL is still committed only after a validated response.
     markSelection(id);
-    const url = conversation || detailURL(id, section, recommend);
-    url.searchParams.set('return_to', workspace.dataset.resultsUrl);
     context.setAttribute('aria-busy', 'true');
     context.replaceChildren(previewTemplate('loading'));
     status.textContent = 'Loading event preview.';
     const timeout = setTimeout(() => currentRequest.abort(), 12000);
     try {
       const response = await fetch(url, { signal: currentRequest.signal, headers: { 'X-Ticketopia-Panel': 'true' } });
-      if (!response.ok) throw new Error('Event unavailable');
+      if (!response.ok || response.redirected) throw new Error('Event unavailable');
       const html = await response.text();
       if (turn !== generation) return;
-      context.innerHTML = html;
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      const fresh = parsed.body.querySelector(':scope > [data-event-shell]');
+      if (parsed.body.children.length !== 1 || fresh?.dataset.eventShell !== id || fresh.dataset.contextSection !== section) throw new Error('Unrecognized event');
+      if (push) {
+        const state = { ...history.state };
+        delete state.ticketopiaPanel; delete state.ticketopiaSection;
+        history.pushState(state, '', next);
+      }
+      renderedURL = location.href;
+      markSelection(id);
+      context.replaceChildren(fresh);
+      window.htmx?.process(context);
       context.scrollTop = 0;
       const heading = context.querySelector('.context-heading h2');
       heading.setAttribute('tabindex', '-1');
@@ -678,7 +949,7 @@
           || context.querySelector('#discussion-composer a[href^="/auth/sign-in"]')
           || heading;
         composer.focus();
-      } else if (recommend) context.querySelector('[data-recommendation-form] textarea')?.focus();
+      } else if (recommend) openRecommendation(context);
       else if (panelHadFocus || !desktop.matches) {
         if (!desktop.matches) scrollTo(0, 0);
         heading.focus({ preventScroll: true });
@@ -686,7 +957,7 @@
       status.textContent = confirmation?.notice || 'Event preview loaded: ' + context.querySelector('.context-heading h2').textContent;
     } catch {
       if (turn === generation) {
-        showError(url, () => select(id, section, false, recommend, conversation, confirmation));
+        showError(url, () => select(id, section, push, recommend, conversation, confirmation));
         if (panelHadFocus || !desktop.matches) context.querySelector('[data-preview-retry]')?.focus();
         status.textContent = 'Event preview could not be loaded.';
       }
@@ -700,6 +971,7 @@
     request?.abort();
     context.removeAttribute('aria-busy');
     if (push) {
+      rememberSection();
       rememberPanel();
       const url = new URL(location.href);
       url.searchParams.delete('selected_event');
@@ -708,6 +980,7 @@
       for (const key of ['selected_thread', 'reply_to', 'discussion_cursor']) url.searchParams.delete(key);
       history.pushState({ ...history.state }, '', url);
     }
+    renderedURL = location.href;
     markSelection('');
     context.replaceChildren(previewTemplate('empty'));
     status.textContent = 'Event preview closed.';

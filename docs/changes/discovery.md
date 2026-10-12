@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### 2026-10-11 — In-place event-section navigation
+
+- Deliver part 1 of [app polish](../design/app-polish-and-event-section-navigation.md)
+  on Discover and standalone event pages. Preserve header/action/navigation and
+  participation/provenance nodes; replace only the requested section body.
+- Add private, validated section fragments, canonical action returns, selected-only
+  optional reads, and fresh fact/permission/CSRF reconciliation. Keep native links,
+  conversation-plus-community context, and the existing JSON API.
+- Commit history only after confirmed switches; restore reading position on Back,
+  preserve collection return journeys and scoped drafts (including blocked storage),
+  reject obsolete/redirected/mismatched responses, and offer local failure recovery.
+- Verify 218 Chromium fixture checks, eight clean automated accessibility scans,
+  stable DOM/document-request assertions, failure/rapid-switch/session-change cases,
+  native navigation, and batched desktop/mobile captures. Physical-device, manual
+  screen-reader and live OAuth checks remain outside this evidence.
+- Pass isolated MariaDB browser regressions for Saved (78), Interests (77),
+  recommendations (72), responsive discussions (137), Radar (38), reminders (23),
+  and followed discussions (46). Build assets/binary, run the full local-MariaDB
+  race suite, host vet and final Docker `make check`; only pre-existing
+  design-detector advisories remain.
+- See the [UX guide](../design-guidelines.md) and [fragment contract](../discovery.md#in-place-event-sections).
+
 ### 2026-10-11 — Complete event-first discovery redesign
 
 - Begin the [approved redesign](../design/event-discovery-redesign.md): title and
@@ -65,23 +87,6 @@
   public IP with a 24-hour local cache, editable results, and a manual fallback.
   See [localhost location detection](../location.md#detecting-a-city-on-localhost).
 
-### 2026-10-02 — Shared Ticketmaster discovery and metadata
-
-- Fetch and normalize events with stable provider-scoped IDs, artist/venue and
-  classification metadata, concert/sale dates, status, images, and optional prices.
-- Fetch music genre/subgenre metadata and reuse cached reads across web/API clients.
-- Add filtered event list/detail and genre endpoints, input validation, bounded
-  cursor pagination, freshness, structured errors, and an OpenAPI contract.
-- Replace title-grouped HTML with searchable, distinct event occurrences, accurate
-  dates/ticket links, responsive filters, and loading/empty/error/stale states.
-- Default the web experience to a chosen, remembered, or approximate IP-based
-  city. Add an editable location label and a city prompt when detection fails,
-  avoiding unscoped event requests. See [location behavior](../location.md).
-- Cache city hints, bound lookup time/budget, and use explicit trusted proxy
-  configuration; preserve shared city-level event caching and pagination filters.
-- Verify cache call counts, concurrent misses, retention, failures, pagination,
-  normalization, and web/API reuse; smoke-check live data and browser behavior.
-- Align implemented discovery with upcoming backend and frontend milestones in
-  the [delivery checklist](../goals/delivery.md).
+Older entries: [discovery archive](archive/discovery/).
 
 See [discovery](../discovery.md) and [cache behavior](../cache.md) for current details.

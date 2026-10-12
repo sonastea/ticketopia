@@ -116,7 +116,12 @@ func main() {
 		switch r.URL.Query().Get("account") {
 		case "guest":
 			page.Saves.SignedIn = false
+			page.Saves.CSRF = ""
 			page.Interests.SignedIn = false
+			page.Interests.CSRF = ""
+			page.Recommendations.SignedIn = false
+			page.Recommendations.ViewerID = ""
+			page.Recommendations.CSRF = ""
 		case "disabled":
 			page.Saves = home.SaveView{}
 			page.Interests = home.InterestView{}
@@ -124,7 +129,13 @@ func main() {
 		case "unavailable":
 			page.Saves.Error = "Saved state could not be loaded. Reload to try again."
 		}
-		if r.Header.Get("X-Ticketopia-Panel") == "true" {
+		panel := r.Header.Get("X-Ticketopia-Panel") == "true"
+		if panel {
+			page.ActionReturnURL = home.SelectionURL(page.ReturnURL, page.Detail.Item.ID, page.Section)
+		}
+		if r.Header.Get("X-Ticketopia-Section") == "true" {
+			render(w, r, home.EventSectionResponse(page, panel))
+		} else if panel {
 			render(w, r, home.EventContext(page))
 		} else {
 			render(w, r, home.Event(page))

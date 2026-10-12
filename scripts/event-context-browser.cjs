@@ -13,10 +13,12 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
   const engine = process.env.BROWSER_ENGINE || 'chromium';
   const browser = await playwright[engine].launch({headless: true, executablePath: engine === 'chromium' ? process.env.CHROMIUM_EXECUTABLE : undefined});
   try {
-    const page = await browser.newPage();
+     const page = await browser.newPage();
+     let documents = 0;
+     page.on('request', request => {if (request.isNavigationRequest() && request.frame() === page.mainFrame()) documents++;});
     page.on('pageerror', error => report.errors.push(error.message));
     const panel = page.locator('#event-context');
-    const settled = () => page.waitForFunction(() => document.querySelector('#event-context .context-heading') && !document.querySelector('#event-context').hasAttribute('aria-busy'));
+    const settled = () => page.waitForFunction(() => document.querySelector('#event-context .context-heading') && !document.querySelector('#event-context').hasAttribute('aria-busy') && !document.querySelector('[data-event-section-region][aria-busy]'));
     for (const [name, width, height, zoom] of [
       ['desktop', 1440, 900, false], ['short-desktop', 1440, 600, false],
       ['wide', 1920, 1080, false], ['tablet', 1024, 900, false],
@@ -34,7 +36,7 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
       await row.locator('.event-art a').focus(); await page.keyboard.press('Enter'); await settled();
       check(name + ': default is useful Overview', await panel.getByRole('heading', {name: 'About the event'}).isVisible() && await panel.getByText('Bring photo ID.', {exact: false}).isVisible());
       check(name + ': one section navigation', await panel.locator('.event-section-nav').count() === 1);
-      check(name + ': tickets precede artwork', await panel.locator('.ticket-link').evaluate(n => n.getBoundingClientRect().top < document.querySelector('.context-inner > .event-image').getBoundingClientRect().top));
+      check(name + ': tickets precede artwork', await panel.locator('.ticket-link').evaluate(n => n.getBoundingClientRect().top < document.querySelector('[data-section-body] > .event-image').getBoundingClientRect().top));
       check(name + ': one complete compact view', await panel.locator('.open-event').isVisible() === (width >= 992 && !zoom));
       check(name + ': no horizontal overflow', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       check(name + ': primary and navigation targets are touch sized', await panel.locator('.ticket-link, .save-button, .event-section-nav a').evaluateAll(nodes => nodes.every(n => n.getBoundingClientRect().height >= 44)));
@@ -50,7 +52,11 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
         const violations = await page.evaluate(async () => (await axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']}})).violations);
         report.accessibility.push({name, violations}); check(name + ': automated accessibility', !violations.length);
       }
+      const beforeSections = documents;
+      await page.evaluate(() => {window.stableEventNodes = [...document.querySelectorAll('#event-context .context-heading, #event-context .ticket-link, #event-context .save-button, #event-context .event-section-nav, #event-context .event-section-nav a, #event-context .event-participation, #event-context .event-provenance')];});
+      const stable = () => page.evaluate(() => stableEventNodes.every(n => n.isConnected));
       await panel.getByRole('link', {name: 'Questions & tips', exact: true}).click(); await settled();
+      check(name + ': section controls stay mounted and focused', await stable() && await panel.locator('[data-event-section="discussion"]').evaluate(n => n === document.activeElement));
       check(name + ': explicit discussion selection', await panel.locator('.discussion-body').isVisible() && !await panel.getByRole('heading', {name: 'About the event'}).count());
       await panel.getByRole('link', {name: 'Recommendations', exact: true}).click(); await settled();
       check(name + ': recommendations keep public interest distinct', await panel.locator('.recommendation-reason').isVisible() && await panel.getByRole('heading', {name: 'Public interest'}).isVisible());
@@ -58,10 +64,107 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
       check(name + ': Back restores named section', new URL(page.url()).searchParams.get('section') === 'discussion');
       await page.goForward(); await settled();
       check(name + ': Forward restores named section', new URL(page.url()).searchParams.get('section') === 'community');
+      check(name + ': section/history changes make no document requests', documents === beforeSections && await stable());
+      const targetURL = new URL(await panel.locator('[data-save-form] input[name="return_to"]').inputValue(), base);
+      const selectionURL = new URL(page.url()); targetURL.searchParams.sort(); selectionURL.searchParams.sort();
+      check(name + ': return targets match selection', targetURL.href === selectionURL.href);
       await panel.locator('[data-close-context]').click();
       check(name + ': result and focus restoration', await row.locator('.event-link').evaluate(n => n === document.activeElement) && await page.locator('.event-row').count() === 2);
       await page.locator('.event-link').nth(1).click(); await settled();
       check(name + ': long event title is not clipped', await panel.locator('.context-heading h2').evaluate(n => n.scrollWidth <= n.clientWidth && getComputedStyle(n).textOverflow !== 'ellipsis'));
+    }
+
+    for (const standalone of [false, true]) {
+      await page.setViewportSize({width: 1440, height: 900});
+      await page.goto(base + (standalone ? '/events/ticketmaster:CSS_0' : '/?selected_event=ticketmaster%3ACSS_0'));
+      const host = page.locator('[data-event-shell]');
+      const region = host.locator('[data-event-section-region]');
+      const idle = () => page.waitForFunction(() => !document.querySelector('[data-event-section-region][aria-busy]'));
+      const mode = standalone ? 'standalone' : 'Discover';
+      const baseline = documents;
+      const overviewURL = page.url();
+      await page.evaluate(() => {window.stableSectionNodes = [...document.querySelectorAll('[data-shell-facts], .event-primary-actions .ticket-link, .event-primary-actions .save-button, .event-section-nav, .event-section-nav a, .event-participation, .event-provenance')];});
+      await host.locator('[data-event-section="discussion"]').click(); await idle();
+      await host.locator('[data-event-section="community"]').click(); await idle();
+      await page.goBack(); await idle();
+      check(mode + ': mounted shell and no document navigation', documents === baseline && await page.evaluate(() => stableSectionNodes.every(n => n.isConnected)));
+      await host.locator('[data-event-section="overview"]').click(); await idle();
+      check(mode + ': Overview URL returns canonically', page.url() === overviewURL);
+      const readingPosition = await page.evaluate(standalone => {
+        const panel = document.getElementById('event-context');
+        if (standalone) scrollTo(0, 250); else panel.scrollTop = 250;
+        return {document: scrollY, panel: panel?.scrollTop || 0};
+      }, standalone);
+      await host.locator('[data-event-section="discussion"]').evaluate(link => link.click()); await idle();
+      await page.goBack(); await idle();
+      check(mode + ': Back restores section reading position', await page.evaluate(saved => Math.abs(scrollY - saved.document) <= 2 && Math.abs((document.getElementById('event-context')?.scrollTop || 0) - saved.panel) <= 2, readingPosition));
+      let release;
+      const gate = new Promise(resolve => {release = resolve;});
+      await page.route('**/events/**', async route => {
+        if (route.request().headers()['x-ticketopia-section'] && new URL(route.request().url()).searchParams.get('section') === 'discussion') {await gate; await route.fulfill({status: 503, body: 'Unavailable'});}
+        else await route.continue();
+      });
+      await host.locator('[data-event-section="discussion"]').click();
+      await region.locator('[data-section-status]').filter({hasText: 'Loading Questions'}).waitFor();
+      check(mode + ': loading retains explicitly labeled Overview and URL', await region.getByRole('heading', {name: 'About the event'}).isVisible() && page.url() === overviewURL);
+      if (out) {const file = path.join(out, 'sections-loading-' + mode + '.png'); await page.screenshot({path: file, fullPage: true}); report.screenshots.push(file);}
+      release(); await region.locator('[data-section-retry]').waitFor(); await idle();
+      check(mode + ': failed click keeps content/URL and local recovery', page.url() === overviewURL && await region.getByRole('heading', {name: 'About the event'}).isVisible() && await region.getByRole('link', {name: 'Open Questions & tips'}).isVisible());
+      await page.unroute('**/events/**');
+      await region.locator('[data-section-retry]').click(); await idle();
+      check(mode + ': Retry commits only confirmed section', new URL(page.url()).searchParams.get('section') === 'discussion');
+      await host.locator('[data-event-section="community"]').click(); await idle();
+      await page.route('**/events/**', route => route.fulfill({status: 200, contentType: 'text/html', body: '<html><body>Sign in</body></html>'}));
+      await page.goBack(); await region.locator('[data-section-retry]').waitFor(); await idle();
+      check(mode + ': failed Back never mislabels old recommendations', new URL(page.url()).searchParams.get('section') === 'discussion' && !await region.locator('.recommendation-reason').count() && await host.locator('[data-event-section="discussion"]').getAttribute('aria-current') === 'page');
+      await page.unroute('**/events/**');
+      await region.locator('[data-section-retry]').click(); await idle();
+      await host.locator('[data-event-section="overview"]').click(); await idle();
+      await host.locator('[data-recommend-intent]').click(); await idle();
+      check(mode + ': Recommend opens and focuses composer after transitions', await host.locator('[data-recommendation-form] textarea').evaluate(n => n === document.activeElement));
+      await host.locator('[data-recommendation-form] textarea').fill('Retained recommendation draft');
+      await host.locator('[data-event-section="overview"]').click(); await idle();
+      await host.locator('[data-event-section="community"]').click(); await idle();
+      check(mode + ': recommendation draft survives sections', await host.locator('[data-recommendation-form] textarea').inputValue() === 'Retained recommendation draft');
+      if (out) {const file = path.join(out, 'sections-' + mode + '.png'); await page.screenshot({path: file, fullPage: true}); report.screenshots.push(file);}
+      const noOpHistory = await page.evaluate(() => history.length);
+      let fragments = 0;
+      const countFragments = request => {if (request.headers()['x-ticketopia-section']) fragments++;};
+      page.on('request', countFragments);
+      await host.locator('[data-event-section="community"]').click(); await idle();
+      check(mode + ': current section is a request/history no-op', fragments === 0 && await page.evaluate(() => history.length) === noOpHistory);
+      page.off('request', countFragments);
+      await host.locator('[data-event-section="overview"]').click(); await idle();
+      let releaseOld;
+      const oldGate = new Promise(resolve => {releaseOld = resolve;});
+      await page.route('**/events/**', async route => {
+        if (new URL(route.request().url()).searchParams.get('section') === 'discussion') {const response = await route.fetch(); await oldGate; await route.fulfill({response});}
+        else await route.continue();
+      });
+      await host.locator('[data-event-section="discussion"]').click();
+      await host.locator('[data-event-section="community"]').click(); await idle(); releaseOld();
+      await page.unroute('**/events/**', {behavior: 'wait'});
+      check(mode + ': obsolete request cannot overwrite rapid selection', new URL(page.url()).searchParams.get('section') === 'community' && await region.getAttribute('data-section') === 'community');
+      for (const marker of ['data-event-id', 'data-section', 'data-presentation']) {
+        const previousURL = page.url();
+        await page.route('**/events/**', async route => {
+          const response = await route.fetch();
+          const body = (await response.text()).replace(new RegExp(marker + '="[^"]*"'), marker + '="mismatched"');
+          await route.fulfill({response, body});
+        });
+        await host.locator('[data-event-section="overview"]').click(); await region.locator('[data-section-retry]').waitFor(); await idle();
+        check(mode + ': rejects mismatched ' + marker + ' before mounting', page.url() === previousURL && await region.getAttribute('data-section') === 'community' && await region.locator('.recommendation-reason').isVisible());
+        await page.unroute('**/events/**');
+      }
+      // Changed sessions are reconciled from server metadata, never inferred
+      // from the private controls that happened to be mounted previously.
+      await page.route('**/events/**', async route => {
+        const url = new URL(route.request().url()); url.searchParams.set('account', 'guest');
+        const response = await route.fetch({url: url.href}); await route.fulfill({response});
+      });
+      await host.locator('[data-event-section="overview"]').click(); await idle();
+      check(mode + ': session changes withhold previous private controls', !await host.locator('[data-save-form], [data-interest-form], [data-recommendation-form]').count() && await host.getByRole('link', {name: /^Sign in to save/}).isVisible());
+      await page.unroute('**/events/**');
     }
 
     await page.setViewportSize({width: 1440, height: 900});

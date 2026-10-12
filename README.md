@@ -89,6 +89,8 @@ goal to implementation work and verification checkpoints.
   browser-local preferences.
 - [x] Use themed shadcn-templ components throughout the existing responsive UI.
 - [x] Preview real event details alongside results and open a dedicated event page.
+- [x] Switch event sections in place on Discover and event pages, keeping identity,
+  actions, drafts, reading position, and collection-return continuity.
 - [x] Share/reload selected events and sections, recover local preview failures,
   and return to results with filters and available browser history state.
 - [x] Select an event into a contextual desktop discussion panel and expand details.

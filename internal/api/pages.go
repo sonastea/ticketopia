@@ -110,7 +110,7 @@ func safeReturnURL(raw string) string {
 
 func (a *api) eventPageHandler(c echo.Context) error {
 	c.Response().Header().Set("Cache-Control", "private, no-store")
-	c.Response().Header().Set("Vary", "X-Ticketopia-Panel")
+	c.Response().Header().Set("Vary", "X-Ticketopia-Panel, X-Ticketopia-Section")
 	page := home.EventPage{ReturnURL: safeReturnURL(c.QueryParam("return_to")), Section: "overview"}
 	privateAccountResponse(c)
 	page.ActionReturnURL = c.Request().URL.RequestURI()
@@ -138,11 +138,11 @@ func (a *api) eventPageHandler(c echo.Context) error {
 		if err == nil {
 			page.Saves = a.saveView(c, []string{id})
 			page.Interests = a.interestView(c, []string{id})
-			panel := c.Request().Header.Get("X-Ticketopia-Panel") == "true"
-			if panel || page.Section == "community" {
+			page.Recommendations.Enabled = a.recommendationsEnabled()
+			if page.Section == "community" {
 				a.loadEventCommunity(c, &page)
 			}
-			if panel || page.Section == "discussion" {
+			if page.Section == "discussion" {
 				page.Discussions = a.discussionView(c, id)
 			}
 		}
@@ -150,19 +150,28 @@ func (a *api) eventPageHandler(c echo.Context) error {
 	if err != nil {
 		status, page.Error = errorMessage(err)
 		setRetryAfter(c, err)
-		if c.Request().Header.Get("X-Ticketopia-Panel") == "true" {
+		if c.Request().Header.Get("X-Ticketopia-Panel") == "true" || c.Request().Header.Get("X-Ticketopia-Section") == "true" {
 			return c.String(status, page.Error)
 		}
 	}
 	if c.Request().Header.Get("X-Ticketopia-Panel") == "true" {
 		page.ActionReturnURL = home.SelectionURL(page.ReturnURL, id, page.Section)
+		if c.Request().Header.Get("X-Ticketopia-Section") == "true" {
+			return render(c, status, home.EventSectionResponse(page, true))
+		}
 		return render(c, status, home.EventContext(page))
+	}
+	if page.Error == "" {
+		page.ActionReturnURL = home.EventActionURL(page)
+	}
+	if c.Request().Header.Get("X-Ticketopia-Section") == "true" {
+		return render(c, status, home.EventSectionResponse(page, false))
 	}
 	return render(c, status, home.Event(page))
 }
 
-// Context previews show community alongside discussion, independently of the
-// selected section. Optional community failures must not hide event details.
+// Community is loaded only for Recommendations or explicitly selected threads.
+// Optional community failures must not hide event details.
 func (a *api) loadEventCommunity(c echo.Context, page *home.EventPage) {
 	id := page.Detail.Item.ID
 	page.Recommendations = a.recommendationView(c, id)

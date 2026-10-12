@@ -29,6 +29,8 @@
     }
   };
   document.addEventListener('input', event => { const form = event.target.closest('[data-recommendation-form]'); if (form) remember(form); });
+  document.addEventListener('ticketopia:remember-drafts', () => forms().forEach(remember));
+  document.addEventListener('ticketopia:section-loaded', initialize);
   document.addEventListener('toggle', event => {
     if (!event.target.matches('[data-recommendation-editor]') || !event.target.open) return;
     document.querySelectorAll('[data-recommendation-editor][open]').forEach(editor => { if (editor !== event.target) editor.open = false; });
@@ -55,7 +57,10 @@
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Your recommendation wasn't saved. Try again.");
       if (data.event_id !== id || typeof data.html !== 'string') throw new Error('The recommendation could not be confirmed. Refresh to check it.');
-      const name = key(form); drafts.delete(name); try { sessionStorage.removeItem(name); } catch { /* Storage is optional. */ }
+      const name = key(form);
+      if (drafts.get(name) === body.get('reason')) {
+        drafts.delete(name); try { sessionStorage.removeItem(name); } catch { /* Storage is optional. */ }
+      }
       if (!panel.isConnected) return; // A late write cannot replace another event's context.
       const parsed = new DOMParser().parseFromString(data.html, 'text/html');
       const fresh = parsed.querySelector('[data-event-recommendations]');

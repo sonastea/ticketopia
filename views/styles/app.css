@@ -1405,7 +1405,7 @@ summary::-webkit-details-marker {
 .event-identity { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1.5rem 2rem; align-items: start; }
 .event-identity .event-heading { margin-block-start: 0; }
 .event-identity > .event-image { max-block-size: 22rem; }
-.context-inner > .event-image { max-block-size: 16rem; margin-block-start: 1rem; }
+.context-inner [data-section-body] > .event-image { max-block-size: 16rem; margin-block-start: 1rem; }
 .event-participation { border-block-start: 1px solid var(--line); padding-block: 1.5rem; }
 .event-participation h2 { font-size: 1.125rem; margin-block-end: .75rem; }
 .event-provenance { border-block-start: 1px solid var(--line); margin-block-start: 1rem; padding-block: .75rem; color: var(--muted); font-size: .875rem; }

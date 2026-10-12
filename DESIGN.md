@@ -490,6 +490,14 @@ Links wrap intrinsically with enlarged text; all retain 44px targets. Current
 destinations use `aria-current`, not partial ARIA-tab semantics. Other section
 navigation retains its straight underline with square link corners.
 
+Same-event section changes keep the event header/actions, section navigation,
+participation group and source/history disclosure mounted, on Discover and
+standalone event pages. A quiet inline message labels retained previous content
+during loading; completion is announced without persistent visual chrome. Local
+Retry/native links recover failed reads. Overview artwork belongs to the context
+section; standalone identity artwork stays in the header. The existing palette,
+type roles, targets, thresholds and native link semantics are unchanged.
+
 ### Availability Labels
 
 Small neutral rectangles with light-stone fill, muted text, a quiet one-pixel border, and availability corners explain “In development” or a specific unavailable capability. They are informational labels, not selectable filter chips. Do not give them date-marker styling or turn them into a success confirmation.

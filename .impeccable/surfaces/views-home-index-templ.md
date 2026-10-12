@@ -146,6 +146,34 @@ the completion record below supersedes that scope.
   Enlarged result-copy width improves; inherited sidebar crowding remains outside
   this refinement. This record is not new independent approval or a WCAG claim.
 
+## In-place event sections — 2026-10-11
+
+- Part 1 of the [app polish spec](../../docs/design/app-polish-and-event-section-navigation.md)
+  keeps event identity/actions, real section navigation, participation, and native
+  provenance disclosure mounted. Context Overview artwork moves with the section;
+  standalone identity artwork stays in place. No visual-world/token changes.
+- Pending reads label retained content; completion uses an assistive announcement.
+  Success commits one history entry, Back restores reading position, and local
+  Retry/native links recover failures without mislabeling old content. Fresh facts,
+  warnings, permissions and CSRF reconcile; private section HTML is never stored.
+- [event-discovery-checks.json](../review/event-sections/event-discovery-checks.json)
+  records 210 Chromium checks and eight clean axe scans across the existing
+  desktop/rail/tablet/390px/320px/short/enlarged-text matrix. Stable DOM/document
+  counts, failed clicks/Back, rapid requests, changed sessions, native links,
+  forced-colors focus and reduced motion pass. Desktop/mobile captures were inspected.
+- [Final validation](../review/event-sections/final-validation.json) extends that
+  matrix to 218 checks with mismatched-fragment and reading-position regressions;
+  all eight axe scans remain clean. No extra visual-polish loop was needed.
+- Final responsive discussions pass 137 isolated checks, including late-write
+  rejection and keyboard conversation entry without completion reclaiming focus.
+  Final Docker `make check` passes generation, embedded builds, race tests and vet.
+- Isolated MariaDB browser suites pass for Saved, Interests, Radar, recommendations,
+  reminders, responsive discussions (including guest Reply and blocked-storage
+  discussion/recommendation drafts), and followed discussions. Asset/binary build,
+  full local-MariaDB race suite and host vet pass. Detector findings are unchanged
+  token/provider-font advisories. Browser emulation is not physical-device,
+  manual screen-reader, live OAuth, or independent usability-study evidence.
+
 ## Responsive event/discussion extension / finish record — 2026-10-07
 
 - Completed the connected discovery-to-participation milestone without replacing

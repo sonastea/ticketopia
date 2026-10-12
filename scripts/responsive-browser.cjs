@@ -37,7 +37,7 @@ fs.mkdirSync(out, {recursive: true});
     const settled = async () => {
       await page.waitForFunction(() => {
         const panel = document.getElementById('event-context');
-        return panel?.querySelector('.context-heading h2') && !panel.hasAttribute('aria-busy') && !panel.querySelector('[data-discussion-form][aria-busy="true"]');
+        return panel?.querySelector('.context-heading h2') && !panel.hasAttribute('aria-busy') && !panel.querySelector('[data-event-section-region][aria-busy], [data-discussion-form][aria-busy="true"]');
       });
     };
     const activate = async (locator, touch = false) => {
@@ -104,7 +104,8 @@ fs.mkdirSync(out, {recursive: true});
       await panel.locator('.discussion-editor > summary').waitFor();
       check(name + ': tickets remain visible across section changes', await panel.locator('.ticket-link').isVisible());
       await activate(panel.getByRole('link', {name: /Open conversation/}).filter({hasText: 'Open conversation'}).first());
-      await panel.locator('#post-' + root.id).waitFor();
+      try { await panel.locator('#post-' + root.id).waitFor(); }
+      catch (error) { throw new Error(error.message + '\n' + JSON.stringify({name, url: page.url(), context: await panel.innerText(), posts: await panel.locator('.discussion-post').evaluateAll(nodes => nodes.map(node => node.id))})); }
       check(name + ': thread selection retains results and event identity', new URL(page.url()).searchParams.get('selected_thread') === root.id && await page.locator('.event-row').count() === 3);
       await activate(panel.locator('#post-' + answer.id).getByRole('button', {name: /Helpful/}));
       await settled();
@@ -240,6 +241,14 @@ fs.mkdirSync(out, {recursive: true});
     await blockedPage.getByRole('link', {name: 'Questions & tips', exact: true}).click();
     await blockedPage.locator('.discussion-editor > summary').click();
     check('Unavailable browser storage still retains drafts within the page', await blockedPage.locator('.discussion-composer textarea').inputValue() === 'An in-page draft when storage is blocked.');
+    await blockedPage.getByRole('link', {name: 'Recommendations', exact: true}).click();
+    await blockedPage.locator('[data-recommendation-editor] > summary').click();
+    await blockedPage.locator('[data-recommendation-form] textarea').fill('A recommendation with blocked storage.');
+    await blockedPage.getByRole('link', {name: 'Overview', exact: true}).click();
+    await blockedPage.getByRole('heading', {name: 'About the event', exact: true}).waitFor();
+    await blockedPage.getByRole('link', {name: 'Recommendations', exact: true}).click();
+    await blockedPage.locator('[data-recommendation-form] textarea').waitFor();
+    check('Blocked storage retains recommendation drafts without publishing', await blockedPage.locator('[data-recommendation-form] textarea').inputValue() === 'A recommendation with blocked storage.');
 
     const publicPage = await guest.newPage(); await publicPage.goto(base + '/events/' + id + '/discussions/' + root.id);
     check('Guest reads event/thread without private state or owner editors', await publicPage.getByText('Yes. Arrive early for a clear view.', {exact: true}).count() === 1 && !await publicPage.locator('[data-save-form], [data-interest-form], .discussion-editor').count());
@@ -298,6 +307,19 @@ fs.mkdirSync(out, {recursive: true});
     await nativePage.locator('.discussion-composer textarea').fill('A native question without JavaScript.');
     await nativePage.getByRole('button', {name: 'Post question or tip'}).click();
     check('No-JavaScript discovery links and native publication work', await nativePage.locator('.discussion-post').first().innerText().then(text => text.includes('A native question without JavaScript.')));
+    await page.goto(base + process.env.SAVED_SEARCH_PATH + '&selected_event=' + encodeURIComponent(id) + '&section=discussion&selected_thread=' + root.id); await settled();
+    let releaseWrite, writeSent;
+    const writeGate = new Promise(resolve => {releaseWrite = resolve;});
+    const sent = new Promise(resolve => {writeSent = resolve;});
+    await page.route('**/discussion-actions', async route => {const response = await route.fetch(); writeSent(); await writeGate; await route.fulfill({response});});
+    await panel.locator('#post-' + answer.id).getByRole('button', {name: /Helpful/}).click(); await sent;
+    await panel.getByRole('link', {name: 'Overview', exact: true}).click(); await settled();
+    const newerURL = page.url(), newerHistory = await page.evaluate(() => history.length);
+    const writeResponse = page.waitForResponse(response => response.url().endsWith('/discussion-actions'));
+    releaseWrite(); await writeResponse;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    check('Late confirmed writes cannot replace or navigate a newer section', page.url() === newerURL && await page.evaluate(() => history.length) === newerHistory && await panel.getByRole('heading', {name: 'About the event'}).isVisible());
+    await page.unroute('**/discussion-actions', {behavior: 'wait'});
     check('No browser runtime errors', !report.errors.length);
     fs.writeFileSync(path.join(out, 'responsive-checks.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify({checks: report.checks.length, screenshots: report.screenshots.length, accessibility: report.accessibility.length}));

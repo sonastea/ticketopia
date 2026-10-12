@@ -7,7 +7,7 @@
     catch (_) { return memory.get(key); }
   }
   function save(form) {
-    if (!form.dataset.discussionDraft) return;
+    if (!form.dataset.discussionDraft || form.dataset.pending === 'true') return;
     const key = prefix + form.dataset.discussionDraft;
     const value = {body: form.elements.body.value, key: form.elements.idempotency_key.value, parent: form.elements.parent_id.value};
     memory.set(key, value);
@@ -70,7 +70,10 @@
       if (target.origin !== location.origin || !target.pathname.startsWith('/')) throw new Error('Refresh this conversation to see the saved change.');
       if (form.dataset.discussionDraft) {
         const key = prefix + form.dataset.discussionDraft;
-        memory.delete(key); try { sessionStorage.removeItem(key); } catch (_) {}
+        const latest = load(key);
+        if (latest?.body === data.get('body') && latest?.key === data.get('idempotency_key')) {
+          memory.delete(key); try { sessionStorage.removeItem(key); } catch (_) {}
+        }
         initialized.delete(form);
         form.elements.body.value = '';
       }
@@ -115,6 +118,8 @@
     if (location.hash === '#discussion-composer') document.querySelector('#discussion-composer textarea')?.focus();
   });
   document.addEventListener('htmx:afterSwap', restore);
+  document.addEventListener('ticketopia:remember-drafts', () => document.querySelectorAll('[data-discussion-draft]').forEach(save));
+  document.addEventListener('ticketopia:section-loaded', restore);
   new MutationObserver(restore).observe(document.documentElement, {childList: true, subtree: true});
   window.addEventListener('pageshow', event => { if (event.persisted && document.querySelector('.discussion-page')) location.reload(); else restore(); });
 })();

@@ -193,11 +193,14 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		} else {
 			page.Selected = &detail
 			community := home.EventPage{Detail: detail}
-			a.loadEventCommunity(c, &community)
+			community.Recommendations.Enabled = a.recommendationsEnabled()
+			if page.Section == "community" || page.Thread != nil {
+				a.loadEventCommunity(c, &community)
+			}
 			page.Recommendations = community.Recommendations
 			page.Participants = community.Participants
 			page.ParticipantsError = community.ParticipantsError
-			if page.Thread == nil {
+			if page.Thread == nil && page.Section == "discussion" {
 				page.Discussions = a.discussionView(c, selectedID)
 			}
 		}
