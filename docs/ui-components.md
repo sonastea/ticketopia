@@ -160,3 +160,13 @@ cover input floors, clipping/sticky scrolling, hover/press, reduced motion,
 forced-colors focus, selectable links, bounded textareas, RTL, and native filters.
 Set `CSS_BROWSER=webkit` and, if needed, `CSS_BROWSER_EXECUTABLE` to run the same
 checks in WebKit; the default is Chromium.
+
+For the event-first redesign, run `scripts/event-context-browser.cjs` against the
+same read-only server. Set `BROWSER_ENGINE=webkit` for its WebKit pass, and
+`AXE_SCRIPT=/path/to/axe.min.js` for Chromium accessibility checks. It covers
+Overview, ticket access, named sections, long content, compact/desktop behavior,
+confirmed save/reminder presentation, provider/account failures, and native links.
+For real account writes and collection return continuity, use the isolated MariaDB
+browser harnesses in [saved events](saved-events.md#verification),
+[discussions](event-discussions.md#verification), [interest](event-interest.md),
+[recommendations](event-recommendations.md#verification), and [Radar](radar.md).

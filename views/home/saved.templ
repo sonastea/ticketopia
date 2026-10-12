@@ -52,10 +52,21 @@ templ Saved(page SavedPage) {
 
 // Keep feedback outside the controls row so its size cannot move any action.
 templ EventActions(eventID string, name string, view SaveView, returnURL string) {
+	@EventActionControls(eventID, name, view, returnURL, true) {
+		{ children... }
+	}
+}
+
+templ EventActionControls(eventID string, name string, view SaveView, returnURL string, reminders bool) {
 	<div class="event-action-group" data-event-actions>
 		<div class="event-actions">
-			@SaveControl(eventID, name, view, returnURL)
+			if reminders {
+				@SaveControl(eventID, name, view, returnURL)
+			}
 			{ children... }
+			if !reminders {
+				@SaveControlContent(eventID, name, view, returnURL, false)
+			}
 		</div>
 		if view.Enabled && view.SignedIn && view.Error == "" {
 			<p class="save-message" data-save-feedback hidden></p>
@@ -65,8 +76,16 @@ templ EventActions(eventID string, name string, view SaveView, returnURL string)
 }
 
 templ SaveControl(eventID string, name string, view SaveView, returnURL string) {
+	@SaveControlContent(eventID, name, view, returnURL, true)
+}
+
+templ SaveControlContent(eventID string, name string, view SaveView, returnURL string, reminders bool) {
 	if !view.Enabled {
-		@ParticipationButton("saved", "Save", "")
+		if reminders {
+			@ParticipationButton("saved", "Save", "")
+		} else {
+			<p class="field-note">Saving requires accounts to be enabled.</p>
+		}
 	} else if view.Error != "" {
 		@button.Button(button.Props{Variant: button.VariantOutline, Class: "button-quiet", Disabled: true, Attributes: templ.Attributes{"aria-label": "Saved state unavailable for " + name}}) { Saved unavailable }
 	} else if !view.SignedIn {
@@ -82,10 +101,16 @@ templ SaveControl(eventID string, name string, view SaveView, returnURL string) 
 				@layouts.Icon("saved")<span>{ saveLabel(view.States[eventID]) }</span>
 			}
 		</form>
-		if view.Reminders && view.States[eventID] {
-			@button.Button(button.Props{Href: "/me/reminders/" + url.PathEscape(eventID), Variant: button.VariantOutline, Class: "button-quiet reminder-button", Attributes: templ.Attributes{"aria-label": "On-sale reminder for " + name}}) {
+		if reminders {
+			@ReminderControl(eventID, name, view)
+		}
+	}
+}
+
+templ ReminderControl(eventID string, name string, view SaveView) {
+		if view.Enabled && view.SignedIn && view.Error == "" && view.Reminders {
+			@button.Button(button.Props{Href: "/me/reminders/" + url.PathEscape(eventID), Variant: button.VariantOutline, Class: "button-quiet reminder-button", Attributes: templ.Attributes{"aria-label": "On-sale reminder for " + name, "data-reminder-id": eventID, "hidden": !view.States[eventID]}}) {
 				@layouts.Icon("bell")<span>On-sale reminder</span>
 			}
 		}
-	}
 }

@@ -1361,7 +1361,7 @@ func EmptyContext() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "</div><h3>Something catch your eye?</h3><p>Select an event to read its questions and tips alongside your results.</p><div class=\"context-footnote\"><p>Good plans start with the details.</p><p>Open an event to see public recommendations, questions, and practical tips.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "</div><h3>Something catch your eye?</h3><p>Open an event to see its details, tickets, and community alongside your results.</p><div class=\"context-footnote\"><p>Good plans start with the details.</p><p>Open an event to see public recommendations, questions, and practical tips.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1508,7 +1508,7 @@ func PreviewError(message string, eventURL string, returnURL string) templ.Compo
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "Open event")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "Open event page")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

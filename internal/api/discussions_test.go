@@ -322,13 +322,16 @@ func TestEventContextShowsDiscussionAndCommunityAcrossEntryPoints(t *testing.T) 
 						t.Fatal(w.Code, w.Body.String())
 					}
 					body := w.Body.String()
-					for _, want := range []string{"Is there a coat check?", "A great neighborhood venue", "Public event explorer", `id="context-discussion-heading"`, `id="context-community-heading"`} {
+					for _, want := range []string{`aria-label="Event sections"`, `data-context-section="` + section + `"`} {
 						if !strings.Contains(body, want) {
 							t.Errorf("missing inline activity %q", want)
 						}
 					}
-					if strings.Contains(body, "Private participant must stay hidden") || strings.Contains(body, `aria-label="Event sections"`) {
-						t.Fatal("preview leaked private interest or requires section navigation")
+					if strings.Contains(body, "Is there a coat check?") != (section == "discussion") || strings.Contains(body, "A great neighborhood venue") != (section == "community") {
+						t.Fatal("preview did not select the requested community section")
+					}
+					if strings.Contains(body, "Private participant must stay hidden") {
+						t.Fatal("preview leaked private interest")
 					}
 				})
 			}

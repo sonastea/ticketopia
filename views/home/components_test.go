@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/a-h/templ"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
@@ -24,9 +25,18 @@ func TestComponentLinksRejectScriptURLs(t *testing.T) {
 	}
 }
 
-func TestEventRowDetailsLinkRendersIcon(t *testing.T) {
+func TestProviderSaleStatesStayExplicit(t *testing.T) {
+	for status, want := range map[string]string{"onsale": "On sale", "offsale": "Off sale", "soldout": "Sold out", "sold_out": "Sold out", "canceled": "Canceled", "postponed": "Postponed", "rescheduled": "Rescheduled", "": "Sale status unknown"} {
+		if got := statusLabel(status); got != want {
+			t.Errorf("%q: got %q, want %q", status, got, want)
+		}
+	}
+}
+
+func TestEventRowOpensOverviewAndExposesTickets(t *testing.T) {
 	var out bytes.Buffer
 	event := models.Event{ID: "ticketmaster:Details", Name: "Named event"}
+	event.Source.URL = "https://www.ticketmaster.com/example"
 	if err := EventRows([]models.Event{event}, "/", "", SaveView{}, "/", InterestView{}).Render(t.Context(), &out); err != nil {
 		t.Fatal(err)
 	}
@@ -34,13 +44,49 @@ func TestEventRowDetailsLinkRendersIcon(t *testing.T) {
 	if strings.Contains(markup, "@layouts.Icon") {
 		t.Fatal("event row rendered an icon component as literal text")
 	}
-	_, link, found := strings.Cut(markup, `aria-label="View event details for Named event">`)
+	_, link, found := strings.Cut(markup, `aria-label="Tickets on Ticketmaster for Named event">`)
 	if !found {
-		t.Fatal("missing event details link")
+		t.Fatal("missing direct ticket link")
 	}
 	link, _, _ = strings.Cut(link, "</a>")
-	if !strings.Contains(link, "View event details</span>") || !strings.Contains(link, "<svg") {
-		t.Fatal("event details link must render its label and SVG icon", link)
+	if !strings.Contains(link, "Tickets on Ticketmaster</span>") || !strings.Contains(link, "<svg") {
+		t.Fatal("ticket link must render its label and SVG icon", link)
+	}
+	if strings.Count(markup, `href="/events/ticketmaster:Details"`) != 2 {
+		t.Fatal("title and artwork must share the ordinary Overview link", markup)
+	}
+	for _, unwanted := range []string{"<details", "More event information", "View event details", "section=discussion", "Interested", "On-sale reminder"} {
+		if strings.Contains(markup, unwanted) {
+			t.Errorf("unexpected list control %q", unwanted)
+		}
+	}
+}
+
+func TestCollectionRowsKeepSaveIndependentAndRemindersInEventView(t *testing.T) {
+	event := models.Event{ID: "ticketmaster:Saved", Name: "Saved show"}
+	saves := SaveView{Enabled: true, SignedIn: true, Reminders: true, States: map[string]bool{event.ID: true}}
+	interest := InterestView{Enabled: true, SignedIn: true, States: map[string]interests.State{event.ID: {Interested: true, Visibility: "private"}}}
+	for _, origin := range []string{"/", "/saved", "/me/interests", "/radar"} {
+		t.Run(origin, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := EventRows([]models.Event{event}, origin, "", saves, origin, interest).Render(t.Context(), &out); err != nil {
+				t.Fatal(err)
+			}
+			markup := out.String()
+			if !strings.Contains(markup, "data-save-form") || strings.Contains(markup, "On-sale reminder") {
+				t.Fatal("list lost Save or exposed reminder settings")
+			}
+			if strings.Contains(markup, "data-interest-form") != (origin == "/me/interests") {
+				t.Fatal("interest management belongs only in its collection")
+			}
+		})
+	}
+	var out bytes.Buffer
+	if err := EventActions(event.ID, event.Name, saves, "/").Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "On-sale reminder") {
+		t.Fatal("event view lost eligible reminders")
 	}
 }
 
@@ -118,7 +164,7 @@ func TestEmptyPreviewCanReceiveKeyboardFocus(t *testing.T) {
 	}
 }
 
-func TestEventContextActivityIsVisibleBelowDetails(t *testing.T) {
+func TestEventContextOpensRequestedSectionWithoutInformationDisclosure(t *testing.T) {
 	for _, section := range []string{"overview", "discussion", "community"} {
 		t.Run(section, func(t *testing.T) {
 			var out bytes.Buffer
@@ -127,18 +173,55 @@ func TestEventContextActivityIsVisibleBelowDetails(t *testing.T) {
 				t.Fatal(err)
 			}
 			markup := out.String()
-			details := strings.Index(markup, "</details>")
-			discussion := strings.Index(markup, `id="context-discussion-heading"`)
-			community := strings.Index(markup, `id="context-community-heading"`)
-			if details < 0 || discussion <= details || community <= discussion || strings.Contains(markup, `aria-label="Event sections"`) {
-				t.Fatal("activity must follow event details without section tabs")
+			if strings.Contains(markup, "Event details &amp; actions") || strings.Count(markup, `aria-label="Event sections"`) != 1 {
+				t.Fatal("event must have one section navigation and no information disclosure")
 			}
 			if strings.Contains(markup, "Event description") != (section == "overview") {
 				t.Fatal("Overview selection lost the event description")
 			}
-			if section == "overview" && strings.Index(markup, "Event description") > details {
-				t.Fatal("secondary Overview content must stay in the details disclosure, not push activity down")
+			if section == "overview" && strings.Index(markup, "Event description") > strings.Index(markup, "<details") {
+				t.Fatal("Overview content must precede secondary disclosures")
 			}
+		})
+	}
+}
+
+func TestEventOverviewKeepsDecisionContentVisibleAndActionsIndependent(t *testing.T) {
+	event := models.Event{ID: "ticketmaster:Overview", Name: "Local show", Info: "A supplied description", PleaseNote: "Bring photo ID", Status: "canceled", Source: models.Source{URL: "https://www.ticketmaster.com/overview"}, Place: &models.Place{Name: "Local hall", Address: "12 Main Street"}}
+	page := EventPage{Detail: models.EventDetail{Item: event, Meta: models.Freshness{Stale: true, DataAsOf: time.Now()}}, Section: "overview", Saves: SaveView{Enabled: true, SignedIn: true, Reminders: true, States: map[string]bool{event.ID: true}}, Interests: InterestView{Enabled: true, SignedIn: true}}
+	for name, component := range map[string]templ.Component{"panel": EventContext(page), "page": Event(page)} {
+		t.Run(name, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := component.Render(t.Context(), &out); err != nil {
+				t.Fatal(err)
+			}
+			markup := out.String()
+			for _, text := range []string{"A supplied description", "Bring photo ID", "12 Main Street", "Tickets on Ticketmaster", "Showing last-known details", `data-status="canceled"`, "Price not listed"} {
+				if !strings.Contains(markup, text) {
+					t.Errorf("missing decision content %q", text)
+				}
+			}
+			if strings.Count(markup, "data-save-form") != 1 || strings.Count(markup, `class="interest-form"`) != 1 || strings.Count(markup, "On-sale reminder</span>") != 1 {
+				t.Fatal("actions duplicated or lost")
+			}
+			if strings.Index(markup, "ticket-link") > strings.Index(markup, "A supplied description") || strings.Index(markup, "Bring photo ID") > strings.Index(markup, "data-interest-form") || strings.Index(markup, "data-interest-form") > strings.Index(markup, "reminder-button") {
+				t.Fatal("decision facts, primary actions, and secondary participation out of order")
+			}
+			doc, err := html.Parse(strings.NewReader(markup))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var walk func(*html.Node, bool)
+			walk = func(n *html.Node, disclosed bool) {
+				disclosed = disclosed || n.Data == "details"
+				if disclosed && n.Type == html.TextNode && (strings.Contains(n.Data, event.Info) || strings.Contains(n.Data, event.PleaseNote) || strings.Contains(n.Data, "Tickets on Ticketmaster")) {
+					t.Error("essential content hidden in disclosure")
+				}
+				for child := n.FirstChild; child != nil; child = child.NextSibling {
+					walk(child, disclosed)
+				}
+			}
+			walk(doc, false)
 		})
 	}
 }
@@ -155,13 +238,18 @@ func TestDiscoveryRowsExposeDetailsAndOnlyRealPublicActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	markup := out.String()
-	for _, want := range []string{"The Local Band", "Useful description.", "1 question or tip", "2 public recommendations", "Where is the entrance?", "&lt;script&gt;Public reason&lt;/script&gt;", "Read conversation", "data-thread-link"} {
+	for _, want := range []string{"The Local Band", "Useful description.", "1 question or tip", "2 public recommendations", "section=discussion", "section=community", "Ticket link unavailable."} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing useful row information %q", want)
 		}
 	}
-	if strings.Count(markup, "The Local Band") != 1 || strings.Contains(markup, event.Info) || strings.Index(markup, "Useful description.") > strings.Index(markup, "<details") {
+	if strings.Count(markup, "The Local Band") != 1 || strings.Contains(markup, event.Info) || strings.Contains(markup, "<details") {
 		t.Fatal("facts duplicated, description not previewed, or preview hidden in disclosure")
+	}
+	for _, unwanted := range []string{"Where is the entrance?", "Public reason", "Public author", "Read conversation", "data-thread-link"} {
+		if strings.Contains(markup, unwanted) {
+			t.Errorf("row includes full community content %q", unwanted)
+		}
 	}
 	out.Reset()
 	if err := EventRowsWithActivity([]models.Event{event}, "/", "", SaveView{}, "/", InterestView{}, nil).Render(t.Context(), &out); err != nil {
@@ -248,8 +336,15 @@ func TestOnSaleReminderIsAnEventAction(t *testing.T) {
 				t.Fatal(err)
 			}
 			markup := out.String()
-			if strings.Contains(markup, "reminder-button") != (tc.saved && tc.reminders) {
-				t.Fatal("reminder action must require a saved event and enabled reminders")
+			if strings.Contains(markup, "reminder-button") != tc.reminders {
+				t.Fatal("reminder settings require supported configuration")
+			}
+			if tc.reminders {
+				_, link, _ := strings.Cut(markup, `<a href="/me/reminders/`)
+				link, _, _ = strings.Cut(link, ">")
+				if strings.Contains(link, " hidden") == tc.saved {
+					t.Fatal("reminder settings must be hidden until the save is confirmed")
+				}
 			}
 			if tc.saved && tc.reminders {
 				for _, want := range []string{`href="/me/reminders/ticketmaster:Reminder"`, "button-quiet reminder-button", `aria-label="On-sale reminder for Named event"`, "<span>On-sale reminder</span>"} {

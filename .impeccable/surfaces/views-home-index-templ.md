@@ -18,7 +18,8 @@ preservation of the incumbent UI. Remaining unavailable capabilities stay explic
 record-sleeve imagery and a mixtape's clearly indexed dates in a practical app.
 The 2026-10-10 refinement makes that identity quieter: event-first hierarchy,
 transparent participation actions, segmented event sections, and one preview
-boundary. Secondary Overview navigation lives in More event information; zero
+boundary. The 2026-10-11 list redesign makes title/artwork open Overview and exposes
+Tickets with private Save; activity becomes compact count links. Zero
 interest counts stay hidden until positive. Back to results replaces the close
 icon. See DESIGN.md's “Local frequency, less interface” philosophy.
 
@@ -41,21 +42,25 @@ Images and aligned date markers lead rows; search is the primary action.
 At 72rem and wider the sidebar can collapse to 4.5rem; its sections and links
 within each section are reorderable in an explicit customization mode. The
 62rem rail and compact four-item bottom navigation keep their existing order.
-The contextual extension selects questions first, with compact event identity,
-native event details/actions, and the selected root/replies in the same panel.
-Questions/tips, recommendations, and public interest appear together below details,
-without preview section tabs. Intrinsic 18rem column minima let discussion/community
-sit side by side when the preview is wide enough, otherwise stack. Selected threads
-replace questions, retaining community beside or below them; Overview prose stays
-in the native event details disclosure so activity stays near the top.
-Expansion opens a dedicated event or shareable thread. Mobile uses a light header
+The contextual extension selects Overview from titles/artwork. Tickets and Save
+precede artwork and extended content. Overview description and practical notices
+are visible without disclosure; Interested, Recommend, and reminders form a
+secondary group below content. Panels and pages share one section navigation:
+Overview, Questions & tips, Recommendations. Selected threads retain community
+beside or below them using intrinsic 18rem columns. Source/history is secondary;
+stale warnings remain beside essential facts. Standalone identity pairs facts/actions
+with imagery in an intrinsic 20rem-minimum grid, stacking facts first when compact.
+Open event page opens a dedicated event on desktop; compact context is the complete
+event view and omits that expansion during successful reads. Failures retain it
+for recovery. Conversations keep their shareable expansion.
+Mobile uses a light header
 and a single primary event/thread view with bottom navigation. Selection is pale plum and
 updates matching context without displacing the list.
 
 Discover rows extend vertically with supplied performer/team and sale facts,
-short descriptions, and compact real public question/recommendation previews.
-The extra content spans the row width beneath image/identity; activity shares or
-stacks intrinsic columns. Reading links select the named thread or community
+short descriptions, and compact real public question/recommendation count links.
+The extra content spans the row width beneath image/identity; activity wraps
+intrinsically after Tickets and Save. Count links select Discussion or Community
 without separate navigation when enhanced. Events without activity add no empty
 social block. Default context widths may shrink to 45% of the content region when
 enlarged text consumes the workspace; narrow result containers stack image/facts.
@@ -87,6 +92,46 @@ Provider images remain sourced from normalized Ticketmaster data; no new raster
 assets are authored. Account/community destinations explain their current state.
 
 ## Richer discovery rows / verification — 2026-10-10
+
+Superseded for list entry points by the 2026-10-11 redesign slice: title/artwork
+now open Overview, Tickets is direct, and public activity is count links only.
+Chromium fixture checks passed at 320, 390, 768, 1024, and 1440px, including return
+focus and explicit Discussion navigation, plus 200% text, forced-colors focus,
+reduced-motion mode, and no-JavaScript event navigation. Mobile/desktop captures
+were inspected. Live OAuth/writes, physical devices, and other browsers were not
+retested. The mechanical detector reports only existing token/provider-font notes.
+The subsequent overview slice removes the information disclosure and shares
+section navigation between panel/page. Chromium fixture checks at the same five
+widths cover exposed practical content, separate participation, section changes,
+draft retention, browser Back, result/focus return, missing ticket URLs, canceled/
+stale facts, and failed-save recovery. 200% text, forced colors, reduced-motion
+mode, and native section links pass; mobile/desktop captures were reviewed, with
+one correction to intrinsic section-label wrapping. No browser runtime errors.
+Production build, targeted view/API race tests, and Docker `make check` (full race
+suite and vet) pass. At this intermediate slice, live account writes,
+physical devices, other browsers, and full responsive acceptance remained open;
+the completion record below supersedes that scope.
+
+### Redesign completion — 2026-10-11
+
+- All redesign acceptance behaviors are implemented. Collection returns include
+  Saved, Interests, and Radar cursor/scroll/focus across event sections. Interests
+  names its independent removal action. Reminder settings track confirmed saved
+  state without implicit enrollment. Compact success has no competing expansion.
+- Production-template matrices pass in Chromium (164 checks, eight clean axe
+  scans) and WebKit (156 checks), with desktop/mobile captures inspected. Evidence:
+  `../review/redesign/event-discovery-checks.json` and
+  `../review/redesign-webkit/event-discovery-checks.json`.
+- Real isolated-MariaDB suites pass: Saved 88, Interests 87, recommendations 83,
+  responsive discussion 145, Radar 43, reminders 28 checks, with clean automated
+  accessibility captures. They exercise actual private/public writes, explicit
+  reminder consent, native search/pagination, return position, drafts/reply targets,
+  browser history, touch/resize, blocked storage, and read/write failures.
+- Production build, full race suite against local MariaDB, host vet, and Docker
+  `make check` pass. Only existing detector token/provider-font notes remain.
+  This is browser/device emulation and synthetic-account evidence; physical-device,
+  manual screen-reader, live Google consent, and external usability-study claims
+  are not made. No new palette, fonts, or authored raster assets ship.
 
 - In-thread layout review confirms full-width detail/activity excerpts, conditional
   public previews, steady desktop context height, native links, and preserved

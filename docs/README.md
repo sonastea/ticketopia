@@ -11,6 +11,9 @@ their status; they describe intended work rather than available features.
 - [Responsive UX and interaction guidelines](design-guidelines.md): current
   navigation and responsive behavior, shared state, participation semantics,
   accessibility, and explicitly planned community interactions.
+- [Event discovery redesign](design/event-discovery-redesign.md): implemented
+  event-first list and overview redesign, direct ticket actions, simpler
+  mobile journeys, contextual community, and delivery acceptance criteria.
 - [Backend and frontend delivery checklist](goals/delivery.md): aligned product
   outcomes, implementation tasks, and verification checkpoints.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and

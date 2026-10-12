@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### 2026-10-11 — Complete event-first discovery redesign
+
+- Begin the [approved redesign](../design/event-discovery-redesign.md): title and
+  artwork open Overview across Discover, Saved, Interests, and Radar. Ticket links
+  are directly visible with consistent provider naming and missing-URL feedback.
+- Remove list information disclosures, repeated Interested/reminder tools, and
+  activity excerpts. Preserve private Save feedback and independent interest
+  management in Interests; activity count links open their named event sections.
+- Expose tickets/Save, supplied descriptions, venue details, and practical notices
+  without an information disclosure. Group secondary participation separately;
+  retain source/history disclosure and visible stale-data warnings. Panels and
+  standalone pages share Overview, Questions & tips, and Recommendations links.
+- Keep selected threads and community together, native section navigation, local
+  save feedback, and tab-local discussion drafts. Rename expansion to Open event
+  page and add the named Radar return. See the [current UX guide](../design-guidelines.md)
+  and [discovery guide](../discovery.md).
+- Verify shared-row rendering/API regressions and Chromium fixture journeys at
+  phone, tablet, and desktop sizes, enlarged text, forced-colors focus, and native
+  event links, section selection, Back/return focus, retained drafts, and failed-save
+  recovery. Check stale/canceled/missing-provider fixtures and 200% text.
+- Complete compact single-view behavior, collection cursor/position/focus return
+  across event sections, explicit Remove interest wording, and reminder-setting
+  visibility synchronized only after confirmed saves. Supplied sold-out states
+  remain explicit rather than being presented as unknown availability.
+- Pass Chromium/WebKit responsive matrices and isolated MariaDB browser suites for
+  Saved, Interests, recommendations, Radar, reminders, and complete discovery/thread
+  journeys, including native search/pagination and consent. Automated accessibility
+  scans are clean; physical-device, manual screen-reader, and live OAuth checks
+  remain outside this browser-based verification.
+- Production assets/binaries, targeted view/API race tests, and Docker `make check`
+  (full race suite and vet) pass. Final validation also passes the full race suite
+  against isolated local-MariaDB databases and host vet.
+
 ### 2026-10-03 — All-category discovery, responsive event views, and city detection
 
 - Deliver all-category discovery in three independently verifiable slices:

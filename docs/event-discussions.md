@@ -170,10 +170,11 @@ keyboard, touch and reduced-height composing, blocked storage, private projectio
 320px reflow, 200% text and automated accessibility. Set
 `RESPONSIVE_SKIP_CAPTURES=true` for behavior-only reruns. This is Chromium fixture
 evidence, not physical-device, manual screen-reader, live OAuth or cross-browser certification.
-The responsive run passes 134 checks and five zero-violation axe scans. Existing
-Saved/Interested/Recommendation/Discussion behavior regressions pass another
-66/44/49/24 checks without recapturing unrelated surfaces; the real-MariaDB race
-suite, vet, production build and localized post-generation race checks also pass.
+The 2026-10-11 redesign run passes 145 checks and five zero-violation axe scans,
+including Overview-first entry, named community links, native search/pagination,
+return scroll, collection-compatible history, and compact failure recovery.
+Saved/Interested/Recommendation regressions pass 88/87/83 checks with isolated
+account writes. See the [redesign verification](design/event-discovery-redesign.md#delivery-verification--2026-10-11).
 The responsive finish review scores compact selection-failure focus and guest
 Reply focus resolved: **ship for those two fixes only**, not whole-application approval.
 

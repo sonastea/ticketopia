@@ -7,8 +7,9 @@ and weekly discovery digests remain planned.
 
 ## Choose, change, pause, or stop
 
-Save an event, then choose the bell-marked **On-sale reminder** button beside
-Save and Interested (in event lists, previews, or the full event page). Configure
+Save an event, then choose the bell-marked **On-sale reminder** button in the event
+view's **Your plans & community** group. Lists keep Tickets and Save; settings
+appear only after a confirmed save when reminders are supported. Configure
 1–10080 minutes (up to seven days) before public tickets go on sale. The default
 form value is 30 minutes, not an automatic subscription. Manage settings at
 `/me/reminders`; each event has its own form and stop control.

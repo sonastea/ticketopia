@@ -50,7 +50,10 @@ For Kubernetes, reconcile the corresponding grants in the operator manifests.
   to a remaining event, or Discover when the collection becomes empty.
 - `/saved` lists newest saves first, with event IDs breaking timestamp ties.
   **More saved events** is an ordinary paginated link. Event detail links retain
-  the Saved page/cursor for returning; removing the last save restores the empty state.
+  the Saved page/cursor for returning. Enhanced return across event sections also
+  restores browsing position and event-title focus; removing the last save restores
+  the empty state. Row titles and artwork open Overview; tickets are direct and
+  reminders live in the event view's secondary participation group.
 - Saved collections read last-known SQL snapshots without calling Ticketmaster.
   They retain event identity, dates/TBA flags, venue, category, artists, source URL,
   prices, images, sale information and description. Snapshot copy explicitly tells

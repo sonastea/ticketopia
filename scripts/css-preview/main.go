@@ -30,6 +30,7 @@ func main() {
 		PriceRanges: []models.PriceRange{{Currency: "EUR", Min: &price, Max: &price}},
 		Venues:      []models.Venue{{Place: models.Place{Name: "Neighborhood Hall", City: "Berlin"}}},
 		Info:        "Compare dates, venues, and practical details before planning a night out.\n" + strings.Repeat("LongProviderWord", 20),
+		PleaseNote:  "Bring photo ID. Doors open one hour before the show.",
 		Artists:     []models.Artist{{Name: "The Neighborhood Band"}},
 	}
 	longEvent := event
@@ -62,8 +63,13 @@ func main() {
 	}
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		page := search
-		if r.URL.Query().Get("selected") == "true" {
+		if r.URL.Query().Get("selected") == "true" || r.URL.Query().Get("selected_event") != "" {
 			page.SelectedID, page.Selected = event.ID, &detail
+			if r.URL.Query().Get("selected_event") == longEvent.ID {
+				selected := detail
+				selected.Item = longEvent
+				page.SelectedID, page.Selected = longEvent.ID, &selected
+			}
 		}
 		if section := r.URL.Query().Get("section"); section != "" {
 			page.Section = section
@@ -90,12 +96,39 @@ func main() {
 		if section == "" {
 			section = "overview"
 		}
-		render(w, r, home.Event(home.EventPage{
+		page := home.EventPage{
 			Detail: detail, ReturnURL: "/", ActionReturnURL: r.URL.RequestURI(), Section: section,
 			Saves: saves, Interests: interests,
-			Recommendations: home.RecommendationView{Enabled: true, SignedIn: true, Open: true, CSRF: "css-fixture"},
-			Discussions:     home.DiscussionView{Enabled: true, ViewerID: "css-fixture", CSRF: "css-fixture"},
-		}))
+			Recommendations: search.Recommendations,
+			Discussions:     search.Discussions,
+			Participants:    search.Participants,
+		}
+		if r.PathValue("id") == longEvent.ID {
+			page.Detail.Item = longEvent
+		}
+		if r.URL.Query().Get("ticket") == "missing" {
+			page.Detail.Item.Source.URL = ""
+		}
+		if status := r.URL.Query().Get("status"); status != "" {
+			page.Detail.Item.Status = status
+		}
+		page.Detail.Meta.Stale = r.URL.Query().Get("stale") == "true"
+		switch r.URL.Query().Get("account") {
+		case "guest":
+			page.Saves.SignedIn = false
+			page.Interests.SignedIn = false
+		case "disabled":
+			page.Saves = home.SaveView{}
+			page.Interests = home.InterestView{}
+			page.Recommendations = home.RecommendationView{}
+		case "unavailable":
+			page.Saves.Error = "Saved state could not be loaded. Reload to try again."
+		}
+		if r.Header.Get("X-Ticketopia-Panel") == "true" {
+			render(w, r, home.EventContext(page))
+		} else {
+			render(w, r, home.Event(page))
+		}
 	})
 	mux.HandleFunc("GET /me", func(w http.ResponseWriter, r *http.Request) {
 		render(w, r, account.Settings(account.Page{

@@ -92,18 +92,18 @@ Provider images retain a fixed-ratio fallback when missing or broken.
 
 Discovery rows extend below their identity/image pair with supplied performers,
 separate sale information, and a short description. Public activity adds visible
-root-thread and active recommendation counts with one excerpt of each; no activity
-means no extra community block. These details use the full row width, with activity
-stacking or sharing columns intrinsically. **Read conversation** selects that root
-in context; **Read recommendations** opens its community. Reads are page-batched,
+root-thread and active recommendation count links; no activity means no extra
+community block. **Questions & tips** selects Discussion in context;
+recommendation counts open Community. Full excerpts and attribution live there.
+Reads are page-batched,
 escape public text, exclude withheld/withdrawn content, and never name private
 interest or saves. Optional failures leave search usable and explain that previews
 could not load. See [discovery](discovery.md#web-ui).
 
-Event titles and Details are real event links. Enhanced title selection highlights
-the matching row and opens Discussion alongside results from 62rem; below that
-threshold it becomes the primary single-column view. Details selects Overview;
-**Open full event details** expands to a dedicated page. Without JavaScript the
+Event titles and images are real links to the same Overview destination. Enhanced
+selection highlights the matching row and opens Overview alongside results from
+62rem; below that threshold it becomes the primary single-column view.
+**Open event page** expands to a dedicated page. Without JavaScript the
 links open dedicated event pages. Save/Remove work through private, CSRF-protected forms with row/preview
 state synchronization; signed-out visitors resume through Google sign-in. Interested
 has a separate selected state, visible Private/Public disclosure, aggregate count,
@@ -122,19 +122,24 @@ Do not fabricate engagement counts or successful actions.
 
 External ticket links name Ticketmaster and do not imply ticket ownership or
 guaranteed availability. Event sections use a light-stone segmented group with a
-white current segment, not curved underline buttons. Result rows use quiet
-participation actions; Overview is available inside **More event information**,
-and the title still selects Discussion. Zero-interest counts are visually hidden
+white current segment, not curved underline buttons. Discover, Saved, Interests,
+and Radar rows expose **Tickets on Ticketmaster** directly and keep Save secondary.
+Missing ticket URLs have an explanation. Interested and reminders live in the
+event view; Interests retains its independent removal control. Saving never opts
+into reminders. The former information disclosure is removed. Zero-interest counts are visually hidden
 and revealed when positive. The preview has a labeled **Back to results** action
 and a single container boundary. See the [design philosophy](../DESIGN.md#design-philosophy).
-Dedicated event pages retain section links with ordinary navigation semantics,
-not partial ARIA-tab behavior. The discovery preview has no section tabs: questions
-and tips, public recommendations, and public interest appear together below event
-details, including on direct entry and reload. Selecting Overview retains the
-event description inside **Event details & actions**, without pushing activity
-down. On wide workspaces, the selected context takes the larger share of horizontal
-space and discussion/community appear side by side; on smaller or enlarged-text
-layouts they stack. Collapsing navigation can free space for the wider layout.
+Dedicated pages and discovery context share one set of real section links:
+**Overview**, **Questions & tips**, and **Recommendations**, with ordinary
+navigation semantics rather than partial ARIA tabs. Overview exposes the supplied
+description, venue address, and Before you go notices. Tickets and private Save
+precede artwork and long content; Interested, Recommend, and eligible reminder
+settings form a separate **Your plans & community** group below the content.
+**Event source & history** is a secondary native disclosure. Stale-data warnings
+remain visible beside price and sale status. On wide workspaces, selected context
+takes the larger share of horizontal space. Selected threads retain community
+beside or below their conversation; other selections show the requested section.
+Collapsing navigation can free space for the wider layout.
 From the full-sidebar threshold, selected context fills the usable viewport height
 even with little activity; longer content scrolls inside it. At enlarged text sizes,
 the default context width can shrink to preserve results, and narrow rows stack
@@ -145,8 +150,10 @@ Discussion loads recent questions. **Open conversation** selects its root/replie
 in the same context, with community still available beside or below it;
 **Open full conversation** opens the shareable thread page.
 Compact event identity, date, venue, price and freshness remain above discussion.
-**Event details & actions** discloses imagery, Save/Interested/Recommend and tickets;
-its open state survives same-event section changes.
+Essential content no longer requires an information disclosure. The standalone
+header pairs facts/actions with artwork when there is room and stacks facts/actions
+first on compact screens. Selecting a community section in context omits the
+Overview artwork and prose so explicit community entry stays direct.
 
 ## Interaction semantics and hierarchy
 
@@ -187,9 +194,14 @@ entry without return context provides a Discover link.
 - Resize preserves event/thread selection and drafts without adding history.
   Compact selection stays in-shell with bottom navigation and document scrolling;
   intermediate widths use either readable list/context columns or that primary view.
+- Compact context is already the full event journey and omits the desktop-only
+  **Open event page** expansion. Failed reads still expose standalone recovery.
+- Saved, Interests, and Radar retain their original collection cursor, scroll,
+  and focused event across standalone event-section navigation. Without browser
+  history/storage, the normal return link retains the validated collection URL.
 - Cancel obsolete requests and reject stale responses. Never display event A's
   details under event B's identity.
-- Keep loading and errors local to the preview; offer Retry, Open event, and
+- Keep loading and errors local to the preview; offer Retry, Open event page, and
   return navigation while preserving usable results.
 - Ordinary links/forms provide the no-JavaScript search and pagination baseline.
 - Recommendation links preserve filtered community/profile pages and event
@@ -243,7 +255,7 @@ reflow. Section links stay links; future menus/dialogs must support Escape and
 focus return. Avoid hover-only controls and horizontal page scrolling.
 
 Announce preview loading/completion briefly. Selection keeps a useful focus
-target, offers a jump to the preview, and restores focus when closed. Show stale,
+target and restores focus when closed. Show stale,
 empty, unavailable, and error states explicitly, with appropriate recovery.
 
 Verify search, dependent filters, pagination, selection, retry, direct URLs,

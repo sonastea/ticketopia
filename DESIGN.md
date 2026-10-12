@@ -372,7 +372,7 @@ component-specific insets remain explicit rather than becoming another scale.
 | Base, below 40rem | Single-column image-led rows; content padding 1.5rem 1.25rem. Light compact header and four-item fixed bottom navigation. Workspace reserves `calc(5.5rem + env(safe-area-inset-bottom))`. |
 | At most 23rem | Content padding becomes 1.25rem 1rem; fields form one column. Search loses its decorative icon and tightens its inset; event headings and section links reduce to fit. |
 | At least 40rem | General page padding becomes 2rem. Result rows use an 8rem image column and 1.25rem gap; images become square and date markers become horizontal strips below them. |
-| At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding; result images use a 6.5rem column and 1rem gap. Dedicated event pages gain an 18rem ticket column with a 2rem gap. |
+| At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding; result images use a 6.5rem column and 1rem gap. Dedicated event identity adapts intrinsically rather than introducing a separate ticket sidebar. |
 | At least 72rem | A sticky labeled sidebar replaces the fixed rail/header, occupying 14rem expanded or 4.5rem collapsed. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |
 | At least 86rem | Result image columns return to 8rem with 1.25rem gaps. The filter grid becomes three columns, with the city field spanning two. |
 
@@ -380,12 +380,14 @@ The CSS and JavaScript share the 62rem context and 72rem desktop-navigation thre
 
 Once the actual workspace reaches 64rem, a selected discovery event uses a 2:3
 results/context split, retaining a 24rem minimum results column. Collapsing
-navigation can also unlock this layout. Inside the preview, discussion and
+navigation can also unlock this layout. Inside selected thread previews, discussion and
 community use an intrinsic two-column grid with 18rem shrink-safe column minima
-and a 1.5rem gap; narrower previews stack in reading order. Event expansion and
-the native details disclosure share a wrapping row. Overview prose stays inside
-that disclosure so it does not push the first activity out of view. Dedicated
-pages, navigation thresholds, and tokens are unchanged. Default context columns
+and a 1.5rem gap; narrower previews stack in reading order. Other event selections
+use the shared Overview, Questions & tips, and Recommendations navigation. Overview
+prose and practical notices remain visible. Tickets/Save precede artwork; secondary
+participation follows content, with source/history in one disclosure. Standalone
+identity uses an intrinsic grid with shrink-safe 20rem minima, a 1.5rem/2rem gap,
+and facts/actions before artwork when stacked. Default context columns
 cap at their 20rem/21rem roles or 45% of available content width, whichever is
 smaller, so enlarged text does not consume the results column. Discovery results
 are also a container: below 22rem of available space their image/facts stack.
@@ -438,10 +440,12 @@ pale-plum selected states, tinted hover, and a deeper flat press wash. Unavailab
 controls remain muted and transparent; pending forms preserve plum state. No
 shadows or geometry animation are added.
 
-On-sale reminder is a quiet bell-and-label action alongside Save and
-Interested, not an underlined utility link. The shared control carries the same
-styling in collections, discovery previews, and full event pages; it navigates to
-reminder settings without implying enrollment or an active reminder.
+On-sale reminder is a quiet bell-and-label action alongside Interested and
+Recommend in the event view's secondary participation group. Save stays beside
+tickets and never enrolls someone in reminders. The shared reminder control is
+shown only for an eligible saved event with supported configuration; it navigates
+to settings without implying enrollment or an active reminder. Confirmed Save
+responses synchronize settings visibility; failed writes retain the prior state.
 
 Private Save / Remove from Saved controls are implemented when opt-in accounts are enabled. They inherit the quiet control's type, corners, target height, and plum focus outline; a saved event adds pale-plum fill with plum text and border, while hover uses pale plum and dark-plum text. Signed-out visitors get a Sign in to save link; disabled deployments explain the account requirement, and unavailable saved state is labeled rather than guessed. Ordinary POST forms work without JavaScript. Enhanced writes show pending, success, or retry feedback below the shared controls row and synchronize visible row/preview state only after confirmation. Feedback never participates in button alignment or wrapping; controls align at their top edge when labels wrap. Failed writes retain the prior state. Removing from the Saved collection leaves a named confirmation and restores focus to a remaining event's removal control, or the empty-state Discover action.
 
@@ -493,16 +497,17 @@ Small neutral rectangles with light-stone fill, muted text, a quiet one-pixel bo
 ### Indexed Event Rows
 
 Discover extends the image/facts pair with supplied performers/teams, separate
-sale information, and a short description spanning the row width. Compact public
-activity follows only when available: visible-root and active recommendation
-counts, one recent excerpt of each, attributed profile links, and direct reading
-links. An intrinsic 16rem-minimum grid shares or stacks those previews; flat rules
-and existing metadata type keep them secondary. Full-width participation controls
-follow the excerpts. Saved, Interested, and Radar retain their existing row content.
+sale information, and a short description spanning the row width. Direct
+**Tickets on Ticketmaster** and quiet Save precede wrapping public activity count
+links. Excerpts and author links belong in event sections. Saved, Interests, and
+Radar share the Overview title/image links and direct ticket action, preserving
+collection context and Radar reasons. Only Interests retains interest management
+in its rows; reminders remain in event views. Missing URLs and disabled accounts
+have concise explanations rather than inert list toolbars.
 
-The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is pale plum; the title and Details remain real event links. The dusty-rose date marker overlays the lower-left image corner on compact rows, then becomes a horizontal index beneath square artwork. Its short date is decorative beside the full readable date; unknown dates say TBA.
+The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is pale plum; the title and image remain real Overview links. The dusty-rose date marker overlays the lower-left image corner on compact rows, then becomes a horizontal index beneath square artwork. Its short date is decorative beside the full readable date; unknown dates say TBA.
 
-The private Saved collection reuses these rows, ordered newest saved first, with ordinary pagination and event links that retain the return page. Its privacy statement and last-known-details guidance distinguish durable saves from public interest and current ticket availability; Save and Interested remain independent controls on the shared rows. The own Interested collection uses the same rows, newest interest first, above private category preferences on `/me/interests`. Its event links and participant pagination preserve the originating collection page. Empty collections lead back to Discover. See [saved events](docs/saved-events.md), [event interest](docs/event-interest.md), and the [Saved surface contract](.impeccable/surfaces/views-home-saved-templ.md) for feature behavior.
+The private Saved collection reuses these rows, ordered newest saved first, with ordinary pagination and event links that retain the return page. Its privacy statement and last-known-details guidance distinguish durable saves from public interest and current ticket availability. Save remains independent of Interested, whose list control appears only in the own Interests collection. That collection uses the same rows, newest interest first, above private category preferences on `/me/interests`. Its event links and participant pagination preserve the originating collection page. Empty collections lead back to Discover. See [saved events](docs/saved-events.md), [event interest](docs/event-interest.md), and the [Saved surface contract](.impeccable/surfaces/views-home-saved-templ.md) for feature behavior.
 
 Photos are live external Ticketmaster assets retained in normalized `Event.Images`; presentation chooses an available width close to the requested size. No authored shipping raster belongs to this system; the sole local provider raster is Google's unmodified gradient G for sign-in. Local styles, JavaScript, htmx, fonts, and that provider logo are Go-embedded assets; SVG supplies the app icons. The sidecar demonstrates the shipped image fallback rather than copying provider photography into documentation assets.
 
@@ -536,14 +541,19 @@ native form action. Controls and links work without JavaScript. No email or push
 is sent. See [followed discussions](docs/followed-discussions.md).
 
 Within discovery, compact event/date/venue context and price/sale facts stay above
-questions or the selected root and replies. A native **Event details & actions**
-disclosure contains imagery, participation, ticket links, and source detail rather
-than leading the panel with artwork. Full-event and full-conversation links open
-dedicated pages. At the existing 62rem threshold, discussion shares the sticky
-context panel alongside results. The preview shows questions/tips, recommendations,
-and public interest as flat, rule-separated sections below event details, without
-section tabs; selected roots/replies replace the question list and retain community
-beside them when space allows, otherwise below. Dedicated event pages keep segmented section navigation.
+questions or the selected root and replies. Tickets and Save are immediately
+available, before artwork or extended content. Overview exposes description and
+practical notices; **Your plans & community** groups secondary participation below
+content. **Event source & history** discloses provenance, with stale warnings kept
+beside affected facts. Desktop **Open event page** and full-conversation links open
+dedicated pages. Successful compact context omits event expansion because it is
+already the primary event view; failed reads retain standalone recovery.
+At the existing 62rem threshold, discussion shares the sticky context panel
+alongside results. Panels and dedicated pages share one segmented navigation for
+Overview, Questions & tips, and Recommendations. Links wrap by their content width
+instead of squeezing longer labels into fixed segments. Selected roots/replies
+retain community beside them when space allows, otherwise below. Overview panel
+artwork caps at 16rem; standalone artwork caps at 22rem.
 Below the context threshold, the selected event/thread becomes the
 single primary view. URL selection, drafts, and return continuity remain in the
 [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state)
@@ -577,7 +587,7 @@ Keep event price and sale status ahead of participation controls. Search and pag
 Account forms inherit the same type, colors, corners, and controls. A separate white, bordered public preview sits beside profile editing on wide screens and stacks below it on compact screens. Real Profile/Preferences/Interests links use the section-link current state. Security follows the form; native disclosure keeps API controls secondary. Google sign-in alone follows the provider-brand exception above; no new global tokens are introduced. See [accounts](docs/accounts.md) and the [account surface contract](.impeccable/surfaces/views-account-settings-templ.md).
 
 [Radar](docs/radar.md) inherits event collection rows, with readable follow/category
-reasons in the event copy before disclosure and participation actions. The header
+reasons in the event copy before direct ticket and private Save actions. The header
 keeps city/date scope, freshness and coverage explicit. Desktop Your space links
 directly to Radar; compact screens reach it through Profile's account navigation,
 without adding a fifth destination. Location setup, nearby starter suggestions,

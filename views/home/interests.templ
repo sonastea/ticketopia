@@ -17,13 +17,19 @@ templ InterestControl(id string, name string, view InterestView, returnURL strin
 			@layouts.Icon("interests")<span>Sign in for Interested</span>
 		}
 	} else {
-		<form method="post" action={ interestAction(id) } class="interest-form" data-interest-form data-interest-id={ id } data-interest-default={ view.DefaultVisibility } data-event-name={ name }>
+		<form method="post" action={ interestAction(id) } class="interest-form" data-interest-form data-interest-id={ id } data-interest-default={ view.DefaultVisibility } data-event-name={ name } data-interest-collection={ fmt.Sprint(isInterestsURL(returnURL)) }>
 			<input type="hidden" name="csrf_token" value={ view.CSRF }/>
 			<input type="hidden" name="return_to" value={ returnURL }/>
 			<input type="hidden" name="action" value={ interestVerb(view.States[id].Interested) }/>
 			<input type="hidden" name="visibility" value={ view.visibility(id) }/>
 			@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet interest-button",Attributes:templ.Attributes{"aria-pressed":fmt.Sprint(view.States[id].Interested),"aria-label":"Interested · " + interestLabel(view.visibility(id)) + " — " + interestActionLabel(view.States[id].Interested) + " interest for " + name}}) {
-				@layouts.Icon("interests")<span>{ "Interested · " + interestLabel(view.visibility(id)) }</span>
+				@layouts.Icon("interests")<span>
+					if isInterestsURL(returnURL) && view.States[id].Interested {
+						Remove interest
+					} else {
+						{ "Interested · " + interestLabel(view.visibility(id)) }
+					}
+				</span>
 			}
 		</form>
 	}

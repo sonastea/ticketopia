@@ -301,6 +301,11 @@ func runActivityBrowser(t *testing.T, script string) {
 		}
 		seed(fmt.Sprintf("ticketmaster:v1:events:%x:%d", sum, page), map[string]any{"items": items, "total": 3, "total_pages": 2})
 	}
+	// Native search submits the production form's default page size.
+	defaultQuery := q
+	defaultQuery.Limit = 20
+	defaultSum := sha256.Sum256([]byte(defaultQuery.Values().Encode()))
+	seed(fmt.Sprintf("ticketmaster:v1:events:%x:0", defaultSum), map[string]any{"items": entries, "total": 3, "total_pages": 1})
 	start := func(store kv.Store, enabled bool) *httptest.Server {
 		server := httptest.NewUnstartedServer(nil)
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}

@@ -505,6 +505,8 @@ func statusLabel(status string) string {
 		return "On sale"
 	case "offsale":
 		return "Off sale"
+	case "soldout", "sold_out":
+		return "Sold out"
 	case "canceled", "cancelled":
 		return "Canceled"
 	case "postponed":

@@ -61,11 +61,13 @@ inclusion or ticket inventory.
 Discover rows expose supplied performers/teams, separate ticket-sale information,
 and a short description beneath the essential facts, using the full row width.
 When public activity exists, they show visible question/tip and active recommendation
-counts plus one recent excerpt of each, with named authors and reading links.
-Rows grow vertically with those previews; events without activity add no empty
-community block or invented count. **Read conversation** selects that thread in
-the preview, and **Read recommendations** selects its community; ordinary links
-open dedicated pages without JavaScript.
+count links, with full excerpts and attribution reserved for event sections.
+Events without activity add no empty community block or invented count.
+Question counts select Discussion and recommendation counts select Community;
+ordinary links open dedicated pages without JavaScript. Title and artwork share
+the Overview destination. **Tickets on Ticketmaster** is directly visible beside
+private Save; missing URLs have an explanation. Interested and on-sale reminders
+remain in the event view, with interest removal retained in Interests.
 
 In accounts-enabled MariaDB mode, `internal/eventactivity` reads only the current
 results page (up to 100 event IDs) through two batched SQL queries, not one query
@@ -115,7 +117,8 @@ A new form submission starts at the first page.
   disclosure and focuses City. The same GET form exposes country, dates, category,
   genre, and date-ascending/date-descending/name-ascending sorting. Inputs and
   disclosure remain usable without JavaScript.
-- Event titles are real Discussion links; **Details** selects Overview.
+- Event titles and images are real Overview links; activity counts select the
+  named community section directly.
   Enhancement loads only selected context and keeps results alongside it from
   62rem, or hides results behind the primary view below that threshold.
   `selected_event`, `section`, `selected_thread`, `reply_to`, and independent
@@ -126,8 +129,12 @@ A new form submission starts at the first page.
   status, separate sale dates, freshness, and the Ticketmaster link. Community shows
   public recommendations and opted-in interest identities. Discussion loads recent
   questions and a public composer. Threads/replies load in context, with canonical
-  dedicated routes for expansion/sharing. **Event details & actions** discloses
-  imagery/participation/tickets; essential facts stay visible ahead of discussion.
+  dedicated routes for expansion/sharing. Overview, Questions & tips, and
+  Recommendations use one shared set of real section links in panels and pages.
+  Tickets and Save precede artwork and prose; description and practical notices
+  are visible without disclosure. Interested/Recommend/reminders are grouped
+  separately below content. **Event source & history** discloses only secondary
+  provenance; stale warnings remain adjacent to essential facts.
   HTML-only `recommend=true` opens
   the composer in Community; it is not a discovery/API filter.
 - Back restores previous selection; loaded result pages, focus, and scroll are
@@ -138,7 +145,10 @@ A new form submission starts at the first page.
    Resizing retains the selected event/thread and drafts without adding history.
 - Preview loads cancel obsolete requests, have bounded timeouts, and offer Retry
   and Open event on failure. A failed preview leaves the discovery list usable.
-  Keyboard users can tab to **Jump to event preview** on the selected row.
+  Compact selection focuses the event heading; closing restores the result title.
+  Successful compact context omits standalone expansion; desktop offers one
+  **Open event page** link. Saved, Interests, and Radar return across event sections
+  to the original collection cursor, position, and focused event.
 - Opt-in [accounts](accounts.md) provide profiles/private preferences and
   [private saves](saved-events.md). `/saved` is an owner-only collection with
   durable last-known details; Save/Remove work from rows, previews and event pages.

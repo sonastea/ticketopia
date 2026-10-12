@@ -68,12 +68,16 @@ fs.mkdirSync(out, { recursive: true });
     await nativePage.goto(base + '/radar?limit=2');
     await nativePage.getByRole('button', { name: /^Save — Radar show 0$/ }).click();
     check('No-JS save stays on radar with authoritative state', new URL(nativePage.url()).pathname === '/radar' && await nativePage.getByRole('button', { name: /^Remove from Saved — Radar show 0$/ }).isVisible());
-    await nativePage.getByRole('link', { name: 'Details for Radar show 0', exact: true }).click();
+    await nativePage.getByRole('link', { name: 'Radar show 0', exact: true }).click();
     check('Native event expansion retains radar return context', new URL(nativePage.url()).searchParams.get('return_to') === '/radar?limit=2');
     const touch = await context(process.env.RADAR_SESSION, { hasTouch: true, viewport: { width: 390, height: 844 } }); const touchPage = await touch.newPage();
     await touchPage.goto(base + '/radar');
-    await Promise.all([touchPage.waitForURL(url => url.pathname.startsWith('/events/')), touchPage.getByRole('link', { name: 'Details for Radar show 0', exact: true }).tap()]);
+    await Promise.all([touchPage.waitForURL(url => url.pathname.startsWith('/events/')), touchPage.getByRole('link', { name: 'Radar show 0', exact: true }).tap()]);
     check('Touch opens real event details', new URL(touchPage.url()).pathname.startsWith('/events/'));
+    await touchPage.getByRole('link', { name: 'Questions & tips', exact: true }).tap();
+    await touchPage.getByRole('link', { name: 'Back to Radar', exact: true }).tap();
+    await touchPage.waitForFunction(() => document.querySelector('.event-link') === document.activeElement);
+    check('Named Radar return preserves collection and event focus across sections', new URL(touchPage.url()).pathname === '/radar');
     for (const [session, text, name] of [
       [process.env.RADAR_NEW_SESSION, 'Where should we look?', 'new-account'],
       [process.env.RADAR_NEARBY_SESSION, 'These are nearby suggestions, not personalized matches yet.', 'nearby'],

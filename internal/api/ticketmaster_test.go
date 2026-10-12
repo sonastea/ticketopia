@@ -80,7 +80,7 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 		}
 	}
 	selected := request("/?"+query+"&selected_event=ticketmaster:show-0&section=community", false)
-	if selected.Code != 200 || !strings.Contains(selected.Body.String(), `data-context-id="ticketmaster:show-0"`) || !strings.Contains(selected.Body.String(), `id="context-community-heading"`) || !strings.Contains(selected.Body.String(), `id="context-discussion-heading"`) || eventCalls.Load() != 1 {
+	if selected.Code != 200 || !strings.Contains(selected.Body.String(), `data-context-id="ticketmaster:show-0"`) || !strings.Contains(selected.Body.String(), `data-context-section="community"`) || !strings.Contains(selected.Body.String(), `id="event-section-heading">Recommendations`) || eventCalls.Load() != 1 {
 		t.Fatalf("selected event did not reconstruct from URL/cache: %d %s", selected.Code, selected.Body.String())
 	}
 	panelReq := httptest.NewRequest(http.MethodGet, "/events/ticketmaster:show-0", nil)

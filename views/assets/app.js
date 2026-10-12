@@ -64,6 +64,9 @@
       button.setAttribute('aria-label', label + ' — ' + form.dataset.eventName);
       button.querySelector('span').textContent = label;
     }
+    for (const reminder of document.querySelectorAll('[data-reminder-id]')) {
+      if (reminder.dataset.reminderId === id) reminder.hidden = !saved;
+    }
   };
   let saveStateTurn = 0;
   const refreshSavedState = async () => {
@@ -455,15 +458,35 @@
       sessionStorage.setItem(returnKey, JSON.stringify({ from: location.href, to: url.href, journey }));
     } catch { /* The normal return link still preserves filters without storage. */ }
   };
+  const collectionPaths = new Set(['/saved', '/me/interests', '/radar']);
   const validJourney = journey => {
     try {
       const origin = new URL(journey.origin);
-      return origin.origin === location.origin && origin.pathname === '/' && Number.isInteger(journey.steps) && journey.steps > 0 && journey.steps < history.length;
+      return origin.origin === location.origin && (origin.pathname === '/' || collectionPaths.has(origin.pathname)) && Number.isInteger(journey.steps) && journey.steps > 0 && journey.steps < history.length;
     } catch { return false; }
   };
 
   const workspace = document.querySelector('[data-results-url]');
   if (!workspace) {
+    if (collectionPaths.has(location.pathname)) {
+      document.addEventListener('click', event => {
+        if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const link = event.target.closest('[data-event-link]');
+        if (!link) return;
+        history.replaceState({ ...history.state, ticketopiaCollection: {
+          url: location.href, scroll: scrollY, focus: link.dataset.id,
+        } }, '', location.href);
+        stageReturn(new URL(link.href), { origin: location.href, steps: 1 });
+      });
+      window.addEventListener('pageshow', () => {
+        const saved = history.state?.ticketopiaCollection;
+        if (saved?.url !== location.href) return;
+        requestAnimationFrame(() => {
+          scrollTo(0, saved.scroll);
+          [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === saved.focus)?.focus({ preventScroll: true });
+        });
+      });
+    }
     const back = document.querySelector('[data-return-results]');
     if (!back) return;
     try {
@@ -485,7 +508,7 @@
     });
     document.addEventListener('click', event => {
       if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target.closest('.section-nav a');
+      const link = event.target.closest('.section-nav a, [data-panel-link], [data-thread-link]');
       if (!link) return;
       const url = new URL(link.href);
       if (url.href === location.href) {
@@ -493,7 +516,7 @@
         return;
       }
       const journey = history.state?.ticketopiaReturn;
-      if (validJourney(journey)) stageReturn(url, { ...journey, steps: journey.steps + 1 });
+      if (url.origin === location.origin && validJourney(journey)) stageReturn(url, { ...journey, steps: journey.steps + 1 });
     });
     return;
   }
@@ -511,13 +534,10 @@
     const active = document.activeElement;
     history.replaceState({ ...history.state, ticketopiaPanel: {
       url: location.href, scroll: context.scrollTop, documentScroll: scrollY,
-      details: Boolean(context.querySelector('.context-event-details[open]')),
       draft: active?.closest('[data-discussion-draft]')?.dataset.discussionDraft || '',
     } }, '', location.href);
   };
   const restorePanel = saved => {
-    const details = context.querySelector('.context-event-details');
-    if (details) details.open = saved.details;
     context.scrollTop = saved.scroll;
     if (!desktop.matches) scrollTo(0, saved.documentScroll);
     const draft = [...context.querySelectorAll('[data-discussion-draft]')].find(form => form.dataset.discussionDraft === saved.draft);
@@ -598,7 +618,6 @@
   };
   const select = async (id, section, push = true, recommend = false, conversation = null, confirmation = null) => {
     const panelHadFocus = context.contains(document.activeElement);
-    const detailsOpen = context.querySelector('[data-context-id]')?.dataset.contextId === id && Boolean(context.querySelector('.context-event-details[open]'));
     const savedPanel = !push && history.state?.ticketopiaPanel?.url === location.href ? history.state.ticketopiaPanel : null;
     request?.abort();
     request = new AbortController();
@@ -639,7 +658,6 @@
       if (turn !== generation) return;
       context.innerHTML = html;
       context.scrollTop = 0;
-      if (detailsOpen) context.querySelector('.context-event-details').open = true;
       const heading = context.querySelector('.context-heading h2');
       heading.setAttribute('tabindex', '-1');
       if (confirmation) {

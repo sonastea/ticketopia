@@ -31,6 +31,8 @@ goal to implementation work and verification checkpoints.
   stale fallback, and bounded external request usage.
 - [x] Provide a searchable, responsive event list with correct ticket links and
   clear loading, empty, error, and freshness states.
+- [x] Deliver [event-first browsing](docs/design/event-discovery-redesign.md) with
+  direct tickets, visible Overview content, distinct participation, and collection return continuity.
 - [x] Persist observations and schedule budgeted city/date refreshes in MariaDB.
 - [x] Power Discover/API with the durable catalog, coverage-aware fallback, and dated event history.
 - [x] Discover across all Ticketmaster event categories with compatible filters.

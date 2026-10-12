@@ -837,6 +837,9 @@ summary::-webkit-details-marker {
   margin-block-end: 1rem;
 }
 
+.event-art > a { display: block; border-radius: .65rem; }
+.event-art > a:active { opacity: .8; }
+
 .event-image {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -898,6 +901,7 @@ summary::-webkit-details-marker {
 }
 
 .event-art .date-marker {
+  pointer-events: none;
   position: absolute;
   inset-block-end: .6rem;
   inset-inline-start: .6rem;
@@ -919,7 +923,7 @@ summary::-webkit-details-marker {
 .row-details:empty { display: none; }
 .row-details p, .row-activity p { font-size: .875rem; color: var(--muted); max-inline-size: 70ch; }
 .row-details .row-description { color: var(--ink); }
-.row-activity { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; padding-block: .75rem; border-block-start: 1px solid var(--line); }
+.row-activity { display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding-block: .5rem; }
 .row-activity h4 { font-size: .875rem; margin-block-end: .25rem; font-variant-numeric: tabular-nums; }
 .row-activity h4 a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 .row-activity-links { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; }
@@ -1373,7 +1377,7 @@ summary::-webkit-details-marker {
   margin-block-start: .5rem;
 }
 
-.context-event-details > summary {
+.event-provenance > summary {
   min-block-size: 2.75rem;
   padding-block: .65rem;
   color: var(--brand);
@@ -1382,11 +1386,10 @@ summary::-webkit-details-marker {
   font-weight: 700;
 }
 
-.context-event-details > summary:active {
+.event-provenance > summary:active {
   background: var(--brand-soft);
 }
 
-.context-event-details .event-image { margin-block: .75rem; }
 .context-tools {
   display: flex;
   flex-wrap: wrap;
@@ -1395,7 +1398,18 @@ summary::-webkit-details-marker {
   margin-block: .5rem .75rem;
 }
 .context-tools .open-event { margin-block-start: 0; }
-.context-tools > .context-event-details[open] { flex-basis: 100%; }
+.event-primary-actions { margin-block: .75rem 1.5rem; }
+.event-primary-actions .ticket-link { inline-size: auto; flex: 1 1 16rem; margin-block-start: 0; }
+.event-primary-actions .field-note { margin-block-start: .5rem; }
+.event-primary-actions .sale-date { margin-block-end: .75rem; }
+.event-identity { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1.5rem 2rem; align-items: start; }
+.event-identity .event-heading { margin-block-start: 0; }
+.event-identity > .event-image { max-block-size: 22rem; }
+.context-inner > .event-image { max-block-size: 16rem; margin-block-start: 1rem; }
+.event-participation { border-block-start: 1px solid var(--line); padding-block: 1.5rem; }
+.event-participation h2 { font-size: 1.125rem; margin-block-end: .75rem; }
+.event-provenance { border-block-start: 1px solid var(--line); margin-block-start: 1rem; padding-block: .75rem; color: var(--muted); font-size: .875rem; }
+.event-provenance h3 { margin-block: 1rem .5rem; }
 .context-activity {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
@@ -1458,7 +1472,7 @@ summary::-webkit-details-marker {
 }
 
 .event-section-nav a {
-  flex: 1 1 5rem;
+  flex: 1 1 auto;
   min-inline-size: 0;
   padding-inline: .65rem;
   border: 1px solid transparent;
@@ -2281,6 +2295,7 @@ summary::-webkit-details-marker {
   .has-selection .event-context {
     display: block;
   }
+  .context-tools { display: none; }
   .has-selection .event-context .event-image {
     max-block-size: 16rem;
   }
