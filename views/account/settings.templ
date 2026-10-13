@@ -13,12 +13,23 @@ import "github.com/sonastea/ticketopia/views/components/alert"
 import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 
 templ SignIn(enabled bool, returnTo string, message string) {
+	@SignInContext(enabled, returnTo, message, "")
+}
+
+templ SignInContext(enabled bool, returnTo string, message string, eventName string) {
 	@layouts.App("profile", "Sign in") {
 		<main id="main" class="destination-page account-page">
 			<div class="account-sign-in">
 				<h1>Your event life, your space.</h1>
 				if message != "" {
 					<p role="status" class="account-notice">{ message }</p>
+				}
+				if section := signInSection(returnTo); section != "" {
+					if eventName != "" {
+						<h2>{ eventName }</h2>
+					}
+					<p>After sign-in, you'll return to this event's { section } section. Choose your action there.</p>
+					<p class="field-note">Signing in doesn't save an event, mark interest, publish a recommendation, change visibility, or set up reminders.</p>
 				}
 				if enabled {
 					<p>Sign in to create your Ticketopia profile and keep your preferences across visits and devices.</p>
@@ -33,7 +44,7 @@ templ SignIn(enabled bool, returnTo string, message string) {
 				} else {
 					<p>Accounts aren't enabled on this server. You can still discover events without signing in.</p>
 				}
-				<a href="/" class="text-link">Discover without signing in</a>
+				<a href={ templ.URL(signInBackURL(returnTo)) } class="text-link">{ signInBackLabel(returnTo) }</a>
 			</div>
 		</main>
 	}

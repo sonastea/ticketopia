@@ -4,6 +4,16 @@
 
 ### 2026-10-12 — Event journey consistency
 
+- Fix priority-1 sign-in continuity: row Save selects the event, event/section
+  identity and guest/canceled/start-failure returns remain clear, and Recommend
+  resumes its composer. Preserve filtered origins and Saved guest pagination.
+- Offer contextual sign-in after expired native/enhanced writes; retain confirmed
+  state and native draft-copy guidance. Sign-in performs no participation writes,
+  visibility changes or reminder configuration. See
+  [task continuity](../accounts.md#sign-in-task-continuity); real-device, manual
+  screen-reader, live Google and small-group city checks remain open.
+- Verify 152 Chromium/WebKit journey checks and ten clean axe views, with native
+  forms, keyboard guest returns, 200% text, isolated MariaDB and local OAuth fixtures.
 - Keep native Save/Interested failures and direct community-read failures in their
   validated event/collection journey, including sign-in return continuity.
 - Show Private/Public beside collection removal; restore public-list scroll/focus

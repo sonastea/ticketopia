@@ -220,6 +220,21 @@ func TestMariaDBInterestBrowserReview(t *testing.T) {
 	}
 	runActivityBrowser(t, script)
 }
+
+func TestMariaDBSignInContinuityBrowserReview(t *testing.T) {
+	script := os.Getenv("SIGN_IN_BROWSER_SCRIPT")
+	if script == "" {
+		t.Skip("set SIGN_IN_BROWSER_SCRIPT for sign-in journey verification")
+	}
+	// Keep each browser's journeys in its own schema/rate-limit window instead
+	// of disabling the real twenty-starts-per-IP protection for a large matrix.
+	for _, engine := range []string{"chromium", "webkit"} {
+		t.Run(engine, func(t *testing.T) {
+			t.Setenv("SIGN_IN_BROWSER_ENGINE", engine)
+			runActivityBrowser(t, script)
+		})
+	}
+}
 func TestMariaDBRecommendationBrowserReview(t *testing.T) {
 	script := os.Getenv("RECOMMENDATION_BROWSER_SCRIPT")
 	if script == "" {

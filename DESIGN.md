@@ -460,6 +460,9 @@ rather than adopting plum.
 It retains the app's 44px minimum target, plum focus outline, flat depth, and a
 no-JavaScript OAuth link. Logo/font sources and licensing are recorded in
 [`views/assets/fonts/README.md`](views/assets/fonts/README.md).
+Event sign-in keeps the event/section identity and a native guest return; it resumes
+the explicit action without performing it. Expired participation writes expose a
+contextual sign-in link. See [task continuity](docs/accounts.md#sign-in-task-continuity).
 
 Action background changes, sidebar width changes, and disclosure-chevron rotation
 use 160ms; result selection uses 180ms. Buttons and badges share the source's

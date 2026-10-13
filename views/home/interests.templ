@@ -13,11 +13,11 @@ templ InterestControl(id string, name string, view InterestView, returnURL strin
 	} else if view.Error != "" {
 		@button.Button(button.Props{Variant:button.VariantOutline,Class:"button-quiet",Disabled:true,Attributes:templ.Attributes{"aria-label":"Interest unavailable for " + name}}) { Interest unavailable }
 	} else if !view.SignedIn {
-		@button.Button(button.Props{Href:signInURL(returnURL),Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"aria-label":"Sign in to mark interested — " + name}}) {
+		@button.Button(button.Props{Href:signInURL(EventSignInReturn(id, returnURL)),Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"aria-label":"Sign in to mark interested — " + name}}) {
 			@layouts.Icon("interests")<span>Sign in for Interested</span>
 		}
 	} else {
-		<form method="post" action={ interestAction(id) } class="interest-form" data-interest-form data-interest-id={ id } data-interest-default={ view.DefaultVisibility } data-event-name={ name } data-interest-collection={ fmt.Sprint(isInterestsURL(returnURL)) }>
+		<form method="post" action={ interestAction(id) } class="interest-form" data-interest-form data-interest-id={ id } data-interest-default={ view.DefaultVisibility } data-event-name={ name } data-interest-collection={ fmt.Sprint(isInterestsURL(returnURL)) } data-sign-in-url={ signInURL(EventSignInReturn(id, returnURL)) }>
 			<input type="hidden" name="csrf_token" value={ view.CSRF }/>
 			<input type="hidden" name="return_to" value={ returnURL }/>
 			<input type="hidden" name="action" value={ interestVerb(view.States[id].Interested) }/>
@@ -41,7 +41,7 @@ templ InterestDetails(id string, view InterestView, returnURL string) {
 				if view.SignedIn {
 					<details class="interest-privacy" name="interest-privacy" data-interest-privacy hidden?={ !view.States[id].Interested }>
 						<summary>Change visibility</summary>
-						<form method="post" action={ interestAction(id) } data-interest-form data-interest-edit data-interest-id={ id }>
+						<form method="post" action={ interestAction(id) } data-interest-form data-interest-edit data-interest-id={ id } data-sign-in-url={ signInURL(EventSignInReturn(id, returnURL)) }>
 							<input type="hidden" name="csrf_token" value={ view.CSRF }/>
 							<input type="hidden" name="return_to" value={ returnURL }/>
 							<input type="hidden" name="action" value="set"/>

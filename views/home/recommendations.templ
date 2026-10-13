@@ -18,7 +18,7 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 			if v.Error != "" {
 				<p class="field-note" role="status">{ v.Error }</p>
 			} else if !v.SignedIn {
-				@button.Button(button.Props{Href:signInURL(returnURL),Variant:button.VariantOutline,Class:"button-quiet"}) {
+				@button.Button(button.Props{Href:signInURL(recommendationSignInReturn(id, returnURL)),Variant:button.VariantOutline,Class:"button-quiet"}) {
 					Sign in to recommend
 				}
 				<p class="field-note">Recommendations are public, with your display name and profile link.</p>
@@ -32,7 +32,7 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 							Recommend this event
 						}
 					</summary>
-					<form action={ recommendationAction(id) } method="post" class="account-form" data-recommendation-form data-recommendation-id={ id }>
+					<form action={ recommendationAction(id) } method="post" class="account-form" data-recommendation-form data-recommendation-id={ id } data-sign-in-url={ signInURL(recommendationSignInReturn(id, returnURL)) }>
 						<input type="hidden" name="csrf_token" value={ v.CSRF }/>
 						<input type="hidden" name="return_to" value={ returnURL }/>
 						<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span>
@@ -221,9 +221,9 @@ templ RecommendationFailure(id,reason,csrf,returnURL,message string,withdraw,sig
 				<p class="field-note">Publishing makes your display name, profile link, and reason public. Saved and Interested remain separate.</p>
 				<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span><textarea name="reason" rows="4" maxlength="500">{ reason }</textarea></label>
 				if csrf == "" {
-					<p class="field-note">Your draft is kept above. After signing in or refreshing the event, copy your reason into the recommendation form to retry.</p>
+					<p class="field-note">Your draft is kept above. Copy your reason before signing in or refreshing the event, then paste it into the recommendation form to retry.</p>
 					if signIn {
-						<a href={ templ.URL(signInURL(returnURL)) } class="text-link">Sign in to continue</a>
+						<a href={ templ.URL(signInURL(recommendationSignInReturn(id, returnURL))) } class="text-link">Sign in to continue</a>
 					}
 				} else if withdraw {
 					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"remove","formnovalidate":true}}) {

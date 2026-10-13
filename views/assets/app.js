@@ -89,13 +89,19 @@
 
   // Ordinary forms remain the fallback. Enhanced saves preserve selection,
   // filters, focus and loaded results while synchronizing every visible control.
-  const saveFeedback = (message, id, origin, error = false) => {
+  const saveFeedback = (message, id, origin, error = false, signIn = false) => {
     const forms = saveForms(id);
     forms.forEach((form, index) => {
       const target = form.closest('[data-event-actions]')?.querySelector('[data-save-feedback]');
       if (!target) return;
       target.hidden = false;
       target.textContent = message;
+      if (signIn && form.dataset.signInUrl) {
+        const link = document.createElement('a');
+        link.href = form.dataset.signInUrl;
+        link.className = 'text-link'; link.textContent = 'Sign in to continue';
+        target.append(document.createTextNode(' '), link);
+      }
       target.dataset.error = String(error);
       const announce = origin ? form === origin : index === 0;
       if (announce) target.setAttribute('role', 'status');
@@ -170,12 +176,14 @@
     saveFeedback('Updating your private save…', id, form);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
+    let signIn = false;
     try {
       const response = await fetch(form.getAttribute('action'), {
         method: 'POST', body: new URLSearchParams(new FormData(form)),
         headers: { Accept: 'application/json' }, signal: controller.signal,
       });
       const data = await response.json();
+      signIn = response.status === 401;
       if (!response.ok) throw new Error(data.detail || 'Your save could not be updated. Try again.');
       if (!saveForms(id).some(item => item.elements.csrf_token.value === csrf)) return;
       updateSave(data.event_id, data.saved);
@@ -190,7 +198,7 @@
         location.reload();
       }
     } catch (error) {
-      if (saveForms(id).some(item => item.elements.csrf_token.value === csrf)) saveFeedback(error.name === 'AbortError' ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true);
+      if (saveForms(id).some(item => item.elements.csrf_token.value === csrf)) saveFeedback(error.name === 'AbortError' ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true, signIn);
     } finally {
       clearTimeout(timeout);
       saving.delete(id);

@@ -120,6 +120,9 @@ func safeAuthReturn(raw string) string {
 		return u.String()
 	}
 	if u.Path == "/me" || u.Path == "/me/preferences" || u.Path == "/me/interests" || u.Path == "/saved" {
+		if u.Path == "/saved" {
+			return safeSaveReturn(raw)
+		}
 		if u.Path == "/me/interests" && u.RawQuery != "" {
 			return safeInterestReturn(raw)
 		}
@@ -139,22 +142,48 @@ func (a *api) signInPage(c echo.Context) error {
 	if c.QueryParam("cancelled") == "true" {
 		message = "Sign-in was cancelled. You can try again or keep discovering events."
 	}
-	return render(c, http.StatusOK, account.SignIn(a.enabled(), safeAuthReturn(c.QueryParam("return_to")), message))
+	return a.signInResponse(c, http.StatusOK, message)
+}
+
+func (a *api) signInResponse(c echo.Context, status int, message string) error {
+	privateAccountResponse(c)
+	target := safeAuthReturn(c.QueryParam("return_to"))
+	u, _ := url.Parse(target)
+	id := u.Query().Get("selected_event")
+	if strings.HasPrefix(u.Path, "/events/") {
+		id = strings.SplitN(strings.TrimPrefix(u.Path, "/events/"), "/", 2)[0]
+	}
+	name := ""
+	if id != "" && (a.saved != nil || a.events != nil) {
+		// Optional event context must never block sign-in or erase its destination.
+		if detail, err := a.eventDetail(c.Request().Context(), id); err == nil {
+			name = detail.Item.Name
+		}
+	}
+	return render(c, status, account.SignInContext(a.enabled(), target, message, name))
 }
 func (a *api) googleStart(c echo.Context) error {
 	privateAccountResponse(c)
 	if !a.enabled() {
-		return a.accountPageError(c, errDisabled)
+		return a.signInStartError(c, errDisabled)
 	}
 	if err := a.accounts.Allow(c.Request().Context(), "login", c.RealIP()); err != nil {
-		return a.accountPageError(c, err)
+		return a.signInStartError(c, err)
 	}
 	l, target, err := a.accounts.Begin(c.Request().Context(), safeAuthReturn(c.QueryParam("return_to")))
 	if err != nil {
-		return a.accountPageError(c, err)
+		return a.signInStartError(c, err)
 	}
 	a.cookie(c, "flow", l.Browser, accounts.FlowLifetime)
 	return c.Redirect(http.StatusSeeOther, target)
+}
+
+func (a *api) signInStartError(c echo.Context, err error) error {
+	status, _, detail, _ := accountError(err)
+	if status == http.StatusTooManyRequests {
+		c.Response().Header().Set("Retry-After", "600")
+	}
+	return a.signInResponse(c, status, detail)
 }
 func (a *api) googleCallback(c echo.Context) error {
 	privateAccountResponse(c)
@@ -347,6 +376,11 @@ func (a *api) eventTaskError(c echo.Context, err error, returnURL string) error 
 	target := safeRecommendationReturn(returnURL)
 	if target == "/me" {
 		target = "/"
+	}
+	if errors.Is(err, accounts.ErrUnauthenticated) {
+		if id, idErr := savedEventID(c); idErr == nil {
+			target = home.EventSignInReturn(id, target)
+		}
 	}
 	return render(c, status, account.EventTaskFailure(detail, target, a.enabled() && errors.Is(err, accounts.ErrUnauthenticated)))
 }

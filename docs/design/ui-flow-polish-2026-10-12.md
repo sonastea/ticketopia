@@ -1,7 +1,8 @@
 # UI flow polish priorities — 2026-10-12
 
-Status: the confirmed enlarged-text navigation defect is fixed. The remaining
-items are prioritized follow-up checks, not confirmed defects or shipped changes.
+Status: the confirmed enlarged-text navigation defect is fixed. Priority 1 now has
+bounded sign-in continuity fixes and automated fixture coverage; its manual journey
+checks remain open. Other items are prioritized follow-up checks, not confirmed defects.
 Preserve the existing visual system; fix observed friction rather than start
 another redesign. See the [current delivery focus](../goals/delivery.md#current-focus-use-refine-and-verify).
 
@@ -24,6 +25,15 @@ another redesign. See the [current delivery focus](../goals/delivery.md#current-
 ### 1. Sign-in and task continuity
 
 **Why first:** authentication interrupts the main discovery-to-participation flow.
+
+**Implemented follow-up:** row Save now resumes the selected event with its origin;
+sign-in names the event/section and preserves guest/canceled/start-failure returns.
+Recommend resumes its open composer; expired writes expose contextual sign-in
+without changing confirmed choices. Saved pagination survives guest sign-in.
+Native recommendation recovery asks for copying the retained draft before leaving.
+See [sign-in task continuity](../accounts.md#sign-in-task-continuity) for the contract
+and fixture command. The run passed 152 Chromium/WebKit journey checks and ten
+clean axe views. This is not completion of the people/device/live-consent checks below.
 
 - Walk Discover → event → sign in → Save, Interested, or Recommend → return.
 - Exercise canceled sign-in, expired sessions, filtered/paginated origins and native

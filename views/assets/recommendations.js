@@ -52,9 +52,11 @@
     form.setAttribute('aria-busy', 'true'); controls.forEach(control => { control.disabled = true; });
     announce(action === 'remove' ? 'Withdrawing recommendation…' : 'Saving public recommendation…');
     const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 12000);
+    let signIn = false;
     try {
       const response = await fetch(form.getAttribute('action'), { method: 'POST', body, headers: { Accept: 'application/json' }, signal: controller.signal });
       const data = await response.json();
+      signIn = response.status === 401;
       if (!response.ok) throw new Error(data.detail || "Your recommendation wasn't saved. Try again.");
       if (data.event_id !== id || typeof data.html !== 'string') throw new Error('The recommendation could not be confirmed. Refresh to check it.');
       const name = key(form);
@@ -71,6 +73,12 @@
     } catch (error) {
       if (form.isConnected) {
         errorNode.textContent = error.name === 'AbortError' ? 'The change could not be confirmed. Try again; repeating the action is safe.' : error.message;
+        if (signIn && form.dataset.signInUrl) {
+          const link = document.createElement('a');
+          link.href = form.dataset.signInUrl;
+          link.className = 'text-link'; link.textContent = 'Sign in to continue';
+          errorNode.append(document.createTextNode(' Copy your reason before signing in, then return to review and publish. '), link);
+        }
         errorNode.hidden = false;
         announce('');
       }

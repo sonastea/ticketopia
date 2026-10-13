@@ -180,7 +180,7 @@ func (a *api) savedPage(c echo.Context) error {
 	}
 	p, err := a.principal(c, true)
 	if errors.Is(err, accounts.ErrUnauthenticated) {
-		return c.Redirect(303, "/auth/sign-in?return_to=%2Fsaved")
+		return c.Redirect(303, "/auth/sign-in?return_to="+url.QueryEscape(safeSaveReturn(c.Request().URL.RequestURI())))
 	}
 	if err != nil {
 		return a.accountPageError(c, err)

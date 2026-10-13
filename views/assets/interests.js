@@ -17,7 +17,7 @@
       target.querySelector('[data-interest-message]').textContent = '';
     });
   };
-  const feedback = (form, message, origin) => {
+  const feedback = (form, message, origin, signIn = false) => {
     clearFeedback();
     const target = form?.closest('[data-interest-privacy], [data-event-actions]')?.querySelector('[data-interest-feedback]');
     if (!target) { announce(message); return; }
@@ -25,6 +25,12 @@
     feedbackOrigins.set(target, origin || form.querySelector('button'));
     target.hidden = false;
     target.querySelector('[data-interest-message]').textContent = message;
+    if (signIn && form.dataset.signInUrl) {
+      const link = document.createElement('a');
+      link.href = form.dataset.signInUrl;
+      link.className = 'text-link'; link.textContent = 'Sign in to continue';
+      target.querySelector('[data-interest-message]').append(document.createTextNode(' '), link);
+    }
   };
   const update = (id, state, csrf) => {
     const visibility = state.visibility || defaultVisibility;
@@ -155,11 +161,13 @@
     announce('Updating event interest…');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
+    let signIn = false;
     try {
       const response = await fetch(form.getAttribute('action'), {
         method: 'POST', body, headers: { Accept: 'application/json' }, signal: controller.signal,
       });
       const data = await response.json();
+      signIn = response.status === 401;
       if (!response.ok) throw new Error(data.detail || 'Interest could not be updated. Try again.');
       if (!forms(id).some(item => item.elements.csrf_token.value === csrf)) return;
       update(data.event_id, data.state);
@@ -178,7 +186,7 @@
         location.reload();
       }
     } catch (error) {
-      if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, error.name === 'AbortError' ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger);
+      if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, error.name === 'AbortError' ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger, signIn);
     } finally {
       clearTimeout(timeout); writing.delete(id);
       controls.forEach(node => { node.removeAttribute('aria-busy'); node.querySelectorAll('button, select').forEach(control => { control.disabled = false; }); });

@@ -184,6 +184,46 @@ func saveAction(id string) string { return "/saved/" + url.PathEscape(id) }
 func signInURL(returnURL string) string {
 	return "/auth/sign-in?return_to=" + url.QueryEscape(returnURL)
 }
+
+// Signing in resumes the event, not just the collection containing its control.
+// Preserve an already selected section/thread; a different row starts at Overview.
+func EventSignInReturn(id, returnURL string) string {
+	u, err := url.Parse(returnURL)
+	if err != nil {
+		return eventURL(id, "overview", "/")
+	}
+	if u.Path == "/" {
+		if u.Query().Get("selected_event") == id {
+			return returnURL
+		}
+		return SelectionURL(returnOrigin(returnURL), id, "overview")
+	}
+	if strings.HasPrefix(u.Path, "/events/") {
+		return returnURL
+	}
+	return eventURL(id, "overview", returnURL)
+}
+
+func recommendationSignInReturn(id, returnURL string) string {
+	u, err := url.Parse(EventSignInReturn(id, returnURL))
+	if err != nil {
+		return returnURL
+	}
+	values := u.Query()
+	values.Set("section", "community")
+	values.Del("selected_thread")
+	values.Del("reply_to")
+	values.Del("discussion_cursor")
+	if index := strings.Index(u.Path, "/discussions/"); index >= 0 {
+		u.Path = u.Path[:index]
+		values.Del("cursor")
+		values.Del("limit")
+		values.Del("post_id")
+	}
+	values.Set("recommend", "true")
+	u.RawQuery = values.Encode()
+	return u.String()
+}
 func saveVerb(isSaved bool) string {
 	if isSaved {
 		return "remove"

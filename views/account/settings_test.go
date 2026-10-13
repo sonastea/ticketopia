@@ -2,6 +2,7 @@ package account
 
 import (
 	"bytes"
+	htmlstd "html"
 	"net/url"
 	"strings"
 	"testing"
@@ -20,7 +21,10 @@ func TestSignInKeepsBrandedCTALinkAndReturnContext(t *testing.T) {
 		`<span>Sign in with Google</span>`,
 		`<img src="/assets/google-g.png" width="20" height="20" alt="" aria-hidden="true"`,
 		`Sign-in was cancelled.`,
-		`Discover without signing in`,
+		`Return to event without signing in`,
+		`href="` + htmlstd.EscapeString(returnTo) + `"`,
+		`Questions &amp; tips`,
+		`Choose your action there.`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing sign-in contract %q", want)

@@ -87,6 +87,36 @@ Successful profile/preferences writes redirect back to their section. Sign-in
 resumes an allowlisted local `return_to` page, including event/filter context;
 cancelled sign-ins preserve it for retry. It never resumes an external/auth URL.
 
+### Sign-in task continuity
+
+- Save from a discovery row resumes that event's Overview with its filters and
+  pagination intact, rather than returning to an unidentified row. An already
+  selected event retains its section/conversation. Interested uses the same context.
+- Event sign-in names the event when details are available, explains the section
+  you'll return to, and provides a native **Return to event without signing in**
+  link. Leaving/canceling sign-in keeps the public journey; private destinations
+  still require authentication. Start failures retain context and retry guidance.
+- Recommend resumes the open composer, not just the recommendations list.
+  Signing in never saves, marks interest, publishes, changes visibility, or
+  configures reminders; each action still needs an explicit form submission.
+- Expired-session writes retain confirmed state and provide a contextual sign-in
+  link in both enhanced and native recovery. Enhanced recommendation drafts retain
+  the existing same-account, tab-scoped storage; native recovery keeps escaped
+  text on the failure page and asks you to copy it **before** leaving to sign in.
+- The Saved guest redirect and sign-in allowlist preserve its collection cursor.
+
+Run the isolated journey fixture with `MARIADB_TEST_ADDR=127.0.0.1:3307`,
+`SIGN_IN_BROWSER_SCRIPT="$PWD/scripts/sign-in-continuity-browser.cjs"`,
+`PLAYWRIGHT_MODULE=/path/to/playwright`, and optional `AXE_SCRIPT=/path/to/axe.min.js`:
+`go test -run TestMariaDBSignInContinuityBrowserReview -v ./internal/persistence`.
+It uses Chromium/WebKit, desktop/phone/native forms, real one-time OAuth flows and
+local provider/test-account fixtures—not live Google consent. Physical phones,
+manual screen readers, and the two-or-three-person city journeys remain separate
+[verification work](design/ui-flow-polish-2026-10-12.md#1-sign-in-and-task-continuity).
+The 2026-10-12 run passed 152 journey checks and ten clean automated axe views,
+including keyboard guest returns and 200% text. Browser engines use separate
+schemas so the production sign-in rate limit remains enabled.
+
 ### Your space navigation
 
 Account screens show their current family's links directly, with the current
