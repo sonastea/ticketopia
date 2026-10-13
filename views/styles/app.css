@@ -1498,6 +1498,7 @@ summary::-webkit-details-marker {
   padding-inline: .1rem;
   font-size: .8125rem;
   font-weight: 650;
+  text-decoration: none;
   border-block-end: 2px solid transparent;
   border-radius: 0;
 }

@@ -23,11 +23,16 @@ templ Saved(page SavedPage) {
 			} else if len(page.List.Items) == 0 {
 				@empty.Empty(empty.Props{Class: "destination-state"}) {
 					@layouts.Icon("saved")
-					<h2>Keep something worth coming back to.</h2>
-					<p>Save an event while discovering. You'll find it here on your next visit, on any device you sign into.</p>
+					if hasCollectionCursor(page.ReturnURL) {
+						<h2>No saved events on this page.</h2>
+						<p>Earlier saves may still be in your collection. Return to the newest saves to check.</p>
+					} else {
+						<h2>Keep something worth coming back to.</h2>
+						<p>Save an event while discovering. You'll find it here on your next visit, on any device you sign into.</p>
+					}
 					@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }
 					if page.ReturnURL != "/saved" {
-						@button.Button(button.Props{Href: "/saved", Variant: button.VariantLink, Class: "text-link"}) { Back to newest saves }
+						@button.Button(button.Props{Href: "/saved", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"data-collection-recovery": hasCollectionCursor(page.ReturnURL)}}) { Back to newest saves }
 					}
 				}
 			} else {

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 2026-10-12 — Action feedback and collection removal
+
+- Keep surviving collection rows, reading position and keyboard focus mounted;
+  show event-named confirmations and focused newest-page/empty-state recovery.
+- Explain uncertain transport/response failures with safe retry; retain confirmed
+  Save/Interested choices and independent public recommendations. No undo is added.
+- Add shared Chromium/WebKit/native SQL-fixture journeys and truthful later-page
+  rendering checks. See the [contract and fixture command](../saved-events.md#action-feedback-and-collection-removal).
+  Verify 548 Chromium/WebKit checks and 22 clean axe views, existing behavior
+  regressions, the full isolated-MariaDB race suite, host vet and `make check`.
+  Physical-device and manual screen-reader verification remain open.
+
 ### 2026-10-06 — Durable private saves
 
 - Deliver Save/Remove on discovery rows, contextual previews and full events,

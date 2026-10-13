@@ -26,11 +26,13 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 				<details class="recommendation-editor" data-recommendation-editor open?={ v.Open }>
 					<summary>
 						@layouts.Icon("community")
-						if v.Own != nil {
-							Edit your recommendation
-						} else {
-							Recommend this event
-						}
+						<span>
+							if v.Own != nil {
+								Edit your recommendation
+							} else {
+								Recommend this event
+							}
+						</span>
 					</summary>
 					<form action={ recommendationAction(id) } method="post" class="account-form" data-recommendation-form data-recommendation-id={ id } data-sign-in-url={ signInURL(recommendationSignInReturn(id, returnURL)) }>
 						<input type="hidden" name="csrf_token" value={ v.CSRF }/>

@@ -25,6 +25,36 @@ func TestComponentLinksRejectScriptURLs(t *testing.T) {
 	}
 }
 
+func TestEmptyCollectionsDistinguishLaterPages(t *testing.T) {
+	for _, origin := range []string{"/saved", "/saved?limit=3", "/saved?limit=3&cursor=older"} {
+		savedMarkup := renderNeighbor(t, Saved(SavedPage{ReturnURL: origin}))
+		later := strings.Contains(origin, "cursor=")
+		if strings.Contains(savedMarkup, "Earlier saves may still be in your collection") != later || strings.Contains(savedMarkup, "Keep something worth coming back to.") == later {
+			t.Fatalf("empty Saved page misrepresents the whole collection: %s", origin)
+		}
+		interestOrigin := strings.Replace(origin, "/saved", "/me/interests", 1)
+		interestMarkup := renderNeighbor(t, InterestCollection(InterestCollectionPage{ReturnURL: interestOrigin}))
+		if strings.Contains(interestMarkup, "Earlier choices may still be in your collection") != later {
+			t.Fatalf("empty Interests page lost recovery guidance: %s", interestOrigin)
+		}
+		for _, body := range []string{savedMarkup, interestMarkup} {
+			doc := neighborDocument(t, body)
+			found := false
+			for _, link := range neighborElements(doc, "a") {
+				if _, ok := neighborAttributes(link)["data-collection-recovery"]; ok {
+					found = true
+					if neighborAttributes(link)["href"] != "/saved" && neighborAttributes(link)["href"] != "/me/interests" {
+						t.Fatal("empty-page recovery must return to its own newest collection")
+					}
+				}
+			}
+			if found != later {
+				t.Fatal("only later empty pages should prioritize newest-page recovery", origin)
+			}
+		}
+	}
+}
+
 func TestProviderSaleStatesStayExplicit(t *testing.T) {
 	for status, want := range map[string]string{"onsale": "On sale", "offsale": "Off sale", "soldout": "Sold out", "sold_out": "Sold out", "canceled": "Canceled", "postponed": "Postponed", "rescheduled": "Rescheduled", "": "Sale status unknown"} {
 		if got := statusLabel(status); got != want {

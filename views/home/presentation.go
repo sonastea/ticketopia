@@ -310,6 +310,11 @@ func CollectionNextURL(raw string, cursor *string) string {
 	return u.String()
 }
 
+func hasCollectionCursor(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && u.Query().Get("cursor") != ""
+}
+
 type InterestCollectionPage struct {
 	List             interests.List
 	Saves            SaveView

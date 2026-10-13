@@ -160,6 +160,67 @@
     }
   };
   const saving = new Set();
+  const focusCollectionControl = target => {
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'nearest' });
+    // Enlarged labels can make the sticky navigation taller than the root's
+    // ordinary scroll padding. Keep the restored action above its actual edge.
+    const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect();
+    const edge = nav?.width ? nav.top : innerHeight;
+    const rect = target.getBoundingClientRect();
+    if (rect.bottom > edge) scrollBy(0, rect.bottom - edge + 16);
+  };
+  // Keep surviving collection rows mounted: removal should not refill the page,
+  // reset its reading position, or discard focus elsewhere during a slow write.
+  document.addEventListener('ticketopia:collection-action', event => {
+    const { form, notice, selected = false } = event.detail;
+    const row = form.closest('.event-row');
+    const adjacent = row?.nextElementSibling || row?.previousElementSibling;
+    const shouldFocus = row?.contains(document.activeElement) || document.activeElement === document.body;
+    const anchorTop = adjacent?.getBoundingClientRect().top;
+    const isSaved = location.pathname === '/saved';
+    const control = isSaved ? '[data-save-form] button' : '.interest-button';
+    const noticeTarget = document.querySelector(isSaved ? '#saved-notice' : '[data-interest-notice]');
+    if (!selected && adjacent) {
+      row.remove();
+      if (noticeTarget) noticeTarget.textContent = notice;
+      scrollBy(0, adjacent.getBoundingClientRect().top - anchorTop);
+      if (shouldFocus) {
+        const button = adjacent.querySelector(control);
+        focusCollectionControl(button?.disabled ? adjacent.querySelector('.event-link') : button);
+      }
+      return;
+    }
+    // The server owns empty/error guidance and pagination. Only reload when no
+    // rows survive (or a stale collection row is explicitly saved again).
+    history.replaceState({ ...history.state, ticketopiaCollectionAction: {
+      path: location.pathname, notice, focus: selected ? row?.dataset.eventId : '',
+      shouldFocus, scrollY,
+    } }, '', location.href);
+    location.reload();
+  });
+  const collectionAction = history.state?.ticketopiaCollectionAction;
+  if (collectionAction?.path === location.pathname) {
+    const state = { ...history.state };
+    delete state.ticketopiaCollectionAction;
+    history.replaceState(state, '', location.href);
+    const isSaved = location.pathname === '/saved';
+    const notice = document.querySelector(isSaved ? '#saved-notice' : '[data-interest-notice]');
+    if (notice) notice.textContent = collectionAction.notice;
+    requestAnimationFrame(() => {
+      scrollTo(0, collectionAction.scrollY);
+      if (!collectionAction.shouldFocus) return;
+      const row = [...document.querySelectorAll('.event-row')].find(item => item.dataset.eventId === collectionAction.focus)
+        || document.querySelector('.event-row');
+      const target = row?.querySelector(isSaved ? '[data-save-form] button' : '.interest-button')
+        || document.querySelector('[data-collection-recovery]')
+        || document.querySelector('.destination-state a[href="/"], [data-interest-empty]')
+        || document.querySelector('#main h1');
+      if (target?.tagName === 'H1') target.tabIndex = -1;
+      focusCollectionControl(target);
+    });
+  }
   document.addEventListener('submit', async event => {
     const form = event.target.closest('[data-save-form]');
     if (!form) return;
@@ -189,16 +250,13 @@
       updateSave(data.event_id, data.saved);
       saveFeedback(data.saved ? 'Event saved privately.' : 'Event removed from Saved.', id, form);
       if (location.pathname === '/saved') {
-        const row = form.closest('.event-row');
-        const adjacent = row?.nextElementSibling || row?.previousElementSibling;
-        history.replaceState({ ...history.state, ticketopiaSavedAction: {
-          focus: data.saved ? id : adjacent?.dataset.eventId || '',
+        document.dispatchEvent(new CustomEvent('ticketopia:collection-action', { detail: {
+          form, selected: data.saved,
           notice: form.dataset.eventName + (data.saved ? ' saved privately.' : ' removed from Saved.'),
-        } }, '', location.href);
-        location.reload();
+        } }));
       }
     } catch (error) {
-      if (saveForms(id).some(item => item.elements.csrf_token.value === csrf)) saveFeedback(error.name === 'AbortError' ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true, signIn);
+      if (saveForms(id).some(item => item.elements.csrf_token.value === csrf)) saveFeedback(['AbortError', 'TypeError', 'SyntaxError'].includes(error.name) ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true, signIn);
     } finally {
       clearTimeout(timeout);
       saving.delete(id);
@@ -206,18 +264,6 @@
       if (hadFocus && trigger.isConnected && document.activeElement === document.body) trigger.focus({ preventScroll: true });
     }
   });
-  if (location.pathname === '/saved' && history.state?.ticketopiaSavedAction) {
-    const action = history.state.ticketopiaSavedAction;
-    const state = { ...history.state };
-    delete state.ticketopiaSavedAction;
-    history.replaceState(state, '', location.href);
-    const row = [...document.querySelectorAll('.event-row')].find(item => item.dataset.eventId === action.focus)
-      || document.querySelector('.event-row');
-    const target = row?.querySelector('[data-save-form] button') || document.querySelector('.destination-state a[href="/"]');
-    const notice = document.getElementById('saved-notice');
-    if (notice) notice.textContent = action.notice;
-    requestAnimationFrame(() => target?.focus());
-  }
   window.addEventListener('pageshow', event => {
     // Revalidate credentials and private state when returning from browser cache.
     if (event.persisted) refreshSavedState();

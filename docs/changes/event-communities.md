@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-10-12 — Interested action and collection feedback
+
+- Name confirmed removals, preserve surviving collection rows/focus, and distinguish
+  empty later pages from an empty whole collection. Retain readable Private/Public
+  state through rejected or uncertain writes; retries leave recommendations independent.
+- Make the retained recommendation's disclosure label shrink/wrap at 320px/200% text.
+  See the shared [action/removal fixture](../saved-events.md#action-feedback-and-collection-removal).
+  Verify 548 Chromium/WebKit checks and 22 clean axe views, plus existing behavior regressions.
+  Real phones/manual screen readers remain open; no undo or publication change.
+
 ### 2026-10-12 — Conversation ergonomics and draft safety
 
 - Refresh standalone threads in place; preserve unrelated drafts and Helpful/edit/remove
@@ -79,21 +89,3 @@
 - Add the grouped API in OpenAPI 1.7.0. Reporting/moderation still gates a pilot.
 - Verify real-MariaDB races, vet/build/lint and 82 Chromium outcomes with 11
   zero-violation axe captures; the scoped grouped-feed review disposition is ship.
-
-### 2026-10-07 — Durable event discussions and Helpful
-
-- Deliver public questions/tips, independently paginated replies, same-thread
-  reply targets, author editing/removal, and reversible Helpful acknowledgments.
-- Preserve event snapshots, ancestry, retry keys, and removed reply context across
-  restarts/provider outages; keep saves, interest, and recommendations independent.
-- Add event/preview composers, shareable threads, native draft recovery, scoped
-  enhanced drafts, and separate city/category conversation browsing. Extend
-  OpenAPI to 1.6.0; see [discussions](../event-discussions.md).
-- Reporting/moderation and discussion notifications remain planned. Moderation
-  remains required before the first public community pilot.
-- Verify the full Go race suite with real MariaDB, vet, production build, OpenAPI
-  lint, and 24 native/enhanced Chromium outcomes. Exercise five responsive thread
-  captures with zero axe violations; do not claim whole-application certification.
-- Resolve the independent review's transport-error copy finding: uncertain writes
-  preserve drafts/retry keys and explain confirmation uncertainty rather than
-  claiming nothing was saved. Final verdict marks that scored fix resolved.

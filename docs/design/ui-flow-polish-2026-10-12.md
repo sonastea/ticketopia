@@ -1,7 +1,7 @@
 # UI flow polish priorities — 2026-10-12
 
-Status: the confirmed enlarged-text navigation defect is fixed. Priorities 1 and 2
-now have bounded continuity/draft-safety fixes and automated fixture coverage;
+Status: the confirmed enlarged-text navigation defect is fixed. Priorities 1–3
+now have bounded continuity/draft-safety/action-feedback fixes and automated fixture coverage;
 their manual journey checks remain open. Other items are prioritized follow-up
 checks, not confirmed defects.
 Preserve the existing visual system; fix observed friction rather than start
@@ -70,6 +70,18 @@ the physical-device and manual screen-reader checks below remain open.
 ### 3. Action feedback and collection removal
 
 **Why:** users need to trust that private choices changed exactly as requested.
+
+**Implemented follow-up:** confirmed collection removals keep surviving rows mounted,
+retain reading position and focus, and name the removed event. An emptied later page
+explains that newer choices may remain and focuses its newest-page recovery link;
+whole-collection empty states lead to Discover. Transport/unreadable-response failures
+retain confirmed controls and explain safe retry, including a committed write whose
+response was lost. Private/Public stays explicit; independent recommendations remain
+published. Their disclosure label now wraps at 320px/200% text. No undo, palette,
+type or navigation-threshold change was added. See
+[action feedback and collection removal](../saved-events.md#action-feedback-and-collection-removal)
+for the fixture command. Chromium/WebKit passed 548 journey checks and 22 clean axe
+views. Physical-device and manual screen-reader checks remain open.
 
 - Review pending, success and failed Save/Interested writes; verify Private/Public
   remains readable and independently published activity is unaffected.

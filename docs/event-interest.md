@@ -60,7 +60,10 @@ restoration revalidates choices and credentials in bounded batches.
 
 The own collection is newest-first, paginated, and separate from private category
 preferences on the same page. Detail links retain the collection cursor for return;
-removal confirms the action and restores focus to a remaining event or Discover.
+removal names the event and preserves surviving rows, reading position and focus.
+An emptied later page offers focused recovery to newest interest, not a claim that
+the whole collection is empty. See the shared
+[action-feedback/removal contract and Chromium/WebKit fixture](saved-events.md#action-feedback-and-collection-removal).
 Public profile activity and participant lists are independently paginated.
 Participant pagination preserves the originating discovery or collection page for
 returning through the event. Provider or cache disappearance does not erase interest

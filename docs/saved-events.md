@@ -66,6 +66,51 @@ For Kubernetes, reconcile the corresponding grants in the operator manifests.
 - Restored discovery controls revalidate private state in bounded batches. Results
   with another session's CSRF token are not restored as private controls.
 
+## Action feedback and collection removal
+
+Save and Interested retain their last confirmed control state during a pending or
+failed write. A transport failure or unreadable response explains that confirmation
+is uncertain and that retrying the same explicit action is safe; it does not claim
+the server made no change. Save stays private, interest keeps its Private/Public
+label, and neither action withdraws independently published recommendations.
+
+Enhanced removal keeps surviving Saved/Interests rows mounted instead of reloading
+and refilling the page. The collection cursor and remaining row's reading position
+are retained; focus moves to the next removal control, or the previous one when
+removing the last row. If that control is busy, its event-title link is the fallback.
+Focus already moved elsewhere during the write is not stolen while rows survive.
+Each collection exposes a visible, event-named status confirmation. Restored action
+focus stays above the sticky compact navigation, including enlarged labels.
+
+When the last rendered row is removed, the server reloads the same collection URL
+to supply current rows or truthful empty/error guidance. Newly available rows take
+focus; an empty later page prioritizes **Back to newest saves/interest**, because
+earlier choices may remain. A wholly empty first page prioritizes Discover. Native
+POST forms still redirect to the same collection and use the same recovery copy,
+with ordinary document navigation rather than enhanced focus restoration. No new
+undo or automatic participation/publication/reminder action is introduced.
+
+The cross-browser fixture exercises pending/rejected/lost-response writes, safe
+retry, independent recommendation retention, first/middle/last removals on both
+collection pages, cursor continuity, focus moved during slow writes, empty-page
+recovery, desktop/390px/320px at 200% text, and native forms:
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 \
+ACTION_FEEDBACK_BROWSER_SCRIPT="$PWD/scripts/action-feedback-browser.cjs" \
+PLAYWRIGHT_MODULE=/absolute/path/to/node_modules/playwright \
+AXE_SCRIPT=/absolute/path/to/axe.min.js \
+go test -race ./internal/persistence -run '^TestMariaDBActionFeedbackBrowserReview$' -v
+```
+
+Reports and captures go to ignored `.impeccable/review/action-feedback/` directories.
+The 2026-10-12 run passed 274 checks per engine (548 total), 22 clean axe views,
+and the existing 115 Saved/Interested behavior regressions. The full isolated-MariaDB
+race suite, host vet, and Docker publishing-context validation (`make check`) also passed.
+These synthetic SQL/provider fixtures supplement, not replace, real-phone and
+manual screen-reader journeys. Live Google consent and public-pilot acceptance
+are not claimed.
+
 ## API
 
 Use a browser session or a personal bearer token; all personal responses are

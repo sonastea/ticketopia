@@ -172,7 +172,7 @@
       if (!forms(id).some(item => item.elements.csrf_token.value === csrf)) return;
       update(data.event_id, data.state);
       clearFeedback();
-      announce(data.state.interested ? `Interest saved as ${data.state.visibility}.` : 'Your interest was removed.');
+      announce(data.state.interested ? `Interest saved as ${data.state.visibility}.` : `${form.dataset.eventName}: your interest was removed.`);
       if (form.hasAttribute('data-interest-edit')) {
         const privacy = form.closest('[data-interest-privacy]');
         privacy.open = false;
@@ -181,12 +181,13 @@
       }
       await refreshParticipants(id);
       if (location.pathname === '/me/interests' && !data.state.interested) {
-        const row = form.closest('.event-row'); const adjacent = row?.nextElementSibling || row?.previousElementSibling;
-        history.replaceState({ ...history.state, ticketopiaInterestAction: { focus: adjacent?.dataset.eventId || '', notice: 'Your interest was removed.' } }, '', location.href);
-        location.reload();
+        announce(''); // The visible collection notice is the single announcement.
+        document.dispatchEvent(new CustomEvent('ticketopia:collection-action', { detail: {
+          form, notice: `${form.dataset.eventName}: your interest was removed.`,
+        } }));
       }
     } catch (error) {
-      if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, error.name === 'AbortError' ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger, signIn);
+      if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, ['AbortError', 'TypeError', 'SyntaxError'].includes(error.name) ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger, signIn);
     } finally {
       clearTimeout(timeout); writing.delete(id);
       controls.forEach(node => { node.removeAttribute('aria-busy'); node.querySelectorAll('button, select').forEach(control => { control.disabled = false; }); });
@@ -200,12 +201,4 @@
     if (!forms().length && document.querySelector('[data-interest-count], [data-public-participants], .account-public')) location.reload();
     else { refresh(); document.querySelectorAll('[data-public-participants]').forEach(node => refreshParticipants(node.dataset.publicParticipants)); }
   });
-  if (history.state?.ticketopiaInterestAction) {
-    const action = history.state.ticketopiaInterestAction; const state = { ...history.state };
-    delete state.ticketopiaInterestAction; history.replaceState(state, '', location.href);
-    const row = [...document.querySelectorAll('.event-row')].find(node => node.dataset.eventId === action.focus) || document.querySelector('.event-row');
-    const target = row?.querySelector('.interest-button') || document.querySelector('[data-interest-empty]');
-    announce(action.notice);
-    requestAnimationFrame(() => target?.focus());
-  }
 })();

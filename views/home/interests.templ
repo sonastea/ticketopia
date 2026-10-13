@@ -73,11 +73,17 @@ templ InterestCollection(page InterestCollectionPage) {
 	<section class="account-section" aria-labelledby="event-interests-heading">
 		<h2 id="event-interests-heading">Events you're interested in</h2>
 		<p>Interest is separate from Saved and category preferences. Only choices marked Public name you on event pages and your profile.</p>
+		<p class="field-note" role="status" data-interest-notice></p>
 		if page.Error != "" {
 			<p class="field-note" role="status">{ page.Error }</p>
 			<a href={ templ.URL(page.ReturnURL) } class="text-link">Try again</a>
 		} else if len(page.List.Items) == 0 {
-			<p class="field-note">No event interest on this page. Mark an event Interested while discovering, then return here to manage it.</p>
+			<p class="field-note">No event interest on this page.</p>
+			if hasCollectionCursor(page.ReturnURL) {
+				<p class="field-note">Earlier choices may still be in your collection. Return to the newest interest to check.</p>
+			} else {
+				<p class="field-note">Mark an event Interested while discovering, then return here to manage it.</p>
+			}
 			<a href="/" class="text-link" data-interest-empty>Discover events</a>
 		} else {
 			<p class="field-note">Newest interest first. Event details are last-known; check current ticket availability.</p>
@@ -87,7 +93,7 @@ templ InterestCollection(page InterestCollectionPage) {
 			<a href={ templ.URL(CollectionNextURL(page.ReturnURL, page.List.NextCursor)) } class="text-link">More interested events</a>
 		}
 		if page.ReturnURL != "/me/interests" {
-			<a href="/me/interests" class="text-link">Back to newest interest</a>
+			<a href="/me/interests" class="text-link" data-collection-recovery?={ hasCollectionCursor(page.ReturnURL) }>Back to newest interest</a>
 		}
 	</section>
 }

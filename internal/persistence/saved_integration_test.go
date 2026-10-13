@@ -221,6 +221,19 @@ func TestMariaDBInterestBrowserReview(t *testing.T) {
 	runActivityBrowser(t, script)
 }
 
+func TestMariaDBActionFeedbackBrowserReview(t *testing.T) {
+	script := os.Getenv("ACTION_FEEDBACK_BROWSER_SCRIPT")
+	if script == "" {
+		t.Skip("set ACTION_FEEDBACK_BROWSER_SCRIPT for action/removal verification")
+	}
+	for _, engine := range []string{"chromium", "webkit"} {
+		t.Run(engine, func(t *testing.T) {
+			t.Setenv("ACTION_FEEDBACK_BROWSER_ENGINE", engine)
+			runActivityBrowser(t, script)
+		})
+	}
+}
+
 func TestMariaDBSignInContinuityBrowserReview(t *testing.T) {
 	script := os.Getenv("SIGN_IN_BROWSER_SCRIPT")
 	if script == "" {
@@ -345,6 +358,15 @@ func runActivityBrowser(t *testing.T, script string) {
 		}
 	}
 	seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "sports", Name: "Sports"}, Genres: []models.Genre{}}})
+	if script == os.Getenv("ACTION_FEEDBACK_BROWSER_SCRIPT") {
+		// Six choices give both collection pages first/middle/last removals,
+		// without changing the shared three-event discovery fixture.
+		for i := 3; i < 6; i++ {
+			detail := savedDetail(fmt.Sprintf("Browser_%d", i))
+			detail.Item.Name = fmt.Sprintf("Collection removal fixture %d", i)
+			seed("ticketmaster:v1:event:"+detail.Item.ID, detail.Item)
+		}
+	}
 	q, err := discovery.ParseQuery(url.Values{"city": {"Chicago"}, "limit": {"2"}}, now)
 	if err != nil {
 		t.Fatal(err)
