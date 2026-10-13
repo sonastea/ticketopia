@@ -30,6 +30,23 @@ templ CollectionReturn(origin string) {
 	</a>
 }
 
+// Keep collection and event returns at distinct, consistent navigation levels.
+templ DrilldownReturn(eventID, section, origin string) {
+	<div class="drilldown-return">
+		@CollectionReturn(origin)
+		<nav aria-label="Event destinations">
+			<a href={ templ.URL(eventURL(eventID, section, origin)) } class="text-link" data-panel-link>
+				if section == "discussion" {
+					Back to Questions &amp; tips
+				} else {
+					Back to Recommendations
+				}
+			</a>
+			<a href={ templ.URL(eventURL(eventID, "overview", origin)) } class="text-link" data-panel-link>Event Overview</a>
+		</nav>
+	</div>
+}
+
 // Public collections share Overview identity links, not participation toolbars.
 templ CollectionEventArt(event models.Event, returnURL string) {
 	<div class="event-art">

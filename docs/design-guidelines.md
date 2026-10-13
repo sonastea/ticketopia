@@ -263,6 +263,36 @@ publication selects the thread. Native forms and canonical thread links remain
 available without enhancement. Scoped drafts use this tab's session storage;
 blocked storage retains in-page drafts, not reload/cross-device persistence.
 
+### Drill-down return hierarchy
+
+Standalone public participants, recommendations, conversation lists and threads
+share one return component. A muted, regular-weight collection link sits on its
+own row above **Event destinations** navigation. The named section return and
+**Event Overview** stay together, before event identity, on every screen width.
+Intrinsic wrapping preserves complete labels and 44px targets at enlarged text;
+existing focus, touch and forced-colors behavior applies. Collection returns keep
+`data-return-results`; event destinations retain normal links and validated origins.
+No history or restoration logic changes.
+
+The priority-4 fixture checks these surfaces at 390px, 320px/200% text and desktop,
+filtered Discover cursors, collection-origin parameters, rejected external origins,
+native Overview links and keyboard focus. Run against isolated local MariaDB:
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 \
+DISCUSSION_BROWSER_SCRIPT="$PWD/scripts/drilldown-return-browser.cjs" \
+DRILLDOWN_BROWSER_ENGINE=chromium \
+PLAYWRIGHT_MODULE=/path/to/node_modules/playwright \
+AXE_SCRIPT=/path/to/axe-core/axe.min.js \
+go test -count=1 -run '^TestMariaDBDiscussionBrowserReview$' ./internal/persistence
+```
+
+Repeat with `DRILLDOWN_BROWSER_ENGINE=webkit`. The 2026-10-12 run passed 162
+checks and 12 clean axe views per engine. The existing `scripts/responsive-browser.cjs`
+journey also passed, including appended results, selected threads, return focus and
+scroll restoration. These fixtures and inspected captures do not establish reader
+comprehension on real phones or manual screen-reader usability; those checks remain open.
+
 ## Community requirements and retained later work
 
 Detailed scope lives in [community goals](goals/event-communities.md) and the

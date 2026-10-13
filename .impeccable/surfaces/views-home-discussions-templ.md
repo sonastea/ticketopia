@@ -7,6 +7,15 @@ related_targets: ["views/home/event.templ", "views/home/recommendations.templ"]
 
 # Event discussions
 
+## Return-hierarchy extension — 2026-10-12
+
+Preserve the Operate surface. A shared quiet collection return precedes grouped,
+named event-section/Overview links on conversations, recommendations and participants.
+Inspected compact, enlarged-text and desktop captures; Chromium/WebKit pass 324
+checks and 24 clean axe views, with the existing responsive restoration fixture
+also passing. Human comprehension/device/screen-reader checks remain open. See
+[return hierarchy](../../docs/design-guidelines.md#drill-down-return-hierarchy).
+
 ## Draft-safety extension — 2026-10-12
 
 Preserve the incumbent Operate surface. Standalone same-thread transitions and

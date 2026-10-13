@@ -501,6 +501,12 @@ Retry/native links recover failed reads. Overview artwork belongs to the context
 section; standalone identity artwork stays in the header. The existing palette,
 type roles, targets, thresholds and native link semantics are unchanged.
 
+Standalone participant, recommendation and conversation drill-downs share a muted,
+regular-weight collection return above a labeled group of section-return and Event
+Overview links. The event links wrap together before event identity; named links,
+44px targets, safe origins and restoration hooks remain intact. See the
+[return hierarchy](docs/design-guidelines.md#drill-down-return-hierarchy).
+
 ### Availability Labels
 
 Small neutral rectangles with light-stone fill, muted text, a quiet one-pixel border, and availability corners explain “In development” or a specific unavailable capability. They are informational labels, not selectable filter chips. Do not give them date-marker styling or turn them into a success confirmation.

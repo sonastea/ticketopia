@@ -246,11 +246,7 @@ templ RecommendationFailure(id,reason,csrf,returnURL,message string,withdraw,sig
 templ EventRecommendations(event models.Event,list recommendations.List,paginationURL,origin string) {
 	@layouts.App("community","Recommendations for "+event.Name) {
 		<main id="main" class="destination-page account-page">
-			@CollectionReturn(origin)
-			<div class="account-actions">
-				<a href={ templ.URL(eventURL(event.ID,"community",origin)) } class="text-link">Back to Recommendations</a>
-				<a href={ templ.URL(eventURL(event.ID,"overview",origin)) } class="text-link">Event Overview</a>
-			</div>
+			@DrilldownReturn(event.ID,"community",origin)
 			<h1>Recommendations for { event.Name }</h1><p class="event-date">{ startLabel(event.Start) }</p><p class="event-venue">{ venueLabel(event) }</p>
 			@RecommendationList(list,false,origin)
 			if list.NextCursor!=nil {

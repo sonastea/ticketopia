@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### 2026-10-12 — Drill-down return hierarchy
+
+- Share a quieter collection return and grouped event-section/Overview links across
+  participant, recommendation and conversation pages, fixing the split participant
+  hierarchy. Preserve named links, safe origins, intrinsic wrapping and 44px targets.
+- Verify 324 Chromium/WebKit checks and 24 clean axe views, plus the existing
+  responsive focus/scroll restoration journey. People/device/manual screen-reader
+  checks remain open. See [return hierarchy](../design-guidelines.md#drill-down-return-hierarchy).
+
 ### 2026-10-12 — Interested action and collection feedback
 
 - Name confirmed removals, preserve surviving collection rows/focus, and distinguish

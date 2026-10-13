@@ -1,7 +1,7 @@
 # UI flow polish priorities — 2026-10-12
 
-Status: the confirmed enlarged-text navigation defect is fixed. Priorities 1–3
-now have bounded continuity/draft-safety/action-feedback fixes and automated fixture coverage;
+Status: the confirmed enlarged-text navigation defect is fixed. Priorities 1–4
+now have bounded continuity/draft-safety/action-feedback/return-hierarchy fixes and automated fixture coverage;
 their manual journey checks remain open. Other items are prioritized follow-up
 checks, not confirmed defects.
 Preserve the existing visual system; fix observed friction rather than start
@@ -95,6 +95,15 @@ views. Physical-device and manual screen-reader checks remain open.
 ### 4. Drill-down return hierarchy
 
 **Why:** collection, event section and Overview are different navigation levels.
+
+**Implemented follow-up:** participant, recommendation and conversation pages share
+a quiet, named collection return above a labeled group of event-section and Overview
+links. This fixes the participant page's adjacent collection/section links and
+separated Overview destination. Links retain safe origins and wrap with 44px targets.
+See [drill-down return hierarchy](../design-guidelines.md#drill-down-return-hierarchy)
+for the contract and fixture command. Chromium/WebKit passed 324 checks and 24 clean
+axe views; the existing responsive restoration journey also passed. People/device
+and manual screen-reader checks below remain open.
 
 - Compare participant, recommendation and conversation pages at phone widths.
 - If readers hesitate, make the collection return visually secondary and group
