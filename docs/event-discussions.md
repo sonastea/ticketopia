@@ -190,6 +190,13 @@ pagination, scoped filters/cursors, schema-5 preservation, atomic snapshot rollb
 and MariaDB-clock creation boundaries. HTTP tests cover strict inputs, CSRF,
 credentials, public privacy, unavailable state, and native draft recovery.
 
+`TestMariaDBDiscussionConcurrentUsersKeepRepliesAndReactionsIndependent` adds
+two-account concurrency coverage across separate database pools: simultaneous
+replies retain both authors/bodies and exact counts, while a shared retry key
+deduplicates only within each account. Concurrent Helpful choices count both voters;
+one voter removing theirs leaves the other's count and viewer-specific state intact.
+These database behaviors need no physical device.
+
 ```sh
 MARIADB_TEST_ADDR=127.0.0.1:3307 go test -race ./...
 go vet ./...

@@ -154,6 +154,100 @@ func TestMariaDBDiscussionLoopRetriesOwnershipAndOfflineRestart(t *testing.T) {
 	}
 }
 
+func TestMariaDBDiscussionConcurrentUsersKeepRepliesAndReactionsIndependent(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	pools := []*Pool{f.open(t), f.open(t)}
+	auth := accounts.New(pools[0].Accounts(), accountProviderFixture{})
+	owner, _ := loginAccount(t, auth, "concurrent-discussion-owner")
+	other, _ := loginAccount(t, auth, "concurrent-discussion-other")
+	writers := []string{owner.ID, other.ID}
+	detail := savedDetail("ConcurrentDiscussionUsers")
+	if _, _, err := pools[0].Saved().Save(t.Context(), owner.ID, detail); err != nil {
+		t.Fatal(err)
+	}
+	services := []*discussions.Service{
+		discussions.New(pools[0].Discussions(), saved.New(pools[0].Saved(), nil)),
+		discussions.New(pools[1].Discussions(), saved.New(pools[1].Saved(), nil)),
+	}
+	root, _, err := services[0].Create(t.Context(), owner.ID, detail.Item.ID, "", "", "Which entrance is accessible?", accounts.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("concurrent replies and retries stay author scoped", func(t *testing.T) {
+		// Deliberately reuse a key across accounts: it must deduplicate each
+		// author's retry, not suppress or return another author's contribution.
+		key := accounts.ID()
+		bodies := []string{"The east entrance has a ramp.", "Staff can help at the west entrance."}
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		var created atomic.Int32
+		posts := make([]discussions.Post, 4)
+		for i := range posts {
+			wg.Go(func() {
+				<-start
+				post, fresh, err := services[i%2].Create(t.Context(), writers[i%2], detail.Item.ID, root.ID, "", bodies[i%2], key)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				posts[i] = post
+				if fresh {
+					created.Add(1)
+				}
+			})
+		}
+		close(start)
+		wg.Wait()
+		if created.Load() != 2 || posts[0].ID == posts[1].ID || posts[0].ID != posts[2].ID || posts[1].ID != posts[3].ID {
+			t.Fatalf("expected one distinct reply per author, stable across retries: created=%d posts=%+v", created.Load(), posts)
+		}
+		list, err := services[0].List(t.Context(), "", detail.Item.ID, root.ID, nil)
+		if err != nil || list.Count != 2 || len(list.Items) != 2 {
+			t.Fatalf("concurrent replies lost or duplicated: %+v, %v", list, err)
+		}
+		for i, writer := range writers {
+			post, err := pools[1].Discussions().Get(t.Context(), "", posts[i].ID)
+			if err != nil || post.Profile == nil || post.Profile.ID != writer || post.Body != bodies[i] || post.ThreadID != root.ID {
+				t.Fatalf("reply crossed author/body/thread: %+v, %v", post, err)
+			}
+		}
+		thread, err := services[1].Thread(t.Context(), "", detail.Item.ID, root.ID)
+		if err != nil || thread.ReplyCount != 2 {
+			t.Fatalf("thread count disagrees with published replies: %+v, %v", thread, err)
+		}
+	})
+	t.Run("Helpful belongs to each voter", func(t *testing.T) {
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		for i, writer := range writers {
+			wg.Go(func() {
+				<-start
+				if _, err := services[i].React(t.Context(), writer, root.ID, true); err != nil {
+					t.Error(err)
+				}
+			})
+		}
+		close(start)
+		wg.Wait()
+		for _, viewer := range []string{owner.ID, other.ID, ""} {
+			post, err := pools[0].Discussions().Get(t.Context(), viewer, root.ID)
+			if err != nil || post.HelpfulCount != 2 || post.Helpful != (viewer != "") {
+				t.Fatalf("concurrent voters lost or viewer state leaked: %+v, %v", post, err)
+			}
+		}
+		if _, err := services[0].React(t.Context(), owner.ID, root.ID, false); err != nil {
+			t.Fatal(err)
+		}
+		for _, viewer := range []string{owner.ID, other.ID, ""} {
+			post, err := pools[1].Discussions().Get(t.Context(), viewer, root.ID)
+			if err != nil || post.HelpfulCount != 1 || post.Helpful != (viewer == other.ID) {
+				t.Fatalf("one voter removing Helpful changed another's choice: %+v, %v", post, err)
+			}
+		}
+	})
+}
+
 type discussionDetailFixture struct{ detail models.EventDetail }
 
 func (f discussionDetailFixture) Detail(context.Context, string) (models.EventDetail, error) {
