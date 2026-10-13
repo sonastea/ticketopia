@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### 2026-10-12 — Conversation ergonomics and draft safety
+
+- Refresh standalone threads in place; preserve unrelated drafts and Helpful/edit/remove
+  focus/reading position. Add scoped, deliberate discard and viewport-bounded composing.
+- Keep interrupted publication payloads/targets/keys immutable through retry/reload;
+  never turn conflicts into new posts. Select confirmed contributions explicitly.
+- Verify 80 Chromium/WebKit journey checks and eight clean axe views; real-phone
+  keyboards/manual screen readers remain open. See [discussions](../event-discussions.md#conversation-ergonomics-and-draft-safety).
+
 ### 2026-10-12 — Event-first neighboring screens
 
 - Community and public-profile artwork/title open Overview together; named

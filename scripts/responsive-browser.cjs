@@ -127,7 +127,7 @@ fs.mkdirSync(out, {recursive: true});
       await page.reload(); await settled();
       if (zoom) await page.evaluate(() => document.documentElement.style.fontSize = '200%');
       check(name + ': reload reconstructs selected thread/target/draft', new URL(page.url()).searchParams.get('selected_thread') === root.id && await draft.inputValue() === 'Thanks for the practical advice, ' + name + '.');
-      await activate(panel.getByRole('button', {name: 'Publish reply'}));
+      await activate(panel.getByRole('button', {name: 'Retry unchanged contribution'}));
       await panel.locator('.discussion-body').filter({hasText: 'Thanks for the practical advice, ' + name + '.'}).waitFor();
       check(name + ': reply confirms without leaving discovery', new URL(page.url()).pathname === '/');
       await capture('responsive-' + name, width, zoom);

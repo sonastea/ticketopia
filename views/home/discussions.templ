@@ -93,7 +93,7 @@ templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
 		} else {
 			@PostAttribution(post)
 			if post.ParentID!="" && post.ParentID!=post.ThreadID {
-				<p class="field-note"><a href={ templ.URL(replyURL(returnURL,post.ParentID)) } class="text-link">In reply to { post.ParentName }</a></p>
+				<p class="field-note"><a href={ templ.URL(replyURL(returnURL,post.ParentID)) } class="text-link" data-thread-link>In reply to { post.ParentName }</a></p>
 			}
 			<p class="discussion-body">{ post.Body }</p>
 			<div class="discussion-actions">
@@ -148,15 +148,25 @@ templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
 	<form action="/discussion-actions" method="post" class="account-form discussion-composer" data-discussion-form data-discussion-draft={ f.draftScope() }>
 		@DiscussionMetadata(f)
 		if f.ParentID!="" {
-			<p class="field-note">Replying to <a href={ templ.URL("#post-"+f.ParentID) } class="text-link">the selected contribution</a>.</p>
+			<p class="field-note">Reply target: the selected contribution. Changing the target keeps a separate draft.</p>
 		}
-		<label class="field">{ fieldLabel } <span>(up to 4000 characters)</span><textarea name="body" rows="4" maxlength="4000" required>{ f.Body }</textarea></label>
 		<p class="field-note composer-audience">Your display name, profile link, and contribution will be public. Private interest and saves do not hide posts. Keep it relevant and respectful; don't share private information.</p>
-		if f.CSRF!="" {
-			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":f.Action}}) {
-				{ submitLabel }
+		<label class="field">{ fieldLabel } <span>(up to 4000 characters)</span><textarea name="body" rows="4" maxlength="4000" required>{ f.Body }</textarea></label>
+		<div class="discussion-composer-actions">
+			if f.CSRF!="" && !f.Conflict {
+				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":f.Action}}) {
+					{ submitLabel }
+				}
 			}
-		}
+			<details hidden data-discussion-discard class="discussion-removal">
+				<summary>Discard draft</summary>
+				<p class="field-note">Discard this draft only. Published contributions and other reply drafts are not changed.</p>
+				@button.Button(button.Props{Type:button.TypeButton,Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"data-discard-draft":""}}) {
+					Discard this draft
+				}
+			</details>
+		</div>
+		<p hidden data-composer-status class="field-note" role="status" aria-atomic="true"></p>
 		<p hidden data-discussion-error class="field-note" role="alert"></p>
 	</form>
 }
@@ -170,7 +180,10 @@ templ Discussion(p DiscussionPage) {
 				<a href={ templ.URL(eventURL(p.Event.ID,"overview",p.ReturnURL)) } class="text-link" data-panel-link>Event Overview</a>
 			</div>
 			<header class="discussion-event-heading"><h1>{ p.Event.Name }</h1><p class="event-date">{ startLabel(p.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Event) }</p></header>
-			@DiscussionContent(p)
+			<p hidden data-conversation-status class="field-note" role="status" aria-atomic="true"></p>
+			<div data-conversation-content>
+				@DiscussionContent(p)
+			</div>
 		</main>
 	}
 }
@@ -286,9 +299,12 @@ templ DiscussionCommunity(p DiscussionCommunityPage) {
 }
 
 templ DiscussionFailure(f DiscussionForm,message string,signIn bool) {
-	@layouts.App("community","Contribution wasn't saved") {
+	@layouts.App("community","Contribution could not be confirmed") {
 		<main id="main" class="destination-page discussion-page">
-			<h1>Contribution wasn't saved</h1><p role="alert">{ message }</p>
+			<h1>Contribution could not be confirmed</h1><p role="alert">{ message }</p>
+			if f.Conflict {
+				<p class="field-note">This retry key already belongs to another version of your contribution. Your draft is kept below. Check the conversation before starting another post; retrying must not publish a duplicate.</p>
+			}
 			if f.Action=="create" || f.Action=="edit" {
 				@DiscussionComposer(f,"Your draft","Retry contribution")
 			} else if f.CSRF!="" {

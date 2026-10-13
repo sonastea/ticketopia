@@ -7,6 +7,16 @@ related_targets: ["views/home/event.templ", "views/home/recommendations.templ"]
 
 # Event discussions
 
+## Draft-safety extension — 2026-10-12
+
+Preserve the incumbent Operate surface. Standalone same-thread transitions and
+writes refresh locally with scoped draft/focus/scroll continuity; publication selects
+the confirmed contribution. Publish/discard follow the viewport-bounded field;
+pending/uncertain fields stay selectable and retries cannot change their payload/key.
+The in-thread finish inspection found no new visual-system changes. Chromium/WebKit
+pass 80 checks/eight clean axe views; real-phone keyboards/manual screen readers
+remain open. See [the guide](../../docs/event-discussions.md#conversation-ergonomics-and-draft-safety).
+
 ## Neighboring-screen extension — 2026-10-12
 
 Community artwork/title open Overview; named Questions & tips/thread links retain

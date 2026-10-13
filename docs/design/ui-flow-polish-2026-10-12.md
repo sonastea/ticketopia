@@ -1,8 +1,9 @@
 # UI flow polish priorities — 2026-10-12
 
-Status: the confirmed enlarged-text navigation defect is fixed. Priority 1 now has
-bounded sign-in continuity fixes and automated fixture coverage; its manual journey
-checks remain open. Other items are prioritized follow-up checks, not confirmed defects.
+Status: the confirmed enlarged-text navigation defect is fixed. Priorities 1 and 2
+now have bounded continuity/draft-safety fixes and automated fixture coverage;
+their manual journey checks remain open. Other items are prioritized follow-up
+checks, not confirmed defects.
 Preserve the existing visual system; fix observed friction rather than start
 another redesign. See the [current delivery focus](../goals/delivery.md#current-focus-use-refine-and-verify).
 
@@ -46,6 +47,18 @@ clean axe views. This is not completion of the people/device/live-consent checks
 ### 2. Phone conversation ergonomics and draft safety
 
 **Why next:** an awkward composer or lost draft costs more than visual inconsistency.
+
+**Implemented follow-up:** standalone conversations refresh in place, retaining
+Helpful/edit/remove focus, reading position and unrelated drafts. Reply targets
+keep separate drafts through Back/reload/resize; explicit discard clears only the
+chosen draft. Pending fields stay selectable, and long fields adapt to the visual
+viewport while ordinary scrolling remains available. Interrupted publication keeps
+its body, target and retry key immutable until confirmed; key conflicts never
+silently become new posts. Confirmed publication selects the exact contribution.
+See [conversation ergonomics and draft safety](../event-discussions.md#conversation-ergonomics-and-draft-safety)
+for the contract and fixture command. Chromium/WebKit passed 80 journey checks and
+eight clean axe views. Reduced-height fixtures are not real-phone keyboard tests;
+the physical-device and manual screen-reader checks below remain open.
 
 - Walk question → reply → Helpful on a real phone with the keyboard open.
 - Try long replies, reply-to-reply targets, Back, resize and interrupted submissions.

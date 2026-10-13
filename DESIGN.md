@@ -536,7 +536,13 @@ above the conversation. One indented reply level names same-thread targets;
 public text preserves line breaks and the 70ch prose measure. Helpful uses a
 44px secondary button, with pale-plum selected state and an inline post-level count.
 Removed contributions leave content-free placeholders. The labeled composer
-discloses its public audience; errors preserve drafts and confirmed state. See
+discloses its public audience before the field, with publish/discard directly below.
+Long fields adapt to the visual viewport; pending fields remain selectable.
+Explicit discard changes only the draft. Uncertain creation retries keep their
+body/target/key immutable; confirmation selects the exact contribution. Standalone
+same-thread reads/writes retain scoped drafts and control focus/reading position,
+matching contextual discussions. Errors distinguish a failed refresh from a saved
+post. See
 [event discussions](docs/event-discussions.md). No new global tokens or assets.
 
 Private follow/unfollow uses a compact native disclosure before the conversation

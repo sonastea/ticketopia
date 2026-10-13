@@ -254,7 +254,13 @@ func TestContributionsKeepHiddenTextAndComposerBoundaries(t *testing.T) {
 		}
 	}
 	body := renderNeighbor(t, DiscussionComposer(DiscussionForm{EventID: "e", ViewerID: "owner", Key: "preserved-key", ParentID: "target", CSRF: "csrf", Action: "create"}, "Your reply", "Publish reply"))
-	if strings.Count(body, "<textarea") != 1 || strings.Count(body, "<button") != 1 || !strings.Contains(body, `name="parent_id" value="target"`) || !strings.Contains(body, `name="idempotency_key" value="preserved-key"`) {
+	submissions := 0
+	for _, button := range neighborElements(neighborDocument(t, body), "button") {
+		if neighborAttributes(button)["type"] == "submit" {
+			submissions++
+		}
+	}
+	if strings.Count(body, "<textarea") != 1 || submissions != 1 || !strings.Contains(body, `name="parent_id" value="target"`) || !strings.Contains(body, `name="idempotency_key" value="preserved-key"`) {
 		t.Fatal("composer controls/draft metadata changed")
 	}
 	audience, publish := strings.Index(body, "contribution will be public"), strings.Index(body, "Publish reply")

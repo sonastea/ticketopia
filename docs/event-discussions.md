@@ -37,7 +37,7 @@ date/venue, then author/time and conversation text. Named **Questions & tips** a
 **Open conversation** links preserve direct section/thread entry and filters/cursors.
 Composers keep one writing action with public-attribution guidance beside publishing.
 Owner edit/removal and private report links stay visually secondary without weakening
-permission gates; drafts, retry keys, reply targets, placeholders and pagination are unchanged.
+permission gates; placeholders and pagination keep their existing boundaries.
 
 Contributions are required plain text, up to 4000 Unicode characters including
 surrounding whitespace, and must be nonempty after trimming;
@@ -90,6 +90,60 @@ Storage failures retain in-page drafts only; drafts are neither sent through OAu
 nor synced across devices. Late responses cannot replace a different selected event.
 No live polling is included. [Followed discussions](followed-discussions.md) add opt-in
 in-app reply notifications with frequency controls and visibility-safe direct links.
+
+### Conversation ergonomics and draft safety
+
+Standalone same-thread reply-target/pagination links and confirmed writes refresh
+only the conversation, not the document. Helpful/edit/remove retain reading position
+and restore focus to the affected control or placeholder; unrelated drafts survive
+refresh, including text entered while a read is pending. Back/Forward restore scoped
+drafts and targets. Confirmed publication selects the exact root/reply, including a
+reply outside the default page. Native links/forms remain usable without JavaScript.
+
+Only one question/edit/reply composer is active. Public-audience guidance precedes
+the field; publishing and deliberate **Discard draft → Discard this draft** sit
+directly after it. Discard clears only that draft (or restores the published text
+when editing); it never removes a published contribution. Long fields have bounded
+height based on the visual viewport when available, retaining native textarea and
+document scrolling. Pending fields are read-only rather than disabled, so selection,
+copy and focus remain available. This does not guarantee a particular phone keyboard.
+
+Pending, rejected, uncertain and confirmed states use explicit text. Creation records
+its body, parent and retry key before sending. An interrupted/5xx/malformed response
+keeps that payload read-only; **Retry unchanged contribution** resends the same identity,
+even after reload or a later expired-session rejection. It cannot publish a second
+copy of that attempt. A first structured validation/session rejection permits review
+and correction. Key conflicts offer conversation inspection, never automatic key
+rotation or a new-publication shortcut; native conflicts retain the escaped draft/key
+without a publish button. Copy the retained draft and check the conversation before
+starting another post. Unknown publication outcomes must be resolved before discard.
+Confirmed writes followed by failed reads offer conversation-read recovery, not
+another publication. No automatic post, draft sync, polling or persistence change.
+
+The priority-2 fixture uses isolated accounts/MariaDB, not live services:
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 \
+DISCUSSION_BROWSER_SCRIPT="$PWD/scripts/conversation-ergonomics-browser.cjs" \
+CONVERSATION_BROWSER_ENGINE=chromium \
+PLAYWRIGHT_MODULE=/path/to/node_modules/playwright \
+AXE_SCRIPT=/path/to/axe-core/axe.min.js \
+go test -count=1 -run '^TestMariaDBDiscussionBrowserReview$' -v ./internal/persistence
+```
+
+Repeat with `CONVERSATION_BROWSER_ENGINE=webkit`. The 2026-10-12 run passed 40
+checks/four clean axe views per engine, including a database-committed response loss
+followed by an exactly-once retry, reduced-height composing, long text, distinct
+reply drafts, Back/Forward/reload, explicit discard, Helpful focus/scroll, blocked
+storage, native validation/retry, exact off-page contribution selection and
+collection return across in-place thread transitions.
+The existing discussion/responsive fixtures also passed 25/137 Chromium checks
+(behavior-only runs, no captures/axe). Full MariaDB race tests, vet and Docker
+publishing-target validation also passed. Priority-2 captures live under
+`.impeccable/review/conversation-ergonomics/{chromium,webkit}/` (uncommitted).
+Storage denial supports same-document drafts only, not reload/native navigation.
+Physical-phone keyboards, manual screen readers and people/device journeys remain
+open in the [priority record](design/ui-flow-polish-2026-10-12.md#2-phone-conversation-ergonomics-and-draft-safety).
 
 ## API
 

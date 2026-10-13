@@ -2546,7 +2546,8 @@ summary::-webkit-details-marker {
 .conversation-record .recommendation-editor { margin-block: .25rem 0; max-inline-size: 100%; }
 .discussion-replies { padding-inline-start: var(--space-reply-indent); border-inline-start: 1px solid var(--line); }
 .discussion-reply-composer { margin-block-start: 2rem; scroll-margin-block-start: 1rem; }
-.discussion-composer textarea { scroll-margin-block-end: calc(6rem + env(safe-area-inset-bottom, 0px)); }
+.discussion-composer textarea { scroll-margin-block-end: calc(6rem + env(safe-area-inset-bottom, 0px)); max-block-size: min(24rem, max(8rem, calc(var(--discussion-viewport-block-size, 100dvh) * .35))); }
+.discussion-composer-actions { display: flex; flex-wrap: wrap; align-items: start; gap: .5rem 1rem; }
 .discussion-composer button { inline-size: fit-content; max-inline-size: 100%; }
 [data-discussion-form][aria-busy="true"] { opacity: .7; }
 [data-discussion-error] { color: var(--error); }

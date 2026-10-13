@@ -18,7 +18,8 @@ their status; they describe intended work rather than available features.
   implemented in-place event sections, clearer reminders/preferences, shared
   account navigation and event-first neighboring screens, with verification records.
 - [UI flow polish priorities — 2026-10-12](design/ui-flow-polish-2026-10-12.md):
-  enlarged-text navigation and sign-in continuity fixes, with remaining manual flow checks.
+  enlarged-text navigation, sign-in continuity and conversation draft-safety fixes,
+  with remaining manual flow checks.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and

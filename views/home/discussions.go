@@ -35,7 +35,10 @@ type DiscussionCommunityPage struct {
 	CategoriesUnavailable bool
 	URL, Error            string
 }
-type DiscussionForm struct{ EventID, ThreadID, ParentID, PostID, Body, Key, Action, ReturnURL, CSRF, ViewerID string }
+type DiscussionForm struct {
+	EventID, ThreadID, ParentID, PostID, Body, Key, Action, ReturnURL, CSRF, ViewerID string
+	Conflict                                                                          bool
+}
 
 func contextThreadID(p EventPage) string {
 	if p.Thread != nil {

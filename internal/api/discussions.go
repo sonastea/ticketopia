@@ -322,7 +322,7 @@ func (a *api) discussionActionPage(c echo.Context) error {
 			return accountProblem(c, err)
 		}
 		if errors.Is(err, discussions.ErrConflict) {
-			f.Key = accounts.ID()
+			f.Conflict = true
 		}
 		status, _, message, _ := accountError(err)
 		return render(c, status, home.DiscussionFailure(f, message, a.enabled() && errors.Is(err, accounts.ErrUnauthenticated)))
@@ -347,6 +347,16 @@ func (a *api) discussionActionPage(c echo.Context) error {
 		err = e
 		if err == nil {
 			location = home.ThreadURL(post.EventID, post.ThreadID, home.DiscussionOrigin(f.ReturnURL))
+			// Select the confirmed contribution even when it is outside the current
+			// reply page; clients need not jump to the top or guess where it landed.
+			target, _ := url.Parse(location)
+			if post.ID != post.ThreadID {
+				values := target.Query()
+				values.Set("post_id", post.ID)
+				target.RawQuery = values.Encode()
+			}
+			target.Fragment = "post-" + post.ID
+			location = target.String()
 			notice = "Your contribution was published."
 		}
 	case "edit":

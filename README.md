@@ -110,6 +110,8 @@ in the app.
 - [x] Discover, save, express interest, recommend, and discuss through complete
   single-column mobile screens with bottom navigation and threaded replies.
 - [x] Preserve event context, accessible navigation, and return state across responsive layouts.
+- [x] Keep scoped conversation drafts, explicit discard and duplicate-safe retries;
+  confirm standalone conversation actions without losing reading position.
 
 Responsive journeys are verified with isolated Chromium fixtures, keyboard/touch,
 320px/200%-text and automated accessibility checks. History and drafts stay in the

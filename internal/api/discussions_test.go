@@ -215,6 +215,37 @@ func TestDiscussionNativeDraftRecoveryAndSafeReturns(t *testing.T) {
 	}
 }
 
+func TestDiscussionNativeRetryDoesNotTurnConflictIntoNewPost(t *testing.T) {
+	a, repo, browser, _, csrf, event := discussionAPI(t)
+	key := accounts.ID()
+	form := url.Values{"action": {"create"}, "body": {"Original question"}, "event_id": {event}, "idempotency_key": {key}, "return_to": {"/community/discussions?city=Berlin"}, "csrf_token": {csrf}}
+	post := func() *httptest.ResponseRecorder {
+		return accountRequest(a, "POST", "/discussion-actions", form.Encode(), browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
+	}
+	w := post()
+	if w.Code != http.StatusSeeOther {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	original := repo.post.ID
+	location, err := url.Parse(w.Header().Get("Location"))
+	if err != nil || location.Fragment != "post-"+original || location.Query().Get("return_to") != "/community/discussions?city=Berlin" {
+		t.Fatal("confirmed post lost selection or origin", location, err)
+	}
+	w = post()
+	if w.Code != http.StatusSeeOther || repo.post.ID != original || w.Header().Get("Location") != location.String() {
+		t.Fatal("unchanged retry created a new contribution", w.Code, w.Body.String())
+	}
+	form.Set("body", "<changed draft>")
+	w = post()
+	if w.Code != http.StatusConflict || repo.post.ID != original || repo.post.Body != "Original question" {
+		t.Fatal("conflicting retry changed a published contribution", w.Code, w.Body.String())
+	}
+	markup := w.Body.String()
+	if !strings.Contains(markup, `name="idempotency_key" value="`+key+`"`) || !strings.Contains(markup, "&lt;changed draft&gt;") || strings.Contains(markup, "Retry contribution") {
+		t.Fatal("conflict must retain the draft/key without offering a new publication", markup)
+	}
+}
+
 func TestContextThreadUsesRetainedEventAndIsolatesReplyFailure(t *testing.T) {
 	a, repo, browser, bearer, _, event := discussionAPI(t)
 	w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"A retained question"}`, bearer, accounts.ID())
