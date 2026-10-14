@@ -23,17 +23,8 @@ func (r *RecommendationRepository) Community(ctx context.Context, q recommendati
  (SELECT COUNT(*) FROM event_recommendations active WHERE active.event_id=f.event_id AND active.withdrawn_at IS NULL)
  FROM recommendation_feed_events f JOIN event_snapshots e ON e.event_id=f.event_id
  WHERE EXISTS(SELECT 1 FROM event_recommendations active WHERE active.event_id=f.event_id AND active.withdrawn_at IS NULL)`
-	args := []any{}
-	for _, filter := range []struct{ value, path, fallback string }{{q.City, "$.venues[0].city", "$.place.city"}, {q.Country, "$.venues[0].country_code", "$.place.country_code"}} {
-		if filter.value != "" {
-			query += ` AND COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,?)),'null'),NULLIF(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,?)),'null'),'') COLLATE utf8mb4_unicode_ci=?`
-			args = append(args, filter.path, filter.fallback, filter.value)
-		}
-	}
-	if q.CategoryID != "" {
-		query += ` AND JSON_CONTAINS(e.snapshot,JSON_OBJECT('segment',JSON_OBJECT('id',?)),'$.classifications')=1`
-		args = append(args, q.CategoryID)
-	}
+	filters, args := communityFilters(q.City, q.Country, q.CategoryID)
+	query += filters
 	if c := q.FeedCursor; c != nil {
 		query += ` AND (f.first_recommended_at<? OR (f.first_recommended_at=? AND f.event_id<?))`
 		args = append(args, c.Before.UTC(), c.Before.UTC(), c.EventID)

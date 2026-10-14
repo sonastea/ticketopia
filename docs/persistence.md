@@ -11,7 +11,8 @@ and observe-only publication measurements, and schema-v8
 [reliable event history](event-history.md), plus schema-v10
 [private artist/venue follows](follows.md), and schema-v11 stored Discover and public
 history reads, schema-v12 [followed discussions and in-app reply notifications](followed-discussions.md),
-and schema-v13 [on-sale reminder settings, jobs, receipts and dispatch pacing](reminders.md).
+and schema-v13 [on-sale reminder settings, jobs, receipts and dispatch pacing](reminders.md),
+plus schema-v14 indexed community location/category filtering.
 MariaDB discovery uses SQL plus coverage-aware collection/fallback;
 database-free mode retains cache/provider services. MariaDB mode shares durable request budgets/pacing/cooldowns.
 Opt-in city/date collection and fresh activity snapshots persist observations,
@@ -299,16 +300,16 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 13 only**. Versions 0–12 and 14+ are rejected;
+This binary supports **clean schema version 14 only**. Versions 0–13 and 15+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous followed-discussion binary supports version 12 only.
-For the v12-to-v13 on-sale reminder upgrade, stop/drain v12 traffic, preserve a backup,
-apply the v13 migration with the v13 image, reapply/reconcile runtime table grants,
-then start v13 apps. Do not leave v12 pods serving after migration; they will fail
+old binaries are gone. The previous on-sale reminder binary supports version 13 only.
+For the v13-to-v14 community-filter upgrade, stop/drain v13 traffic, preserve a backup,
+apply the v14 migration with the v14 image, then start v14 apps. Existing runtime
+table grants suffice. Do not leave v13 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not
@@ -321,6 +322,18 @@ and jobs into a fresh database. Keep these milestones open until observed; PVCs
 and successful backup creation alone are not recovery verification.
 
 ## Durable identity boundary
+
+Schema v14 adds indexed, stored snapshot location projections for community
+recommendations (individual/grouped) and discussion lists/counts. City/country
+retain case-insensitive literal equality and independently use the first venue's
+field, falling back to place only for absent/JSON-null/literal `null` values;
+empty strings suppress fallback. Other venues never match. Prefix indexes retain
+full-value comparison, including long Unicode locations. Categories use binary
+equality against deduplicated `event_search_facets`, matching any classification
+without multiplying feed rows. Migration aligns existing category facets with
+snapshots rather than potentially newer identity metadata. Winning snapshot
+transactions maintain the projections; older/equal observations cannot rewind them.
+Discover continues to match any projected place/venue.
 
 Schema v13 adds private on-sale reminder settings, occurrence-unique delivery jobs,
 SES receipts and a shared dispatch pacing gate. See [reminders](reminders.md).

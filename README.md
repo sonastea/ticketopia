@@ -229,7 +229,7 @@ moderation are implemented for discussion posts/replies, with receipts, reversib
 author outcomes, and durable moderator roles. See [moderation](docs/moderation.md)
 for the operator grant/revoke CLI. [Reliable event history](docs/event-history.md)
 adds dated changes, opt-in city/date collection and shared provider budgets.
-The current binary requires schema 13, including stored Discover/coverage,
+The current binary requires schema 14, including indexed community filters, stored Discover/coverage,
 [private artist/venue follows](docs/follows.md), in-app discussion notifications
 and [public on-sale email reminders](docs/reminders.md).
 Drain older binaries, migrate and reapply grants before starting this version.

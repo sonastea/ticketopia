@@ -448,7 +448,7 @@ func TestMariaDBDiscoverClaimsRecoveryAndPagingBeyondProviderCap(t *testing.T) {
 	for i := range 1002 {
 		id := fmt.Sprintf("ticketmaster:overflow-%04d", i)
 		execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.events SELECT ?,name,source_url,start_utc,local_date,local_time,timezone,date_tba,date_tbd,time_tba,no_specific_time,status,venues,artists,classifications,place,created_at,updated_at FROM `+f.runtime.Database+`.events WHERE event_id=?`, id, e.ID)
-		execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.event_snapshots SELECT ?,JSON_SET(snapshot,'$.id',?,'$.source.id',?),data_as_of FROM `+f.runtime.Database+`.event_snapshots WHERE event_id=?`, id, id, strings.TrimPrefix(id, "ticketmaster:"), e.ID)
+		execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.event_snapshots (event_id,snapshot,data_as_of) SELECT ?,JSON_SET(snapshot,'$.id',?,'$.source.id',?),data_as_of FROM `+f.runtime.Database+`.event_snapshots WHERE event_id=?`, id, id, strings.TrimPrefix(id, "ticketmaster:"), e.ID)
 		execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.event_search_places VALUES (?,?,?)`, id, "Berlin", "DE")
 	}
 	v := q.Values()

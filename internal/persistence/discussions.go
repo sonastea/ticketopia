@@ -294,16 +294,9 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 		where += ` AND p.event_id=?`
 		args = append(args, event)
 	}
-	for _, filter := range []struct{ value, path, fallback string }{{q.City, "$.venues[0].city", "$.place.city"}, {q.Country, "$.venues[0].country_code", "$.place.country_code"}} {
-		if filter.value != "" {
-			where += ` AND COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,?)),'null'),NULLIF(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,?)),'null'),'') COLLATE utf8mb4_unicode_ci=?`
-			args = append(args, filter.path, filter.fallback, filter.value)
-		}
-	}
-	if q.CategoryID != "" {
-		where += ` AND JSON_CONTAINS(e.snapshot,JSON_OBJECT('segment',JSON_OBJECT('id',?)),'$.classifications')=1`
-		args = append(args, q.CategoryID)
-	}
+	filters, filterArgs := communityFilters(q.City, q.Country, q.CategoryID)
+	where += filters
+	args = append(args, filterArgs...)
 	var count int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*)`+postJoin+where+` AND p.removed_at IS NULL AND p.hidden_at IS NULL`, args...).Scan(&count); err != nil {
 		return nil, 0, safeError("discussion count", err)

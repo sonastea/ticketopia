@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 13
+const SupportedSchemaVersion = 14
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -142,7 +142,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT ` + credentialColumns + ` FROM account_credentials LIMIT 0`,
 		`SELECT state_hash, browser_hash, verifier, nonce, return_to, expires_at FROM auth_flows LIMIT 0`,
 		`SELECT bucket_hash, attempts, expires_at FROM auth_rate_limits LIMIT 0`,
-		`SELECT event_id, snapshot, data_as_of FROM event_snapshots LIMIT 0`,
+		`SELECT event_id, snapshot, data_as_of, community_city, community_country FROM event_snapshots LIMIT 0`,
 		`SELECT account_id, event_id, saved_at FROM saved_events LIMIT 0`,
 		`SELECT account_id, event_id, interested_at, visibility FROM event_interests LIMIT 0`,
 		`SELECT account_id, event_id, reason, recommended_at, updated_at, withdrawn_at FROM event_recommendations LIMIT 0`,

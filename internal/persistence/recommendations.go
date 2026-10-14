@@ -170,18 +170,9 @@ func (r *RecommendationRepository) List(ctx context.Context, owner, event string
 		query += ` AND r.event_id=?`
 		args = append(args, event)
 	}
-	// Scope reads use the authoritative last-known snapshot, not client-supplied
-	// labels or provider calls. '%' and '_' in city names are literal, not wildcards.
-	for _, filter := range []struct{ value, path, fallback string }{{q.City, "$.venues[0].city", "$.place.city"}, {q.Country, "$.venues[0].country_code", "$.place.country_code"}} {
-		if filter.value != "" {
-			query += ` AND COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,?)),'null'),NULLIF(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,?)),'null'),'') COLLATE utf8mb4_unicode_ci=?`
-			args = append(args, filter.path, filter.fallback, filter.value)
-		}
-	}
-	if q.CategoryID != "" {
-		query += ` AND JSON_CONTAINS(e.snapshot,JSON_OBJECT('segment',JSON_OBJECT('id',?)),'$.classifications')=1`
-		args = append(args, q.CategoryID)
-	}
+	filters, filterArgs := communityFilters(q.City, q.Country, q.CategoryID)
+	query += filters
+	args = append(args, filterArgs...)
 	if q.Cursor != nil {
 		query += ` AND (r.recommended_at<? OR (r.recommended_at=? AND (r.event_id<? OR (r.event_id=? AND r.account_id<?))))`
 		args = append(args, q.Cursor.Before.UTC(), q.Cursor.Before.UTC(), q.Cursor.EventID, q.Cursor.EventID, q.Cursor.AccountID)

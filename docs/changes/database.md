@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### 2026-10-14 — Indexed community filters, schema v14
+
+- Replace per-read JSON location/category predicates in recommendation feeds and
+  discussion lists/counts with indexed snapshot locations and category facets.
+  Preserve first-venue/per-field fallback, literal/case-insensitive locations,
+  binary categories, deduplication, and winning-snapshot freshness.
+- Backfill existing snapshots/categories; require drained v13 traffic before
+  migration. See [persistence](../persistence.md#durable-identity-boundary).
+
 ### 2026-10-08 — Fail-fast runtime permissions
 
 - Validate every required runtime write before HTTP startup with zero-row,
