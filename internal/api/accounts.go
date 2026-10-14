@@ -221,6 +221,22 @@ func (a *api) googleCallback(c echo.Context) error {
 	a.cookie(c, "session", raw, accounts.CredentialLifetime)
 	return c.Redirect(http.StatusSeeOther, safeAuthReturn(returnTo))
 }
+
+type requestAuthentication struct {
+	principal accounts.Principal
+	err       error
+}
+
+func (a *api) authenticateRequest(c echo.Context, raw, kind string) (accounts.Principal, error) {
+	key := "ticketopia.authentication." + kind
+	if cached, ok := c.Get(key).(requestAuthentication); ok {
+		return cached.principal, cached.err
+	}
+	p, err := a.accounts.Authenticate(c.Request().Context(), raw, kind)
+	c.Set(key, requestAuthentication{p, err})
+	return p, err
+}
+
 func (a *api) browserPrincipal(c echo.Context) (accounts.Principal, error) {
 	if !a.enabled() {
 		return accounts.Principal{}, errDisabled
@@ -229,7 +245,7 @@ func (a *api) browserPrincipal(c echo.Context) (accounts.Principal, error) {
 	if err != nil {
 		return accounts.Principal{}, accounts.ErrUnauthenticated
 	}
-	return a.accounts.Authenticate(c.Request().Context(), cookie.Value, "session")
+	return a.authenticateRequest(c, cookie.Value, "session")
 }
 func (a *api) principal(c echo.Context, browserOnly bool) (accounts.Principal, error) {
 	privateAccountResponse(c)
@@ -240,7 +256,7 @@ func (a *api) principal(c echo.Context, browserOnly bool) (accounts.Principal, e
 		if browserOnly || !strings.HasPrefix(h, "Bearer ") {
 			return accounts.Principal{}, accounts.ErrUnauthenticated
 		}
-		return a.accounts.Authenticate(c.Request().Context(), strings.TrimPrefix(h, "Bearer "), "api")
+		return a.authenticateRequest(c, strings.TrimPrefix(h, "Bearer "), "api")
 	}
 	return a.browserPrincipal(c)
 }

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -27,9 +28,11 @@ type accountStub struct {
 	lastOwner   string
 	unavailable bool
 	limited     bool
+	authCalls   int
 }
 
 func (r *accountStub) Authenticate(_ context.Context, h [32]byte, kind string, now time.Time) (accounts.Account, accounts.Credential, error) {
+	r.authCalls++
 	if r.unavailable {
 		return accounts.Account{}, accounts.Credential{}, errors.New("db-password-must-not-leak")
 	}
@@ -38,6 +41,37 @@ func (r *accountStub) Authenticate(_ context.Context, h [32]byte, kind string, n
 		return accounts.Account{}, c, accounts.ErrUnauthenticated
 	}
 	return r.account, c, nil
+}
+
+func TestRequestAuthenticationReuseAndIsolation(t *testing.T) {
+	a, repo, browser, bearer, _ := accountAPI(t)
+	repo.authCalls = 0
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: a.authConfig.CookieName("session"), Value: browser})
+	req.Header.Set("Authorization", "Bearer "+bearer)
+	c := e.NewContext(req, httptest.NewRecorder())
+	for range 2 {
+		p, err := a.principal(c, false)
+		if err != nil || p.Credential.Kind != "api" {
+			t.Fatal(p, err)
+		}
+		if _, err := a.principal(c, true); !errors.Is(err, accounts.ErrUnauthenticated) {
+			t.Fatal("browser accepted bearer", err)
+		}
+		p, err = a.browserPrincipal(c)
+		if err != nil || p.Credential.Kind != "session" {
+			t.Fatal(p, err)
+		}
+	}
+	if repo.authCalls != 2 {
+		t.Fatalf("authentication calls = %d, want 2", repo.authCalls)
+	}
+	repo.credentials = nil
+	c = e.NewContext(req, httptest.NewRecorder())
+	if _, err := a.principal(c, false); !errors.Is(err, accounts.ErrUnauthenticated) {
+		t.Fatal("revoked credential reused across requests", err)
+	}
 }
 func (r *accountStub) Get(_ context.Context, id string) (accounts.Account, error) {
 	if id != r.account.ID {

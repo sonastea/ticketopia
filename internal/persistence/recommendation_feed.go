@@ -77,10 +77,10 @@ func (r *RecommendationRepository) Community(ctx context.Context, q recommendati
 	}
 	// Batch three-author previews, never a query per card or an unbounded author list.
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
-	query = `SELECT ` + recommendationColumns + ` FROM
+	query = `SELECT r.event_id,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at FROM
  (SELECT source.*,ROW_NUMBER() OVER(PARTITION BY source.event_id ORDER BY source.recommended_at DESC,source.account_id DESC) AS position
  FROM event_recommendations source WHERE source.withdrawn_at IS NULL AND source.event_id IN (` + placeholders + `)) r
- JOIN event_snapshots e ON e.event_id=r.event_id JOIN accounts a ON a.account_id=r.account_id WHERE r.position<=? ORDER BY r.event_id,r.position`
+	 JOIN accounts a ON a.account_id=r.account_id WHERE r.position<=? ORDER BY r.event_id,r.position`
 	ids = append(ids, recommendations.PreviewLimit)
 	rows, err = tx.QueryContext(ctx, query, ids...)
 	if err != nil {
@@ -88,11 +88,13 @@ func (r *RecommendationRepository) Community(ctx context.Context, q recommendati
 	}
 	defer rows.Close()
 	for rows.Next() {
-		item, err := scanRecommendation(rows)
-		if err != nil {
-			return nil, err
+		var item recommendations.Item
+		var eventID string
+		if err := rows.Scan(&eventID, &item.Profile.ID, &item.Profile.DisplayName, &item.Profile.Bio, &item.Reason, &item.RecommendedAt, &item.UpdatedAt); err != nil {
+			return nil, safeError("recommendation previews", err)
 		}
-		i := positions[item.Event.ID]
+		i := positions[eventID]
+		item.Event, item.Meta = items[i].Event, items[i].Meta
 		items[i].Recommendations = append(items[i].Recommendations, item)
 	}
 	if err = rows.Err(); err != nil {

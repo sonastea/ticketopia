@@ -170,15 +170,28 @@ func insertCredential(ctx context.Context, tx *sql.Tx, c accounts.Credential) er
 func (r *AccountRepository) Authenticate(ctx context.Context, hash [32]byte, kind string, now time.Time) (accounts.Account, accounts.Credential, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	c, err := scanCredential(r.db.QueryRowContext(ctx, `SELECT `+credentialColumns+` FROM account_credentials WHERE token_hash=? AND kind=? AND expires_at>?`, hash[:], kind, now))
+	var a accounts.Account
+	var c accounts.Credential
+	var categories, storedHash []byte
+	err := r.db.QueryRowContext(ctx, `SELECT c.credential_id,c.account_id,c.token_hash,c.kind,c.name,c.created_at,c.expires_at,
+	 a.account_id,a.email,a.display_name,a.bio,a.interest_visibility,a.city,a.country,a.timezone,a.category_ids,a.email_reminders,a.weekly_digest,a.notifications_paused,a.created_at
+	 FROM account_credentials c JOIN accounts a ON a.account_id=c.account_id WHERE c.token_hash=? AND c.kind=? AND c.expires_at>?`, hash[:], kind, now).Scan(
+		&c.ID, &c.AccountID, &storedHash, &c.Kind, &c.Name, &c.CreatedAt, &c.ExpiresAt,
+		&a.ID, &a.Email, &a.DisplayName, &a.Bio, &a.InterestVisibility, &a.Preferences.City, &a.Preferences.Country, &a.Preferences.Timezone, &categories, &a.Preferences.EmailReminders, &a.Preferences.WeeklyDigest, &a.Preferences.NotificationsPaused, &a.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accounts.Account{}, c, accounts.ErrUnauthenticated
 	}
 	if err != nil {
 		return accounts.Account{}, c, safeError("credential read", err)
 	}
-	a, err := scanAccount(r.db.QueryRowContext(ctx, `SELECT `+accountColumns+` FROM accounts WHERE account_id=?`, c.AccountID))
-	return a, c, err
+	copy(c.Hash[:], storedHash)
+	if err := json.Unmarshal(categories, &a.Preferences.CategoryIDs); err != nil {
+		return accounts.Account{}, c, safeError("account preferences", err)
+	}
+	if a.Preferences.CategoryIDs == nil {
+		a.Preferences.CategoryIDs = []string{}
+	}
+	return a, c, nil
 }
 func (r *AccountRepository) update(ctx context.Context, id string, sets []string, args []any) (accounts.Account, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
