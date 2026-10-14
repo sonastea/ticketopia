@@ -451,19 +451,109 @@ func TestMariaDBDiscoverClaimsRecoveryAndPagingBeyondProviderCap(t *testing.T) {
 		execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.event_snapshots SELECT ?,JSON_SET(snapshot,'$.id',?,'$.source.id',?),data_as_of FROM `+f.runtime.Database+`.event_snapshots WHERE event_id=?`, id, id, strings.TrimPrefix(id, "ticketmaster:"), e.ID)
 		execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.event_search_places VALUES (?,?,?)`, id, "Berlin", "DE")
 	}
-	q.Page = 1000
+	v := q.Values()
+	v.Set("cursor", q.NextCursor(discovery.Cursor{Date: date, Time: *e.Start.LocalTime, Name: e.Name, ID: "ticketmaster:overflow-0999"}))
+	q, err = discovery.ParseQuery(v, time.Now())
+	if err != nil || !q.Stored || q.Cursor == nil {
+		t.Fatal("stored cursor before provider cap", err)
+	}
 	read, err = p.Discovery().Search(t.Context(), q, 6*time.Hour)
-	if err != nil || read.List.Total != 1003 || len(read.List.Items) != 1 || read.List.NextCursor == nil {
+	if err != nil || read.List.Total != 1003 || len(read.List.Items) != 1 || read.List.Items[0].ID != "ticketmaster:overflow-1000" || read.List.NextCursor == nil {
 		t.Fatalf("SQL paging stopped at provider cap %+v %v", read, err)
 	}
-	v := q.Values()
+	v = q.Values()
 	v.Set("cursor", *read.List.NextCursor)
 	next, err := discovery.ParseQuery(v, time.Now())
-	if err != nil || next.Page != 1001 || !next.Stored {
+	if err != nil || !next.Stored || next.Cursor == nil || next.Cursor.ID != "ticketmaster:overflow-1000" {
 		t.Fatal("stored cursor capped", err)
 	}
 	v.Set("sort", "name_asc")
 	if _, err := discovery.ParseQuery(v, time.Now()); err == nil {
 		t.Fatal("stored cursor accepted changed sort")
+	}
+}
+
+func TestMariaDBDiscoverKeysetSortOrdersAndEdgeCases(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	r := p.Discovery()
+	at := time.Now().UTC()
+	prefix := strings.Repeat("Long title prefix beyond index ", 8)
+	fixtures := []struct {
+		id, date, clock, name string
+	}{
+		{"case-B", "2026-10-08", "19:00:00", "show"},
+		{"case-a", "2026-10-08", "19:00:00", "Show"},
+		{"tba-early", "2026-10-08", "", "Alpha TBA"},
+		{"tba-late", "2026-10-08", "", "Beta TBA"},
+		{"matinee", "2026-10-08", "14:00:00", "Matinee"},
+		{"long-b", "2026-10-09", "20:00:00", prefix + "B"},
+		{"long-a", "2026-10-09", "20:00:00", prefix + "A"},
+		{"final-tba", "2026-10-10", "", "Closing TBA"},
+		{"final-night", "2026-10-10", "22:00:00", "Closing Night"},
+	}
+	for _, item := range fixtures {
+		e := sampleEvent(item.id)
+		date := item.date
+		e.Start.LocalDate = &date
+		if item.clock == "" {
+			e.Start.LocalTime, e.Start.TimeTBA, e.Start.DateTime = nil, true, nil
+		} else {
+			clock := item.clock
+			e.Start.LocalTime = &clock
+		}
+		e.Name = item.name
+		e.Venues[0].City, e.Venues[0].CountryCode = "Berlin", "DE"
+		if err := r.Observe(t.Context(), models.EventDetail{Item: e, Meta: models.Freshness{DataAsOf: at}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, sortOrder := range []string{"date_asc", "date_desc", "name_asc"} {
+		fullQuery := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-10&limit=100&sort="+sortOrder)
+		full, err := r.Search(t.Context(), fullQuery, 6*time.Hour)
+		if err != nil || len(full.List.Items) != len(fixtures) || full.List.NextCursor != nil {
+			t.Fatalf("%s full read: %+v %v", sortOrder, full, err)
+		}
+		q := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-10&limit=1&sort="+sortOrder)
+		var paged []string
+		for {
+			read, err := r.Search(t.Context(), q, 6*time.Hour)
+			if err != nil || len(read.List.Items) != 1 || read.List.Total != len(fixtures) {
+				t.Fatalf("%s keyset page: %+v %v", sortOrder, read, err)
+			}
+			paged = append(paged, read.List.Items[0].ID)
+			if read.List.NextCursor == nil {
+				break
+			}
+			if len(*read.List.NextCursor) > 512 {
+				t.Fatalf("%s cursor exceeded 512 bytes: %d", sortOrder, len(*read.List.NextCursor))
+			}
+			v := q.Values()
+			v.Set("cursor", *read.List.NextCursor)
+			q, err = discovery.ParseQuery(v, at)
+			if err != nil {
+				t.Fatalf("%s parse cursor: %v", sortOrder, err)
+			}
+		}
+		if len(paged) != len(fixtures) {
+			t.Fatalf("%s count mismatch: got %d want %d", sortOrder, len(paged), len(fixtures))
+		}
+		for i, want := range full.List.Items {
+			if paged[i] != want.ID {
+				t.Fatalf("%s item %d: got %s want %s", sortOrder, i, paged[i], want.ID)
+			}
+		}
+	}
+	q := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-10&limit=1")
+	missingName := q.NextCursor(discovery.Cursor{Date: "2026-10-08", Time: "19:00:00", Name: strings.Repeat("x", 500), ID: "ticketmaster:missing"})
+	v := q.Values()
+	v.Set("cursor", missingName)
+	parsed, err := discovery.ParseQuery(v, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Search(t.Context(), parsed, 6*time.Hour); err == nil {
+		t.Fatal("accepted long-name cursor for nonexistent event")
 	}
 }

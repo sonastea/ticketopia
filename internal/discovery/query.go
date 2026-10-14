@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const musicSegment = "KZFzniwnSyZfZ7v7nJ"
@@ -24,6 +25,13 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string { return e.Field + ": " + e.Message }
 
+type Cursor struct {
+	Date string
+	Time string
+	Name string
+	ID   string
+}
+
 type Query struct {
 	CategoryID                                         string
 	City, Country, Keyword, GenreID, ArtistID, VenueID string
@@ -31,6 +39,7 @@ type Query struct {
 	Limit, Page                                        int
 	Sort                                               string
 	Stored                                             bool
+	Cursor                                             *Cursor
 }
 
 // ParseQuery canonicalizes every supported filter before cache lookup. Default
@@ -117,13 +126,47 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	if encoded := values.Get("cursor"); encoded != "" {
 		var cursor pageCursor
 		decoded, err := base64.RawURLEncoding.DecodeString(encoded)
-		if len(encoded) > 512 || err != nil || json.Unmarshal(decoded, &cursor) != nil || (cursor.Version != 1 && cursor.Version != 2) || cursor.Filters != q.fingerprint() || cursor.Page < 1 || (cursor.Version == 1 && cursor.Page > 999/q.Limit) || cursor.Page > 1000000/q.Limit {
+		if len(encoded) > 512 || err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Filters != q.fingerprint() {
 			return q, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
 		}
-		q.Page = cursor.Page
-		q.Stored = cursor.Version == 2
+		switch cursor.Version {
+		case 1:
+			if cursor.Page < 1 || cursor.Page > 999/q.Limit || cursor.Date != "" || cursor.Time != "" || cursor.Name != "" || cursor.ID != "" {
+				return q, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
+			}
+			q.Page = cursor.Page
+		case 2:
+			c := Cursor{Date: cursor.Date, Time: cursor.Time, Name: cursor.Name, ID: cursor.ID}
+			if cursor.Page != 0 || !q.validCursor(c) {
+				return q, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
+			}
+			q.Page = 1
+			q.Stored = true
+			q.Cursor = &c
+		default:
+			return q, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
+		}
 	}
 	return q, nil
+}
+
+func (q Query) ValidCursor() bool {
+	return q.Cursor != nil && q.validCursor(*q.Cursor)
+}
+
+func (q Query) validCursor(c Cursor) bool {
+	if _, err := sourceID(c.ID); err != nil {
+		return false
+	}
+	if _, err := time.Parse(time.DateOnly, c.Date); err != nil || c.Date < q.StartDate || c.Date > q.EndDate {
+		return false
+	}
+	if c.Time != "" {
+		if _, err := time.Parse(time.TimeOnly, c.Time); err != nil {
+			return false
+		}
+	}
+	return utf8.ValidString(c.Name) && utf8.RuneCountInString(c.Name) <= 1024
 }
 
 func sourceID(id string) (string, error) {
@@ -189,8 +232,12 @@ func (q Query) upstream() url.Values {
 
 type pageCursor struct {
 	Version int    `json:"v"`
-	Page    int    `json:"p"`
+	Page    int    `json:"p,omitempty"`
 	Filters string `json:"f"`
+	Date    string `json:"d,omitempty"`
+	Time    string `json:"t,omitempty"`
+	Name    string `json:"n,omitempty"`
+	ID      string `json:"id,omitempty"`
 }
 
 func (q Query) fingerprint() string {
@@ -199,15 +246,20 @@ func (q Query) fingerprint() string {
 }
 
 func (q Query) nextCursor() string {
-	v := 1
-	if q.Stored {
-		v = 2
-	}
-	data, _ := json.Marshal(pageCursor{v, q.Page + 1, q.fingerprint()})
+	data, _ := json.Marshal(pageCursor{Version: 1, Page: q.Page + 1, Filters: q.fingerprint()})
 	return base64.RawURLEncoding.EncodeToString(data)
 }
 
-func (q Query) NextCursor() string { q.Stored = true; return q.nextCursor() }
+func (q Query) NextCursor(c Cursor) string {
+	fp := q.fingerprint()
+	data, _ := json.Marshal(pageCursor{Version: 2, Filters: fp, Date: c.Date, Time: c.Time, Name: c.Name, ID: c.ID})
+	encoded := base64.RawURLEncoding.EncodeToString(data)
+	if len(encoded) > 512 {
+		data, _ = json.Marshal(pageCursor{Version: 2, Filters: fp, Date: c.Date, Time: c.Time, ID: c.ID})
+		encoded = base64.RawURLEncoding.EncodeToString(data)
+	}
+	return encoded
+}
 
 // CollectionScope collects broadly once, then filters locally. A city search
 // never stores a user's keyword or their private participation/preferences.
@@ -216,7 +268,7 @@ func (q Query) CollectionScope() Query {
 	if q.City != "" {
 		q.ArtistID, q.VenueID = "", ""
 	}
-	q.Limit, q.Page, q.Stored = 100, 0, false
+	q.Limit, q.Page, q.Stored, q.Cursor = 100, 0, false, nil
 	return q
 }
 

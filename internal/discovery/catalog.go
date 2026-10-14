@@ -162,7 +162,7 @@ func (s *Service) Catalog(ctx context.Context, kind string, values url.Values) (
 	list := models.CatalogList{Items: page.Items, Total: page.Total, Meta: meta}
 	if len(page.Items) > 0 && q.Page+1 < page.TotalPages {
 		if (q.Page+1)*q.Limit < 1000 {
-			data, _ := json.Marshal(pageCursor{1, q.Page + 1, q.fingerprint()})
+			data, _ := json.Marshal(pageCursor{Version: 1, Page: q.Page + 1, Filters: q.fingerprint()})
 			next := base64.RawURLEncoding.EncodeToString(data)
 			list.NextCursor = &next
 		} else {

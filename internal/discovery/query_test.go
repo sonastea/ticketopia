@@ -71,7 +71,7 @@ func TestCategoryQueryCompatibilityAndCursorIsolation(t *testing.T) {
 	old := q.Values()
 	old.Del("category_id")
 	sum := sha256.Sum256([]byte(old.Encode()))
-	data, _ := json.Marshal(pageCursor{1, 1, hex.EncodeToString(sum[:])})
+	data, _ := json.Marshal(pageCursor{Version: 1, Page: 1, Filters: hex.EncodeToString(sum[:])})
 	old.Set("cursor", base64.RawURLEncoding.EncodeToString(data))
 	if _, err := ParseQuery(old, time.Now()); err == nil {
 		t.Fatal("old music cursor was accepted into the expanded search")
@@ -110,11 +110,36 @@ func TestPaginationBindsFiltersAndStopsAtProviderLimit(t *testing.T) {
 		}
 	}
 	for _, page := range []int{-1, 0, 10, 1000000000} {
-		data, _ := json.Marshal(pageCursor{1, page, q.fingerprint()})
+		data, _ := json.Marshal(pageCursor{Version: 1, Page: page, Filters: q.fingerprint()})
 		values := q.Values()
 		values.Set("cursor", base64.RawURLEncoding.EncodeToString(data))
 		if _, err := ParseQuery(values, time.Now()); err == nil {
 			t.Fatalf("invalid cursor page %d accepted", page)
+		}
+	}
+	stored := q.NextCursor(Cursor{Date: q.StartDate, Time: "19:30:00", Name: "Show", ID: "ticketmaster:show-1"})
+	values := q.Values()
+	values.Set("cursor", stored)
+	parsedStored, err := ParseQuery(values, time.Now())
+	if err != nil || !parsedStored.Stored || parsedStored.Page != 1 || parsedStored.Cursor == nil || parsedStored.Cursor.ID != "ticketmaster:show-1" {
+		t.Fatalf("stored keyset cursor failed: %+v %v", parsedStored, err)
+	}
+	if _, err := s.Events(t.Context(), parsedStored); err == nil {
+		t.Fatal("database-free service accepted stored keyset cursor")
+	}
+	for _, bad := range []pageCursor{
+		{Version: 1, Page: 1, Filters: q.fingerprint(), ID: "ticketmaster:show-1"},
+		{Version: 2, Page: 1, Filters: q.fingerprint()},
+		{Version: 2, Page: 1, Filters: q.fingerprint(), Date: q.StartDate, ID: "ticketmaster:show-1"},
+		{Version: 2, Filters: q.fingerprint(), Date: "2020-01-01", ID: "ticketmaster:show-1"},
+		{Version: 2, Filters: q.fingerprint(), Date: q.StartDate, Time: "25:00:00", ID: "ticketmaster:show-1"},
+		{Version: 2, Filters: q.fingerprint(), Date: q.StartDate, ID: "unscoped"},
+	} {
+		data, _ := json.Marshal(bad)
+		values := q.Values()
+		values.Set("cursor", base64.RawURLEncoding.EncodeToString(data))
+		if _, err := ParseQuery(values, time.Now()); err == nil {
+			t.Fatalf("invalid keyset cursor accepted: %+v", bad)
 		}
 	}
 }

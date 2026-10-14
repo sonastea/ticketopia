@@ -16,10 +16,20 @@ SQL filters city/country, inclusive local dates, category/genre, artist/venue ID
 and literal case-insensitive event/artist/venue-name keywords (including short names
 and escaped `%`/`_`). Indexed public place/facet projections and date/name indexes
 narrow queries; substring keyword matching is a residual filter, not full-text
-ranking. Sort by `date_asc`, `date_desc`, or `name_asc`. SQL counts/paginates the
-stored matches, including past dates when explicitly requested; it is not capped
-at the provider's 1,000-result window. Filter/limit/sort-bound cursors are not
-snapshot cursors: changes between requests may shift pages.
+ranking. Sort by `date_asc`, `date_desc`, or `name_asc`. SQL counts the stored
+matches and paginates them with filter/limit/sort-bound keyset cursors instead of
+scanning and discarding `OFFSET` rows, including past dates when explicitly
+requested; it is not capped at the provider's 1,000-result window. Each keyset
+preserves its sort order (`(local_date, local_time, name, event_id)` ascending,
+`(local_date DESC, local_time DESC, name ASC, event_id ASC)` for `date_desc`, or
+`(name, local_date, local_time, event_id)` ascending for `name_asc`), normalizing
+unknown/TBA times consistently with SQL `NULL` ordering and tie-breaking by
+case-insensitive Unicode title then binary `event_id`. Long titles omit inline
+cursor names to stay within the 512-byte cursor limit and resolve the anchor
+title from `events`. Only the requested page's snapshots and omission states are
+loaded after `ORDER BY ... LIMIT`. Cursors are not snapshot cursors: changes
+between requests may shift pages; cursors issued by the previous offset encoding
+are rejected and require starting a new search.
 
 Fresh complete city/day receipts covering every requested date, or an enclosing
 complete on-demand city/date receipt, avoid event-provider calls. Freshness is six
@@ -239,7 +249,27 @@ export MARIADB_TEST_ADDR=127.0.0.1:3307
 export MARIADB_TEST_CA="$PWD/.local/mariadb/certs/ca.crt"
 go test -race ./...
 go vet ./...
+go test ./internal/persistence -run '^$' -bench '^BenchmarkMariaDBDiscover$' -benchmem
 ```
+
+Measurements on 2026-10-14 (Apple M1, local TLS-enabled MariaDB 12.3.3; 20-item
+first pages and continuation cursors halfway through 1,000 and 10,000 matching
+events across 90 days):
+
+| Matching events / sort / page | Before ms | After ms | Before KB | After KB |
+| --- | ---: | ---: | ---: | ---: |
+| 1,000 / `date_asc` / first | 7.24 | 7.38 | 143.6 | 145.2 |
+| 1,000 / `date_asc` / halfway | 7.85 | 7.03 | 145.4 | 148.5 |
+| 1,000 / `date_desc` / first | 7.78 | 7.73 | 144.3 | 145.1 |
+| 1,000 / `date_desc` / halfway | 8.01 | 6.95 | 145.2 | 149.0 |
+| 1,000 / `name_asc` / first | 7.58 | 7.46 | 143.6 | 144.2 |
+| 1,000 / `name_asc` / halfway | 8.02 | 6.65 | 144.9 | 147.9 |
+| 10,000 / `date_asc` / first | 85.1 | 49.8 | 142.7 | 144.6 |
+| 10,000 / `date_asc` / halfway | 100.1 | 36.9 | 146.4 | 147.7 |
+| 10,000 / `date_desc` / first | 89.3 | 51.0 | 145.4 | 144.0 |
+| 10,000 / `date_desc` / halfway | 100.9 | 38.2 | 147.2 | 148.7 |
+| 10,000 / `name_asc` / first | 84.5 | 48.9 | 145.3 | 145.2 |
+| 10,000 / `name_asc` / halfway | 98.9 | 36.0 | 146.8 | 148.9 |
 
 Tests use provider fixtures and isolated random schemas on real MariaDB: cross-pool
 claims, expired fencing/recovery, page rollback/retries, capped/shifted coverage,

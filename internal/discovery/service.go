@@ -83,18 +83,30 @@ func (s *Service) Events(ctx context.Context, q Query) (models.EventList, error)
 	if err != nil {
 		return models.EventList{}, err
 	}
-	if q.Page < 0 || (s.catalog == nil && q.Page > 999/validated.Limit) || q.Page > 1000000/validated.Limit {
+	if q.Stored || q.Cursor != nil {
+		if s.catalog == nil {
+			return models.EventList{}, &ValidationError{"cursor", "stored cursor requires MariaDB; start a new search"}
+		}
+		if !q.Stored || q.Cursor == nil || !validated.validCursor(*q.Cursor) {
+			return models.EventList{}, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
+		}
+		validated.Page = 1
+		validated.Stored = true
+		c := *q.Cursor
+		validated.Cursor = &c
+		return s.storedEvents(ctx, validated)
+	}
+	if q.Page < 0 || q.Page > 999/validated.Limit {
 		return models.EventList{}, &ValidationError{"cursor", "page exceeds the provider result limit"}
 	}
-	validated.Page = q.Page
-	validated.Stored = q.Stored
-	q = validated
 	if s.catalog != nil {
-		return s.storedEvents(ctx, q)
+		if q.Page > 0 {
+			return models.EventList{}, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
+		}
+		return s.storedEvents(ctx, validated)
 	}
-	if q.Stored {
-		return models.EventList{}, &ValidationError{"cursor", "stored cursor requires MariaDB; start a new search"}
-	}
+	validated.Page = q.Page
+	q = validated
 	page, meta, err := cached(ctx, s, q.cacheKey(), eventPolicy, func(ctx context.Context) (eventPage, error) {
 		return s.fetchPage(ctx, q)
 	})

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -111,11 +112,29 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	read := discovery.CatalogRead{List: models.EventList{Items: []models.Event{}}}
+	if q.Stored || q.Cursor != nil || q.Page > 0 {
+		if !q.Stored || !q.ValidCursor() {
+			return read, &discovery.ValidationError{Field: "cursor", Message: "invalid cursor or filters changed; start a new search"}
+		}
+	}
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return read, safeError("discover read", err)
 	}
 	defer tx.Rollback()
+	var cursor *discovery.Cursor
+	if q.Cursor != nil {
+		c := *q.Cursor
+		if c.Name == "" {
+			if err := tx.QueryRowContext(ctx, `SELECT name FROM events WHERE event_id=?`, c.ID).Scan(&c.Name); err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					return read, &discovery.ValidationError{Field: "cursor", Message: "invalid cursor or filters changed; start a new search"}
+				}
+				return read, safeError("discover cursor", err)
+			}
+		}
+		cursor = &c
+	}
 	meta, refresh, err := coverageTx(ctx, tx, q, freshFor)
 	if err != nil {
 		return read, safeError("discover coverage", err)
@@ -133,12 +152,32 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 	if q.Sort == "name_asc" {
 		order = `e.name,e.local_date,e.local_time,e.event_id`
 	}
-	args = append(args, q.Limit, q.Page*q.Limit)
-	rows, err := tx.QueryContext(ctx, `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id)`+from+` ORDER BY `+order+` LIMIT ? OFFSET ?`, args...)
+	pageFrom := from
+	pageArgs := slices.Clone(args)
+	if cursor != nil {
+		switch q.Sort {
+		case "date_desc":
+			pageFrom += ` AND e.local_date<=? AND (e.local_date<? OR (e.local_date=? AND (COALESCE(e.local_time,'')<? OR (COALESCE(e.local_time,'')=? AND (e.name,e.event_id)>(?,?)))))`
+			pageArgs = append(pageArgs, cursor.Date, cursor.Date, cursor.Date, cursor.Time, cursor.Time, cursor.Name, cursor.ID)
+		case "name_asc":
+			pageFrom += ` AND e.name>=? AND (e.name,e.local_date,COALESCE(e.local_time,''),e.event_id)>(?,?,?,?)`
+			pageArgs = append(pageArgs, cursor.Name, cursor.Name, cursor.Date, cursor.Time, cursor.ID)
+		default:
+			pageFrom += ` AND e.local_date>=? AND (e.local_date,COALESCE(e.local_time,''),e.name,e.event_id)>(?,?,?,?)`
+			pageArgs = append(pageArgs, cursor.Date, cursor.Date, cursor.Time, cursor.Name, cursor.ID)
+		}
+	}
+	pageArgs = append(pageArgs, q.Limit+1)
+	rows, err := tx.QueryContext(ctx, `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) FROM (SELECT e.event_id`+pageFrom+` ORDER BY `+order+` LIMIT ?) e STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id`, pageArgs...)
 	if err != nil {
 		return read, safeError("discover page", err)
 	}
+	hasMore := false
 	for rows.Next() {
+		if len(read.List.Items) == q.Limit {
+			hasMore = true
+			break
+		}
 		var data []byte
 		var at time.Time
 		var unconfirmed bool
@@ -164,8 +203,16 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 	if err != nil {
 		return read, safeError("discover page", err)
 	}
-	if (q.Page+1)*q.Limit < read.List.Total && (q.Page+1)*q.Limit <= 1000000 {
-		cursor := q.NextCursor()
+	if hasMore {
+		last := read.List.Items[len(read.List.Items)-1]
+		var date, clock string
+		if last.Start.LocalDate != nil {
+			date = *last.Start.LocalDate
+		}
+		if last.Start.LocalTime != nil {
+			clock = *last.Start.LocalTime
+		}
+		cursor := q.NextCursor(discovery.Cursor{Date: date, Time: clock, Name: last.Name, ID: last.ID})
 		read.List.NextCursor = &cursor
 	}
 	read.List.Limited = read.List.Meta.Coverage.Status == "partial"
