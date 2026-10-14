@@ -2,17 +2,22 @@
 
 ## Unreleased
 
-### 2026-10-14 — Keyset Discover pagination
+### 2026-10-14 — Keyset Discover pagination and count reuse
 
 - Replace stored Discover `OFFSET` paging with filter/limit/sort-bound keyset
   cursors across `date_asc`, `date_desc`, and `name_asc`; narrow date/name index
   bounds and defer snapshot/omission reads until after `ORDER BY ... LIMIT`.
+- Skip `COUNT(*)` on first-page reads that fit within `limit`, reuse exact counts
+  across repeated searches, sort/limit changes, and continuation cursors when
+  coverage and catalog state are unchanged, and invalidate cached/cursor totals
+  whenever stored events or collection receipts change.
 - Preserve SQL `NULL` time ordering for TBA/unknown times, case-insensitive
   Unicode name tie-breaking, binary `event_id` ordering, and the 512-byte cursor
   bound by resolving long anchor titles from `events`.
 - Add 1,000/10,000-event first/halfway-page benchmarks and MariaDB/unit
-  regressions for all sort orders, TBA times, case collisions, long titles, and
-  cursor validation. See [stored Discover](../event-history.md#stored-discover-and-coverage-aware-reads).
+  regressions for all sort orders, TBA times, case collisions, long titles,
+  cursor validation, and catalog-write count invalidation. See
+  [stored Discover](../event-history.md#stored-discover-and-coverage-aware-reads).
 
 ### 2026-10-09 — Keep Discover usable during refresh and cancellation
 

@@ -135,6 +135,7 @@ func upsertSnapshotTx(ctx context.Context, tx *sql.Tx, detail models.EventDetail
 		}
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO event_snapshots (event_id,snapshot,data_as_of) VALUES (?,?,?) ON DUPLICATE KEY UPDATE snapshot=IF(VALUES(data_as_of)>data_as_of,VALUES(snapshot),snapshot), data_as_of=GREATEST(data_as_of,VALUES(data_as_of))`, detail.Item.ID, string(data), detail.Meta.DataAsOf.UTC().Truncate(time.Microsecond))
+	invalidateDiscoverCounts()
 	return err
 }
 func (r *SavedRepository) saveOnce(ctx context.Context, owner string, detail models.EventDetail, args []any, data []byte) (saved.Item, bool, bool, error) {
@@ -164,6 +165,7 @@ func (r *SavedRepository) saveOnce(ctx context.Context, owner string, detail mod
 	if err = tx.Commit(); err != nil {
 		return saved.Item{}, false, false, err
 	}
+	invalidateDiscoverCounts()
 	return item, count == 0, false, nil
 }
 func (r *SavedRepository) Remove(ctx context.Context, owner, id string) error {

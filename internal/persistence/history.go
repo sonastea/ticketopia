@@ -39,6 +39,7 @@ func historyTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, 
 				if err != nil {
 					return safeError(operation, err)
 				}
+				invalidateDiscoverCounts()
 				return nil
 			}
 			_ = tx.Rollback()

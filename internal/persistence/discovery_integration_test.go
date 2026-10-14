@@ -556,4 +556,41 @@ func TestMariaDBDiscoverKeysetSortOrdersAndEdgeCases(t *testing.T) {
 	if _, err := r.Search(t.Context(), parsed, 6*time.Hour); err == nil {
 		t.Fatal("accepted long-name cursor for nonexistent event")
 	}
+	// A continuation cursor minted before a catalog write must not serve its
+	// stale carried total once matching stored events change.
+	firstPage, err := r.Search(t.Context(), q, 6*time.Hour)
+	if err != nil || firstPage.List.Total != len(fixtures) || firstPage.List.NextCursor == nil {
+		t.Fatalf("first page before catalog update: %+v %v", firstPage, err)
+	}
+	v = q.Values()
+	v.Set("cursor", *firstPage.List.NextCursor)
+	continuation, err := discovery.ParseQuery(v, at)
+	if err != nil || continuation.Cursor == nil || continuation.Cursor.Total != len(fixtures) {
+		t.Fatalf("continuation cursor total not carried: %+v %v", continuation, err)
+	}
+	discoverCountsMu.Lock()
+	clear(discoverCounts)
+	discoverCountsMu.Unlock()
+	coldRead, err := r.Search(t.Context(), continuation, 6*time.Hour)
+	if err != nil || coldRead.List.Total != len(fixtures) {
+		t.Fatalf("cold continuation read lost carried total: %+v %v", coldRead, err)
+	}
+	added := sampleEvent("added-after-cursor")
+	addedDate := "2026-10-10"
+	addedClock := "23:00:00"
+	added.Start.LocalDate, added.Start.LocalTime = &addedDate, &addedClock
+	added.Name = "Encore Show"
+	added.Venues[0].City, added.Venues[0].CountryCode = "Berlin", "DE"
+	if err := r.Observe(t.Context(), models.EventDetail{Item: added, Meta: models.Freshness{DataAsOf: at.Add(time.Minute)}}); err != nil {
+		t.Fatal(err)
+	}
+	updatedRead, err := r.Search(t.Context(), continuation, 6*time.Hour)
+	if err != nil || updatedRead.List.Total != len(fixtures)+1 || updatedRead.List.NextCursor == nil {
+		t.Fatalf("stale total survived catalog write: %+v %v", updatedRead, err)
+	}
+	v.Set("cursor", *updatedRead.List.NextCursor)
+	nextUpdated, err := discovery.ParseQuery(v, at)
+	if err != nil || nextUpdated.Cursor == nil || nextUpdated.Cursor.Total != len(fixtures)+1 {
+		t.Fatalf("recounted total not propagated to next cursor: %+v %v", nextUpdated, err)
+	}
 }

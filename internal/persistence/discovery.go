@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -18,12 +20,92 @@ import (
 )
 
 type DiscoveryRepository struct {
-	db      *sql.DB
-	timeout time.Duration
+	db       *sql.DB
+	timeout  time.Duration
+	database string
 }
 
 func (p *Pool) Discovery() *DiscoveryRepository {
-	return &DiscoveryRepository{p.db, p.config.QueryTimeout}
+	return &DiscoveryRepository{p.db, p.config.QueryTimeout, p.config.Database}
+}
+
+const maxDiscoverCountEntries = 1024
+
+type coverageStamp struct {
+	status        string
+	collectedDays int
+	freshDays     int
+	stale         bool
+	refresh       bool
+	dataAsOf      int64
+	newestSuccess int64
+	newestAttempt int64
+	scopes        int
+}
+
+type discoverCountEntry struct {
+	total     int
+	writeGen  uint64
+	coverage  coverageStamp
+	expiresAt time.Time
+}
+
+var (
+	discoverCatalogGen atomic.Uint64
+	discoverCountsMu   sync.RWMutex
+	discoverCounts     = map[string]discoverCountEntry{}
+)
+
+func invalidateDiscoverCounts() {
+	discoverCatalogGen.Add(1)
+}
+
+func (r *DiscoveryRepository) countCacheKey(q discovery.Query) string {
+	dbKey := r.database
+	if dbKey == "" {
+		dbKey = fmt.Sprintf("%p", r.db)
+	}
+	return dbKey + "\x00" + q.CountKey()
+}
+
+func lookupDiscoverCount(key string, writeGen uint64, coverage coverageStamp, minTotal int, now time.Time) (int, bool, bool) {
+	discoverCountsMu.RLock()
+	entry, exists := discoverCounts[key]
+	discoverCountsMu.RUnlock()
+	if !exists {
+		return 0, false, false
+	}
+	if entry.writeGen != writeGen || entry.coverage != coverage || !now.Before(entry.expiresAt) || entry.total < minTotal {
+		return 0, false, true
+	}
+	return entry.total, true, false
+}
+
+func storeDiscoverCount(key string, total int, writeGen uint64, coverage coverageStamp, ttl time.Duration, now time.Time) {
+	if discoverCatalogGen.Load() != writeGen {
+		return
+	}
+	if ttl <= 0 {
+		ttl = time.Minute
+	}
+	discoverCountsMu.Lock()
+	if len(discoverCounts) >= maxDiscoverCountEntries {
+		for k, v := range discoverCounts {
+			if v.writeGen != writeGen || !now.Before(v.expiresAt) {
+				delete(discoverCounts, k)
+			}
+		}
+		if len(discoverCounts) >= maxDiscoverCountEntries {
+			clear(discoverCounts)
+		}
+	}
+	discoverCounts[key] = discoverCountEntry{
+		total:     total,
+		writeGen:  writeGen,
+		coverage:  coverage,
+		expiresAt: now.Add(ttl),
+	}
+	discoverCountsMu.Unlock()
 }
 
 var _ discovery.Catalog = (*DiscoveryRepository)(nil)
@@ -117,6 +199,7 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 			return read, &discovery.ValidationError{Field: "cursor", Message: "invalid cursor or filters changed; start a new search"}
 		}
 	}
+	writeGen := discoverCatalogGen.Load()
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelRepeatableRead})
 	if err != nil {
 		return read, safeError("discover read", err)
@@ -135,16 +218,13 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 		}
 		cursor = &c
 	}
-	meta, refresh, err := coverageTx(ctx, tx, q, freshFor)
+	meta, refresh, stamp, err := coverageStampTx(ctx, tx, q, freshFor)
 	if err != nil {
 		return read, safeError("discover coverage", err)
 	}
 	read.List.Meta, read.Refresh = meta, refresh
 	where, args := searchWhere(q)
 	from := ` FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*)`+from, args...).Scan(&read.List.Total); err != nil {
-		return read, safeError("discover count", err)
-	}
 	order := `e.local_date,e.local_time,e.name,e.event_id`
 	if q.Sort == "date_desc" {
 		order = `e.local_date DESC,e.local_time DESC,e.name,e.event_id`
@@ -173,6 +253,7 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 		return read, safeError("discover page", err)
 	}
 	hasMore := false
+	now := time.Now()
 	for rows.Next() {
 		if len(read.List.Items) == q.Limit {
 			hasMore = true
@@ -192,7 +273,7 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 		if read.List.Meta.DataAsOf.IsZero() || at.Before(read.List.Meta.DataAsOf) {
 			read.List.Meta.DataAsOf = at
 		}
-		if time.Since(at) > freshFor || unconfirmed {
+		if now.Sub(at) > freshFor || unconfirmed {
 			read.List.Meta.Stale = true
 		}
 	}
@@ -203,6 +284,33 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 	if err != nil {
 		return read, safeError("discover page", err)
 	}
+	cacheKey := r.countCacheKey(q)
+	if cursor == nil && !hasMore {
+		read.List.Total = len(read.List.Items)
+		storeDiscoverCount(cacheKey, read.List.Total, writeGen, stamp, freshFor, now)
+	} else {
+		minTotal := q.Limit + 1
+		if cursor != nil {
+			if hasMore {
+				minTotal = q.Limit + 2
+			} else if len(read.List.Items) > 0 {
+				minTotal = max(q.Limit+1, len(read.List.Items)+1)
+			}
+		}
+		cachedTotal, ok, invalidated := lookupDiscoverCount(cacheKey, writeGen, stamp, minTotal, now)
+		switch {
+		case ok && (cursor == nil || len(read.List.Items) > 0):
+			read.List.Total = cachedTotal
+		case !invalidated && cursor != nil && len(read.List.Items) > 0 && cursor.Total >= minTotal:
+			read.List.Total = cursor.Total
+			storeDiscoverCount(cacheKey, read.List.Total, writeGen, stamp, freshFor, now)
+		default:
+			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*)`+from, args...).Scan(&read.List.Total); err != nil {
+				return read, safeError("discover count", err)
+			}
+			storeDiscoverCount(cacheKey, read.List.Total, writeGen, stamp, freshFor, now)
+		}
+	}
 	if hasMore {
 		last := read.List.Items[len(read.List.Items)-1]
 		var date, clock string
@@ -212,7 +320,7 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 		if last.Start.LocalTime != nil {
 			clock = *last.Start.LocalTime
 		}
-		cursor := q.NextCursor(discovery.Cursor{Date: date, Time: clock, Name: last.Name, ID: last.ID})
+		cursor := q.NextCursor(discovery.Cursor{Date: date, Time: clock, Name: last.Name, ID: last.ID, Total: read.List.Total})
 		read.List.NextCursor = &cursor
 	}
 	read.List.Limited = read.List.Meta.Coverage.Status == "partial"
@@ -220,18 +328,24 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 }
 
 func coverageTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor time.Duration) (models.Freshness, bool, error) {
+	meta, refresh, _, err := coverageStampTx(ctx, tx, q, freshFor)
+	return meta, refresh, err
+}
+
+func coverageStampTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor time.Duration) (models.Freshness, bool, coverageStamp, error) {
 	start, _ := time.Parse(time.DateOnly, q.StartDate)
 	end, _ := time.Parse(time.DateOnly, q.EndDate)
 	days := int(end.Sub(start)/(24*time.Hour)) + 1
 	c := &models.Coverage{Status: "not_collected", TotalDays: days}
 	meta := models.Freshness{Coverage: c}
+	var stamp coverageStamp
 	scope := q.CollectionScope()
 	var count, fresh int
-	var oldest sql.NullTime
+	var oldest, newestSuccess, newestAttempt sql.NullTime
 	if q.City != "" && q.Country != "" {
-		err := tx.QueryRowContext(ctx, `SELECT COUNT(last_success),COALESCE(SUM(last_success>=TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6)) AND last_failure=''),0),MIN(last_success) FROM collection_tasks WHERE city=? AND country=? AND local_date BETWEEN ? AND ?`, freshFor.Microseconds(), q.City, q.Country, q.StartDate, q.EndDate).Scan(&count, &fresh, &oldest)
+		err := tx.QueryRowContext(ctx, `SELECT COUNT(last_success),COALESCE(SUM(last_success>=TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6)) AND last_failure=''),0),MIN(last_success),MAX(last_success),MAX(last_attempt) FROM collection_tasks WHERE city=? AND country=? AND local_date BETWEEN ? AND ?`, freshFor.Microseconds(), q.City, q.Country, q.StartDate, q.EndDate).Scan(&count, &fresh, &oldest, &newestSuccess, &newestAttempt)
 		if err != nil {
-			return meta, false, err
+			return meta, false, stamp, err
 		}
 		c.CollectedDays = count
 		if count > 0 {
@@ -245,31 +359,50 @@ func coverageTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor tim
 				c.Status = "stale"
 			}
 		}
+		if newestSuccess.Valid {
+			stamp.newestSuccess = newestSuccess.Time.UTC().UnixMicro()
+		}
+		if newestAttempt.Valid {
+			stamp.newestAttempt = newestAttempt.Time.UTC().UnixMicro()
+		}
 		if fresh == days {
-			return meta, false, nil
+			stamp.status, stamp.collectedDays, stamp.freshDays, stamp.stale = c.Status, c.CollectedDays, fresh, meta.Stale
+			if !meta.DataAsOf.IsZero() {
+				stamp.dataAsOf = meta.DataAsOf.UTC().UnixMicro()
+			}
+			return meta, false, stamp, nil
 		}
 	}
 	// A successfully collected enclosing on-demand range covers narrowed dates
 	// and all local filters. Broader/other-country queries need their own evidence.
 	rows, err := tx.QueryContext(ctx, `SELECT last_success,data_as_of,status,last_success<TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6)),(next_refresh>UTC_TIMESTAMP(6) OR COALESCE(lease_until>UTC_TIMESTAMP(6),0)) FROM discovery_scopes WHERE city=? AND country=? AND start_date<=? AND end_date>=? AND artist_id=? AND venue_id=? ORDER BY last_success DESC`, freshFor.Microseconds(), scope.City, scope.Country, scope.StartDate, scope.EndDate, scope.ArtistID, scope.VenueID)
 	if err != nil {
-		return meta, false, err
+		return meta, false, stamp, err
 	}
 	defer rows.Close()
 	refresh := true
 	for rows.Next() {
+		stamp.scopes++
 		var success, at sql.NullTime
 		var status string
 		var old sql.NullBool
 		var waiting bool
 		if err := rows.Scan(&success, &at, &status, &old, &waiting); err != nil {
-			return meta, false, err
+			return meta, false, stamp, err
+		}
+		if at.Valid && at.Time.UTC().UnixMicro() > stamp.newestAttempt {
+			stamp.newestAttempt = at.Time.UTC().UnixMicro()
 		}
 		if success.Valid {
+			if success.Time.UTC().UnixMicro() > stamp.newestSuccess {
+				stamp.newestSuccess = success.Time.UTC().UnixMicro()
+			}
 			if !old.Bool && status == "complete" {
 				c.CollectedDays, c.Status = days, "complete"
 				meta.DataAsOf, meta.Stale = success.Time, false
-				return meta, false, nil
+				stamp.status, stamp.collectedDays, stamp.freshDays, stamp.stale, stamp.refresh = c.Status, c.CollectedDays, fresh, meta.Stale, false
+				stamp.dataAsOf = meta.DataAsOf.UTC().UnixMicro()
+				return meta, false, stamp, nil
 			}
 			if c.CollectedDays < days || success.Time.After(meta.DataAsOf) {
 				c.CollectedDays, c.Status = days, "stale"
@@ -285,13 +418,13 @@ func coverageTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor tim
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return meta, false, err
+		return meta, false, stamp, err
 	}
 	if c.Status == "not_collected" {
 		// Scheduled partial pages are evidence even before a complete day.
 		var at sql.NullTime
 		if err := tx.QueryRowContext(ctx, `SELECT MAX(p.collected_at) FROM collection_tasks t JOIN collection_runs r ON r.task_id=t.task_id JOIN collection_pages p ON p.run_id=r.run_id WHERE t.city=? AND t.country=? AND t.local_date BETWEEN ? AND ?`, q.City, q.Country, q.StartDate, q.EndDate).Scan(&at); err != nil {
-			return meta, false, err
+			return meta, false, stamp, err
 		}
 		if at.Valid {
 			c.Status = "partial"
@@ -299,7 +432,11 @@ func coverageTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor tim
 			meta.Stale = true
 		}
 	}
-	return meta, refresh, nil
+	stamp.status, stamp.collectedDays, stamp.freshDays, stamp.stale, stamp.refresh = c.Status, c.CollectedDays, fresh, meta.Stale, refresh
+	if !meta.DataAsOf.IsZero() {
+		stamp.dataAsOf = meta.DataAsOf.UTC().UnixMicro()
+	}
+	return meta, refresh, stamp, nil
 }
 
 func newToken() (string, error) {

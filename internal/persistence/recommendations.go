@@ -116,6 +116,7 @@ func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, de
 	if err := tx.Commit(); err != nil {
 		return recommendations.Item{}, false, false, err
 	}
+	invalidateDiscoverCounts()
 	return item, created, false, nil
 }
 func recordRecommendationActivity(ctx context.Context, tx *sql.Tx, owner string, first bool) (recommendations.Observation, error) {

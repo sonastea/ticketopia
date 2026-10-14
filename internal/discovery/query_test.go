@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -117,23 +118,35 @@ func TestPaginationBindsFiltersAndStopsAtProviderLimit(t *testing.T) {
 			t.Fatalf("invalid cursor page %d accepted", page)
 		}
 	}
-	stored := q.NextCursor(Cursor{Date: q.StartDate, Time: "19:30:00", Name: "Show", ID: "ticketmaster:show-1"})
+	stored := q.NextCursor(Cursor{Date: q.StartDate, Time: "19:30:00", Name: "Show", ID: "ticketmaster:show-1", Total: 101})
 	values := q.Values()
 	values.Set("cursor", stored)
 	parsedStored, err := ParseQuery(values, time.Now())
-	if err != nil || !parsedStored.Stored || parsedStored.Page != 1 || parsedStored.Cursor == nil || parsedStored.Cursor.ID != "ticketmaster:show-1" {
+	if err != nil || !parsedStored.Stored || parsedStored.Page != 1 || parsedStored.Cursor == nil || parsedStored.Cursor.ID != "ticketmaster:show-1" || parsedStored.Cursor.Total != 101 {
 		t.Fatalf("stored keyset cursor failed: %+v %v", parsedStored, err)
+	}
+	longStored := q.NextCursor(Cursor{Date: q.StartDate, Time: "19:30:00", Name: strings.Repeat("Long title ", 50), ID: "ticketmaster:show-1", Total: 250})
+	values.Set("cursor", longStored)
+	parsedLong, err := ParseQuery(values, time.Now())
+	if err != nil || parsedLong.Cursor == nil || parsedLong.Cursor.Name != "" || parsedLong.Cursor.Total != 250 {
+		t.Fatalf("long keyset cursor lost total: %+v %v", parsedLong, err)
+	}
+	if q.CountKey() != testQuery(t, "city=boston&limit=10&sort=name_asc").CountKey() || q.CountKey() != parsedStored.CountKey() || q.CountKey() == testQuery(t, "city=Chicago&limit=100").CountKey() {
+		t.Fatal("count key did not normalize sort/limit/cursor/city case")
 	}
 	if _, err := s.Events(t.Context(), parsedStored); err == nil {
 		t.Fatal("database-free service accepted stored keyset cursor")
 	}
 	for _, bad := range []pageCursor{
 		{Version: 1, Page: 1, Filters: q.fingerprint(), ID: "ticketmaster:show-1"},
+		{Version: 1, Page: 1, Filters: q.fingerprint(), Total: 101},
 		{Version: 2, Page: 1, Filters: q.fingerprint()},
 		{Version: 2, Page: 1, Filters: q.fingerprint(), Date: q.StartDate, ID: "ticketmaster:show-1"},
 		{Version: 2, Filters: q.fingerprint(), Date: "2020-01-01", ID: "ticketmaster:show-1"},
 		{Version: 2, Filters: q.fingerprint(), Date: q.StartDate, Time: "25:00:00", ID: "ticketmaster:show-1"},
 		{Version: 2, Filters: q.fingerprint(), Date: q.StartDate, ID: "unscoped"},
+		{Version: 2, Filters: q.fingerprint(), Date: q.StartDate, ID: "ticketmaster:show-1", Total: -1},
+		{Version: 2, Filters: q.fingerprint(), Date: q.StartDate, ID: "ticketmaster:show-1", Total: q.Limit},
 	} {
 		data, _ := json.Marshal(bad)
 		values := q.Values()

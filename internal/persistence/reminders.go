@@ -289,6 +289,9 @@ func (r *ReminderRepository) Prepare(ctx context.Context, c reminders.Claim, fre
 	if err = tx.Commit(); err != nil {
 		return nil, safeError("reminder planning commit", err)
 	}
+	if fresh != nil {
+		invalidateDiscoverCounts()
+	}
 	return delivery, nil
 }
 func minTime(a, b time.Time) time.Time {

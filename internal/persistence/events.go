@@ -110,7 +110,11 @@ func (r *EventRepository) upsertOnce(ctx context.Context, event models.Event, ar
 		return retryable(err), err
 	}
 	// A transport failure during COMMIT is uncertain. Do not automatically retry.
-	return false, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	invalidateDiscoverCounts()
+	return false, nil
 }
 
 func upsertEventTx(ctx context.Context, tx *sql.Tx, event models.Event, args []any) error {
@@ -118,6 +122,7 @@ func upsertEventTx(ctx context.Context, tx *sql.Tx, event models.Event, args []a
 }
 
 func writeEventTx(ctx context.Context, tx *sql.Tx, event models.Event, args []any, update bool) error {
+	invalidateDiscoverCounts()
 	query := `INSERT INTO events (` + eventColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE event_id=event_id`
 	if update {
 		query = `INSERT INTO events (` + eventColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), source_url=VALUES(source_url), start_utc=VALUES(start_utc),

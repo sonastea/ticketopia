@@ -98,6 +98,7 @@ func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail m
 	if err := tx.Commit(); err != nil {
 		return interests.Item{}, false, false, err
 	}
+	invalidateDiscoverCounts()
 	return item, count == 0, false, nil
 }
 func (r *InterestRepository) Remove(ctx context.Context, owner, id string) error {

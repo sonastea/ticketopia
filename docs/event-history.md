@@ -27,9 +27,13 @@ unknown/TBA times consistently with SQL `NULL` ordering and tie-breaking by
 case-insensitive Unicode title then binary `event_id`. Long titles omit inline
 cursor names to stay within the 512-byte cursor limit and resolve the anchor
 title from `events`. Only the requested page's snapshots and omission states are
-loaded after `ORDER BY ... LIMIT`. Cursors are not snapshot cursors: changes
-between requests may shift pages; cursors issued by the previous offset encoding
-are rejected and require starting a new search.
+loaded after `ORDER BY ... LIMIT`. First-page reads that do not overflow `limit`
+establish `total` directly from the returned page without a separate `COUNT(*)`
+query; multi-page searches cache exact counts by canonical filter predicates and
+coverage/catalog state and carry `total` in continuation cursors, recomputing
+`COUNT(*)` whenever stored events or collection receipts change. Cursors are not
+snapshot cursors: changes between requests may shift pages; cursors issued by
+the previous offset encoding are rejected and require starting a new search.
 
 Fresh complete city/day receipts covering every requested date, or an enclosing
 complete on-demand city/date receipt, avoid event-provider calls. Freshness is six
@@ -258,18 +262,18 @@ events across 90 days):
 
 | Matching events / sort / page | Before ms | After ms | Before KB | After KB |
 | --- | ---: | ---: | ---: | ---: |
-| 1,000 / `date_asc` / first | 7.24 | 7.38 | 143.6 | 145.2 |
-| 1,000 / `date_asc` / halfway | 7.85 | 7.03 | 145.4 | 148.5 |
-| 1,000 / `date_desc` / first | 7.78 | 7.73 | 144.3 | 145.1 |
-| 1,000 / `date_desc` / halfway | 8.01 | 6.95 | 145.2 | 149.0 |
-| 1,000 / `name_asc` / first | 7.58 | 7.46 | 143.6 | 144.2 |
-| 1,000 / `name_asc` / halfway | 8.02 | 6.65 | 144.9 | 147.9 |
-| 10,000 / `date_asc` / first | 85.1 | 49.8 | 142.7 | 144.6 |
-| 10,000 / `date_asc` / halfway | 100.1 | 36.9 | 146.4 | 147.7 |
-| 10,000 / `date_desc` / first | 89.3 | 51.0 | 145.4 | 144.0 |
-| 10,000 / `date_desc` / halfway | 100.9 | 38.2 | 147.2 | 148.7 |
-| 10,000 / `name_asc` / first | 84.5 | 48.9 | 145.3 | 145.2 |
-| 10,000 / `name_asc` / halfway | 98.9 | 36.0 | 146.8 | 148.9 |
+| 1,000 / `date_asc` / first | 7.24 | 5.10 | 143.6 | 144.7 |
+| 1,000 / `date_asc` / halfway | 7.85 | 4.61 | 145.4 | 148.2 |
+| 1,000 / `date_desc` / first | 7.78 | 5.57 | 144.3 | 145.0 |
+| 1,000 / `date_desc` / halfway | 8.01 | 4.52 | 145.2 | 148.7 |
+| 1,000 / `name_asc` / first | 7.58 | 5.09 | 143.6 | 144.1 |
+| 1,000 / `name_asc` / halfway | 8.02 | 4.33 | 144.9 | 147.5 |
+| 10,000 / `date_asc` / first | 85.1 | 33.0 | 142.7 | 143.9 |
+| 10,000 / `date_asc` / halfway | 100.1 | 20.2 | 146.4 | 147.7 |
+| 10,000 / `date_desc` / first | 89.3 | 35.7 | 145.4 | 144.9 |
+| 10,000 / `date_desc` / halfway | 100.9 | 21.2 | 147.2 | 148.1 |
+| 10,000 / `name_asc` / first | 84.5 | 34.2 | 145.3 | 146.1 |
+| 10,000 / `name_asc` / halfway | 98.9 | 18.6 | 146.8 | 148.0 |
 
 Tests use provider fixtures and isolated random schemas on real MariaDB: cross-pool
 claims, expired fencing/recovery, page rollback/retries, capped/shifted coverage,

@@ -26,10 +26,11 @@ type ValidationError struct {
 func (e *ValidationError) Error() string { return e.Field + ": " + e.Message }
 
 type Cursor struct {
-	Date string
-	Time string
-	Name string
-	ID   string
+	Date  string
+	Time  string
+	Name  string
+	ID    string
+	Total int
 }
 
 type Query struct {
@@ -131,12 +132,12 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 		}
 		switch cursor.Version {
 		case 1:
-			if cursor.Page < 1 || cursor.Page > 999/q.Limit || cursor.Date != "" || cursor.Time != "" || cursor.Name != "" || cursor.ID != "" {
+			if cursor.Page < 1 || cursor.Page > 999/q.Limit || cursor.Date != "" || cursor.Time != "" || cursor.Name != "" || cursor.ID != "" || cursor.Total != 0 {
 				return q, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
 			}
 			q.Page = cursor.Page
 		case 2:
-			c := Cursor{Date: cursor.Date, Time: cursor.Time, Name: cursor.Name, ID: cursor.ID}
+			c := Cursor{Date: cursor.Date, Time: cursor.Time, Name: cursor.Name, ID: cursor.ID, Total: cursor.Total}
 			if cursor.Page != 0 || !q.validCursor(c) {
 				return q, &ValidationError{"cursor", "invalid cursor or filters changed; start a new search"}
 			}
@@ -155,6 +156,9 @@ func (q Query) ValidCursor() bool {
 }
 
 func (q Query) validCursor(c Cursor) bool {
+	if c.Total < 0 || (c.Total > 0 && c.Total <= q.Limit) {
+		return false
+	}
 	if _, err := sourceID(c.ID); err != nil {
 		return false
 	}
@@ -238,11 +242,18 @@ type pageCursor struct {
 	Time    string `json:"t,omitempty"`
 	Name    string `json:"n,omitempty"`
 	ID      string `json:"id,omitempty"`
+	Total   int    `json:"c,omitempty"`
 }
 
 func (q Query) fingerprint() string {
 	sum := sha256.Sum256([]byte(q.Values().Encode()))
 	return hex.EncodeToString(sum[:])
+}
+
+func (q Query) CountKey() string {
+	q.City = strings.ToLower(q.City)
+	q.Sort, q.Limit, q.Page, q.Stored, q.Cursor = "date_asc", 20, 0, false, nil
+	return q.fingerprint()
 }
 
 func (q Query) nextCursor() string {
@@ -252,10 +263,10 @@ func (q Query) nextCursor() string {
 
 func (q Query) NextCursor(c Cursor) string {
 	fp := q.fingerprint()
-	data, _ := json.Marshal(pageCursor{Version: 2, Filters: fp, Date: c.Date, Time: c.Time, Name: c.Name, ID: c.ID})
+	data, _ := json.Marshal(pageCursor{Version: 2, Filters: fp, Date: c.Date, Time: c.Time, Name: c.Name, ID: c.ID, Total: c.Total})
 	encoded := base64.RawURLEncoding.EncodeToString(data)
 	if len(encoded) > 512 {
-		data, _ = json.Marshal(pageCursor{Version: 2, Filters: fp, Date: c.Date, Time: c.Time, ID: c.ID})
+		data, _ = json.Marshal(pageCursor{Version: 2, Filters: fp, Date: c.Date, Time: c.Time, ID: c.ID, Total: c.Total})
 		encoded = base64.RawURLEncoding.EncodeToString(data)
 	}
 	return encoded

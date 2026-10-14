@@ -186,6 +186,7 @@ func (r *DiscussionRepository) createOnce(ctx context.Context, c discussions.Cre
 	if err = tx.Commit(); err != nil {
 		return discussions.Post{}, false, err
 	}
+	invalidateDiscoverCounts()
 	return p, true, nil
 }
 func (r *DiscussionRepository) Edit(ctx context.Context, owner, id, body string) (discussions.Post, error) {
