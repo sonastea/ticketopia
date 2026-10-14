@@ -15,7 +15,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-func envConfig(t *testing.T) Config {
+func envConfig(t testing.TB) Config {
 	t.Helper()
 	for key, value := range map[string]string{
 		"PERSISTENCE_MODE": "mariadb", "DB_HOST": "localhost", "DB_NAME": "ticketopia",

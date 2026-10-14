@@ -4,7 +4,6 @@ package radar
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -38,12 +37,20 @@ type Dataset struct {
 	Candidates  []Candidate
 	Meta        models.Freshness
 	Refresh     bool
+	// Revision covers all eligible records and explicit signals, not just Candidates.
+	// Candidates contains only the requested, SQL-ranked page.
+	Revision string
+	HasMore  bool
+	// Oldest is the oldest eligible snapshot, independently of coverage evidence.
+	Oldest time.Time
 }
 
-// Read takes one consistent database snapshot of signals, candidates and
-// coverage. at pins the date window and elapsed-event cutoff across pages.
+// Read takes one consistent database snapshot of signals, revision, coverage
+// and a ranked page. Meta/Oldest describe the entire eligible set. It validates
+// cursor revision and anchor before loading page snapshots. at pins the date
+// window and elapsed-event cutoff across pages.
 type Repository interface {
-	Read(context.Context, string, time.Time, time.Duration) (Dataset, error)
+	Read(context.Context, string, time.Time, time.Duration, Query) (Dataset, error)
 }
 type Discovery interface {
 	Events(context.Context, discovery.Query) (models.EventList, error)
@@ -96,7 +103,9 @@ func New(repo Repository, discovery Discovery, freshFor time.Duration) *Service 
 	}
 	return &Service{repo, discovery, freshFor, func() time.Time { return time.Now().UTC() }}
 }
-func invalidCursor() error {
+
+// InvalidCursor reports malformed cursor input or an absent pagination anchor.
+func InvalidCursor() error {
 	return &accounts.ValidationError{Field: "cursor", Message: "use your radar's next cursor with the same limit, or refresh Radar"}
 }
 func ParseQuery(values url.Values, owner string, now time.Time) (Query, error) {
@@ -115,15 +124,15 @@ func ParseQuery(values url.Values, owner string, now time.Time) (Query, error) {
 	}
 	if v, ok := values["cursor"]; ok {
 		if len(v[0]) > 1024 {
-			return q, invalidCursor()
+			return q, InvalidCursor()
 		}
 		var c Cursor
 		data, err := base64.RawURLEncoding.Strict().DecodeString(v[0])
 		if err != nil || json.Unmarshal(data, &c) != nil || c.Version != 1 || c.Owner != owner || c.Limit != q.Limit || c.At.IsZero() || c.At.After(now.Add(time.Minute)) || now.Sub(c.At) > CursorLifetime || len(c.Digest) != 64 || c.After == "" || len(c.After) > 300 {
-			return q, invalidCursor()
+			return q, InvalidCursor()
 		}
 		if _, err := hex.DecodeString(c.Digest); err != nil {
-			return q, invalidCursor()
+			return q, InvalidCursor()
 		}
 		q.Cursor = &c
 	}
@@ -154,16 +163,16 @@ func (s *Service) List(ctx context.Context, owner string, values url.Values) (Li
 	if q.Cursor != nil {
 		at = q.Cursor.At
 	}
-	d, err := s.repo.Read(ctx, owner, at, s.freshFor)
+	d, err := s.repo.Read(ctx, owner, at, s.freshFor, q)
 	if err != nil {
-		return List{}, ErrUnavailable
+		return List{}, readError(err)
 	}
 	scope := DateScope(d.Preferences, at)
 	if q.Cursor == nil && d.Refresh && scope.City != "" && scope.Country != "" && s.discovery != nil {
 		// Broad public collection is shared across users, not one provider call per
 		// follow or per event. Failure preserves the last successful local records.
 		_, _ = s.discovery.Events(ctx, discovery.Query{City: scope.City, Country: scope.Country, StartDate: scope.StartDate, EndDate: scope.EndDate, Limit: 1, Sort: "date_asc"})
-		d, err = s.repo.Read(ctx, owner, at, s.freshFor)
+		d, err = s.repo.Read(ctx, owner, at, s.freshFor, q)
 		if err != nil {
 			return List{}, ErrUnavailable
 		}
@@ -180,12 +189,12 @@ func (s *Service) List(ctx context.Context, owner string, values url.Values) (Li
 	if len(d.Follows) == 0 && len(d.Preferences.CategoryIDs) == 0 {
 		list.Mode = "nearby"
 	}
-	type ranked struct {
-		item      Item
-		score     int
-		candidate Candidate
+	if q.Cursor != nil && q.Cursor.Digest != d.Revision {
+		return List{}, ErrChanged
 	}
-	all := []ranked{}
+	if !d.Oldest.IsZero() && now.Sub(d.Oldest) >= s.freshFor {
+		list.Meta.Stale = true
+	}
 	followed := map[string]bool{}
 	for _, f := range d.Follows {
 		followed[f.Kind+":"+f.ID] = true
@@ -196,96 +205,35 @@ func (s *Service) List(ctx context.Context, owner string, values url.Values) (Li
 	}
 	for _, c := range d.Candidates {
 		e := c.Event
-		if e.Start.LocalDate == nil || *e.Start.LocalDate < scope.StartDate || *e.Start.LocalDate > scope.EndDate || e.Start.DateTBA || e.Start.DateTBD || e.Status == "cancelled" || e.Status == "canceled" || e.Status == "postponed" || (e.Start.DateTime != nil && e.Start.DateTime.Before(at)) {
-			continue
-		}
-		reasons, score := match(e, followed, preferred)
+		reasons := match(e, followed, preferred)
 		if list.Mode == "nearby" {
 			reasons = []Reason{{Code: "nearby", Text: "In your chosen city: " + scope.City}}
-		} else if score == 0 {
-			continue
 		}
 		meta := models.Freshness{DataAsOf: c.DataAsOf, Stale: c.Unconfirmed || c.DataAsOf.IsZero() || now.Sub(c.DataAsOf) >= s.freshFor}
-		all = append(all, ranked{Item{e, reasons, meta}, score, c})
+		list.Items = append(list.Items, Item{e, reasons, meta})
 		if list.Meta.DataAsOf.IsZero() || (!c.DataAsOf.IsZero() && c.DataAsOf.Before(list.Meta.DataAsOf)) {
 			list.Meta.DataAsOf = c.DataAsOf
 		}
 		list.Meta.Stale = list.Meta.Stale || meta.Stale
 	}
-	slices.SortFunc(all, func(a, b ranked) int {
-		if a.score != b.score {
-			return b.score - a.score
-		}
-		if n := strings.Compare(*a.item.Event.Start.LocalDate, *b.item.Event.Start.LocalDate); n != 0 {
-			return n
-		}
-		clock := func(e models.Event) string {
-			if e.Start.LocalTime != nil && *e.Start.LocalTime != "" && !e.Start.TimeTBA && !e.Start.NoSpecificTime {
-				return *e.Start.LocalTime
-			}
-			return "24:00:00"
-		}
-		if n := strings.Compare(clock(a.item.Event), clock(b.item.Event)); n != 0 {
-			return n
-		}
-		return strings.Compare(a.item.Event.ID, b.item.Event.ID)
-	})
-	// Version the complete ranked set, not just this page. Do not hash computed
-	// staleness or coverage: passage of time alone must not invalidate a cursor.
-	signals := slices.Clone(d.Follows)
-	slices.SortFunc(signals, func(a, b Signal) int {
-		if n := strings.Compare(a.Kind, b.Kind); n != 0 {
-			return n
-		}
-		return strings.Compare(a.ID, b.ID)
-	})
-	categories := slices.Clone(d.Preferences.CategoryIDs)
-	slices.Sort(categories)
-	candidates := make([]Candidate, 0, len(all))
-	for _, r := range all {
-		candidates = append(candidates, r.candidate)
-	}
-	data, _ := json.Marshal(struct {
-		Scope      Scope
-		Timezone   string
-		Categories []string
-		Follows    []Signal
-		Candidates []Candidate
-	}{scope, d.Preferences.Timezone, categories, signals, candidates})
-	hash := sha256.Sum256(data)
-	digest := hex.EncodeToString(hash[:])
-	start := 0
-	if q.Cursor != nil {
-		if digest != q.Cursor.Digest {
-			return List{}, ErrChanged
-		}
-		found := false
-		for i, r := range all {
-			if r.item.Event.ID == q.Cursor.After {
-				start = i + 1
-				found = true
-				break
-			}
-		}
-		if !found {
-			return List{}, invalidCursor()
-		}
-	}
-	end := min(start+q.Limit, len(all))
-	for _, r := range all[start:end] {
-		list.Items = append(list.Items, r.item)
-	}
-	if end < len(all) {
-		data, _ := json.Marshal(Cursor{1, owner, q.Limit, at, digest, all[end-1].item.Event.ID})
+	if d.HasMore && len(list.Items) > 0 {
+		data, _ := json.Marshal(Cursor{1, owner, q.Limit, at, d.Revision, list.Items[len(list.Items)-1].Event.ID})
 		next := base64.RawURLEncoding.EncodeToString(data)
 		list.NextCursor = &next
 	}
 	return list, nil
 }
-func match(e models.Event, followed, preferred map[string]bool) ([]Reason, int) {
+
+func readError(err error) error {
+	var validation *accounts.ValidationError
+	if errors.Is(err, ErrChanged) || errors.As(err, &validation) {
+		return err
+	}
+	return ErrUnavailable
+}
+func match(e models.Event, followed, preferred map[string]bool) []Reason {
 	reasons := []Reason{}
 	seen := map[string]bool{}
-	artist, venue, category := false, false, false
 	add := func(code, id, text string) {
 		key := code + ":" + id
 		if !seen[key] {
@@ -300,7 +248,6 @@ func match(e models.Event, followed, preferred map[string]bool) ([]Reason, int) 
 				text = "You follow " + a.Name
 			}
 			add("followed_artist", a.ID, text)
-			artist = true
 		}
 	}
 	for _, v := range e.Venues {
@@ -310,7 +257,6 @@ func match(e models.Event, followed, preferred map[string]bool) ([]Reason, int) 
 				text = "You follow " + v.Name
 			}
 			add("followed_venue", v.ID, text)
-			venue = true
 		}
 	}
 	for _, c := range e.Classifications {
@@ -320,19 +266,7 @@ func match(e models.Event, followed, preferred map[string]bool) ([]Reason, int) 
 				text = "You chose " + c.Segment.Name
 			}
 			add("preferred_category", c.Segment.ID, text)
-			category = true
 		}
-	}
-	// Signal types, not repeated classifications or large lineups, determine rank.
-	score := 0
-	if artist {
-		score += 4
-	}
-	if venue {
-		score += 2
-	}
-	if category {
-		score++
 	}
 	slices.SortFunc(reasons, func(a, b Reason) int {
 		if n := strings.Compare(a.Code, b.Code); n != 0 {
@@ -340,5 +274,5 @@ func match(e models.Event, followed, preferred map[string]bool) ([]Reason, int) 
 		}
 		return strings.Compare(a.TargetID, b.TargetID)
 	})
-	return reasons, score
+	return reasons
 }

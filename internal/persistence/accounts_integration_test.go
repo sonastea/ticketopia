@@ -30,7 +30,7 @@ func (accountProviderFixture) AuthorizationURL(l accounts.Login) string {
 func (accountProviderFixture) Verify(_ context.Context, code string, _ accounts.Flow) (accounts.Identity, error) {
 	return accounts.Identity{Issuer: accounts.GoogleIssuer, Subject: code, Email: "same-email@example.com"}, nil
 }
-func loginAccount(t *testing.T, s *accounts.Service, subject string) (accounts.Account, string) {
+func loginAccount(t testing.TB, s *accounts.Service, subject string) (accounts.Account, string) {
 	t.Helper()
 	l, _, err := s.Begin(t.Context(), "/me")
 	if err != nil {

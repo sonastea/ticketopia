@@ -39,6 +39,11 @@ provider request per follow/event or an optional taxonomy call. Good records
 survive provider failures and restarts. Continuation pages only read local SQL.
 Signals, candidates and coverage are read in one repeatable-read transaction.
 
+MariaDB applies eligibility, distinct-signal scoring, ordering and keyset pagination
+to public search projections. Only the requested page's full snapshots are fetched
+and decoded; the extra lookahead row contains an ID only. List freshness still
+includes every eligible event, including stale/unconfirmed records on later pages.
+
 List and item `meta` describe actual collection/observation time. Old snapshots
 and events awaiting omission verification are labeled last-known. Coverage can
 be complete, partial, stale or not_collected. An empty list is only “no matches
@@ -69,9 +74,48 @@ and refresh from page one. Malformed/foreign/expired/changed-limit cursors retur
 pages, not frozen copies: active ingestion may require a refresh while browsing.
 The date window/elapsed-event cutoff stay pinned until refresh or expiration.
 
+Version checks aggregate lightweight revisions in SQL: event identity, the strictly
+increasing snapshot `data_as_of`, omission-verification state and ordering keys.
+All four SHA-256 words are aggregated with an event count, then bound to canonical
+preferences/follows and scope. Equal/backdated observations cannot overwrite a
+snapshot and do not advance its revision. Coverage receipts and elapsed freshness
+do not enter the fingerprint. No snapshot JSON is hashed, no process-local cache
+or global write counter is required, and no schema/grant change is needed.
+SQL still scans eligible revision metadata and ranks matching keys; this removes
+full-dataset JSON transfer/allocation, not all work proportional to matching events.
+Cursors issued by the previous fingerprint implementation return `radar_changed`.
+
 See the [OpenAPI contract](openapi.md) for complete schemas and auth/error behavior.
 
 ## Verification
+
+The repeatable benchmark seeds 1,000 and 10,000 matching events across the 90-day
+window, with event descriptions and the normal snapshot/history write path. It
+measures 20-item first pages and real continuation cursors halfway through the set,
+excluding seeding and cursor traversal from timings:
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 \
+MARIADB_TEST_CA="$PWD/.local/mariadb/certs/ca.crt" \
+go test ./internal/persistence -run '^$' -bench BenchmarkMariaDBRadar -benchmem
+```
+
+Measurements on 2026-10-14 (Apple M1, local TLS-enabled MariaDB 12.3.3; decimal MB
+allocated per operation):
+
+| Matching events / page | Before ms | After ms | Before MB | After MB |
+| --- | ---: | ---: | ---: | ---: |
+| 1,000 / first | 28.7 | 18.3 | 23.9 | 0.199 |
+| 1,000 / halfway | 29.9 | 17.9 | 24.5 | 0.201 |
+| 10,000 / first | 239.6 | 97.4 | 302.1 | 0.200 |
+| 10,000 / halfway | 222.4 | 96.7 | 269.9 | 0.199 |
+
+At 10,000 events this reduced Go allocations from roughly 193,000 to 795 per
+request. CPU/allocation profiles identified full-set JSON decoding/encoding,
+ranked slices and GC work. SQL materialization barriers prevent repeated scoring
+and revision expressions; absent follow types need no per-event probes. These are
+single local benchmark runs (baseline 1s with profiles, final 2s), not statistical
+production latency guarantees. The benchmark is retained for repeatable checks.
 
 Run `go test -race ./...`, `go vet ./...`, `npm run build`, OpenAPI lint and
 `make check`. Real SQL checks use the isolated local MariaDB fixture with

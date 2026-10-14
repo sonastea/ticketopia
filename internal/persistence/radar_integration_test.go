@@ -1,12 +1,15 @@
 package persistence
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,6 +18,192 @@ import (
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/radar"
 )
+
+func TestMariaDBRadarEligibilityOrderingAndRevisions(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	auth := accounts.New(p.Accounts(), accountProviderFixture{})
+	owner, _ := loginAccount(t, auth, "radar-revisions")
+	if _, err := auth.UpdatePreferences(t.Context(), owner.ID, accounts.PreferencesPatch{City: pointer("Berlin"), Country: pointer("DE")}); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	date := at.AddDate(0, 0, 2).Format(time.DateOnly)
+	base := sampleEvent("revision-a")
+	base.Start.LocalDate, base.Start.DateTime, base.Start.LocalTime = &date, nil, pointer("20:00:00")
+	base.Venues[0].City, base.Venues[0].CountryCode = "Berlin", "DE"
+	observe := func(e models.Event, when time.Time) {
+		t.Helper()
+		if err := p.Discovery().Observe(t.Context(), models.EventDetail{Item: e, Meta: models.Freshness{DataAsOf: when}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var candidates []models.Event
+	for i, mutate := range []func(*models.Event){
+		func(e *models.Event) {},
+		func(e *models.Event) { e.Start.LocalTime = nil },
+		func(e *models.Event) { e.Start.LocalTime = pointer("01:00:00"); e.Start.TimeTBA = true },
+		func(e *models.Event) { e.Start.NoSpecificTime = true },
+		func(e *models.Event) { e.Status = "cancelled" },
+		func(e *models.Event) { e.Status = "canceled" },
+		func(e *models.Event) { e.Status = "postponed" },
+		func(e *models.Event) { e.Start.DateTBA = true },
+		func(e *models.Event) { e.Start.DateTBD = true },
+		func(e *models.Event) { e.Start.LocalDate = nil },
+		func(e *models.Event) { e.Start.DateTime = pointer(at.Add(-time.Hour)) },
+		func(e *models.Event) { e.Start.LocalDate = pointer(at.AddDate(0, 0, 90).Format(time.DateOnly)) },
+	} {
+		e := base
+		e.Source.ID = fmt.Sprintf("revision-%02d", i)
+		e.ID = "ticketmaster:" + e.Source.ID
+		mutate(&e)
+		observe(e, at.Add(-7*time.Hour))
+		candidates = append(candidates, e)
+	}
+	s := radar.New(p.Radar(), nil, 6*time.Hour)
+	first := func() radar.List {
+		t.Helper()
+		page, err := s.List(t.Context(), owner.ID, url.Values{"limit": {"1"}})
+		if err != nil || len(page.Items) != 1 || page.NextCursor == nil {
+			t.Fatal(page, err)
+		}
+		return page
+	}
+	page := first()
+	var ids []string
+	for {
+		ids = append(ids, page.Items[0].Event.ID)
+		if page.NextCursor == nil {
+			break
+		}
+		var err error
+		page, err = s.List(t.Context(), owner.ID, url.Values{"limit": {"1"}, "cursor": {*page.NextCursor}})
+		if err != nil || len(page.Items) != 1 {
+			t.Fatal(page, err)
+		}
+	}
+	if !slices.Equal(ids, []string{candidates[0].ID, candidates[1].ID, candidates[2].ID, candidates[3].ID}) {
+		t.Fatal(ids)
+	}
+	check := func(cursor string, changed bool) {
+		t.Helper()
+		_, err := s.List(t.Context(), owner.ID, url.Values{"limit": {"1"}, "cursor": {cursor}})
+		if changed && !errors.Is(err, radar.ErrChanged) || !changed && err != nil {
+			t.Fatalf("changed=%v: %v", changed, err)
+		}
+	}
+	page = first()
+	// A newer observation of a later page changes the revision even if metadata is identical.
+	observe(candidates[3], at)
+	check(*page.NextCursor, true)
+	page = first()
+	older := candidates[3]
+	older.Name = "Backdated must not win"
+	observe(older, at.Add(-time.Hour))
+	observe(older, at)
+	check(*page.NextCursor, false)
+	// An excluded event does not invalidate the eligible set until it becomes eligible.
+	excluded := candidates[4]
+	observe(excluded, at)
+	check(*page.NextCursor, false)
+	excluded.Status = "onsale"
+	observe(excluded, at.Add(time.Second))
+	check(*page.NextCursor, true)
+	page = first()
+	execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.event_detail_tasks(event_id) VALUES (?)`, candidates[3].ID)
+	check(*page.NextCursor, true)
+	page = first()
+	execSQL(t, f.admin, `DELETE FROM `+f.runtime.Database+`.event_detail_tasks WHERE event_id=?`, candidates[3].ID)
+	check(*page.NextCursor, true)
+	page = first()
+	// Coverage evolves independently of the result revision, including while
+	// browsing an existing cursor.
+	scope := radar.DateScope(accounts.Preferences{City: "Berlin", Country: "DE"}, at)
+	execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.discovery_scopes(scope_id,city,country,start_date,end_date,artist_id,venue_id,last_success,data_as_of,status) VALUES (?,'Berlin','DE',?,?,'','',?,?,'complete')`, strings.Repeat("a", 64), scope.StartDate, scope.EndDate, at, at)
+	check(*page.NextCursor, false)
+	page = first()
+	data, _ := base64.RawURLEncoding.DecodeString(*page.NextCursor)
+	var cursor radar.Cursor
+	if err := json.Unmarshal(data, &cursor); err != nil {
+		t.Fatal(err)
+	}
+	cursor.After = "ticketmaster:absent"
+	data, _ = json.Marshal(cursor)
+	_, err := s.List(t.Context(), owner.ID, url.Values{"limit": {"1"}, "cursor": {base64.RawURLEncoding.EncodeToString(data)}})
+	var validation *accounts.ValidationError
+	if !errors.As(err, &validation) {
+		t.Fatal("forged anchor", err)
+	}
+	// Corrupt the lookahead DTO without changing its projection. The first page
+	// must still load: it must not decode snapshots outside the requested page.
+	execSQL(t, f.admin, `UPDATE `+f.runtime.Database+`.event_snapshots SET snapshot=JSON_SET(snapshot,'$.start','invalid') WHERE event_id=?`, candidates[4].ID)
+	first()
+	if _, err := s.List(t.Context(), owner.ID, nil); !errors.Is(err, radar.ErrUnavailable) {
+		t.Fatal("selected corrupt snapshot", err)
+	}
+}
+
+func TestMariaDBRadarSignalScoresAndOffPageFreshness(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	auth := accounts.New(p.Accounts(), accountProviderFixture{})
+	owner, _ := loginAccount(t, auth, "radar-scores")
+	if _, err := auth.UpdatePreferences(t.Context(), owner.ID, accounts.PreferencesPatch{City: pointer("Berlin"), Country: pointer("DE"), CategoryIDs: pointer([]string{"music"})}); err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"artist", "venue"} {
+		if _, _, err := p.Follows().Follow(t.Context(), owner.ID, followDetail(kind, "Matched")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	date := at.AddDate(0, 0, 2).Format(time.DateOnly)
+	for score := range 8 {
+		e := sampleEvent(fmt.Sprintf("score-%d", score))
+		e.Start.LocalDate, e.Start.DateTime = &date, nil
+		e.Artists = nil
+		e.Classifications = nil
+		e.Venues[0].City, e.Venues[0].CountryCode = "Berlin", "DE"
+		if score&4 != 0 {
+			e.Artists = []models.Artist{{ID: "ticketmaster:Matched"}, {ID: "ticketmaster:Matched"}}
+		}
+		if score&2 != 0 {
+			e.Venues[0].ID = "ticketmaster:Matched"
+			e.Venues = append(e.Venues, e.Venues[0])
+		}
+		if score&1 != 0 {
+			e.Classifications = []models.Classification{{Segment: &models.NamedID{ID: "music"}}, {Segment: &models.NamedID{ID: "music"}}}
+		}
+		asOf := at
+		if score == 1 {
+			asOf = at.Add(-7 * time.Hour)
+		}
+		if err := p.Discovery().Observe(t.Context(), models.EventDetail{Item: e, Meta: models.Freshness{DataAsOf: asOf}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := radar.New(p.Radar(), nil, 6*time.Hour)
+	q := url.Values{"limit": {"1"}}
+	for score := 7; score > 0; score-- {
+		page, err := s.List(t.Context(), owner.ID, q)
+		if err != nil || len(page.Items) != 1 || page.Items[0].Event.ID != fmt.Sprintf("ticketmaster:score-%d", score) {
+			t.Fatal(score, page, err)
+		}
+		if !page.Meta.Stale || !page.Meta.DataAsOf.Equal(at.Add(-7*time.Hour)) || page.Items[0].Meta.Stale != (score == 1) {
+			t.Fatal("off-page freshness", page)
+		}
+		if score > 1 {
+			if page.NextCursor == nil {
+				t.Fatal("missing next page")
+			}
+			q.Set("cursor", *page.NextCursor)
+		} else if page.NextCursor != nil {
+			t.Fatal("extra page")
+		}
+	}
+}
 
 func TestMariaDBRadarIdentityLocationPreferencesPaginationAndRestart(t *testing.T) {
 	f := newMaria(t)

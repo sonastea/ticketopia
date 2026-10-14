@@ -39,7 +39,7 @@ type mariaFixture struct {
 	migration, runtime Config
 }
 
-func newMaria(t *testing.T) mariaFixture {
+func newMaria(t testing.TB) mariaFixture {
 	t.Helper()
 	address := os.Getenv("MARIADB_TEST_ADDR")
 	if address == "" {
@@ -98,7 +98,7 @@ func newMaria(t *testing.T) mariaFixture {
 	return mariaFixture{admin: admin, migration: m, runtime: c}
 }
 
-func execSQL(t *testing.T, db *sql.DB, query string, args ...any) {
+func execSQL(t testing.TB, db *sql.DB, query string, args ...any) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -138,7 +138,7 @@ func seedLegacySavedEvent(t *testing.T, db *sql.DB, owner string, detail models.
 	}
 }
 
-func (f mariaFixture) migrate(t *testing.T) {
+func (f mariaFixture) migrate(t testing.TB) {
 	t.Helper()
 	if err := Migrate(t.Context(), f.migration); err != nil {
 		t.Fatal(err)
@@ -169,7 +169,7 @@ func (f mariaFixture) migrate(t *testing.T) {
 	}
 }
 
-func (f mariaFixture) open(t *testing.T) *Pool {
+func (f mariaFixture) open(t testing.TB) *Pool {
 	t.Helper()
 	p, err := Open(t.Context(), f.runtime)
 	if err != nil {

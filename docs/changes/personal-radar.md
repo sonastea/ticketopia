@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-10-14 — Page-bounded Radar reads
+
+- Move [Radar](../radar.md) eligibility, distinct-signal ranking and keyset paging
+  into MariaDB; fetch full snapshots only for the requested page.
+- Replace whole-snapshot hashing with SQL-aggregated monotonic snapshot revisions,
+  preserving full-set cursor invalidation, off-page freshness and repeatable reads.
+- Add 1,000/10,000-event first/later-page benchmarks and MariaDB regressions for
+  scoring, unknown times, exclusions, off-page revisions, backdated observations,
+  omission verification and page-bounded snapshot decoding.
+- Verify the preceding authentication/feed changes on MariaDB 12.3.3; pass the
+  MariaDB-backed full race suite, final targeted SQL regressions, vet and Docker
+  `make check`. Benchmark procedure and measurements are in the Radar guide.
+
 ### 2026-10-11 — Reminder timing and readiness polish
 
 - Implement [part 2 of app polish](../design/app-polish-and-event-section-navigation.md):

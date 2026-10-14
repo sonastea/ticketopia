@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/url"
@@ -21,7 +23,7 @@ type radarStub struct {
 	lastOwner string
 }
 
-func (r *radarStub) Read(_ context.Context, owner string, _ time.Time, _ time.Duration) (radar.Dataset, error) {
+func (r *radarStub) Read(_ context.Context, owner string, _ time.Time, _ time.Duration, q radar.Query) (radar.Dataset, error) {
 	r.lastOwner = owner
 	if r.err != nil {
 		return radar.Dataset{}, r.err
@@ -29,7 +31,18 @@ func (r *radarStub) Read(_ context.Context, owner string, _ time.Time, _ time.Du
 	if owner != r.owner {
 		return radar.Dataset{}, nil
 	}
-	return r.d, nil
+	d := r.d
+	data, _ := json.Marshal(d.Preferences)
+	hash := sha256.Sum256(data)
+	d.Revision = hex.EncodeToString(hash[:])
+	start := 0
+	if q.Cursor != nil {
+		start = 1
+	}
+	end := min(start+q.Limit, len(d.Candidates))
+	d.HasMore = end < len(d.Candidates)
+	d.Candidates = d.Candidates[start:end]
+	return d, nil
 }
 func TestRadarWebAPIPrivacyParityPaginationAndRecovery(t *testing.T) {
 	a, auth, browser, bearer, _ := accountAPI(t)
