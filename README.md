@@ -33,6 +33,8 @@ for manual checks, pilot feedback, and Kubernetes checks after deployment.
 
 - [x] Fetch Ticketmaster events with artist, venue, date, status, and price metadata.
 - [x] Load cached category and genre/subgenre catalogs for discovery filters.
+- [x] Support public HTTP taxonomy/contract caching and conditional event reads
+  with complete-response ETags and private/stale/error exclusions.
 - [x] Reuse cached data across clients with concurrent-request deduplication,
   stale fallback, and bounded external request usage.
 - [x] Provide a searchable, responsive event list with correct ticket links and

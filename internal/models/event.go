@@ -124,9 +124,11 @@ type CategoryList struct {
 }
 
 type Freshness struct {
-	DataAsOf time.Time `json:"data_as_of"`
-	Stale    bool      `json:"stale"`
-	Coverage *Coverage `json:"coverage,omitempty"`
+	// FreshUntil is discovery-owned policy metadata, not part of the JSON contract.
+	FreshUntil time.Time `json:"-"`
+	DataAsOf   time.Time `json:"data_as_of"`
+	Stale      bool      `json:"stale"`
+	Coverage   *Coverage `json:"coverage,omitempty"`
 }
 
 // A scope with no successful collection has no data timestamp, not an invented

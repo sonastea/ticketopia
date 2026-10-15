@@ -1,6 +1,21 @@
-# KV cache changes
+# Cache changes
 
 ## Unreleased
+
+### 2026-10-15 — Public HTTP caching and event revalidation
+
+- Add deterministic complete-representation weak ETags and grammar-aware
+  conditional GET to taxonomy, the embedded contract, event search/detail/history.
+- Cap taxonomy HTTP freshness at 600 seconds and its discovery-owned deadline;
+  revalidate event responses on every reuse. Stale/error/credential-bearing reads
+  are never publicly cached or turned into 304 responses.
+- Preserve validation, refresh/coverage work, JSON encoding, private policies and
+  Vary. Update the OpenAPI contract and add controlled-clock/HTTP regressions.
+- Extend the isolated MariaDB workload with 200/304 bytes, allocations, timings
+  and repository-call measurements; retain the existing measured schema-15 work.
+
+See [HTTP policies](../cache.md#public-http-caching) and
+[measurements](../public-cache-measurements.md).
 
 ### 2026-10-02 — Backend-neutral cache with in-memory fallback
 

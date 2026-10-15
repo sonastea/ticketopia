@@ -68,6 +68,7 @@ paths:
         Searches default to all categories. Legacy genre-only searches imply Music.
         Cursors issued before category support must be replaced by a new search.
       parameters:
+        - {$ref: '#/components/parameters/IfNoneMatch'}
         - {name: city, in: query, schema: {type: string, maxLength: 120}}
         - {name: country, in: query, description: Two-letter country code., schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
         - {name: keyword, in: query, schema: {type: string, maxLength: 120}}
@@ -86,6 +87,9 @@ paths:
       responses:
         '200':
           description: Events and source freshness. Empty results are cached too.
+          headers:
+            ETag: {$ref: '#/components/headers/PublicETag'}
+            Cache-Control: {$ref: '#/components/headers/EventCacheControl'}
           content:
             application/json:
               schema:
@@ -97,6 +101,7 @@ paths:
                   total: {type: integer, minimum: 0, description: 'MariaDB mode counts matching stored events; database-free mode reports the provider total.'}
                   limited: {type: boolean, description: 'Collection is partial, or database-free provider paging is capped. SQL pagination itself is not capped at 1000.'}
                   meta: {$ref: '#/components/schemas/Freshness'}
+        '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /api/v1/events/{event_id}:
@@ -105,6 +110,7 @@ paths:
       summary: Read an event and its embedded metadata
       description: MariaDB mode reuses fresh snapshots and serves last-known metadata during provider failure or 404, independently of accounts. Includes first/last-seen and recent dated meaningful changes. Private account activity is never included. Absence or 404 never implies cancellation.
       parameters:
+        - {$ref: '#/components/parameters/IfNoneMatch'}
         - name: event_id
           in: path
           required: true
@@ -112,6 +118,9 @@ paths:
       responses:
         '200':
           description: Event data reused from a search, fetched on demand, or retained as last-known SQL metadata.
+          headers:
+            ETag: {$ref: '#/components/headers/PublicETag'}
+            Cache-Control: {$ref: '#/components/headers/EventCacheControl'}
           content:
             application/json:
               schema:
@@ -121,9 +130,12 @@ paths:
                   item: {$ref: '#/components/schemas/Event'}
                   meta: {$ref: '#/components/schemas/Freshness'}
                   history: {$ref: '#/components/schemas/EventHistory'}
+        '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '404':
-          description: Event not found; cached for five minutes.
+          description: Event not found; negative provider entries are cached internally for five minutes. HTTP errors use no-store.
+          headers:
+            Cache-Control: {$ref: '#/components/headers/PublicErrorCacheControl'}
           content:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
@@ -134,21 +146,28 @@ paths:
       summary: Read dated public event changes
       description: 'MariaDB-only, independent of provider/cache/accounts. No private saves, follows, interests, or preferences. Null means a known event has no observations yet. Pages contain all changes from up to limit observation instants; use next_before with the same event to continue.'
       parameters:
+        - {$ref: '#/components/parameters/IfNoneMatch'}
         - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
         - {name: before, in: query, description: Exclusive observation timestamp from next_before., schema: {type: string, format: date-time}}
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
       responses:
         '200':
           description: Public history or null for a known event without observations.
+          headers:
+            ETag: {$ref: '#/components/headers/PublicETag'}
+            Cache-Control: {$ref: '#/components/headers/EventCacheControl'}
           content:
             application/json:
               schema:
                 anyOf:
                   - {$ref: '#/components/schemas/EventHistory'}
                   - {type: 'null'}
+        '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '404':
           description: Unknown event identity.
+          headers:
+            Cache-Control: {$ref: '#/components/headers/PublicErrorCacheControl'}
           content:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
@@ -158,9 +177,14 @@ paths:
       operationId: listGenres
       summary: Read music genres and subgenres
       description: English music taxonomy, sorted by genre name then ID. No query parameters. Use /api/v1/categories for the complete category/genre catalog.
+      parameters:
+        - {$ref: '#/components/parameters/IfNoneMatch'}
       responses:
         '200':
-          description: Music genres, cached for 24 hours.
+          description: Music genres, internally fresh for 24 hours. HTTP freshness is capped at 600 seconds and remaining source freshness.
+          headers:
+            ETag: {$ref: '#/components/headers/PublicETag'}
+            Cache-Control: {$ref: '#/components/headers/TaxonomyCacheControl'}
           content:
             application/json:
               schema:
@@ -171,6 +195,7 @@ paths:
                     type: array
                     items: {$ref: '#/components/schemas/Genre'}
                   meta: {$ref: '#/components/schemas/Freshness'}
+        '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /api/v1/categories:
@@ -178,9 +203,14 @@ paths:
       operationId: listCategories
       summary: Read event categories and their compatible genres
       description: English Ticketmaster segments with genres and subgenres. Categories and genres are sorted by name then ID. No query parameters. Types and subtypes are not categories.
+      parameters:
+        - {$ref: '#/components/parameters/IfNoneMatch'}
       responses:
         '200':
-          description: Category catalog, cached for 24 hours with retained fallback for up to seven days.
+          description: Category catalog, internally fresh for 24 hours with retained fallback for up to seven days. HTTP freshness is capped at 600 seconds and remaining source freshness.
+          headers:
+            ETag: {$ref: '#/components/headers/PublicETag'}
+            Cache-Control: {$ref: '#/components/headers/TaxonomyCacheControl'}
           content:
             application/json:
               schema:
@@ -197,6 +227,7 @@ paths:
                           properties:
                             genres: {type: array, items: {$ref: '#/components/schemas/Genre'}}
                   meta: {$ref: '#/components/schemas/Freshness'}
+        '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
   /api/v1/me:
@@ -1546,12 +1577,20 @@ paths:
     get:
       operationId: getOpenAPI
       summary: Read this contract
+      parameters:
+        - {$ref: '#/components/parameters/IfNoneMatch'}
       responses:
         '200':
           description: OpenAPI 3.1 contract.
+          headers:
+            ETag: {$ref: '#/components/headers/PublicETag'}
+            Cache-Control:
+              description: 'Anonymous successful responses use public, max-age=600, must-revalidate. Requests with Authorization or the configured session cookie use private, no-store and never return 304.'
+              schema: {type: string}
           content:
             application/yaml:
               schema: {type: string}
+        '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
   /api/v1/posts/{post_id}/reports:
     post:
@@ -1773,6 +1812,19 @@ paths:
         '409': {$ref: '#/components/responses/ModerationConflict'}
         '503': {$ref: '#/components/responses/ModerationUnavailable'}
 components:
+  headers:
+    PublicETag:
+      description: 'Weak v1 SHA-256 validator over the complete serialized representation and representation type/version. Absent on no-store responses.'
+      schema: {type: string, example: 'W/"v1-<sha256>"'}
+    EventCacheControl:
+      description: 'public, no-cache requires revalidation on every reuse. Stale fallback uses no-store. Authorization or the configured session cookie uses private, no-store. No-store responses never return 304.'
+      schema: {type: string}
+    TaxonomyCacheControl:
+      description: 'public, max-age=N, must-revalidate where N is floor(max(0, min(600 seconds, fresh_until - now))). Expired, unknown freshness or stale fallback uses no-store. Authorization or the configured session cookie uses private, no-store. No-store responses never return 304.'
+      schema: {type: string}
+    PublicErrorCacheControl:
+      description: 'Errors on the six conditional public read endpoints use no-store, or private, no-store with Authorization or the configured session cookie.'
+      schema: {type: string}
   securitySchemes:
     sessionCookie:
       type: apiKey
@@ -1784,6 +1836,11 @@ components:
       scheme: bearer
       description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
   parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      description: 'Entity tag, comma-separated list (including repeated header fields), or *. GET uses weak comparison. Malformed fields are nonmatches. Validation and service reads run first; errors and stale fallback never become 304. No Last-Modified validator is used.'
+      schema: {type: string}
     CatalogKeyword:
       name: keyword
       in: query
@@ -1860,6 +1917,16 @@ components:
       description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
       schema: {type: string}
   responses:
+    PublicNotModified:
+      description: 'Successful current representation matches If-None-Match. No body. Includes current ETag, endpoint Cache-Control and any applicable Vary values. Never returned for credential-bearing requests, errors or stale fallback. Event service/database work still runs.'
+      headers:
+        ETag: {$ref: '#/components/headers/PublicETag'}
+        Cache-Control:
+          description: 'Current endpoint policy: public, no-cache for events; public, max-age=N, must-revalidate for taxonomy/contract.'
+          schema: {type: string}
+        Vary:
+          description: Preserves applicable content-negotiation headers; omitted when none apply.
+          schema: {type: string}
     Follow:
       description: Your follow with its original timestamp and last-known target metadata.
       content:
@@ -2025,12 +2092,15 @@ components:
           schema: {$ref: '#/components/schemas/Problem'}
     BadRequest:
       description: Invalid query or ID, or filters rejected by Ticketmaster. Local validation failures make no provider request.
+      headers:
+        Cache-Control: {$ref: '#/components/headers/PublicErrorCacheControl'}
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
     Unavailable:
       description: Provider outage, timeout, missing key, or exhausted request budget with no usable cached data.
       headers:
+        Cache-Control: {$ref: '#/components/headers/PublicErrorCacheControl'}
         Retry-After:
           description: Seconds until retry, when known.
           schema: {type: integer, minimum: 1}

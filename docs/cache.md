@@ -1,5 +1,47 @@
 # Cache configuration
 
+## Public HTTP caching
+
+Only these anonymous successful GET responses opt into shared HTTP caching:
+
+| Endpoint | Cache-Control |
+| --- | --- |
+| `/api/v1/categories`, `/api/v1/genres` | `public, max-age=N, must-revalidate` |
+| `/api/v1/openapi.yaml` | `public, max-age=600, must-revalidate` |
+| `/api/v1/events`, `/api/v1/events/:event_id`, `/api/v1/events/:event_id/history` | `public, no-cache` |
+
+Taxonomy `N = floor(max(0, min(600 seconds, freshUntil - now)))`. Discovery
+supplies the actual source deadline; its 24-hour policy remains centralized.
+Expired/unknown freshness and stale fallback use `no-store`, without a validator
+or 304. History reads durable observations directly and have no stale fallback.
+Errors use `no-store` and retain their existing status and `Retry-After`.
+Requests containing Authorization (even empty/invalid) or the configured session
+cookie use `private, no-store`, bypassing conditional handling. Existing private
+pages and personalized API policies remain in force.
+
+Eligible responses carry `ETag: W/"v1-<sha256>"`. The hash covers representation
+type/version and the complete serialized body, including events, history,
+`data_as_of`, `stale`, coverage, total, cursor and limited-result indicators.
+Identical representations produce identical validators across replicas; the
+embedded OpenAPI validator is precomputed. JSON encoding is unchanged.
+
+`If-None-Match` supports weak/strong comparison, lists, repeated fields, opaque
+tags containing commas, and `*`. Malformed fields are nonmatches. Validation and
+service reads happen first: errors always win. Matching eligible responses return
+bodyless 304 with the current ETag, Cache-Control and applicable Vary values.
+ETags are the sole validator; Last-Modified is not used. Query strings remain
+part of cache identity. Existing Vary values are preserved; these handlers do
+not compress or add Accept-Encoding negotiation.
+
+Event storage requires revalidation on **every reuse**, including omitted date
+defaults at the UTC day boundary. A 304 reduces response bytes, not database
+queries: provider refreshes, coverage checks and normal service/database work
+still happen. There is no additional application response cache. See the
+[HTTP measurements](public-cache-measurements.md) for timing, allocations and
+repository invocation counts.
+
+## Source cache
+
 Ticketopia uses an in-process, concurrency-safe KV cache by default. No cache
 server or `.env` file is required for the cache. Discovery reads use these policies:
 

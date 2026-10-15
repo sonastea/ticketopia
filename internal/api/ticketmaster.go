@@ -16,7 +16,7 @@ import (
 )
 
 func (a *api) eventsHandler(c echo.Context) error {
-	query, err := discovery.ParseQuery(c.QueryParams(), time.Now())
+	query, err := discovery.ParseQuery(c.QueryParams(), a.clock())
 	if err != nil {
 		return problem(c, err)
 	}
@@ -24,7 +24,7 @@ func (a *api) eventsHandler(c echo.Context) error {
 	if err != nil {
 		return problem(c, err)
 	}
-	return c.JSON(http.StatusOK, data)
+	return a.publicJSON(c, data, eventCachePolicy(data.Meta.Stale))
 }
 
 func (a *api) eventHandler(c echo.Context) error {
@@ -38,7 +38,7 @@ func (a *api) eventHandler(c echo.Context) error {
 	if err != nil {
 		return problem(c, err)
 	}
-	return c.JSON(http.StatusOK, data)
+	return a.publicJSON(c, data, eventCachePolicy(data.Meta.Stale))
 }
 
 func (a *api) eventHistoryHandler(c echo.Context) error {
@@ -70,7 +70,7 @@ func (a *api) eventHistoryHandler(c echo.Context) error {
 	if err != nil {
 		return problem(c, err)
 	}
-	return c.JSON(http.StatusOK, h)
+	return a.publicJSON(c, h, eventCachePolicy(false))
 }
 
 func (a *api) genresHandler(c echo.Context) error {
@@ -81,7 +81,7 @@ func (a *api) genresHandler(c echo.Context) error {
 	if err != nil {
 		return problem(c, err)
 	}
-	return c.JSON(http.StatusOK, data)
+	return a.publicJSON(c, data, taxonomyCachePolicy(data.Meta, a.clock()))
 }
 
 func (a *api) categoriesHandler(c echo.Context) error {
@@ -92,7 +92,7 @@ func (a *api) categoriesHandler(c echo.Context) error {
 	if err != nil {
 		return problem(c, err)
 	}
-	return c.JSON(http.StatusOK, data)
+	return a.publicJSON(c, data, taxonomyCachePolicy(data.Meta, a.clock()))
 }
 
 func (a *api) retrieveEventsHandler(c echo.Context) error {

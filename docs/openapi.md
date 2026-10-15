@@ -47,6 +47,10 @@ For example, the event-search contract documents `limit` as an integer from 1 to
 `internal/api/api.go` embeds the YAML using `//go:embed openapi.yaml` and serves
 those bytes at **GET `/api/v1/openapi.yaml`** as `application/yaml`. No Ticketmaster
 or cache request is needed to download it. The route accepts no query parameters.
+Anonymous responses are publicly cached for 600 seconds with a precomputed weak
+ETag. Conditional GET can return a bodyless 304. The taxonomy and event endpoints
+also document 200 cache headers and 304 responses; see [HTTP caching](cache.md#public-http-caching)
+for freshness limits, credential exclusions, error precedence and revalidation.
 From the host machine, with the server running:
 
 ```sh

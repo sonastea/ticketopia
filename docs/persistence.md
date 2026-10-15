@@ -17,6 +17,10 @@ equality-first coverage access and removal of the redundant discussion index. Se
 for reproducible workloads, execution plans and index evaluation.
 MariaDB discovery uses SQL plus coverage-aware collection/fallback;
 database-free mode retains cache/provider services. MariaDB mode shares durable request budgets/pacing/cooldowns.
+Public event [HTTP revalidation](cache.md#public-http-caching) still invokes these
+services and repository reads before checking ETags; it is not a SQL result cache.
+The [HTTP benchmark](public-cache-measurements.md) extends the isolated query
+fixture and measures response bytes alongside repository calls and handler costs.
 Opt-in city/date collection and fresh activity snapshots persist observations,
 artist/venue catalogs, coverage and change evidence. Durable in-app reply envelopes
 and opt-in on-sale email jobs are implemented; database HA and verified cluster

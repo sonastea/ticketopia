@@ -41,7 +41,7 @@ func cached[T any](ctx context.Context, s *Service, key string, policy cachePoli
 		if record.NotFound {
 			return zero, models.Freshness{}, ErrNotFound
 		}
-		return record.Data, models.Freshness{DataAsOf: record.FetchedAt}, nil
+		return record.Data, models.Freshness{DataAsOf: record.FetchedAt, FreshUntil: record.FreshUntil}, nil
 	}
 	// A cancelled browser request must not cancel the one refresh shared by other
 	// clients. The service lifecycle and a hard timeout still bound that work.
@@ -53,7 +53,7 @@ func cached[T any](ctx context.Context, s *Service, key string, policy cachePoli
 			if record.NotFound {
 				return nil, ErrNotFound
 			}
-			return cacheResult[T]{record.Data, models.Freshness{DataAsOf: record.FetchedAt}}, nil
+			return cacheResult[T]{record.Data, models.Freshness{DataAsOf: record.FetchedAt, FreshUntil: record.FreshUntil}}, nil
 		}
 		data, err := fetch(fetchCtx)
 		if err == nil {
@@ -61,7 +61,7 @@ func cached[T any](ctx context.Context, s *Service, key string, policy cachePoli
 			writeRecord(fetchCtx, s, key, cacheRecord[T]{
 				Data: data, FetchedAt: now, FreshUntil: now.Add(policy.fresh), StaleUntil: now.Add(policy.retain),
 			})
-			return cacheResult[T]{data, models.Freshness{DataAsOf: now}}, nil
+			return cacheResult[T]{data, models.Freshness{DataAsOf: now, FreshUntil: now.Add(policy.fresh)}}, nil
 		}
 		if errors.Is(err, ErrNotFound) {
 			now := s.now()

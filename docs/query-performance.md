@@ -114,3 +114,7 @@ already exceeds InnoDB's 3,072-byte key limit before other ordering columns.
 No generated normalized-time column or optimizer hint is justified by that limit.
 
 See the [measurement report](query-performance-report.md) for this evaluation.
+
+The [public HTTP benchmark](public-cache-measurements.md) extends this fixture
+through the discovery service and HTTP router, comparing 200 and conditional 304
+responses. It measures bytes and handler costs without claiming reduced SQL work.

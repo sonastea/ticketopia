@@ -36,6 +36,7 @@ import (
 var openAPI []byte
 
 type api struct {
+	now               func() time.Time
 	logger            zerolog.Logger
 	events            *discovery.Service
 	locations         *location.Resolver
@@ -181,17 +182,17 @@ func (a *api) Routes() *echo.Echo {
 	a.moderationRoutes(e)
 	a.accountRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
-	e.GET("/api/v1/events", a.eventsHandler)
-	e.GET("/api/v1/events/:event_id", a.eventHandler)
-	e.GET("/api/v1/events/:event_id/history", a.eventHistoryHandler)
-	e.GET("/api/v1/genres", a.genresHandler)
-	e.GET("/api/v1/categories", a.categoriesHandler)
+	e.GET("/api/v1/events", a.eventsHandler, a.publicCacheBoundary)
+	e.GET("/api/v1/events/:event_id", a.eventHandler, a.publicCacheBoundary)
+	e.GET("/api/v1/events/:event_id/history", a.eventHistoryHandler, a.publicCacheBoundary)
+	e.GET("/api/v1/genres", a.genresHandler, a.publicCacheBoundary)
+	e.GET("/api/v1/categories", a.categoriesHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/openapi.yaml", func(c echo.Context) error {
 		if len(c.QueryParams()) > 0 {
 			return problem(c, &discovery.ValidationError{Field: "query", Message: "the API contract does not accept filters"})
 		}
-		return c.Blob(http.StatusOK, "application/yaml", openAPI)
-	})
+		return a.publicBytes(c, "application/yaml", openAPI, openAPIETag, "public, max-age=600, must-revalidate")
+	}, a.publicCacheBoundary)
 
 	return e
 }

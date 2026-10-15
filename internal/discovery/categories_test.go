@@ -36,11 +36,17 @@ func TestCategoriesCachePaginationAndFallback(t *testing.T) {
 	if err != nil || len(first.Items) != 6 || first.Items[0].Name != "Arts & Theatre" || first.Items[2].Name != "Miscellaneous" {
 		t.Fatalf("catalog pagination/sorting failed: %+v %v", first, err)
 	}
+	if !first.Meta.FreshUntil.Equal(now.Add(genrePolicy.fresh)) {
+		t.Fatal("new catalog omitted its discovery-owned freshness deadline")
+	}
 	if first.Items[3].Genres[0].Name != "Jazz" || first.Items[3].Genres[0].Subgenres == nil || first.Items[5].Genres[0].Subgenres[0].Name != "NBA" || first.Items[1].Genres == nil {
 		t.Fatalf("genre metadata missing: %+v", first)
 	}
 	now = now.Add(23 * time.Hour)
-	_, _ = s.Categories(t.Context())
+	fresh, _ := s.Categories(t.Context())
+	if !fresh.Meta.FreshUntil.Equal(first.Meta.FreshUntil) {
+		t.Fatal("cached catalog extended its freshness deadline")
+	}
 	if calls.Load() != 2 {
 		t.Fatal("catalog cache expired too soon")
 	}
@@ -48,6 +54,9 @@ func TestCategoriesCachePaginationAndFallback(t *testing.T) {
 	stale, err := s.Categories(t.Context())
 	if err != nil || !stale.Meta.Stale || len(stale.Items) != 6 || !stale.Meta.DataAsOf.Equal(first.Meta.DataAsOf) {
 		t.Fatalf("catalog fallback lost metadata: %+v %v", stale, err)
+	}
+	if !stale.Meta.FreshUntil.IsZero() {
+		t.Fatal("stale fallback advertised a fresh deadline")
 	}
 	now = now.Add(7 * 24 * time.Hour)
 	if _, err := s.Categories(t.Context()); err == nil {

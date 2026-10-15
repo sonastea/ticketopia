@@ -16,6 +16,11 @@ implemented visual system.
 HTML and JSON handlers call the same service. The browser never receives the
 Ticketmaster key and the server does not call its own HTTP API.
 
+The listed public JSON endpoints support [conditional HTTP reads](cache.md#public-http-caching).
+Discovery supplies taxonomy freshness deadlines from its cache records, including
+retained-fallback status. Event validators are evaluated only after the normal
+service path, so a 304 saves response bytes while preserving refresh/coverage work.
+
 In MariaDB mode this service searches the durable public catalog first, reuses
 fresh collection coverage, and retains last-good results during outage/quota
 exhaustion. On-demand collection persists outside configured scheduler cities.
