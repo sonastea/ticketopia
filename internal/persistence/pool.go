@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 14
+const SupportedSchemaVersion = 15
 
 var ErrUnavailable = errors.New("database unavailable")
 

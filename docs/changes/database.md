@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### 2026-10-14 — Reproducible query baseline, schema v15
+
+- Add deterministic 1k/10k and explicit 100k workloads, community/coverage/write
+  benchmarks, fixed read clocks and opt-in actual-query JSON plans. Evaluate
+  candidate indexes in disposable schemas; put coverage scope equality columns
+  before dates and remove the duplicate discussion index, with fresh/upgrade/repeat
+  migration coverage and unchanged runtime grants.
+- See the [workflow and measurement report](../query-performance.md).
+
 ### 2026-10-14 — Indexed community filters, schema v14
 
 - Replace per-read JSON location/category predicates in recommendation feeds and
@@ -86,23 +95,3 @@
   [local development](../persistence.md#repeatable-local-development).
 - Document the required v1 traffic drain before migration and v2 restart, rather
   than claiming overlapping schema support or a zero-downtime upgrade.
-- Pin local/operator MariaDB images to stable **13.0.2**, after confirming that
-  requested 13.1.1 is RC and receiving the user's stable-version choice. Distinguish
-  server upgrades from app migrations and preserve existing volumes; see
-  [server upgrade guidance](../persistence.md#server-version-upgrades).
-- Verify `go test -race -count=1 ./...` against an isolated TLS-enabled 13.0.2
-  server, the migration CLI/repeat run, runtime grants, and Compose configuration.
-  Initially leave the 11.8.6 instance/data untouched; no in-place or cluster upgrade
-  is claimed.
-- Upgrade the local Compose server to 13.0.2 through a private logical backup and
-  verified restore into `data-v13`, preserving the old volume and rollback override.
-  Match all nine tables and application grants, then verify writable state, runtime
-  TLS/schema/readiness, and the full race suite on port 3307. Domain tables were
-  empty; populated-data/production restores remain unverified. See the
-  [local cutover](../persistence.md#local-1186-to-1302-cutover).
-- Add requested local Compose memory, connection, durability, and I/O settings;
-  encode fractional MiB sizes as whole bytes and identify two removed, ignored
-  compatibility flags. Verify Compose syntax, isolated 13.0.2 startup, and all
-  active tuning values with engine rounding; do not restart the existing database.
-  Keep the operator budget unchanged; see
-  [local development](../persistence.md#repeatable-local-development).

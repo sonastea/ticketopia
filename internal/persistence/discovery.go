@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -190,7 +189,64 @@ func searchWhere(q discovery.Query) (string, []any) {
 	return where, args
 }
 
+func discoverCountQuery(q discovery.Query) (string, []any) {
+	where, args := searchWhere(q)
+	return `SELECT COUNT(*) FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where, args
+}
+
+func discoverPageQuery(q discovery.Query, cursor *discovery.Cursor) (string, []any) {
+	where, args := searchWhere(q)
+	from := ` FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where
+	order := `e.local_date,e.local_time,e.name,e.event_id`
+	if q.Sort == "date_desc" {
+		order = `e.local_date DESC,e.local_time DESC,e.name,e.event_id`
+	}
+	if q.Sort == "name_asc" {
+		order = `e.name,e.local_date,e.local_time,e.event_id`
+	}
+	if cursor != nil {
+		switch q.Sort {
+		case "date_desc":
+			from += ` AND e.local_date<=? AND (e.local_date<? OR (e.local_date=? AND (COALESCE(e.local_time,'')<? OR (COALESCE(e.local_time,'')=? AND (e.name,e.event_id)>(?,?)))))`
+			args = append(args, cursor.Date, cursor.Date, cursor.Date, cursor.Time, cursor.Time, cursor.Name, cursor.ID)
+		case "name_asc":
+			from += ` AND e.name>=? AND (e.name,e.local_date,COALESCE(e.local_time,''),e.event_id)>(?,?,?,?)`
+			args = append(args, cursor.Name, cursor.Name, cursor.Date, cursor.Time, cursor.ID)
+		default:
+			from += ` AND e.local_date>=? AND (e.local_date,COALESCE(e.local_time,''),e.name,e.event_id)>(?,?,?,?)`
+			args = append(args, cursor.Date, cursor.Date, cursor.Time, cursor.Name, cursor.ID)
+		}
+	}
+	return `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) FROM (SELECT e.event_id` + from + ` ORDER BY ` + order + ` LIMIT ?) e STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id`, append(args, q.Limit+1)
+}
+
+// A zero reference retains the database clock used by live coverage/leases.
+// Benchmarks supply a fixed reference through the same repository read path.
+func scheduledCoverageQuery(q discovery.Query, freshFor time.Duration, now time.Time) (string, []any) {
+	cutoff, args := `?`, []any{now.Add(-freshFor).UTC()}
+	if now.IsZero() {
+		cutoff, args = `TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6))`, []any{freshFor.Microseconds()}
+	}
+	return `SELECT COUNT(last_success),COALESCE(SUM(last_success>=` + cutoff + ` AND last_failure=''),0),MIN(last_success),MAX(last_success),MAX(last_attempt) FROM collection_tasks WHERE city=? AND country=? AND local_date BETWEEN ? AND ?`, append(args, q.City, q.Country, q.StartDate, q.EndDate)
+}
+
+func onDemandCoverageQuery(scope discovery.Query, freshFor time.Duration, now time.Time) (string, []any) {
+	cutoff, clock, args := `?`, `?`, []any{now.Add(-freshFor).UTC(), now.UTC(), now.UTC()}
+	if now.IsZero() {
+		cutoff, clock, args = `TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6))`, `UTC_TIMESTAMP(6)`, []any{freshFor.Microseconds()}
+	}
+	return `SELECT last_success,data_as_of,status,last_success<` + cutoff + `,(next_refresh>` + clock + ` OR COALESCE(lease_until>` + clock + `,0)) FROM discovery_scopes WHERE city=? AND country=? AND start_date<=? AND end_date>=? AND artist_id=? AND venue_id=? ORDER BY last_success DESC`, append(args, scope.City, scope.Country, scope.StartDate, scope.EndDate, scope.ArtistID, scope.VenueID)
+}
+
 func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, freshFor time.Duration) (discovery.CatalogRead, error) {
+	return r.searchAt(ctx, q, freshFor, time.Time{})
+}
+
+func (r *DiscoveryRepository) searchAt(ctx context.Context, q discovery.Query, freshFor time.Duration, now time.Time) (discovery.CatalogRead, error) {
+	coverageNow := now
+	if now.IsZero() {
+		now = time.Now()
+	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	read := discovery.CatalogRead{List: models.EventList{Items: []models.Event{}}}
@@ -218,42 +274,17 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 		}
 		cursor = &c
 	}
-	meta, refresh, stamp, err := coverageStampTx(ctx, tx, q, freshFor)
+	meta, refresh, stamp, err := coverageStampAtTx(ctx, tx, q, freshFor, coverageNow)
 	if err != nil {
 		return read, safeError("discover coverage", err)
 	}
 	read.List.Meta, read.Refresh = meta, refresh
-	where, args := searchWhere(q)
-	from := ` FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where
-	order := `e.local_date,e.local_time,e.name,e.event_id`
-	if q.Sort == "date_desc" {
-		order = `e.local_date DESC,e.local_time DESC,e.name,e.event_id`
-	}
-	if q.Sort == "name_asc" {
-		order = `e.name,e.local_date,e.local_time,e.event_id`
-	}
-	pageFrom := from
-	pageArgs := slices.Clone(args)
-	if cursor != nil {
-		switch q.Sort {
-		case "date_desc":
-			pageFrom += ` AND e.local_date<=? AND (e.local_date<? OR (e.local_date=? AND (COALESCE(e.local_time,'')<? OR (COALESCE(e.local_time,'')=? AND (e.name,e.event_id)>(?,?)))))`
-			pageArgs = append(pageArgs, cursor.Date, cursor.Date, cursor.Date, cursor.Time, cursor.Time, cursor.Name, cursor.ID)
-		case "name_asc":
-			pageFrom += ` AND e.name>=? AND (e.name,e.local_date,COALESCE(e.local_time,''),e.event_id)>(?,?,?,?)`
-			pageArgs = append(pageArgs, cursor.Name, cursor.Name, cursor.Date, cursor.Time, cursor.ID)
-		default:
-			pageFrom += ` AND e.local_date>=? AND (e.local_date,COALESCE(e.local_time,''),e.name,e.event_id)>(?,?,?,?)`
-			pageArgs = append(pageArgs, cursor.Date, cursor.Date, cursor.Time, cursor.Name, cursor.ID)
-		}
-	}
-	pageArgs = append(pageArgs, q.Limit+1)
-	rows, err := tx.QueryContext(ctx, `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) FROM (SELECT e.event_id`+pageFrom+` ORDER BY `+order+` LIMIT ?) e STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id`, pageArgs...)
+	pageSQL, pageArgs := discoverPageQuery(q, cursor)
+	rows, err := tx.QueryContext(ctx, pageSQL, pageArgs...)
 	if err != nil {
 		return read, safeError("discover page", err)
 	}
 	hasMore := false
-	now := time.Now()
 	for rows.Next() {
 		if len(read.List.Items) == q.Limit {
 			hasMore = true
@@ -305,7 +336,8 @@ func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, fre
 			read.List.Total = cursor.Total
 			storeDiscoverCount(cacheKey, read.List.Total, writeGen, stamp, freshFor, now)
 		default:
-			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*)`+from, args...).Scan(&read.List.Total); err != nil {
+			query, args := discoverCountQuery(q)
+			if err := tx.QueryRowContext(ctx, query, args...).Scan(&read.List.Total); err != nil {
 				return read, safeError("discover count", err)
 			}
 			storeDiscoverCount(cacheKey, read.List.Total, writeGen, stamp, freshFor, now)
@@ -333,6 +365,14 @@ func coverageTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor tim
 }
 
 func coverageStampTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor time.Duration) (models.Freshness, bool, coverageStamp, error) {
+	return coverageStampAtTx(ctx, tx, q, freshFor, time.Time{})
+}
+
+func coverageStampAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor time.Duration, now time.Time) (models.Freshness, bool, coverageStamp, error) {
+	queryNow := now
+	if now.IsZero() {
+		now = time.Now()
+	}
 	start, _ := time.Parse(time.DateOnly, q.StartDate)
 	end, _ := time.Parse(time.DateOnly, q.EndDate)
 	days := int(end.Sub(start)/(24*time.Hour)) + 1
@@ -343,7 +383,8 @@ func coverageStampTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFo
 	var count, fresh int
 	var oldest, newestSuccess, newestAttempt sql.NullTime
 	if q.City != "" && q.Country != "" {
-		err := tx.QueryRowContext(ctx, `SELECT COUNT(last_success),COALESCE(SUM(last_success>=TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6)) AND last_failure=''),0),MIN(last_success),MAX(last_success),MAX(last_attempt) FROM collection_tasks WHERE city=? AND country=? AND local_date BETWEEN ? AND ?`, freshFor.Microseconds(), q.City, q.Country, q.StartDate, q.EndDate).Scan(&count, &fresh, &oldest, &newestSuccess, &newestAttempt)
+		query, args := scheduledCoverageQuery(q, freshFor, queryNow)
+		err := tx.QueryRowContext(ctx, query, args...).Scan(&count, &fresh, &oldest, &newestSuccess, &newestAttempt)
 		if err != nil {
 			return meta, false, stamp, err
 		}
@@ -375,7 +416,8 @@ func coverageStampTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFo
 	}
 	// A successfully collected enclosing on-demand range covers narrowed dates
 	// and all local filters. Broader/other-country queries need their own evidence.
-	rows, err := tx.QueryContext(ctx, `SELECT last_success,data_as_of,status,last_success<TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6)),(next_refresh>UTC_TIMESTAMP(6) OR COALESCE(lease_until>UTC_TIMESTAMP(6),0)) FROM discovery_scopes WHERE city=? AND country=? AND start_date<=? AND end_date>=? AND artist_id=? AND venue_id=? ORDER BY last_success DESC`, freshFor.Microseconds(), scope.City, scope.Country, scope.StartDate, scope.EndDate, scope.ArtistID, scope.VenueID)
+	query, args := onDemandCoverageQuery(scope, freshFor, queryNow)
+	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return meta, false, stamp, err
 	}
@@ -411,7 +453,7 @@ func coverageStampTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFo
 		} else if at.Valid && c.CollectedDays < days {
 			c.Status = "partial"
 			meta.DataAsOf = at.Time
-			meta.Stale = time.Since(at.Time) >= freshFor || status == "failed"
+			meta.Stale = now.Sub(at.Time) >= freshFor || status == "failed"
 		}
 		if waiting {
 			refresh = false

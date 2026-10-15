@@ -70,6 +70,8 @@ their status; they describe intended work rather than available features.
   durable preferences, browser sessions, and revocable personal API tokens.
 - [MariaDB foundation](persistence.md): explicit connections, TLS/readiness,
   serialized migrations/recovery, durable event identity, and local/operator examples.
+- [MariaDB query performance](query-performance.md): deterministic benchmarks,
+  opt-in execution plans, candidate indexes and measurement report.
 - [OpenAPI contract](openapi.md): API specification format, published YAML,
   tooling, and maintenance alongside Go handlers.
 - [Container deployment](deployment.md): Docker builds, Coolify settings, health

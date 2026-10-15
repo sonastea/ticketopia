@@ -9,16 +9,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/recommendations"
 )
 
-func (r *RecommendationRepository) Community(ctx context.Context, q recommendations.Query) ([]recommendations.EventGroup, error) {
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
-	defer cancel()
-	// Counts, snapshots, and author previews must describe the same committed
-	// state, including when another member withdraws while this page is loading.
-	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
-	if err != nil {
-		return nil, safeError("recommendation feed", err)
-	}
-	defer tx.Rollback()
+func recommendationCommunityQuery(q recommendations.Query) (string, []any) {
 	query := `SELECT e.snapshot,e.data_as_of,f.first_recommended_at,
  (SELECT COUNT(*) FROM event_recommendations active WHERE active.event_id=f.event_id AND active.withdrawn_at IS NULL)
  FROM recommendation_feed_events f JOIN event_snapshots e ON e.event_id=f.event_id
@@ -31,6 +22,28 @@ func (r *RecommendationRepository) Community(ctx context.Context, q recommendati
 	}
 	query += ` ORDER BY f.first_recommended_at DESC,f.event_id DESC LIMIT ?`
 	args = append(args, q.Limit+1)
+	return query, args
+}
+
+func recommendationPreviewQuery(ids []any) (string, []any) {
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	query := `SELECT r.event_id,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at FROM
+ (SELECT source.*,ROW_NUMBER() OVER(PARTITION BY source.event_id ORDER BY source.recommended_at DESC,source.account_id DESC) AS position
+ FROM event_recommendations source WHERE source.withdrawn_at IS NULL AND source.event_id IN (` + placeholders + `)) r
+	 JOIN accounts a ON a.account_id=r.account_id WHERE r.position<=? ORDER BY r.event_id,r.position`
+	return query, append(ids, recommendations.PreviewLimit)
+}
+
+func (r *RecommendationRepository) Community(ctx context.Context, q recommendations.Query) ([]recommendations.EventGroup, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	// Counts, snapshots, and author previews share one committed state.
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return nil, safeError("recommendation feed", err)
+	}
+	defer tx.Rollback()
+	query, args := recommendationCommunityQuery(q)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, safeError("recommendation feed", err)
@@ -67,12 +80,7 @@ func (r *RecommendationRepository) Community(ctx context.Context, q recommendati
 		return items, nil
 	}
 	// Batch three-author previews, never a query per card or an unbounded author list.
-	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
-	query = `SELECT r.event_id,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at FROM
- (SELECT source.*,ROW_NUMBER() OVER(PARTITION BY source.event_id ORDER BY source.recommended_at DESC,source.account_id DESC) AS position
- FROM event_recommendations source WHERE source.withdrawn_at IS NULL AND source.event_id IN (` + placeholders + `)) r
-	 JOIN accounts a ON a.account_id=r.account_id WHERE r.position<=? ORDER BY r.event_id,r.position`
-	ids = append(ids, recommendations.PreviewLimit)
+	query, ids = recommendationPreviewQuery(ids)
 	rows, err = tx.QueryContext(ctx, query, ids...)
 	if err != nil {
 		return nil, safeError("recommendation previews", err)

@@ -12,7 +12,9 @@ and observe-only publication measurements, and schema-v8
 [private artist/venue follows](follows.md), and schema-v11 stored Discover and public
 history reads, schema-v12 [followed discussions and in-app reply notifications](followed-discussions.md),
 and schema-v13 [on-sale reminder settings, jobs, receipts and dispatch pacing](reminders.md),
-plus schema-v14 indexed community location/category filtering.
+plus schema-v14 indexed community location/category filtering and schema-v15
+equality-first coverage access and removal of the redundant discussion index. See the [query performance workflow](query-performance.md)
+for reproducible workloads, execution plans and index evaluation.
 MariaDB discovery uses SQL plus coverage-aware collection/fallback;
 database-free mode retains cache/provider services. MariaDB mode shares durable request budgets/pacing/cooldowns.
 Opt-in city/date collection and fresh activity snapshots persist observations,
@@ -300,16 +302,16 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 14 only**. Versions 0–13 and 15+ are rejected;
+This binary supports **clean schema version 15 only**. Versions 0–14 and 16+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after
-old binaries are gone. The previous on-sale reminder binary supports version 13 only.
-For the v13-to-v14 community-filter upgrade, stop/drain v13 traffic, preserve a backup,
-apply the v14 migration with the v14 image, then start v14 apps. Existing runtime
-table grants suffice. Do not leave v13 pods serving after migration; they will fail
+old binaries are gone. The previous community-filter binary supports version 14 only.
+For the v14-to-v15 index cleanup, stop/drain v14 traffic, preserve a backup,
+apply the v15 migration with the v15 image, then start v15 apps. Existing runtime
+table grants suffice. Do not leave v14 pods serving after migration; they will fail
 readiness. Older deployments must apply every pending migration with traffic drained.
 This release does not claim a zero-downtime cross-version rollout. Keep a compatible
 rollback image; app rollback does not imply DDL rollback. These guidelines are not

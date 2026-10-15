@@ -279,9 +279,7 @@ func (r *DiscussionRepository) React(ctx context.Context, owner, id string, set 
 	}
 	return p, nil
 }
-func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread string, q discussions.Query) ([]discussions.Post, int, error) {
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
-	defer cancel()
+func discussionQueries(viewer, event, thread string, q discussions.Query) (string, []any, string, []any) {
 	where := ` WHERE p.created_at<=?`
 	args := []any{q.Snapshot.UTC()}
 	if thread != "" {
@@ -297,10 +295,8 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 	filters, filterArgs := communityFilters(q.City, q.Country, q.CategoryID)
 	where += filters
 	args = append(args, filterArgs...)
-	var count int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*)`+postJoin+where+` AND p.removed_at IS NULL AND p.hidden_at IS NULL`, args...).Scan(&count); err != nil {
-		return nil, 0, safeError("discussion count", err)
-	}
+	countSQL := `SELECT COUNT(*)` + postJoin + where + ` AND p.removed_at IS NULL AND p.hidden_at IS NULL`
+	countArgs := append([]any(nil), args...)
 	op, order := "<", "DESC"
 	if thread != "" {
 		op, order = ">", "ASC"
@@ -311,7 +307,18 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 	}
 	args = append([]any{viewer}, args...)
 	args = append(args, q.Limit+1)
-	rows, err := r.db.QueryContext(ctx, `SELECT `+postColumns+postJoin+where+` ORDER BY p.created_at `+order+`,p.post_id `+order+` LIMIT ?`, args...)
+	return `SELECT ` + postColumns + postJoin + where + ` ORDER BY p.created_at ` + order + `,p.post_id ` + order + ` LIMIT ?`, args, countSQL, countArgs
+}
+
+func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread string, q discussions.Query) ([]discussions.Post, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	query, args, countSQL, countArgs := discussionQueries(viewer, event, thread, q)
+	var count int
+	if err := r.db.QueryRowContext(ctx, countSQL, countArgs...).Scan(&count); err != nil {
+		return nil, 0, safeError("discussion count", err)
+	}
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, safeError("discussion collection", err)
 	}

@@ -24,6 +24,10 @@ func (p *Pool) Radar() *RadarRepository { return &RadarRepository{p.db, p.config
 var _ radar.Repository = (*RadarRepository)(nil)
 
 func (r *RadarRepository) Read(ctx context.Context, owner string, at time.Time, freshFor time.Duration, page radar.Query) (radar.Dataset, error) {
+	return r.readAt(ctx, owner, at, freshFor, page, time.Time{})
+}
+
+func (r *RadarRepository) readAt(ctx context.Context, owner string, at time.Time, freshFor time.Duration, page radar.Query, now time.Time) (radar.Dataset, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	d := radar.Dataset{}
@@ -60,7 +64,7 @@ func (r *RadarRepository) Read(ctx context.Context, owner string, at time.Time, 
 		return d, nil
 	}
 	q := discovery.Query{City: scope.City, Country: scope.Country, StartDate: scope.StartDate, EndDate: scope.EndDate}
-	d.Meta, d.Refresh, err = coverageTx(ctx, tx, q, freshFor)
+	d.Meta, d.Refresh, _, err = coverageStampAtTx(ctx, tx, q, freshFor, now)
 	if err != nil {
 		return d, safeError("radar coverage", err)
 	}
