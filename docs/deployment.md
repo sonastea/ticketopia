@@ -1,5 +1,34 @@
 # Container deployment
 
+## Live community activity
+
+[Live community activity](live-community-activity.md) defaults off. To enable it,
+set `LIVE_ACTIVITY_ENABLED=true` consistently on all replicas with accounts and
+MariaDB enabled. Drain old replicas, run schema 16 migrations, reconcile the runtime
+grants (including INSERT/DELETE on `live_recommendation_activity`), then start the
+new binary. Startup probes verify the column/table and permissions.
+
+Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and
+60 connection starts per trusted IP per minute (`LIVE_ACTIVITY_STARTS_PER_MINUTE`,
+1–600). Configure the existing trusted-proxy IP policy. Budget database pools and
+HTTP connections across replicas; tune using load including shared-IP visitors.
+
+For example, three replicas with 2 GB RAM each and the default limit provide up
+to **768 simultaneous live-activity SSE connections** (3 × 256), normally one per
+visible, unpaused browser tab. This is a configured ceiling, not a RAM-based
+capacity guarantee: uneven load balancing can fill one replica earlier. Start at
+256 per replica and load-test CPU, memory, MariaDB latency and proxy connections
+before raising the limit; doubling RAM alone does not establish a higher safe limit.
+
+The proxy must honor `X-Accel-Buffering: no`, avoid buffering/compressing SSE, and
+allow 15-second heartbeats. Verify actual flush timing, disconnects, graceful drain
+and cross-replica publication/withdrawal/name clearing before enabling. Streams
+use five-second write deadlines and cancel with shutdown; workers stop before SQL
+closes. Logs report counts/timing/failures without notification payloads. Rollback
+by disabling the feature keeps recommendation writes usable; no historical activity
+is backfilled when re-enabled. Physical-device/screen-reader and target-proxy
+verification remain deployment acceptance work.
+
 Ticketopia ships a multi-stage [Dockerfile](../Dockerfile). The builder uses Go
 1.27 and Node.js 24 to install pinned npm dependencies, bundle component scripts,
 generate templ code, compile Tailwind CSS, and build both Go executables. Generated

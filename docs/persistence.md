@@ -1,5 +1,11 @@
 # MariaDB foundation
 
+Schema 16 adds explicit optional activity first names and reference-only live
+recommendation eligibility. [Live activity](live-community-activity.md) documents
+transactional publication/withdrawal, bounded expiry cleanup and shared replica
+reads. Runtime grants and probes include the new table; no existing identity is
+backfilled into notification attribution.
+
 Implemented: explicit SQL connection lifecycle, serialized embedded migrations,
 schema validation/readiness, minimal durable event/provider identity, accounts,
 credentials/private preferences, schema-v3 [private saves/snapshots](saved-events.md),
@@ -306,7 +312,7 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 15 only**. Versions 0–14 and 16+ are rejected;
+This binary supports **clean schema version 16 only**. Versions 0–15 and 17+ are rejected;
 partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
 application rollout can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;

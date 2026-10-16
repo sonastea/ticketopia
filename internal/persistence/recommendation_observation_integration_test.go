@@ -187,10 +187,8 @@ func TestMariaDBRecommendationSchema6UpgradeBackfillsFeedWithoutInventingActivit
 		t.Fatal(err)
 	}
 	defer db.Close()
-	old := &Pool{db: db, config: f.migration}
-	auth := accounts.New(old.Accounts(), accountProviderFixture{})
-	owner, token := loginAccount(t, auth, "grouped-upgrade")
-	other, _ := loginAccount(t, auth, "grouped-upgrade-other")
+	owner, token := seedLegacyAccount(t, db, "grouped-upgrade")
+	other, _ := seedLegacyAccount(t, db, "grouped-upgrade-other")
 	d := savedDetail("GroupedUpgrade")
 	seedLegacySavedEvent(t, db, owner.ID, d)
 	execSQL(t, db, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,'private')`, owner.ID, d.Item.ID)

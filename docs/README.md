@@ -20,6 +20,9 @@ their status; they describe intended work rather than available features.
 - [UI flow polish priorities — 2026-10-12](design/ui-flow-polish-2026-10-12.md):
   enlarged-text navigation, sign-in continuity, conversation draft-safety, action/removal and return-hierarchy fixes,
   with remaining manual flow checks.
+- [Live community activity specification](design/live-community-activity.md): implemented
+  sitewide recommendations, count refreshes and chosen first-name-only attribution;
+  includes remaining manual/deployment acceptance checks.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and
@@ -37,6 +40,9 @@ their status; they describe intended work rather than available features.
   hypotheses for meaningful repeat visits and social interaction.
 
 ## Current features
+
+- [Live community activity](live-community-activity.md): default-off SSE recommendations,
+  explicit first-name attribution, private-safe totals, grouping and pause controls.
 
 - [Local development services](local-development.md): `ses-setup`, `db-setup` and
   combined `local-setup`, with isolated MiniStack SES capture and local settings.

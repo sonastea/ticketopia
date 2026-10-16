@@ -11,6 +11,12 @@ emails and weekly discovery digests are out of scope.
 
 ## Enable accounts
 
+Profiles also store an owner-editable optional activity first name, used only by
+[live community activity](live-community-activity.md). It is never inferred from
+display name/email/Google claims and is omitted from public profiles. Blank clears
+it to Someone; omitted profile PATCH fields preserve it. The existing account-wide
+notification pause also suppresses automatic live activity display/streaming.
+
 First follow the [MariaDB setup](persistence.md#repeatable-local-development), apply
 the current required schema version **13**, and reapply the runtime grants. Discovery
 remains usable with `AUTH_ENABLED` unset/false. When enabled, missing/invalid configuration or SQL

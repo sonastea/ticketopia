@@ -94,7 +94,7 @@ func TestMariaDBCommunityProjectionMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	a, _ := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: f.migration.QueryTimeout}, accountProviderFixture{}), "community-upgrade")
+	a, _ := seedLegacyAccount(t, db, "community-upgrade")
 	// Exercise missing and JSON-null fields independently, plus empty strings.
 	for i, location := range []string{
 		`"venues":[{"city":"First"},{"city":"Second"}],"place":{"city":"Fallback","country_code":"US"}`,

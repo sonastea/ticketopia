@@ -49,6 +49,7 @@ type Preferences struct {
 }
 
 type Account struct {
+	ActivityFirstName  *string     `json:"activity_first_name"`
 	ID                 string      `json:"id"`
 	DisplayName        string      `json:"display_name"`
 	Bio                string      `json:"bio"`
@@ -68,6 +69,7 @@ type PublicProfile struct {
 func (a Account) Public() PublicProfile { return PublicProfile{a.ID, a.DisplayName, a.Bio} }
 
 type ProfilePatch struct {
+	ActivityFirstName  *string `json:"activity_first_name"`
 	DisplayName        *string `json:"display_name"`
 	Bio                *string `json:"bio"`
 	InterestVisibility *string `json:"interest_visibility"`
@@ -227,7 +229,7 @@ func validateText(field string, v string, min, max int, multiline bool) error {
 	return nil
 }
 func (s *Service) UpdateProfile(ctx context.Context, owner string, p ProfilePatch) (Account, error) {
-	if p.DisplayName == nil && p.Bio == nil && p.InterestVisibility == nil {
+	if p.DisplayName == nil && p.Bio == nil && p.InterestVisibility == nil && p.ActivityFirstName == nil {
 		return Account{}, &ValidationError{"body", "provide at least one profile field"}
 	}
 	if p.DisplayName != nil {
@@ -236,6 +238,13 @@ func (s *Service) UpdateProfile(ctx context.Context, owner string, p ProfilePatc
 		if err := validateText("display_name", v, 1, 80, false); err != nil {
 			return Account{}, err
 		}
+	}
+	if p.ActivityFirstName != nil {
+		v, err := ActivityFirstName(*p.ActivityFirstName)
+		if err != nil {
+			return Account{}, err
+		}
+		p.ActivityFirstName = &v
 	}
 	if p.Bio != nil {
 		// Native textarea form submissions use CRLF even when the editor shows LF.
@@ -252,6 +261,40 @@ func (s *Service) UpdateProfile(ctx context.Context, owner string, p ProfilePatc
 }
 
 var categoryPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
+
+// ActivityFirstName validates explicit attribution; it never infers identity.
+func ActivityFirstName(raw string) (string, error) {
+	invalid := &ValidationError{"activity_first_name", "use up to 40 letters, spaces, hyphens or apostrophes"}
+	if !utf8.ValidString(raw) {
+		return "", invalid
+	}
+	for _, r := range raw {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return "", invalid
+		}
+	}
+	v := strings.Join(strings.Fields(raw), " ")
+	if v == "" {
+		return "", nil
+	}
+	if utf8.RuneCountInString(v) > 40 {
+		return "", invalid
+	}
+	letter := false
+	for _, r := range v {
+		if unicode.IsLetter(r) {
+			letter = true
+			continue
+		}
+		if !unicode.IsMark(r) && r != ' ' && r != '-' && r != '\'' && r != '’' {
+			return "", invalid
+		}
+	}
+	if !letter {
+		return "", invalid
+	}
+	return v, nil
+}
 
 func (s *Service) UpdatePreferences(ctx context.Context, owner string, p PreferencesPatch) (Account, error) {
 	if p == (PreferencesPatch{}) {

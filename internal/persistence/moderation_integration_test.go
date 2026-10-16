@@ -337,9 +337,7 @@ func TestMariaDBModerationSchema7UpgradePreservesPostsAndActivity(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer db.Close()
-	old := &Pool{db: db, config: f.migration}
-	auth := accounts.New(old.Accounts(), accountProviderFixture{})
-	author, raw := loginAccount(t, auth, "moderation-upgrade")
+	author, raw := seedLegacyAccount(t, db, "moderation-upgrade")
 	detail := savedDetail("ModerationUpgrade")
 	seedLegacySavedEvent(t, db, author.ID, detail)
 	post, key := accounts.ID(), accounts.ID()

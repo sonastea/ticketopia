@@ -360,8 +360,7 @@ func TestMariaDBHistorySchema8UpgradePreservesActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	old := &Pool{db: db, config: f.migration}
-	owner, token := loginAccount(t, accounts.New(old.Accounts(), accountProviderFixture{}), "history-upgrade")
+	owner, token := seedLegacyAccount(t, db, "history-upgrade")
 	detail := savedDetail("HistoryUpgrade")
 	seedLegacySavedEvent(t, db, owner.ID, detail)
 	execSQL(t, db, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,'private')`, owner.ID, detail.Item.ID)

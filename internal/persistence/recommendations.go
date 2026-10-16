@@ -14,13 +14,16 @@ import (
 var _ recommendations.Repository = (*RecommendationRepository)(nil)
 
 type RecommendationRepository struct {
-	db      *sql.DB
-	timeout time.Duration
+	db           *sql.DB
+	timeout      time.Duration
+	liveActivity bool
 }
 
 func (p *Pool) Recommendations() *RecommendationRepository {
-	return &RecommendationRepository{p.db, p.config.QueryTimeout}
+	return &RecommendationRepository{db: p.db, timeout: p.config.QueryTimeout}
 }
+
+func (r *RecommendationRepository) EnableLiveActivity(enabled bool) { r.liveActivity = enabled }
 
 const recommendationColumns = `e.snapshot,e.data_as_of,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at`
 const recommendationJoin = ` FROM event_recommendations r JOIN event_snapshots e ON e.event_id=r.event_id JOIN accounts a ON a.account_id=r.account_id`
@@ -103,6 +106,11 @@ func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, de
 	if err != nil {
 		return recommendations.Item{}, false, false, err
 	}
+	if first && r.liveActivity {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO live_recommendation_activity (account_id,event_id,published_at,expires_at) SELECT account_id,event_id,recommended_at,recommended_at+INTERVAL 10 MINUTE FROM event_recommendations WHERE account_id=? AND event_id=?`, owner, detail.Item.ID); err != nil {
+			return recommendations.Item{}, false, retryable(err), err
+		}
+	}
 	if created {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO recommendation_feed_events (event_id,first_recommended_at) VALUES (?,?) ON DUPLICATE KEY UPDATE event_id=VALUES(event_id)`, detail.Item.ID, item.RecommendedAt); err != nil {
 			return recommendations.Item{}, false, retryable(err), err
@@ -141,10 +149,22 @@ func recordRecommendationActivity(ctx context.Context, tx *sql.Tx, owner string,
 func (r *RecommendationRepository) Remove(ctx context.Context, owner, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	_, err := r.db.ExecContext(ctx, `UPDATE event_recommendations SET reason='',updated_at=UTC_TIMESTAMP(6),withdrawn_at=UTC_TIMESTAMP(6) WHERE account_id=? AND event_id=? AND withdrawn_at IS NULL`, owner, id)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return safeError("recommendation withdrawal", err)
 	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `UPDATE event_recommendations SET reason='',updated_at=UTC_TIMESTAMP(6),withdrawn_at=UTC_TIMESTAMP(6) WHERE account_id=? AND event_id=? AND withdrawn_at IS NULL`, owner, id)
+	if err != nil {
+		return safeError("recommendation withdrawal", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM live_recommendation_activity WHERE account_id=? AND event_id=?`, owner, id); err != nil {
+		return safeError("recommendation withdrawal", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return safeError("recommendation withdrawal", err)
+	}
+	invalidateDiscoverCounts()
 	return nil
 }
 func (r *RecommendationRepository) Count(ctx context.Context, id string) (int, error) {

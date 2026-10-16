@@ -29,6 +29,7 @@ var runtimeTablePermissions = []struct {
 	{"event_recommendations", "reason", true},
 	{"recommendation_feed_events", "first_recommended_at", false},
 	{"recommendation_activity", "new_publications", false},
+	{"live_recommendation_activity", "", true},
 	{"discussion_posts", "body", false},
 	{"post_helpful", "post_id", true},
 	{"discussion_follows", "frequency", true},

@@ -125,7 +125,7 @@ func TestMariaDBFollowKeysetsAndMigrationPreservation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	owner, raw := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: time.Second}, accountProviderFixture{}), "pre-follow")
+	owner, raw := seedLegacyAccount(t, db, "pre-follow")
 	detail := savedDetail("BeforeFollows")
 	// Seed the drained schema-9 contract, not the current schema-11 writer.
 	seedLegacySavedEvent(t, db, owner.ID, detail)

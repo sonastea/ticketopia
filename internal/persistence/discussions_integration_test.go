@@ -272,9 +272,7 @@ func TestMariaDBDiscussionRootAtomicSnapshotAndSchema5Upgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	old := &Pool{db: db, config: f.migration}
-	auth := accounts.New(old.Accounts(), accountProviderFixture{})
-	who, token := loginAccount(t, auth, "discussion-upgrade")
+	who, token := seedLegacyAccount(t, db, "discussion-upgrade")
 	d := savedDetail("DiscussionUpgrade")
 	seedLegacySavedEvent(t, db, who.ID, d)
 	// Seed using the previous schema's SQL, not the current repository contract.

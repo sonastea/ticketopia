@@ -12,6 +12,16 @@
 }
 
 /* Account forms extend the existing flat, plum/light-stone app shell. */
+.live-activity { padding-block: .5rem; padding-inline: var(--page-padding, 1.25rem); border-block-end: 1px solid var(--line); }
+.live-activity summary { min-block-size: 2.75rem; padding-block: .6rem; color: var(--brand); font-weight: 700; cursor: pointer; }
+.live-activity summary:active { background: var(--brand-soft); }
+.live-activity summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.live-activity ul { list-style: none; padding: 0; margin-block: .5rem; }
+.live-activity li { padding-block: .5rem; border-block-start: 1px solid var(--line); }
+.live-activity [data-live-badge] { font-variant-numeric: tabular-nums; font-weight: 500; }
+@media (hover: hover) and (pointer: fine) {
+  .live-activity summary:hover { background: var(--nav-hover); }
+}
 .radar-match { display: grid; gap: .25rem; margin-block: .75rem; }
 .radar-reasons { padding-inline-start: 1.25rem; color: var(--brand); font-size: .9375rem; }
 .radar-scope { font-variant-numeric: tabular-nums; margin-block-end: .75rem; }

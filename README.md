@@ -82,6 +82,8 @@ in the app.
 - [x] Browse event-grouped recommendations by city/category and individual event/profile endorsements.
 - [x] Prevent withdrawal/republication feed bumping without participation quotas.
 - [x] Browse event conversations alongside recommendations.
+- [x] Deliver [live public recommendation activity](docs/live-community-activity.md)
+  with first-name-only attribution and refreshed event counts (default-off; deployment verification remains).
 - [ ] Later: Mark an event Going and choose participation visibility.
 - [x] Post a question, tip, or comment on an event.
 - [x] Reply to another person's contribution.

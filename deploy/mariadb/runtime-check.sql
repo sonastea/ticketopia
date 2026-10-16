@@ -34,6 +34,8 @@ INSERT INTO recommendation_feed_events SELECT * FROM recommendation_feed_events 
 UPDATE recommendation_feed_events SET first_recommended_at=first_recommended_at WHERE FALSE;
 INSERT INTO recommendation_activity SELECT * FROM recommendation_activity WHERE FALSE;
 UPDATE recommendation_activity SET new_publications=new_publications WHERE FALSE;
+INSERT INTO live_recommendation_activity SELECT * FROM live_recommendation_activity WHERE FALSE;
+DELETE FROM live_recommendation_activity WHERE FALSE;
 INSERT INTO discussion_posts SELECT * FROM discussion_posts WHERE FALSE;
 UPDATE discussion_posts SET body = body WHERE FALSE;
 INSERT INTO post_helpful SELECT * FROM post_helpful WHERE FALSE;

@@ -22,7 +22,7 @@ type AccountRepository struct {
 
 func (p *Pool) Accounts() *AccountRepository { return &AccountRepository{p.db, p.config.QueryTimeout} }
 
-const accountColumns = `account_id, email, display_name, bio, interest_visibility, city, country, timezone, category_ids, email_reminders, weekly_digest, notifications_paused, created_at`
+const accountColumns = `account_id, email, display_name, bio, interest_visibility, city, country, timezone, category_ids, email_reminders, weekly_digest, notifications_paused, created_at, activity_first_name`
 const credentialColumns = `credential_id, account_id, token_hash, kind, name, created_at, expires_at`
 
 type rowScanner interface{ Scan(...any) error }
@@ -30,7 +30,7 @@ type rowScanner interface{ Scan(...any) error }
 func scanAccount(row rowScanner) (accounts.Account, error) {
 	var a accounts.Account
 	var categories []byte
-	err := row.Scan(&a.ID, &a.Email, &a.DisplayName, &a.Bio, &a.InterestVisibility, &a.Preferences.City, &a.Preferences.Country, &a.Preferences.Timezone, &categories, &a.Preferences.EmailReminders, &a.Preferences.WeeklyDigest, &a.Preferences.NotificationsPaused, &a.CreatedAt)
+	err := row.Scan(&a.ID, &a.Email, &a.DisplayName, &a.Bio, &a.InterestVisibility, &a.Preferences.City, &a.Preferences.Country, &a.Preferences.Timezone, &categories, &a.Preferences.EmailReminders, &a.Preferences.WeeklyDigest, &a.Preferences.NotificationsPaused, &a.CreatedAt, &a.ActivityFirstName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return a, accounts.ErrNotFound
 	}
@@ -174,10 +174,10 @@ func (r *AccountRepository) Authenticate(ctx context.Context, hash [32]byte, kin
 	var c accounts.Credential
 	var categories, storedHash []byte
 	err := r.db.QueryRowContext(ctx, `SELECT c.credential_id,c.account_id,c.token_hash,c.kind,c.name,c.created_at,c.expires_at,
-	 a.account_id,a.email,a.display_name,a.bio,a.interest_visibility,a.city,a.country,a.timezone,a.category_ids,a.email_reminders,a.weekly_digest,a.notifications_paused,a.created_at
+	 a.account_id,a.email,a.display_name,a.bio,a.interest_visibility,a.city,a.country,a.timezone,a.category_ids,a.email_reminders,a.weekly_digest,a.notifications_paused,a.created_at,a.activity_first_name
 	 FROM account_credentials c JOIN accounts a ON a.account_id=c.account_id WHERE c.token_hash=? AND c.kind=? AND c.expires_at>?`, hash[:], kind, now).Scan(
 		&c.ID, &c.AccountID, &storedHash, &c.Kind, &c.Name, &c.CreatedAt, &c.ExpiresAt,
-		&a.ID, &a.Email, &a.DisplayName, &a.Bio, &a.InterestVisibility, &a.Preferences.City, &a.Preferences.Country, &a.Preferences.Timezone, &categories, &a.Preferences.EmailReminders, &a.Preferences.WeeklyDigest, &a.Preferences.NotificationsPaused, &a.CreatedAt)
+		&a.ID, &a.Email, &a.DisplayName, &a.Bio, &a.InterestVisibility, &a.Preferences.City, &a.Preferences.Country, &a.Preferences.Timezone, &categories, &a.Preferences.EmailReminders, &a.Preferences.WeeklyDigest, &a.Preferences.NotificationsPaused, &a.CreatedAt, &a.ActivityFirstName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accounts.Account{}, c, accounts.ErrUnauthenticated
 	}
@@ -207,6 +207,10 @@ func (r *AccountRepository) update(ctx context.Context, id string, sets []string
 func (r *AccountRepository) UpdateProfile(ctx context.Context, id string, p accounts.ProfilePatch) (accounts.Account, error) {
 	var sets []string
 	var args []any
+	if p.ActivityFirstName != nil {
+		sets = append(sets, "activity_first_name=NULLIF(?, '')")
+		args = append(args, *p.ActivityFirstName)
+	}
 	for _, field := range []struct {
 		column string
 		value  *string

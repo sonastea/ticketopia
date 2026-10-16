@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 15
+const SupportedSchemaVersion = 16
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -148,6 +148,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT account_id, event_id, reason, recommended_at, updated_at, withdrawn_at FROM event_recommendations LIMIT 0`,
 		`SELECT event_id, first_recommended_at FROM recommendation_feed_events LIMIT 0`,
 		`SELECT account_id, window_start, new_publications, reactivations, total_new_publications, total_reactivations, last_published_at FROM recommendation_activity LIMIT 0`,
+		`SELECT account_id,event_id,published_at,expires_at FROM live_recommendation_activity LIMIT 0`,
 		`SELECT post_id, account_id, event_id, root_id, parent_id, body, idempotency_key, request_hash, created_at, updated_at, removed_at, hidden_at, review_version FROM discussion_posts LIMIT 0`,
 		`SELECT account_id, post_id FROM post_helpful LIMIT 0`,
 		`SELECT account_id,thread_id,frequency,created_at FROM discussion_follows LIMIT 0`,
@@ -186,10 +187,10 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		return safeError("schema validation", err)
 	}
 	var reminderCount int
-	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('event_reminders','reminder_jobs','reminder_dispatch') AND engine='InnoDB'`).Scan(&reminderCount); err != nil {
+	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('event_reminders','reminder_jobs','reminder_dispatch','live_recommendation_activity') AND engine='InnoDB'`).Scan(&reminderCount); err != nil {
 		return safeError("schema validation", err)
 	}
-	if count != 38 || reminderCount != 3 {
+	if count != 38 || reminderCount != 4 {
 		return fmt.Errorf("database schema requires InnoDB tables")
 	}
 	return nil

@@ -237,6 +237,25 @@ Build backend/API and UI together for each small outcome:
 - [ ] Verification: Observe a useful question, reply, and Helpful acknowledgment;
   exercise reporting/moderation before the first public community pilot.
 
+### Live community activity (default-off)
+
+The [implementation specification](../design/live-community-activity.md) defines
+a bounded sitewide public-recommendation stream and refreshed event counts.
+Attribution uses an explicitly chosen first name, with Someone as the fallback;
+notification payloads omit surnames, display names and emails. Private saves and
+named Interested announcements are outside this initial slice.
+
+- [x] Backend: Add optional activity first names, transactional first-publication
+  eligibility, bounded public projections and replica-safe JSON/SSE delivery.
+- [x] Frontend: Add grouped, dismissible live activity, pause controls and in-place
+  counts while preserving event return context and drafts.
+- [ ] Verification: Prove first-name-only payloads, privacy, withdrawal/anti-repeat,
+  cross-replica delivery, reconnect/expiry and accessible responsive journeys.
+
+Local SQL/HTTP/browser checks are recorded in the [feature guide](../live-community-activity.md).
+Actual deployment proxy/load, physical-device and manual screen-reader acceptance
+remain unchecked; enabling the flag is a separate rollout decision.
+
 ## 6. Responsive discovery-to-discussion experience
 
 Discovery and full event/conversation context now share one responsive selection

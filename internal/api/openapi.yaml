@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.13.0
+  version: 1.14.0
   license:
     name: MIT
     identifier: MIT
@@ -23,6 +23,99 @@ servers:
   - url: /
 security: []
 paths:
+  /api/v1/community/activity:
+    get:
+      operationId: getCommunityActivity
+      summary: Read recent public recommendations across all cities
+      description: Current replacement view, at most 20 event groups from the last ten database-UTC minutes. No filters or pagination. Only explicitly chosen first names are attributed; groups of multiple contributions have no name. Withdrawals and name changes reproject this view. Cache-Control is private, no-store. Disabled or failed storage returns 503.
+      responses:
+        '200':
+          description: Current bounded public view.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LiveActivitySnapshot'}
+              example:
+                as_of: '2026-10-15T18:30:00Z'
+                items:
+                  - {event_id: 'ticketmaster:example', event_title: Jazz Night, city: London, actor_first_name: Alex, recent_recommendations: 1, latest_recommended_at: '2026-10-15T18:29:50Z', expires_at: '2026-10-15T18:39:50Z'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '503': {$ref: '#/components/responses/LiveUnavailable'}
+  /api/v1/events/activity-counts:
+    get:
+      operationId: getEventActivityCounts
+      summary: Read public recommendation and Interested totals
+      description: Requires repeated event_id, deduplicated to at most 101 provider-scoped IDs. Query length is bounded to 32768 bytes; other parameters are rejected. Unknown valid IDs have zero totals. Interested includes private choices, never actors or viewer flags. Cache-Control is private, no-store.
+      parameters:
+        - name: event_id
+          in: query
+          required: true
+          style: form
+          explode: true
+          schema: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200':
+          description: Authoritative totals for supplied IDs.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LiveActivityCounts'}
+              example: {as_of: '2026-10-15T18:30:00Z', items: [{event_id: 'ticketmaster:example', recommendation_count: 3, interested_count: 12}]}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '503': {$ref: '#/components/responses/LiveUnavailable'}
+  /api/v1/community/activity/stream:
+    get:
+      operationId: streamCommunityActivity
+      summary: Stream replacement public activity and optional event totals
+      description: |
+        UTF-8 SSE, retry 5000, no id or replay cursor; Last-Event-ID is ignored.
+        activity.snapshot uses LiveActivitySnapshot, counts.snapshot uses LiveActivityCounts,
+        heartbeat uses an object with a date-time as_of, and unavailable uses an empty object.
+        Initial connection sends current snapshots quietly. Shared activity polls run at most
+        once per two seconds; unchanged activity is not resent. Counts refresh every 15 seconds
+        and on connection; heartbeat is emitted every 15 seconds even without changes.
+        An unavailable event clears activity and marks retained counts stale before reconnect.
+        Optional repeated event_id obeys the count route's 101 distinct ID / 32768 query-byte limits.
+        Other parameters are rejected. Default capacity is 256 streams per replica and 60 starts
+        per trusted client IP per minute; configured limits may differ. Slow writes have a five-second
+        deadline. Cache-Control is private, no-store, no-transform; X-Accel-Buffering is no.
+        No public CORS access. Capacity, storage and disabled-feature failures before headers are 503.
+      parameters:
+        - name: event_id
+          in: query
+          style: form
+          explode: true
+          schema: {type: array, items: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200':
+          description: SSE frames; all snapshot events are full replacement states, not deltas.
+          content:
+            text/event-stream:
+              schema: {type: string}
+              x-sse-events:
+                activity.snapshot: {$ref: '#/components/schemas/LiveActivitySnapshot'}
+                counts.snapshot: {$ref: '#/components/schemas/LiveActivityCounts'}
+                heartbeat:
+                  type: object
+                  additionalProperties: false
+                  required: [as_of]
+                  properties:
+                    as_of: {type: string, format: date-time}
+                unavailable: {type: object, additionalProperties: false}
+              example: |
+                retry: 5000
+                event: activity.snapshot
+                data: {"as_of":"2026-10-15T18:30:00Z","items":[]}
+
+                event: heartbeat
+                data: {"as_of":"2026-10-15T18:30:15Z"}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '429':
+          description: Connection-start rate exceeded.
+          headers:
+            Retry-After: {schema: {type: integer, const: 60}}
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/LiveUnavailable'}
   /healthz:
     get:
       operationId: getLiveness
@@ -280,6 +373,7 @@ paths:
               minProperties: 1
               properties:
                 display_name: {type: string, minLength: 1, maxLength: 80}
+                activity_first_name: {type: string, maxLength: 40, description: 'Explicit optional first name. Letters/combining marks, internal spaces, hyphens and apostrophes only; requires a letter. Whitespace is normalized. Blank clears, omitted preserves, null is rejected. Never inferred from display name or email.'}
                 bio: {type: string, maxLength: 500}
                 interest_visibility: {type: string, enum: [private, public]}
       responses:
@@ -1917,6 +2011,11 @@ components:
       description: Required for every cookie-authenticated write. Read csrf_token from GET /api/v1/me. Not required with an API bearer token. Supplied Origin/Referer must match AUTH_BASE_URL.
       schema: {type: string}
   responses:
+    LiveUnavailable:
+      description: Live activity is disabled, storage is unavailable, or stream capacity is exhausted. Counts must be retained as stale, never reset to zero.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     PublicNotModified:
       description: 'Successful current representation matches If-None-Match. No body. Includes current ETag, endpoint Cache-Control and any applicable Vary values. Never returned for credential-bearing requests, errors or stale fallback. Event service/database work still runs.'
       headers:
@@ -2371,12 +2470,13 @@ components:
         bio: {type: string, maxLength: 500}
     OwnProfile:
       type: object
-      required: [id, display_name, bio, interest_visibility]
+      required: [id, display_name, bio, interest_visibility, activity_first_name]
       properties:
         id: {$ref: '#/components/schemas/AccountID'}
         display_name: {type: string, minLength: 1, maxLength: 80}
         bio: {type: string, maxLength: 500}
         interest_visibility: {type: string, enum: [private, public], default: private}
+        activity_first_name: {type: [string, 'null'], maxLength: 40}
     Preferences:
       type: object
       required: [city, country, timezone, category_ids, email_reminders, weekly_digest, notifications_paused]
@@ -2390,10 +2490,11 @@ components:
         notifications_paused: {type: boolean, default: true}
     Account:
       type: object
-      required: [id, display_name, bio, interest_visibility, email, preferences, created_at]
+      required: [id, display_name, bio, interest_visibility, email, preferences, created_at, activity_first_name]
       properties:
         id: {$ref: '#/components/schemas/AccountID'}
         display_name: {type: string}
+        activity_first_name: {type: [string, 'null'], maxLength: 40}
         bio: {type: string}
         interest_visibility: {type: string, enum: [private, public]}
         email: {type: string, description: Private email from the verified Google identity; never used to link accounts.}
@@ -2412,6 +2513,44 @@ components:
     ResourceID:
       type: string
       pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'
+    LiveActivitySnapshot:
+      type: object
+      additionalProperties: false
+      required: [as_of, items]
+      properties:
+        as_of: {type: string, format: date-time}
+        items:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [event_id, event_title, city, actor_first_name, recent_recommendations, latest_recommended_at, expires_at]
+            properties:
+              event_id: {$ref: '#/components/schemas/ResourceID'}
+              event_title: {type: string}
+              city: {type: string}
+              actor_first_name: {type: [string, 'null'], maxLength: 40, description: 'Only a validated explicitly supplied first name. Null for absent/invalid names or multi-person groups.'}
+              recent_recommendations: {type: integer, minimum: 1}
+              latest_recommended_at: {type: string, format: date-time}
+              expires_at: {type: string, format: date-time, description: Earliest contribution expiry; refresh or remove the group at this time.}
+    LiveActivityCounts:
+      type: object
+      additionalProperties: false
+      required: [as_of, items]
+      properties:
+        as_of: {type: string, format: date-time}
+        items:
+          type: array
+          maxItems: 101
+          items:
+            type: object
+            additionalProperties: false
+            required: [event_id, recommendation_count, interested_count]
+            properties:
+              event_id: {$ref: '#/components/schemas/ResourceID'}
+              recommendation_count: {type: integer, minimum: 0}
+              interested_count: {type: integer, minimum: 0}
     RadarList:
       type: object
       required: [items, next_cursor, mode, scope, meta]

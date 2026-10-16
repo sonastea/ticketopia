@@ -123,6 +123,13 @@ templ Profile(p Page) {
 			@label.Label(label.Props{For: "bio", Class: "field"}) {
 				Bio <span>(optional, up to 500 characters)</span><textarea id="bio" name="bio" rows="4" maxlength="500">{ p.Account.Bio }</textarea>
 			}
+			<h2>Live activity attribution</h2>
+			@label.Label(label.Props{For:"activity-first-name",Class:"field"}) {
+				First name for live activity (optional)
+				@input.Input(input.Props{ID:"activity-first-name",Name:"activity_first_name",Value:activityName(p.Account, ""),Attributes:templ.Attributes{"aria-describedby":"activity-name-help", "autocomplete":"off"}})
+			}
+			<p id="activity-name-help" class="field-note">Live recommendations show this first name. Leave it blank to appear as Someone. Your email and last name are not included in live notifications.</p>
+			<p class="field-note">Live activity preview: <span data-activity-name-preview>{ activityName(p.Account, "Someone") }</span> recommended an event.</p>
 			<h2>Interest privacy</h2>
 			@label.Label(label.Props{For:"interest-visibility",Class:"field"}) {
 				Default visibility for event interest
@@ -245,6 +252,7 @@ templ Preferences(p Page) {
 						<input type="checkbox" name="notifications_paused" aria-labelledby="notification-pause-label" aria-describedby="notification-pause-help" checked?={ p.Account.Preferences.NotificationsPaused }/>
 						<span class="notification-copy">
 							<span id="notification-pause-label" class="notification-title">Pause all notifications</span>
+							<span class="field-note">Also pauses automatic live community activity across the app.</span>
 							<span id="notification-pause-help" class="field-note">Stops on-sale emails and new reply updates. Uncheck to resume; your settings stay saved.</span>
 						</span>
 					</label>

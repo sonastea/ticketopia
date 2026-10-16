@@ -146,6 +146,7 @@ func (f mariaFixture) migrate(t testing.TB) {
 	for _, table := range []string{"events", "event_providers"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
 	}
+	execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, DELETE ON %s.live_recommendation_activity TO '%s'@'%%'", f.runtime.Database, f.runtime.User))
 	for _, table := range []string{"event_reminders", "reminder_jobs", "reminder_dispatch"} {
 		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
 	}

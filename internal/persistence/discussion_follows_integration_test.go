@@ -240,9 +240,7 @@ func TestMariaDBDiscussionFollowUpgradeRollbackAndPagination(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	old := &Pool{db: db, config: f.migration}
-	oldAuth := accounts.New(old.Accounts(), accountProviderFixture{})
-	reader, raw := loginAccount(t, oldAuth, "follow-upgrade-reader")
+	reader, raw := seedLegacyAccount(t, db, "follow-upgrade-reader")
 	detail := savedDetail("FollowUpgrade")
 	seedLegacySavedEvent(t, db, reader.ID, detail)
 	id := accounts.ID()

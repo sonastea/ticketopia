@@ -41,6 +41,7 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 							<textarea name="reason" rows="3" maxlength="500" data-recommendation-reason autofocus?={ v.Open }>{ v.reason() }</textarea>
 						</label>
 						<p class="field-note composer-audience">Your display name, profile link, and reason will be public on this event, in Community, and on your profile. Interest privacy does not hide recommendations.</p>
+						<p class="field-note">Recommendations are public on the event, in Community and on your profile. Live activity uses your chosen first name, or Someone.</p>
 						<div class="account-actions">
 							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
 								if v.Own != nil {
@@ -61,7 +62,7 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 			}
 			<h3>Public recommendations</h3>
 			if v.List.Count != nil {
-				<p class="field-note"><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
+				<p class="field-note" data-live-total={ id }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
 			}
 			if v.ListError != "" {
 				<p class="field-note" role="status">{ v.ListError }</p>
@@ -178,7 +179,7 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string) {
 						@CollectionEventHeading(group.Event,returnURL)
 						@CollectionEventFreshness(group.Meta)
 						@EventFacts(group.Event)
-						<p class="field-note"><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) } · <time datetime={ group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>First recommended { group.FirstRecommendedAt.UTC().Format("Jan 2, 2006") }</time></p>
+						<p class="field-note"><span data-live-total={ group.Event.ID }><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) }</span> · <time datetime={ group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>First recommended { group.FirstRecommendedAt.UTC().Format("Jan 2, 2006") }</time></p>
 						<ul class="community-recommenders">
 							for _,item:=range group.Recommendations {
 								<li>

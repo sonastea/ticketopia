@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
@@ -36,6 +37,8 @@ import (
 var openAPI []byte
 
 type api struct {
+	liveActivity      *activity.Service
+	liveStarts        streamStarts
 	now               func() time.Time
 	logger            zerolog.Logger
 	events            *discovery.Service
@@ -181,6 +184,7 @@ func (a *api) Routes() *echo.Echo {
 	a.discussionFollowRoutes(e)
 	a.moderationRoutes(e)
 	a.accountRoutes(e)
+	a.liveActivityRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/events/:event_id", a.eventHandler, a.publicCacheBoundary)

@@ -2,6 +2,9 @@ package persistence
 
 import (
 	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -43,6 +46,22 @@ func loginAccount(t testing.TB, s *accounts.Service, subject string) (accounts.A
 	return a, raw
 }
 func pointer[T any](v T) *T { return &v }
+
+// Seed the historical schema-2 contract rather than asking the current account
+// reader to operate on a deliberately unmigrated database.
+func seedLegacyAccount(t testing.TB, db *sql.DB, subject string) (accounts.Account, string) {
+	t.Helper()
+	a := accounts.Account{ID: accounts.ID(), Email: "same-email@example.com", DisplayName: "Event explorer", InterestVisibility: "private"}
+	var secret [32]byte
+	_, _ = rand.Read(secret[:])
+	raw := base64.RawURLEncoding.EncodeToString(secret[:])
+	hash := accounts.Hash(raw)
+	now := time.Now().UTC()
+	execSQL(t, db, `INSERT INTO accounts (account_id,email) VALUES (?,?)`, a.ID, a.Email)
+	execSQL(t, db, `INSERT INTO account_identities (issuer,subject,account_id) VALUES (?,?,?)`, accounts.GoogleIssuer, subject, a.ID)
+	execSQL(t, db, `INSERT INTO account_credentials (credential_id,account_id,token_hash,kind,name,created_at,expires_at) VALUES (?,?,?,'session','Browser session',?,?)`, accounts.ID(), a.ID, hash[:], now, now.Add(accounts.CredentialLifetime))
+	return a, raw
+}
 
 func TestMariaDBAccountIdentityConcurrencyAndRestart(t *testing.T) {
 	f := newMaria(t)

@@ -17,6 +17,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/api"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/events"
@@ -182,7 +183,7 @@ func TestMariaDBSavedMigrationPreservesAccountsAndEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	a, raw := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: f.migration.QueryTimeout}, accountProviderFixture{}), "pre-saves")
+	a, raw := seedLegacyAccount(t, db, "pre-saves")
 	event := sampleEvent("BeforeSaves")
 	if _, err := (&EventRepository{db: db, timeout: f.migration.QueryTimeout}).Upsert(t.Context(), event); err != nil {
 		t.Fatal(err)
@@ -193,7 +194,7 @@ func TestMariaDBSavedMigrationPreservesAccountsAndEvents(t *testing.T) {
 	f.migrate(t)
 	p := f.open(t)
 	principal, err := accounts.New(p.Accounts(), nil).Authenticate(t.Context(), raw, "session")
-	if err != nil || principal.Account.ID != a.ID {
+	if err != nil || principal.Account.ID != a.ID || principal.Account.ActivityFirstName != nil {
 		t.Fatal("migration lost credential/account", err)
 	}
 	if got, err := p.Events().Get(t.Context(), event.ID); err != nil || got.Name != event.Name {
@@ -389,10 +390,20 @@ func runActivityBrowser(t *testing.T, script string) {
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
 		options := []api.Option{}
 		if enabled {
+			if script == os.Getenv("LIVE_ACTIVITY_BROWSER_SCRIPT") {
+				service := activity.New(t.Context(), p.Activity(), 256)
+				t.Cleanup(service.Close)
+				writer := p.Recommendations()
+				writer.EnableLiveActivity(true)
+				options = append(options, api.WithLiveActivity(service, 60), api.WithEventRecommendations(writer))
+			}
 			if script == os.Getenv("REMINDER_BROWSER_SCRIPT") {
 				options = append(options, api.WithReminders(p.Reminders()))
 			}
-			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(p.Recommendations()), api.WithEventDiscussions(p.Discussions()), api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()))
+			options = append(options, api.WithAccounts(config, auth), api.WithSavedEvents(p.Saved()), api.WithEventInterests(p.Interests()), api.WithEventDiscussions(p.Discussions()), api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()))
+			if script != os.Getenv("LIVE_ACTIVITY_BROWSER_SCRIPT") {
+				options = append(options, api.WithEventRecommendations(p.Recommendations()))
+			}
 		}
 		app, err := api.NewAPI(t.Context(), zerolog.Nop(), store, options...)
 		if err != nil {

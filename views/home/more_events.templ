@@ -102,18 +102,16 @@ templ EventRowTools(event models.Event, returnURL string, saves SaveView, action
 }
 
 templ EventRowActivity(id string, preview eventactivity.Preview, returnURL string) {
-	if preview.Questions > 0 || preview.Recommendations > 0 {
-		<div class="row-activity" aria-label="Public event activity">
+	if preview.Questions > 0 || preview.Recommendations > 0 || layouts.LiveActivityEnabled(ctx) {
+		<div class="row-activity" aria-label="Public event activity" data-live-count-group hidden?={ preview.Questions == 0 && preview.Recommendations == 0 }>
 			if preview.Questions > 0 {
 				<div>
 					<h4><a href={ templ.URL(eventURL(id, "discussion", returnURL)) } class="text-link" data-event-link data-id={ id }>{ activityCount(preview.Questions, "question or tip", "questions & tips") }</a></h4>
 				</div>
 			}
-			if preview.Recommendations > 0 {
-				<div>
-					<h4><a href={ templ.URL(eventURL(id, "community", returnURL)) } class="text-link" data-event-link data-id={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</a></h4>
+				<div data-live-recommendation-wrap hidden?={ preview.Recommendations == 0 }>
+					<h4><a href={ templ.URL(eventURL(id, "community", returnURL)) } class="text-link" data-event-link data-id={ id } data-live-recommendation-count={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</a></h4>
 				</div>
-			}
 		</div>
 	}
 }

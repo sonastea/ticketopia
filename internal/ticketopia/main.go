@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/api"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/events"
@@ -65,6 +66,15 @@ func Execute(ctx context.Context) int {
 		logger.Error().Msg("Authentication requires PERSISTENCE_MODE=mariadb")
 		return 1
 	}
+	liveConfig, err := activity.ConfigFromEnv()
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid live activity configuration")
+		return 1
+	}
+	if liveConfig.Enabled && (!config.Enabled || !authConfig.Enabled) {
+		logger.Error().Msg("Live activity requires MariaDB and accounts")
+		return 1
+	}
 	if reminderConfig.Enabled && (!config.Enabled || !authConfig.Enabled || providerConfig.APIKey == "") {
 		logger.Error().Msg("Email reminders require MariaDB, accounts, and a Ticketmaster key")
 		return 1
@@ -100,7 +110,14 @@ func Execute(ctx context.Context) int {
 			options = append(options, api.WithRadar(pool.Radar(), providerConfig.FreshFor))
 			options = append(options, api.WithFollows(pool.Follows()))
 			options = append(options, api.WithEventInterests(pool.Interests()))
-			options = append(options, api.WithEventRecommendations(pool.Recommendations()))
+			recommendations := pool.Recommendations()
+			recommendations.EnableLiveActivity(liveConfig.Enabled)
+			options = append(options, api.WithEventRecommendations(recommendations))
+			if liveConfig.Enabled {
+				service := activity.New(ctx, pool.Activity(), liveConfig.MaxStreams, logger)
+				defer service.Close()
+				options = append(options, api.WithLiveActivity(service, liveConfig.StartsPerMinute))
+			}
 			options = append(options, api.WithEventDiscussions(pool.Discussions()))
 			options = append(options, api.WithEventActivity(pool.EventActivity()))
 			options = append(options, api.WithDiscussionFollows(pool.DiscussionFollows()))

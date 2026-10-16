@@ -264,7 +264,7 @@ func TestMariaDBRecommendationMigrationPreservesExistingActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	a, raw := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: f.migration.QueryTimeout}, accountProviderFixture{}), "before-recommend")
+	a, raw := seedLegacyAccount(t, db, "before-recommend")
 	detail := savedDetail("BeforeRecommend")
 	seedLegacySavedEvent(t, db, a.ID, detail)
 	execSQL(t, db, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,'private')`, a.ID, detail.Item.ID)

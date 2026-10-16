@@ -443,14 +443,15 @@ func decodeAccountJSON(c echo.Context, target any) error {
 }
 
 type ownProfile struct {
-	ID                 string `json:"id"`
-	DisplayName        string `json:"display_name"`
-	Bio                string `json:"bio"`
-	InterestVisibility string `json:"interest_visibility"`
+	ActivityFirstName  *string `json:"activity_first_name"`
+	ID                 string  `json:"id"`
+	DisplayName        string  `json:"display_name"`
+	Bio                string  `json:"bio"`
+	InterestVisibility string  `json:"interest_visibility"`
 }
 
 func profileOf(a accounts.Account) ownProfile {
-	return ownProfile{a.ID, a.DisplayName, a.Bio, a.InterestVisibility}
+	return ownProfile{a.ActivityFirstName, a.ID, a.DisplayName, a.Bio, a.InterestVisibility}
 }
 func (a *api) meHandler(c echo.Context) error {
 	p, err := a.requireAPI(c, false, false)
@@ -707,7 +708,7 @@ func parseBoundedAccountForm(c echo.Context, maxBytes int64, allowed ...string) 
 func (a *api) updateAccountPage(preferences bool) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		privateAccountResponse(c)
-		allowed := []string{"display_name", "bio", "interest_visibility"}
+		allowed := []string{"display_name", "bio", "interest_visibility", "activity_first_name"}
 		if preferences {
 			allowed = []string{"city", "country", "timezone", "category_ids", "email_reminders", "notifications_paused", "section"}
 		}
@@ -725,7 +726,9 @@ func (a *api) updateAccountPage(preferences bool) echo.HandlerFunc {
 		destination := "/me?saved=profile"
 		if !preferences {
 			name, bio, visibility := c.FormValue("display_name"), c.FormValue("bio"), c.FormValue("interest_visibility")
-			_, err = a.accounts.UpdateProfile(c.Request().Context(), p.Account.ID, accounts.ProfilePatch{DisplayName: &name, Bio: &bio, InterestVisibility: &visibility})
+			firstName := c.FormValue("activity_first_name")
+			_, err = a.accounts.UpdateProfile(c.Request().Context(), p.Account.ID, accounts.ProfilePatch{DisplayName: &name, Bio: &bio, InterestVisibility: &visibility, ActivityFirstName: &firstName})
+			p.Account.ActivityFirstName = &firstName
 			p.Account.DisplayName, p.Account.Bio, p.Account.InterestVisibility = name, bio, visibility
 		} else {
 			section = "preferences"

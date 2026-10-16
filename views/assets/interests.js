@@ -171,6 +171,7 @@
       if (!response.ok) throw new Error(data.detail || 'Interest could not be updated. Try again.');
       if (!forms(id).some(item => item.elements.csrf_token.value === csrf)) return;
       update(data.event_id, data.state);
+      document.dispatchEvent(new CustomEvent('ticketopia:activity-mutation', { detail: { id } }));
       clearFeedback();
       announce(data.state.interested ? `Interest saved as ${data.state.visibility}.` : `${form.dataset.eventName}: your interest was removed.`);
       if (form.hasAttribute('data-interest-edit')) {
@@ -190,6 +191,7 @@
       if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, ['AbortError', 'TypeError', 'SyntaxError'].includes(error.name) ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger, signIn);
     } finally {
       clearTimeout(timeout); writing.delete(id);
+      document.dispatchEvent(new CustomEvent('ticketopia:activity-write-end'));
       controls.forEach(node => { node.removeAttribute('aria-busy'); node.querySelectorAll('button, select').forEach(control => { control.disabled = false; }); });
       if (hadFocus && focusTarget.isConnected && document.activeElement === document.body) focusTarget.focus({ preventScroll: true });
     }

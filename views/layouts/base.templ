@@ -19,6 +19,9 @@ templ Base(title string) {
 			<script src="/assets/interests.js" defer></script>
 			<script src="/assets/recommendations.js" defer></script>
 			<script src="/assets/discussions.js" defer></script>
+			if LiveActivityEnabled(ctx) {
+				<script src="/assets/live-activity.js" defer></script>
+			}
 			<title>{ title } · Ticketopia</title>
 		</head>
 		<body>
@@ -80,6 +83,21 @@ templ App(active string, title string) {
 					</a>
 					<span>Live events, worth finding.</span>
 				</header>
+				if LiveActivityEnabled(ctx) {
+					<section class="live-activity" data-live-activity hidden aria-label="Live activity">
+						<button type="button" class="text-link" data-live-show hidden>Show live activity</button>
+						<p class="field-note" data-live-paused hidden>Live activity is paused. <a class="text-link" href="/me/preferences">Notification preferences</a></p>
+						<details data-live-details>
+							<summary>Live activity <span data-live-badge></span></summary>
+							<p class="field-note" data-live-connection>Connecting to live activity…</p>
+							<button type="button" class="text-link" data-live-updates hidden></button>
+							<ul data-live-list></ul>
+							<div class="account-actions"><a href="/community" class="text-link">Explore Community</a><button type="button" class="text-link" data-live-hide>Hide live activity</button></div>
+						</details>
+						<p class="sr-only" role="status" aria-atomic="true" data-live-status></p>
+						<p class="field-note" data-live-count-status hidden>Event counts couldn't refresh. Showing last-known totals.</p>
+					</section>
+				}
 				{ children... }
 			</div>
 			<nav class="bottom-nav" aria-label="Main navigation">

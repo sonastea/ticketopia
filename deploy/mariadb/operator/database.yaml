@@ -420,6 +420,21 @@ spec:
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Grant
 metadata:
+  name: ticketopia-runtime-live-activity
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, DELETE]
+  database: ticketopia
+  table: live_recommendation_activity
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
   name: ticketopia-runtime-moderation-reports
   namespace: ticketopia
 spec:

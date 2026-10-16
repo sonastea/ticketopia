@@ -241,7 +241,7 @@ func TestMariaDBInterestMigrationPreservesSavesAccountsAndSessions(t *testing.T)
 		t.Fatal(err)
 	}
 	defer db.Close()
-	a, raw := loginAccount(t, accounts.New(&AccountRepository{db: db, timeout: f.migration.QueryTimeout}, accountProviderFixture{}), "pre-interest")
+	a, raw := seedLegacyAccount(t, db, "pre-interest")
 	detail := savedDetail("BeforeInterest")
 	seedLegacySavedEvent(t, db, a.ID, detail)
 	if _, err := Open(t.Context(), f.runtime); err == nil {

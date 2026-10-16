@@ -59,6 +59,7 @@
       signIn = response.status === 401;
       if (!response.ok) throw new Error(data.detail || "Your recommendation wasn't saved. Try again.");
       if (data.event_id !== id || typeof data.html !== 'string') throw new Error('The recommendation could not be confirmed. Refresh to check it.');
+	  document.dispatchEvent(new CustomEvent('ticketopia:activity-mutation', { detail: { id } }));
       const name = key(form);
       if (drafts.get(name) === body.get('reason')) {
         drafts.delete(name); try { sessionStorage.removeItem(name); } catch { /* Storage is optional. */ }
@@ -84,6 +85,7 @@
       }
     } finally {
       clearTimeout(timeout); writing.delete(id);
+      document.dispatchEvent(new CustomEvent('ticketopia:activity-write-end'));
       form.removeAttribute('aria-busy'); controls.forEach(control => { control.disabled = false; });
       if (hadFocus && trigger.isConnected && document.activeElement === document.body) trigger.focus({ preventScroll: true });
     }

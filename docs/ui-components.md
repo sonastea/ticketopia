@@ -7,6 +7,13 @@ paths, the Nova base style, and the embedded script bundle.
 
 ## Build and develop
 
+The shared shell's optional [Live activity disclosure](live-community-activity.md)
+uses native details/summary and flat rule-separated rows. Its standalone embedded
+`views/assets/live-activity.js` owns one stream, local hide/pause behavior, replacement
+snapshots and numeric count updates. It does not remount event composers or reorder
+collections. `views/styles/app.css` owns its logical spacing and shared-token focus/
+press treatment. Regenerate templ and CSS when changing the shell.
+
 Use Go 1.27+ and Node.js 24 with npm. The Node release line is declared in
 `package.json` and `.nvmrc`; with nvm, run `nvm install` and `nvm use` first:
 
