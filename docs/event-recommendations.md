@@ -5,8 +5,8 @@ A recommendation is a public endorsement, not a save, interest choice, attendanc
 declaration, discussion post, or Helpful reaction. Reading does not require sign-in;
 publishing/editing/withdrawal requires an authenticated account. There is no new flag.
 
-The separate [live activity enhancement](live-community-activity.md) has a default-off
-flag. It announces only first-ever publications made while enabled, with an explicit
+The separate [live activity enhancement](live-community-activity.md) defaults on
+with accounts and MariaDB, unless explicitly disabled. It announces only first-ever publications made while enabled, with an explicit
 optional first name or Someone. Withdrawal removes eligibility atomically; edits,
 retries and republishing never announce again. Event/profile attribution remains
 the existing public display-name contract, disclosed alongside the live audience.
@@ -14,7 +14,7 @@ the existing public display-name contract, disclosed alongside the live audience
 ## Setup and upgrade
 
 Recommendations were introduced in schema 5; the current binary requires
-**clean schema 16 only**. Drain old apps, preserve a backup, run `ticketopia migrate`
+**clean schema 17 only**. Drain old apps, preserve a backup, run `ticketopia migrate`
 using migration credentials, reconcile grants, then start current apps. The additive
 migrations preserve accounts, sessions, preferences, saves, interest, and snapshots;
 they do not publish existing activity. Startup never migrates automatically and

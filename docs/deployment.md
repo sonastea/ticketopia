@@ -2,11 +2,19 @@
 
 ## Live community activity
 
-[Live community activity](live-community-activity.md) defaults off. To enable it,
-set `LIVE_ACTIVITY_ENABLED=true` consistently on all replicas with accounts and
-MariaDB enabled. Drain old replicas, run schema 16 migrations, reconcile the runtime
+[Live community activity](live-community-activity.md) now defaults on when accounts
+and MariaDB are enabled; explicit `false` remains off. Keep production explicitly
+`LIVE_ACTIVITY_ENABLED=false` until Part 5's coordinated rollout. Use the same
+resolved setting on all replicas, including recommendation writers.
+Schema 17 resets all existing notification pauses once and initializes enabled live
+preferences. Apply it to production only during that final rollout, not early as a
+schema-only change. Drain old replicas, run schema 17 migrations, reconcile the runtime
 grants (including INSERT/DELETE on `live_recommendation_activity`), then start the
 new binary. Startup probes verify the column/table and permissions.
+The new preference columns use existing account table grants. Subsequent pauses and
+live disables survive restarts/reruns; email permissions and delivery history remain
+independent. Rollback means a schema-17-compatible image with the live kill switch
+off, preserving preferences rather than reversing the account reset.
 
 Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and
 60 connection starts per trusted IP per minute (`LIVE_ACTIVITY_STARTS_PER_MINUTE`,

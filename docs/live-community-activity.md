@@ -1,8 +1,55 @@
 # Live community activity
 
-Live activity is an opt-in, sitewide view of public recommendations from the last
-ten minutes. Guests and signed-in visitors see the same public view. It starts
+Live activity is a sitewide view of public recommendations from the last
+ten minutes. Guests and enabled signed-in visitors see the same public view. It starts
 collapsed above app content and never reorders Community or other collections.
+
+Part 1 of the [default-on filtering extension](design/live-activity-filters.md)
+adds default-on account preferences and authenticated all-events delivery.
+Location/type/entity and private connection filters remain planned; non-default
+filter values are explicitly rejected. Production rollout remains Part 5.
+
+## Default-on preferences (Part 1)
+
+With accounts and MariaDB enabled, an unset `LIVE_ACTIVITY_ENABLED` enables the
+enhancement. Explicit `false` remains the operator kill switch; explicit `true`
+without both dependencies fails startup. Existing deployment settings are not rewritten.
+Keep production explicitly off until the coordinated rollout and performance gates.
+
+Schema 17 resets **all existing accounts**, including previously paused accounts,
+to notifications enabled once. New accounts also start unpaused with live activity
+enabled. Version 1 represents Everywhere / all event types / all events. The current
+implementation persists version, enabled and revision on the account; its only
+supported filter representation is the fixed all-events default.
+The migration labels pause provenance `migration_policy`, new accounts use `default`,
+and subsequent explicit pause saves use `user`. Restart, login and migration reruns
+never repeat the reset. Email permission, subscriptions and delivery history are
+untouched; configured replies/reminders can resume under their existing rules.
+
+**Preferences → Live activity** has its own native conditional save. **Pause all
+notifications** overrides live enablement; **Hide live activity** remains device-local
+and survives the upgrade. Signed-in settings are authoritative, never uploaded from
+guest storage. No feed bodies or private account state are stored in browser storage.
+
+- `GET /api/v1/me/live-activity-preferences` returns version, enabled, filters,
+  revision, notification pause and an owner-scoped ETag.
+- `PUT` replaces version/enabled/filters with `If-Match` and normal cookie CSRF.
+  Missing preconditions return 428, stale/foreign ETags 412; no-op saves retain
+  revision. The 8 KiB body rejects unknown fields/versions, nulls and duplicate keys.
+- `GET /api/v1/me/community/activity` and `/stream` use stored preferences;
+  optional `preferences_revision` mismatch returns 409. Disabled/paused views
+  return `{state:"paused",preferences_revision:…}`, not an empty feed.
+- Streaming retains the public snapshot/count events and adds content-free
+  `settings.changed` with the new revision, then closes. Clients clear and reload
+  quietly. Settings and credentials are checked in shared 128-credential batches
+  every two seconds, with a 10-second whole-sweep deadline. Failed checks close
+  with `unavailable`; known credential expiry and local revocation close immediately.
+  Cross-replica revocation is bounded by 30 seconds. Authentication failure never
+  broadens an already signed-in document to guest activity.
+
+Part 1 reuses the existing twenty-group public projection and existing count cadence.
+Complete-window filtering, shared snapshot caching and further resource budgets are
+later checkpoints, not claimed here.
 
 ## Attribution and controls
 
@@ -72,8 +119,8 @@ cursor, and ignores Last-Event-ID. Pre-header failures use problem JSON (400,
 429 with Retry-After, or 503); post-header failures send `unavailable` and close.
 See the [OpenAPI contract](../internal/api/openapi.yaml) for schemas/examples.
 
-`LIVE_ACTIVITY_ENABLED=false` is the default. Enabling requires accounts and
-MariaDB at startup. Use one value across replicas. `LIVE_ACTIVITY_MAX_STREAMS`
+`LIVE_ACTIVITY_ENABLED` defaults on only with accounts and MariaDB; explicit
+`false` disables it. Use one resolved value across replicas. `LIVE_ACTIVITY_MAX_STREAMS`
 defaults to 256 (1–4096); `LIVE_ACTIVITY_STARTS_PER_MINUTE` defaults to 60 per trusted
 client IP (1–600). Streams have five-second write deadlines and stop on cancellation
 and application shutdown before SQL closes. Operational logs contain connection
@@ -86,6 +133,22 @@ only still-eligible recent entries, without backfill. Related guides:
 [persistence](persistence.md), [UI](ui-components.md).
 
 ## Verification
+
+Part 1 local checkpoint (2026-10-16): real MariaDB upgrade/rerun tests cover both
+previous pause values, durable subsequent pause/disable, new-account defaults and
+unchanged subscription/envelope/reminder/receipt records. Production-route tests
+cover owner isolation, ETag conflicts/no-ops, unsupported filters, explicit pauses,
+cross-pool settings/revocation, local revocation and known expiry.
+The browser fixture upgrades real v16 paused/unpaused identities before sign-in.
+Its 64 checks include guest/upgrade defaults, native and JavaScript-disabled saves,
+stale-tab conflicts, local hide persistence, pause/disable sync, authenticated JSON
+fallback, account switching, revoked sessions and the deployment kill switch.
+Axe reports no violations in the live region or preferences page; desktop and
+320px settings captures were inspected. Proxy/load, physical-device and manual
+screen-reader verification remain Part 5 rollout work.
+The full real-MariaDB `go test -race ./...`, `go vet ./...`, generated `npm run build`,
+OpenAPI lint and Docker `make check` pass. Lint retains only the two existing
+health-probe warnings. The styling detector reports no findings in the changed UI.
 
 Local validation on 2026-10-15 passed: `go test -race ./...` with isolated real
 MariaDB fixtures, `go vet ./...`, the generated asset/binary build, and final Docker

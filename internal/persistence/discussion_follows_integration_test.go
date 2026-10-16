@@ -23,6 +23,9 @@ func TestMariaDBDiscussionFollowsDeliveryPrivacyAndFrequency(t *testing.T) {
 	author, _ := loginAccount(t, auth, "follow-author")
 	follower, _ := loginAccount(t, auth, "follow-reader")
 	other, _ := loginAccount(t, auth, "follow-other")
+	if _, err := auth.UpdatePreferences(t.Context(), other.ID, accounts.PreferencesPatch{NotificationsPaused: pointer(true)}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := auth.UpdatePreferences(t.Context(), follower.ID, accounts.PreferencesPatch{NotificationsPaused: pointer(false)}); err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +43,7 @@ func TestMariaDBDiscussionFollowsDeliveryPrivacyAndFrequency(t *testing.T) {
 	}
 	if _, err = s.Set(t.Context(), other.ID, root.EventID, root.ID, "immediate"); err != nil {
 		t.Fatal(err)
-	} // paused by default
+	} // explicitly paused
 	if _, err = s.Set(t.Context(), follower.ID, "ticketmaster:WrongEvent", root.ID, "daily"); !errors.Is(err, discussions.ErrNotFound) {
 		t.Fatal("event mismatch", err)
 	}

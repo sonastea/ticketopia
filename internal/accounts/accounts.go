@@ -126,6 +126,7 @@ type Provider interface {
 }
 
 type Service struct {
+	live     liveWatches
 	repo     Repository
 	provider Provider
 	now      func() time.Time
@@ -344,7 +345,11 @@ func (s *Service) UpdatePreferences(ctx context.Context, owner string, p Prefere
 		}
 		p.CategoryIDs = &ids
 	}
-	return s.repo.UpdatePreferences(ctx, owner, p)
+	a, err := s.repo.UpdatePreferences(ctx, owner, p)
+	if err == nil && p.NotificationsPaused != nil {
+		s.invalidateLive(owner, false)
+	}
+	return a, err
 }
 func (s *Service) Tokens(ctx context.Context, owner string) ([]Credential, error) {
 	return s.repo.ListTokens(ctx, owner, s.now())
@@ -365,10 +370,18 @@ func (s *Service) Revoke(ctx context.Context, owner, id string) error {
 	if !ValidID(id) {
 		return &ValidationError{"credential_id", "invalid credential ID"}
 	}
-	return s.repo.Revoke(ctx, owner, id)
+	err := s.repo.Revoke(ctx, owner, id)
+	if err == nil {
+		s.invalidateLive(owner, true)
+	}
+	return err
 }
 func (s *Service) RevokeAll(ctx context.Context, owner string) error {
-	return s.repo.RevokeAll(ctx, owner)
+	err := s.repo.RevokeAll(ctx, owner)
+	if err == nil {
+		s.invalidateLive(owner, true)
+	}
+	return err
 }
 func (s *Service) Allow(ctx context.Context, scope, ip string) error {
 	ok, err := s.repo.Allow(ctx, Hash(scope+":"+ip), s.now(), 10*time.Minute, 20)

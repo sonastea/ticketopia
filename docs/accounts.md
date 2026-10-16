@@ -60,12 +60,12 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
   location, categories, notifications, and credentials never enter this projection.
 - `/me/preferences`: separate Location & time zone and Notifications groups for
   private city/country, IANA time zone, account-wide pause and on-sale email permission.
-  Notifications start paused with
-  email/digest choices off. Resume to receive in-app replies for explicitly followed
+  Notifications and live activity start enabled, with
+  email/digest choices off. Receive in-app replies for explicitly followed
   conversations. [On-sale emails](reminders.md) additionally require an explicitly
   configured saved-event reminder and SES enabled on the server. Venue-local times are unchanged.
   Notifications uses short labels and local help: **Email me on-sale reminders**
-  permits email, **Pause all notifications** stops both channels without erasing
+  permits email, **Pause all notifications** stops live activity and both channels without erasing
   settings, and **Replies in the app** links **Choose reply frequency** and
   **Read reply updates**. Control labels and help form one clickable row, with
   descriptions aligned beneath the label and action links separate from prose.
@@ -76,6 +76,10 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
   submitted: unrelated saves and validation rerenders retain its stored value by
   omitting that patch. The JSON contract still accepts `weekly_digest` for compatibility;
   it does not enable digest delivery.
+  A separate **Enable live activity** native form controls only that feed, with
+  revision-based conflict detection. Schema 17 enables notifications once for all
+  existing accounts; later pause/disable choices persist. Channel permissions,
+  subscriptions and delivery history stay independent. See [live preferences](live-community-activity.md#default-on-preferences-part-1).
 - `/me/discussions` and `/me/notifications`: private followed conversations and
   frequency-controlled reply updates. See [followed discussions](followed-discussions.md).
 - `/me/interests`: paginated own event interest with per-event visibility/removal,

@@ -66,13 +66,9 @@ func Execute(ctx context.Context) int {
 		logger.Error().Msg("Authentication requires PERSISTENCE_MODE=mariadb")
 		return 1
 	}
-	liveConfig, err := activity.ConfigFromEnv()
+	liveConfig, err := activity.ConfigFromEnv(config.Enabled, authConfig.Enabled)
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid live activity configuration")
-		return 1
-	}
-	if liveConfig.Enabled && (!config.Enabled || !authConfig.Enabled) {
-		logger.Error().Msg("Live activity requires MariaDB and accounts")
 		return 1
 	}
 	if reminderConfig.Enabled && (!config.Enabled || !authConfig.Enabled || providerConfig.APIKey == "") {

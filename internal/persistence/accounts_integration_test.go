@@ -106,7 +106,7 @@ func TestMariaDBAccountIdentityConcurrencyAndRestart(t *testing.T) {
 	}
 	a, raw := loginAccount(t, services[0], "StableCaseSubject")
 	other, _ := loginAccount(t, services[1], "stablecasesubject")
-	if a.ID == other.ID || a.Email != other.Email || a.InterestVisibility != "private" || a.DisplayName != "Event explorer" || !a.Preferences.NotificationsPaused {
+	if a.ID == other.ID || a.Email != other.Email || a.InterestVisibility != "private" || a.DisplayName != "Event explorer" || a.Preferences.NotificationsPaused {
 		t.Fatal("identity/case/private defaults failed")
 	}
 	var identities, users, sessions int

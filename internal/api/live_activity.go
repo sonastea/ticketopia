@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -70,6 +71,58 @@ func (a *api) liveActivityRoutes(e *echo.Echo) {
 	e.GET("/api/v1/community/activity", a.liveSnapshot)
 	e.GET("/api/v1/community/activity/stream", a.liveStream)
 	e.GET("/api/v1/events/activity-counts", a.liveCounts)
+	e.GET("/api/v1/me/live-activity-preferences", a.livePreferences)
+	e.PUT("/api/v1/me/live-activity-preferences", a.livePreferences)
+	e.POST("/me/live-activity-preferences", a.livePreferencesPage)
+	e.GET("/api/v1/me/community/activity", a.privateLive(false))
+	e.GET("/api/v1/me/community/activity/stream", a.privateLive(true))
+}
+
+type privateLiveScope struct {
+	principal   accounts.Principal
+	preferences accounts.LivePreferences
+}
+
+func (a *api) privateLive(stream bool) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		privateAccountResponse(c)
+		p, err := a.principal(c, false)
+		if err != nil {
+			return accountProblem(c, err)
+		}
+		if len(c.Request().URL.RawQuery) > 32768 {
+			return liveProblem(c, 400, "invalid_query", "Query is too large.")
+		}
+		q, err := url.ParseQuery(c.Request().URL.RawQuery)
+		if err != nil {
+			return liveProblem(c, 400, "invalid_query", "Invalid query.")
+		}
+		pref, err := a.accounts.LivePreferences(c.Request().Context(), p.Account.ID)
+		if err != nil {
+			return accountProblem(c, err)
+		}
+		if values, ok := q["preferences_revision"]; ok {
+			if len(values) != 1 || values[0] != strconv.FormatUint(pref.Revision, 10) {
+				return liveProblem(c, 409, "settings_changed", "Reload live preferences.")
+			}
+			q.Del("preferences_revision")
+		}
+		if _, err = activityIDs(q.Encode(), false, stream); err != nil {
+			return accountProblem(c, err)
+		}
+		if a.liveActivity == nil {
+			return liveUnavailable(c)
+		}
+		if pref.Paused || !pref.Enabled {
+			return c.JSON(200, map[string]any{"state": "paused", "preferences_revision": pref.Revision})
+		}
+		c.Set("live.scope", privateLiveScope{p, pref})
+		c.Request().URL.RawQuery = q.Encode()
+		if stream {
+			return a.liveStream(c)
+		}
+		return a.liveSnapshot(c)
+	}
 }
 func activityIDs(raw string, required bool, allowed bool) ([]string, error) {
 	invalid := func() ([]string, error) {
@@ -161,9 +214,26 @@ func (a *api) liveStream(c echo.Context) error {
 		return liveUnavailable(c)
 	}
 	defer release()
+	var settings <-chan accounts.LiveChange
+	var expiry <-chan time.Time
+	if scope, ok := c.Get("live.scope").(privateLiveScope); ok {
+		var unwatch func()
+		settings, unwatch = a.accounts.WatchLive(scope.principal, scope.preferences.Revision)
+		defer unwatch()
+		timer := time.NewTimer(max(0, time.Until(scope.principal.Credential.ExpiresAt)))
+		defer timer.Stop()
+		expiry = timer.C
+	}
 	// Wait for the shared first read before committing streaming headers.
 	var first activity.Update
 	select {
+	case change := <-settings:
+		if change.Unavailable {
+			return liveUnavailable(c)
+		}
+		return liveProblem(c, 409, "settings_changed", "Reload live preferences.")
+	case <-expiry:
+		return accountProblem(c, accounts.ErrUnauthenticated)
 	case <-c.Request().Context().Done():
 		return nil
 	case <-a.shutdown:
@@ -216,6 +286,26 @@ func (a *api) liveStream(c echo.Context) error {
 	defer ticker.Stop()
 	for {
 		select {
+		case change := <-settings:
+			if change.Unavailable {
+				_ = send("unavailable", struct{}{})
+				return nil
+			}
+			revision := change.Revision
+			if revision == 0 {
+				scope := c.Get("live.scope").(privateLiveScope)
+				pref, err := a.accounts.LivePreferences(c.Request().Context(), scope.principal.Account.ID)
+				if err != nil {
+					_ = send("unavailable", struct{}{})
+					return nil
+				}
+				revision = pref.Revision
+			}
+			_ = send("settings.changed", map[string]uint64{"preferences_revision": revision})
+			return nil
+		case <-expiry:
+			_ = send("unavailable", struct{}{})
+			return nil
 		case <-c.Request().Context().Done():
 			return nil
 		case <-a.shutdown:

@@ -225,6 +225,10 @@ func (r *AccountRepository) UpdateProfile(ctx context.Context, id string, p acco
 func (r *AccountRepository) UpdatePreferences(ctx context.Context, id string, p accounts.PreferencesPatch) (accounts.Account, error) {
 	var sets []string
 	var args []any
+	if p.NotificationsPaused != nil {
+		sets = append(sets, "live_activity_revision=live_activity_revision+IF(notifications_paused<>?,1,0)", "notification_pause_source='user'")
+		args = append(args, *p.NotificationsPaused)
+	}
 	for _, field := range []struct {
 		column string
 		value  *string

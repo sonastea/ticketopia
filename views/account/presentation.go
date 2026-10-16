@@ -54,6 +54,7 @@ func signInSection(returnTo string) string {
 }
 
 type Page struct {
+	LivePreferences                        *accounts.LivePreferences
 	Account                                accounts.Account
 	CSRF, Section, Error, Notice, NewToken string
 	Tokens                                 []accounts.Credential

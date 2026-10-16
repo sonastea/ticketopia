@@ -11,14 +11,17 @@ type Config struct {
 	MaxStreams, StartsPerMinute int
 }
 
-func ConfigFromEnv() (Config, error) {
-	c := Config{MaxStreams: 256, StartsPerMinute: 60}
+func ConfigFromEnv(databaseEnabled, accountsEnabled bool) (Config, error) {
+	c := Config{Enabled: databaseEnabled && accountsEnabled, MaxStreams: 256, StartsPerMinute: 60}
 	if raw := os.Getenv("LIVE_ACTIVITY_ENABLED"); raw != "" {
 		v, err := strconv.ParseBool(raw)
 		if err != nil {
 			return c, fmt.Errorf("LIVE_ACTIVITY_ENABLED must be true or false")
 		}
 		c.Enabled = v
+	}
+	if c.Enabled && (!databaseEnabled || !accountsEnabled) {
+		return c, fmt.Errorf("live activity requires MariaDB and accounts")
 	}
 	for _, setting := range []struct {
 		name   string

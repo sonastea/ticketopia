@@ -1,5 +1,15 @@
 # MariaDB foundation
 
+Schema 17 changes the new-account notification pause default to false, adds
+versioned live activity enablement/revision and pause provenance, and resets all
+existing account pauses once as `migration_policy`. Later explicit choices are
+preserved on reruns/restarts. No channel permission, subscription or delivery record
+is rewritten. The only supported filter representation is the version-1 all-events
+default; no activity or provider data is backfilled. See [live preferences](live-community-activity.md#default-on-preferences-part-1).
+Existing account table grants suffice; startup probes require the new columns.
+Keep production's explicit live kill switch off; apply this real data migration
+only in the final coordinated Part 5 rollout, not an early schema-only deployment.
+
 Schema 16 adds explicit optional activity first names and reference-only live
 recommendation eligibility. [Live activity](live-community-activity.md) documents
 transactional publication/withdrawal, bounded expiry cleanup and shared replica
@@ -312,9 +322,12 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 16 only**. Versions 0–15 and 17+ are rejected;
-partial schemas/missing columns or non-InnoDB tables fail startup. A same-schema
-application rollout can run old/new binaries together. Before a future migration,
+This binary supports **clean schema version 17 only**. Versions 0–16 and 18+ are rejected;
+Partial schemas/missing columns or non-InnoDB tables fail startup. The
+v16-to-v17 upgrade requires drained writes and the normal migrate/reconcile/start
+sequence. Roll back with a schema-17-compatible image and the live kill switch;
+do not undo the migration or restore previous pause values over later user choices.
+An application rollout within the same schema can run old/new binaries together. Before a future migration,
 ship binaries with an explicitly reviewed overlapping supported-version range;
 apply additive/expand changes with a serialized Job, then roll compatible apps.
 Backfill separately with bounded operations and contract/drop columns only after

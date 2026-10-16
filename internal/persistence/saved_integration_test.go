@@ -274,6 +274,21 @@ func runActivityBrowser(t *testing.T, script string) {
 	t.Setenv("TICKETMASTER_KEY", "")
 	t.Setenv("IP_GEOLOCATION_ENABLED", "false")
 	f := newMaria(t)
+	if script == os.Getenv("LIVE_ACTIVITY_BROWSER_SCRIPT") {
+		// Exercise real v16 paused/unpaused identities through the v17 upgrade,
+		// then sign into those same accounts through the production routes below.
+		migrateBeforeLivePreferences(t, f)
+		db, err := connect(t.Context(), f.migration)
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := &Pool{db: db, config: f.migration}
+		auth := accounts.New(old.Accounts(), accountProviderFixture{})
+		_, _ = loginAccount(t, auth, "saved-browser") // v16 default: paused
+		other, _ := loginAccount(t, auth, "saved-browser-other")
+		execSQL(t, db, `UPDATE accounts SET notifications_paused=FALSE WHERE account_id=?`, other.ID)
+		db.Close()
+	}
 	f.migrate(t)
 	p := f.open(t)
 	auth := accounts.New(p.Accounts(), accountProviderFixture{})

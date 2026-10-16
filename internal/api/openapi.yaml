@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.14.0
+  version: 1.15.0
   license:
     name: MIT
     identifier: MIT
@@ -23,6 +23,166 @@ servers:
   - url: /
 security: []
 paths:
+  /api/v1/me/live-activity-preferences:
+    get:
+      operationId: getLiveActivityPreferences
+      summary: Read your confirmed live activity preference
+      description: Owner-only, private, no-store. Account settings override guest settings after sign-in. No query parameters. ETag is scoped to the owner and revision; global pause changes also advance this revision.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Confirmed configuration and account-wide pause state.
+          headers:
+            ETag: {schema: {type: string}, description: Opaque strong validator required for replacement.}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LivePreferencesState'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+    put:
+      operationId: replaceLiveActivityPreferences
+      summary: Replace your live activity preference conditionally
+      description: |
+        Full replacement of version, enabled and filters, bounded to 8 KiB.
+        Send the last confirmed ETag in If-Match; no-op replacements retain it.
+        Only the all-events defaults are supported at this checkpoint. Unknown versions,
+        fields, nulls, duplicate keys and non-default filters (including radius) are 400.
+        Errors preserve confirmed settings. Cookie writes require same-origin CSRF;
+        bearer writes do not. All responses are private, no-store.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+        - name: If-Match
+          in: header
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LivePreferences'}
+            example: {version: 1, enabled: true, filters: {location: {mode: all}, category_ids: [], artist_ids: [], venue_ids: [], connections: {mode: all_events, sources: []}}}
+      responses:
+        '200':
+          description: Confirmed configuration; no-op saves retain the revision.
+          headers:
+            ETag: {schema: {type: string}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LivePreferencesState'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '412':
+          description: Stale or another owner's ETag. Reload before saving.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '428':
+          description: If-Match is missing.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/community/activity:
+    get:
+      operationId: getOwnLiveActivity
+      summary: Read the current public feed under your confirmed preference
+      description: |
+        Authenticated all-events scope, private, no-store. Uses stored preferences;
+        account IDs and filter lists are not accepted. Disabled or globally paused
+        accounts receive an explicit paused state. Invalid credentials return 401,
+        never a public fallback. Deployment kill switch returns 503.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - name: preferences_revision
+          in: query
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Current view or explicit pause envelope.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {$ref: '#/components/schemas/LiveActivitySnapshot'}
+                  - {$ref: '#/components/schemas/LiveActivityPaused'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '409':
+          description: Preference revision changed; reload settings.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/LiveUnavailable'}
+  /api/v1/me/community/activity/stream:
+    get:
+      operationId: streamOwnLiveActivity
+      summary: Stream activity under your authenticated preference scope
+      description: |
+        Same all-events projection, SSE framing and count semantics as the public stream.
+        Private, no-store, no-transform; buffering disabled. Credential and preference
+        checks are batched over active credentials every two seconds, with query deadlines;
+        cross-replica revocations are bounded by 30 seconds. Known expiry closes the stream
+        immediately. Local logout/revocation invalidates local subscriptions immediately.
+        settings.changed contains only preferences_revision and closes the stream; clear
+        activity, reload owner settings and reconnect quietly. A disabled/paused view
+        returns application/json with state paused before streaming. Stale expected
+        revisions return 409 before headers. No credentials or account IDs in URLs.
+        The public stream's 256 capacity, 60 starts/IP/minute and 32768 query-byte bound apply.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - name: preferences_revision
+          in: query
+          schema: {type: integer, minimum: 1}
+        - name: event_id
+          in: query
+          style: form
+          explode: true
+          schema: {type: array, items: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200':
+          description: Replacement SSE frames or an explicit pause envelope.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/LiveActivityPaused'}
+            text/event-stream:
+              schema: {type: string}
+              x-sse-events:
+                activity.snapshot: {$ref: '#/components/schemas/LiveActivitySnapshot'}
+                counts.snapshot: {$ref: '#/components/schemas/LiveActivityCounts'}
+                heartbeat:
+                  type: object
+                  additionalProperties: false
+                  required: [as_of]
+                  properties:
+                    as_of: {type: string, format: date-time}
+                unavailable: {type: object, additionalProperties: false}
+                settings.changed:
+                  type: object
+                  additionalProperties: false
+                  required: [preferences_revision]
+                  properties:
+                    preferences_revision: {type: integer, minimum: 1}
+              example: |
+                event: settings.changed
+                data: {"preferences_revision":2}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '409':
+          description: Preferences changed; reload before reconnecting.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '429':
+          description: Connection-start rate exceeded.
+          headers:
+            Retry-After: {schema: {type: integer, const: 60}}
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/LiveUnavailable'}
   /api/v1/community/activity:
     get:
       operationId: getCommunityActivity
@@ -2207,6 +2367,53 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    LivePreferences:
+      type: object
+      additionalProperties: false
+      required: [version, enabled, filters]
+      properties:
+        version: {type: integer, const: 1}
+        enabled: {type: boolean, default: true}
+        filters:
+          type: object
+          additionalProperties: false
+          required: [location, category_ids, artist_ids, venue_ids, connections]
+          properties:
+            location:
+              type: object
+              additionalProperties: false
+              required: [mode]
+              properties:
+                mode: {type: string, const: all}
+            category_ids: {type: array, maxItems: 0, items: {type: string}}
+            artist_ids: {type: array, maxItems: 0, items: {type: string}}
+            venue_ids: {type: array, maxItems: 0, items: {type: string}}
+            connections:
+              type: object
+              additionalProperties: false
+              required: [mode, sources]
+              properties:
+                mode: {type: string, const: all_events}
+                sources: {type: array, maxItems: 0, items: {type: string}}
+    LivePreferencesState:
+      type: object
+      additionalProperties: false
+      required: [version, enabled, filters, revision, notifications_paused]
+      properties:
+        version: {type: integer, const: 1}
+        enabled: {type: boolean}
+        filters: {$ref: '#/components/schemas/LivePreferences/properties/filters'}
+        revision: {type: integer, minimum: 1}
+        notifications_paused: {type: boolean}
+      example: {version: 1, enabled: true, filters: {location: {mode: all}, category_ids: [], artist_ids: [], venue_ids: [], connections: {mode: all_events, sources: []}}, revision: 1, notifications_paused: false}
+    LiveActivityPaused:
+      type: object
+      additionalProperties: false
+      required: [state, preferences_revision]
+      properties:
+        state: {type: string, const: paused}
+        preferences_revision: {type: integer, minimum: 1}
+      example: {state: paused, preferences_revision: 2}
     FollowTarget:
       type: object
       required: [kind, id, name, source]
@@ -2487,7 +2694,7 @@ components:
         category_ids: {type: array, maxItems: 16, uniqueItems: true, items: {type: string}}
         email_reminders: {type: boolean, default: false}
         weekly_digest: {type: boolean, default: false}
-        notifications_paused: {type: boolean, default: true}
+        notifications_paused: {type: boolean, default: false}
     Account:
       type: object
       required: [id, display_name, bio, interest_visibility, email, preferences, created_at, activity_first_name]

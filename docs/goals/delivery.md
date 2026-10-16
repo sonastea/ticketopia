@@ -237,7 +237,7 @@ Build backend/API and UI together for each small outcome:
 - [ ] Verification: Observe a useful question, reply, and Helpful acknowledgment;
   exercise reporting/moderation before the first public community pilot.
 
-### Live community activity (default-off)
+### Live community activity
 
 The [implementation specification](../design/live-community-activity.md) defines
 a bounded sitewide public-recommendation stream and refreshed event counts.
@@ -255,6 +255,9 @@ named Interested announcements are outside this initial slice.
 Local SQL/HTTP/browser checks are recorded in the [feature guide](../live-community-activity.md).
 Actual deployment proxy/load, physical-device and manual screen-reader acceptance
 remain unchecked; enabling the flag is a separate rollout decision.
+The [filtering extension](../design/live-activity-filters.md) adds default-on
+account preferences in Part 1. Keep production explicitly disabled until Part 5;
+the existing-account notification reset belongs to that coordinated rollout.
 
 ## 6. Responsive discovery-to-discussion experience
 

@@ -83,7 +83,10 @@ in the app.
 - [x] Prevent withdrawal/republication feed bumping without participation quotas.
 - [x] Browse event conversations alongside recommendations.
 - [x] Deliver [live public recommendation activity](docs/live-community-activity.md)
-  with first-name-only attribution and refreshed event counts (default-off; deployment verification remains).
+  with first-name-only attribution and refreshed event counts (dependency-aware default; production rollout remains gated).
+- [x] Enable notifications for existing/new accounts once and provide synced live
+  preferences, native pause/disable controls and authenticated delivery
+  ([live activity Part 1](docs/design/live-activity-filters.md#part-1--default-on-accounts-and-usable-notification-preferences)).
 - [ ] Later: Mark an event Going and choose participation visibility.
 - [x] Post a question, tip, or comment on an event.
 - [x] Reply to another person's contribution.

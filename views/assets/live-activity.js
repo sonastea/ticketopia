@@ -7,6 +7,9 @@
   let hidden = false, paused = true, ready = false, stream, generation = 0, countsGeneration = 0;
   let reconnectTimer, debounceTimer, expiryTimer, announceTimer, lastMessage = 0, backoff = 5000, idsKey = '';
   let current = [], shown = [], baseline = true, serverAt = 0, receivedAt = 0, writes = 0;
+  let authenticated = false, revision = 0, preferenceScope = '';
+  const activityURL = () => authenticated ? '/api/v1/me/community/activity' : '/api/v1/community/activity';
+  const activityQuery = values => { const q = query(values); if (authenticated) q.set('preferences_revision', revision); return q; };
   const seen = new Map(), pending = new Set();
   try { hidden = localStorage.getItem('ticketopia-live-hidden') === 'true'; } catch { /* Page memory remains usable. */ }
   const ids = () => [...new Set([...document.querySelectorAll('[data-event-id], [data-interest-count], [data-event-recommendations], [data-live-total]')]
@@ -142,8 +145,8 @@
   const refreshActivity = async () => {
     if (!allowed()) return;
     const turn = generation;
-    try { const data = await fetchJSON('/api/v1/community/activity'); if (turn === generation && allowed()) receive(data); }
-    catch { if (turn === generation) interrupted(); }
+    try { const data = await fetchJSON(activityURL() + '?' + activityQuery([])); if (turn === generation && allowed()) { if (data.state === 'paused') { stop(); preferences(); } else receive(data); } }
+    catch { if (turn === generation) { interrupted(); preferences(); } }
   };
   const interrupted = () => {
     stop(); staleCounts(); node('connection').textContent = 'Live activity is reconnecting';
@@ -154,7 +157,7 @@
     node('connection').textContent = 'Connecting to live activity…';
     if (!window.EventSource) { refreshActivity(); refreshCounts(); return; }
     const turn = generation; idsKey = ids().join('|');
-    stream = new EventSource('/api/v1/community/activity/stream?' + query(ids().slice(0, 101)));
+    stream = new EventSource(activityURL() + '/stream?' + activityQuery(ids().slice(0, 101)));
     lastMessage = performance.now();
     const listen = (type, callback) => stream.addEventListener(type, event => {
       if (turn !== generation || !allowed()) return;
@@ -164,19 +167,23 @@
     listen('activity.snapshot', receive);
     listen('counts.snapshot', data => { ++countsGeneration; applyCounts(data); });
     listen('heartbeat', render); listen('unavailable', interrupted);
-    stream.onerror = () => { if (turn === generation) interrupted(); };
+    listen('settings.changed', () => { resume(); });
+    stream.onerror = () => { if (turn === generation) { interrupted(); preferences(); } };
   };
   let preferenceTurn = 0;
   const preferences = async () => {
     const turn = ++preferenceTurn;
     try {
-      const response = await fetch('/api/v1/me/preferences', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
-      let next;
-      if (response.status === 401) next = false;
-      else if (response.ok) next = (await response.json()).notifications_paused === true;
+      const response = await fetch('/api/v1/me/live-activity-preferences', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+      let next, nextRevision = 0, nextAuth = false, nextScope = '';
+      if (response.status === 401) next = authenticated;
+      else if (response.ok) { const data = await response.json(); next = data.notifications_paused === true || !data.enabled; nextRevision = data.revision; nextAuth = true; nextScope = response.headers.get('ETag') || ''; }
       else throw new Error();
       if (turn !== preferenceTurn) return;
-      const changed = !ready || paused !== next; ready = true; paused = next; controls();
+      const changed = !ready || paused !== next || revision !== nextRevision || authenticated !== nextAuth || preferenceScope !== nextScope;
+      if (authenticated && !nextAuth) { paused = true; stop(); controls(); return; }
+      if (preferenceScope.split('-')[1] !== nextScope.split('-')[1]) seen.clear();
+      ready = true; paused = next; revision = nextRevision; authenticated = nextAuth; preferenceScope = nextScope; controls();
       if (changed) { stop(); if (allowed()) connect(); }
     } catch { if (turn === preferenceTurn) { paused = true; stop(); controls(); } }
   };

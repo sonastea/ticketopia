@@ -619,6 +619,12 @@ func (a *api) accountPage(section string) echo.HandlerFunc {
 }
 func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, section, message, notice, token string) error {
 	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NewToken: token}
+	if section == "preferences" {
+		pref, err := a.accounts.LivePreferences(c.Request().Context(), p.Account.ID)
+		if err == nil {
+			page.LivePreferences = &pref
+		}
+	}
 	page.ModerationEnabled = a.moderationEnabled()
 	if page.ModerationEnabled {
 		var err error

@@ -1,6 +1,7 @@
 package account
 
 import "net/url"
+import "fmt"
 import "github.com/sonastea/ticketopia/internal/accounts"
 import "github.com/sonastea/ticketopia/internal/interests"
 import "github.com/sonastea/ticketopia/internal/recommendations"
@@ -252,8 +253,7 @@ templ Preferences(p Page) {
 						<input type="checkbox" name="notifications_paused" aria-labelledby="notification-pause-label" aria-describedby="notification-pause-help" checked?={ p.Account.Preferences.NotificationsPaused }/>
 						<span class="notification-copy">
 							<span id="notification-pause-label" class="notification-title">Pause all notifications</span>
-							<span class="field-note">Also pauses automatic live community activity across the app.</span>
-							<span id="notification-pause-help" class="field-note">Stops on-sale emails and new reply updates. Uncheck to resume; your settings stay saved.</span>
+							<span id="notification-pause-help" class="field-note">Stops live activity, on-sale emails and reply updates across your account. Uncheck to resume your configured notifications.</span>
 						</span>
 					</label>
 				</div>
@@ -275,6 +275,25 @@ templ Preferences(p Page) {
 			Save preferences
 		}
 	</form>
+	if p.LivePreferences != nil {
+		<form action="/me/live-activity-preferences" method="post" class="account-form account-preferences account-section" aria-labelledby="live-preferences-heading">
+			@CSRF(p.CSRF)
+			<input type="hidden" name="revision" value={ fmt.Sprint(p.LivePreferences.Revision) }/>
+			<h2 id="live-preferences-heading">Live activity</h2>
+			<p class="field-note">Notifications start enabled. Live activity shows recent public recommendations, collapsed until you open it.</p>
+			<div class="account-checkboxes notification-preferences">
+				<div class="notification-option"><label>
+					<input type="checkbox" name="enabled" aria-labelledby="live-enabled-label" aria-describedby="live-enabled-help" checked?={ p.LivePreferences.Enabled }/>
+					<span class="notification-copy">
+						<span id="live-enabled-label" class="notification-title">Enable live activity</span>
+						<span id="live-enabled-help" class="field-note">Everywhere · All event types · All events. Turn off just this feed without pausing replies or email reminders.</span>
+					</span>
+				</label></div>
+			</div>
+			<p class="field-note">Pause all notifications overrides this choice. Hide live activity hides it only in that browser, even while your account preference is enabled.</p>
+			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) { Save live activity }
+		</form>
+	}
 }
 
 templ Interests(p Page) {

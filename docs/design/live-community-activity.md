@@ -5,6 +5,10 @@
 **Scope:** Sitewide live public recommendations, refreshed event counts, and
 explicit first-name-only notification attribution.
 
+This is the original default-off specification. Default behavior and recipient
+controls are extended by [live activity filters, Part 1](live-activity-filters.md);
+see the [current guide](../live-community-activity.md) for implemented behavior.
+
 ## Outcome and agreed decisions
 
 Visitors currently using Ticketopia can discover an event because another person

@@ -41,6 +41,9 @@ spec:
             - configMapRef:
                 name: ticketopia-db-config
           env:
+            # Keep production off until the coordinated live-filter Part 5 rollout.
+            - name: LIVE_ACTIVITY_ENABLED
+              value: "false"
             - name: DB_USER
               value: ticketopia_runtime
             - name: DB_PASSWORD

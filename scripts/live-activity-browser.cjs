@@ -97,12 +97,60 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     await fallback.close();
     // Signed-in account pause wins over the local preference.
     const signedPage = await owner.newPage(); await signedPage.goto(base + '/community');
+    await signedPage.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
+    check('Upgraded paused account enabled without enrollment', await signedPage.locator('[data-live-details]').isVisible());
+    await write('patch', '/api/v1/me/preferences', { notifications_paused: true });
     await signedPage.locator('[data-live-paused]').waitFor({ state: 'visible' });
-    check('Existing account pause suppresses live display', await signedPage.locator('[data-live-details]').isHidden());
+    check('Account pause closes active private stream', await signedPage.locator('[data-live-details]').isHidden());
     await write('patch', '/api/v1/me/preferences', { notifications_paused: false });
     await signedPage.evaluate(() => window.dispatchEvent(new Event('focus')));
     await signedPage.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
     check('Focus rechecks account preference', true);
+    const settings = await owner.newPage(); await settings.goto(base + '/me/preferences');
+    const stale = await owner.newPage(); await stale.goto(base + '/me/preferences');
+    const liveForm = settings.locator('form[action="/me/live-activity-preferences"]');
+    await liveForm.getByRole('checkbox').uncheck();
+    await liveForm.getByRole('button', { name: 'Save live activity', exact: true }).click();
+    await settings.waitForURL('**/me/preferences?saved=preferences');
+    await signedPage.locator('[data-live-paused]').waitFor({ state: 'visible', timeout: 5000 });
+    check('Native live disable synchronizes another tab', await signedPage.locator('[data-live-list] li').count() === 0);
+    await stale.locator('form[action="/me/live-activity-preferences"] button').click();
+    await stale.getByText('live preferences changed; reload before saving', { exact: false }).waitFor();
+    check('Stale native tab cannot overwrite confirmed preference', true);
+    for (const width of [1440, 390, 320]) {
+      await settings.setViewportSize({ width, height: 1000 });
+      check('Notification settings wrap at ' + width, await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      if (process.env.PARTICIPATION_SKIP_CAPTURES !== 'true') await settings.screenshot({ path: path.join(output, `preferences-${width}.png`), fullPage: true });
+    }
+    if (process.env.AXE_SCRIPT) {
+      await settings.addScriptTag({ path: process.env.AXE_SCRIPT });
+      check('Notification settings accessibility', (await settings.evaluate(async () => (await axe.run()).violations)).length === 0);
+    }
+    await liveForm.getByRole('checkbox').check();
+    await liveForm.getByRole('button', { name: 'Save live activity', exact: true }).click();
+    await settings.waitForURL('**/me/preferences?saved=preferences');
+    await signedPage.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await signedPage.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
+    check('Native enable resumes quiet feed', await signedPage.locator('[data-live-badge]').textContent() === '');
+    await settings.close(); await stale.close();
+    const native = await browser.newContext({ javaScriptEnabled: false });
+    await native.addCookies([{ name: 'ticketopia_session', value: process.env.SAVED_FIXTURE_TOKEN, url: base }]);
+    const np = await native.newPage(); await np.goto(base + '/me/preferences');
+    await np.locator('input[name="enabled"]').uncheck();
+    await np.getByRole('button', { name: 'Save live activity', exact: true }).click();
+    await np.waitForURL('**/me/preferences?saved=preferences');
+    check('Live preference works without JavaScript', !(await (await owner.request.get(base + '/api/v1/me/live-activity-preferences')).json()).enabled);
+    await np.locator('input[name="enabled"]').check();
+    await np.getByRole('button', { name: 'Save live activity', exact: true }).click();
+    await np.waitForURL('**/me/preferences?saved=preferences'); await native.close();
+    const signedFallback = await browser.newContext();
+    await signedFallback.addCookies([{ name: 'ticketopia_session', value: process.env.SAVED_FIXTURE_TOKEN, url: base }]);
+    await signedFallback.addInitScript(() => { window.EventSource = undefined; });
+    const sf = await signedFallback.newPage(); await sf.goto(base + '/community');
+    await sf.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
+    check('Authenticated JSON fallback works', true); await signedFallback.close();
+    const off = await guest.newPage(); await off.goto(process.env.SAVED_DISABLED_URL + '/community');
+    check('Disabled deployment omits enhancement', await off.locator('[data-live-activity]').count() === 0); await off.close();
     await write('put', '/api/v1/me/event-interests/ticketmaster:Browser_0', { visibility: 'private' });
     await signedPage.goto(base + '/events/ticketmaster:Browser_0?section=community');
     const composer = signedPage.locator('[data-recommendation-form] textarea');
@@ -120,6 +168,15 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     await signedPage.evaluate(() => window.dispatchEvent(new Event('focus')));
     await signedPage.locator('[data-live-paused]').waitFor({ state: 'visible' });
     check('Pause removes attribution', await signedPage.locator('[data-live-list] li').count() === 0);
+    await owner.addCookies([{ name: 'ticketopia_session', value: process.env.SAVED_OTHER_TOKEN, url: base }]);
+    await signedPage.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await signedPage.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
+    check('Account switch to upgraded unpaused account discards old scope', await signedPage.locator('[data-live-details]').isVisible());
+    check('Revoke current browser session', (await owner.request.delete(base + '/api/v1/me/session', { headers: { 'X-CSRF-Token': otherMe.csrf_token } })).ok());
+    await signedPage.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 0, null, { timeout: 5000 });
+    await signedPage.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await signedPage.locator('[data-live-paused]').waitFor({ state: 'visible' });
+    check('Expired authentication never broadens to guest feed', await signedPage.locator('[data-live-list] li').count() === 0);
     const stalled = await browser.newContext();
     await stalled.addInitScript(() => {
       window.liveSources = [];
