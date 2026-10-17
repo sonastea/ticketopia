@@ -1,7 +1,8 @@
 # Default-on, filtered live activity
 
-**Status:** Parts 1–2 implemented and locally verified; Parts 3–6 remain planned.
-**Date:** 2026-10-16.
+**Status:** Parts 1–2 implemented and locally verified; toast/Happening Now
+presentation checkpoint and Parts 3–6 remain planned.
+**Date:** 2026-10-16; presentation requirement revised 2026-10-17.
 **Extends:** [Implemented live activity](../live-community-activity.md) and its
 [original specification](live-community-activity.md).
 
@@ -9,9 +10,12 @@
 
 Make live activity available by default, with **Everywhere · All event types ·
 All events** as the initial view. Let recipients narrow it using public event
-facts and their own private connections. Preserve the collapsed disclosure,
-first-name-only attribution, ten-minute eligibility window, twenty event groups,
-explicit updates, authoritative counts and quiet reconnects.
+facts and their own private connections. Present new activity as **top-right
+toasts**, with a separate **Happening Now** navigation page for browsing the feed;
+replace the above-content disclosure. Follow the revised
+[interface contract](live-community-activity.md#interface-and-notification-controls).
+Preserve first-name-only attribution, the ten-minute eligibility window, twenty
+event groups, explicit page updates, authoritative counts and quiet reconnects.
 
 The performance design is **one shared recent-event index per replica**, reusable
 filter results, and incrementally refreshed private membership sets. Filtering
@@ -38,12 +42,15 @@ Separate three controls:
    Existing explicitly configured `false` values remain off until an operator
    changes them; a new default does not rewrite deployment configuration.
 2. **Recipient preference:** new `live_activity.enabled` defaults to true for
-   guests and signed-in accounts. Enabled means a collapsed live region and a
-   connection while visible, not an automatically expanded or interrupting feed.
+   guests and signed-in accounts. Enabled means top-right toasts for new activity
+   while visible, with quiet initial/reconnect snapshots and a separate Happening
+   Now page. It does not add an activity section above ordinary page content.
 3. **Overrides after migration:** local hide and account-wide notification pause
-   suppress streaming/display. Existing browser-local hides survive upgrade;
-   account pauses are reset once as specified below. A person can pause again at
-   any time, and subsequent restarts/upgrades must respect that choice.
+   suppress automatic toasts/background activity delivery. Local hide still allows
+   deliberate browsing on Happening Now; account pause/live-disable shows that
+   page's paused state. Existing browser-local hides survive the UI replacement;
+   account pauses are reset only by the original migration specified below. A person
+   can pause again at any time; later upgrades must respect that choice.
 
 ### Agreed migration: enable notifications for existing accounts
 
@@ -69,8 +76,9 @@ email reminders to resume under their existing permissions, frequencies and
 scheduling rules. Email permission and subscription records remain independent;
 the migration does not enroll accounts in a channel or reset delivery history.
 Explain the enabled state and the available pause/live-disable controls in account
-preferences. Browser-local hiding can still hide the region on a particular device
-even when that account's notification preference is enabled.
+preferences. Browser-local hiding can still suppress toasts on a particular device
+even when that account's notification preference is enabled. The presentation
+checkpoint does not repeat this migration or reset any later choices.
 
 ## 2. Filter semantics
 
@@ -405,28 +413,37 @@ are omitted. Unknown fields/versions fail explicitly rather than broadening scop
 
 ## 7. Recipient experience
 
-Extend the existing Manrope/plum/light-stone shell and native disclosure. Keep the
-region enabled but collapsed by default. A compact summary such as **Berlin · Music
-· Saved or followed artists** makes the current scope visible without opening a
-settings page. Essential labels wrap; no notification counts imply online users.
+**Revised requirement — 2026-10-17; presentation work remains planned.** Extend the
+existing Manrope/plum/light-stone shell with top-right activity toasts and the
+**Happening Now** navigation destination at `/happening-now`. Follow the
+[toast/page contract](live-community-activity.md#interface-and-notification-controls)
+for placement, responsive navigation, dismissal, accessibility and native fallback.
+Remove the live section above ordinary page content. Happening Now owns the
+deliberate recent-activity browsing experience; suppress duplicate toasts there.
 
-Use a **Filter live activity** disclosure with location, event types, personal
-sources, optional artist/venue pickers, **Apply** and **Reset filters**. Reset means
-Everywhere / all types / all events, not clearing a pause or re-enabling hidden UI.
-Keep unsaved filter edits local; one Apply commits them and establishes the new
-stream generation. Coalesce rapid changes and discard callbacks from old streams.
+On Happening Now, show a confirmed summary such as **Berlin · Music · Saved or
+followed artists** and a **Filter live activity** disclosure with location, event
+types, supported personal sources/artist/venue pickers, **Apply** and **Reset
+filters**. Keep equivalent account preference controls; do not embed editors in
+toasts. Both surfaces use the same confirmed filters and one document stream.
+Essential labels wrap; no notification counts imply online users.
 
-Preserve the existing empty/reconnecting/paused states and add **No recent
+Reset means Everywhere / all types / all events, not clearing a pause or showing
+hidden toasts. Keep unsaved filter edits local; one Apply commits them and establishes
+the new stream generation. Coalesce rapid changes and discard old callbacks.
+
+On Happening Now, preserve empty/reconnecting/paused states and add **No recent
 recommendations match these filters** with an explicit reset action. Never widen
 automatically. Matching failures retain an unavailable state, not a zero-match
 claim. A filter/membership/metadata change quietly replaces the matching view;
-it must not label old recommendations as newly published activity. Deduplication
-uses original contribution times across filter switches in the document.
+it must not turn old recommendations into new toasts or new-update indicators.
+Deduplication uses original contribution times across filter switches in the document.
 
 Applying filters cannot remount event composers, erase drafts, reorder collections,
 steal focus or change their selected participation state. Withdrawals, actor-name
-redactions and expiry still apply while new rows are buffered. Use the existing
-Overview/return helpers and keep native Community useful without JavaScript.
+redactions and expiry still apply to visible toasts and buffered page rows. Use the
+existing Overview/return helpers; Happening Now provides a native snapshot/Refresh
+and filter forms, while Community remains independently useful without JavaScript.
 
 ## 8. Verification and performance gates
 
@@ -448,6 +465,10 @@ Correctness and privacy:
   migration survive restart/reruns/later parts. Verify independent channel permissions
   and delivery history, disabled operator flag, missing dependencies, cross-tab
   settings conflicts, native forms and fallback.
+- Shared filters on toasts and Happening Now, quiet filter changes, page update
+  buffering, no above-content activity section, reachable navigation on all layouts,
+  toast dismissal/overflow/focus and native page refresh. Preserve existing hides
+  and later account pauses through the presentation checkpoint without a new reset.
 - Radius, when implemented: same point, exact boundary, invalid/missing pairs,
   antimeridian/poles and location coverage; never a live geocoder call.
 
@@ -490,6 +511,8 @@ useful stopping/review points, not backend-only foundations awaiting a later UI.
 - [x] **Part 1:** Existing/new accounts have notifications enabled; live preferences
   and pause controls work on the current live feed.
 - [x] **Part 2:** City and event-type filters work on the complete recent window.
+- [ ] **Presentation checkpoint:** Top-right toasts replace the above-content
+  disclosure; Happening Now navigation/page exposes the same filtered activity.
 - [ ] **Part 3:** Specific artist and venue filters compose with city/type filters.
 - [ ] **Part 4:** Saved/Interested/followed-artist/followed-venue personalization works
   across replicas.
@@ -497,8 +520,9 @@ useful stopping/review points, not backend-only foundations awaiting a later UI.
   gates and is ready for production.
 - [ ] **Part 6, optional:** Stored place centers support tested radius filtering.
 
-Parts 1–5 build on the preceding checkpoint. Part 6 follows Part 5 and requires
-the separate coordinate-coverage foundation.
+Complete the presentation checkpoint after Parts 1–2 and before Part 3; preserve
+their verified delivery/filter behavior. Parts 3–5 then build on the preceding
+checkpoint. Part 6 follows Part 5 and requires the coordinate-coverage foundation.
 
 ### Checkpoint contract
 
@@ -599,6 +623,30 @@ filter reuses the shared computation.
 unknown locations, metadata correction, invalid filters, query-sharing assertions,
 candidate/memory caps, and responsive/keyboard filter and return/draft journeys.
 Record a populated-window benchmark baseline before adding personalization.
+
+### Presentation checkpoint — Top-right toasts and Happening Now
+
+**Planned — 2026-10-17.** Parts 1–2 above record the implemented disclosure-based
+baseline; their completion does not imply this revised presentation has shipped.
+
+**Outcome:** visitors notice new public recommendations through top-right toasts
+while browsing, and choose Happening Now in navigation to inspect recent activity.
+
+**Deliver:** replace the shared above-content disclosure, add the native page and
+desktop/rail/compact navigation link, relocate shared filter/visibility controls,
+and implement bounded accessible toasts under the revised interface contract.
+Reuse existing projections, streams, preferences and count behavior.
+
+**Working demo:** load Discover with no activity block above its content; another
+visitor's new recommendation produces a top-right toast. Dismiss it, open Happening
+Now from navigation and find the still-eligible event. Apply a city/type filter and
+verify both surfaces share it; event Overview and Back preserve browsing context.
+
+**Exit checks:** revised presentation acceptance from the original specification,
+native snapshot/filter/Refresh, all navigation layouts, quiet reconnect/filter
+changes, one-stream reuse, burst/dismiss/focus behavior, and preserved pause/hide,
+redaction/expiry, counts and drafts. Update current guides and generated assets
+only when implemented and verified; this checkpoint does not reset preferences.
 
 ### Part 3 — Specific artist and venue filters
 

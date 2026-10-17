@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-10-17 — Toasts and Happening Now specification
+
+- Revise the [interface contract](../design/live-community-activity.md#interface-and-notification-controls)
+  to replace above-content activity with bounded top-right toast notifications.
+- Specify a **Happening Now** navigation page for recent public recommendations,
+  with shared filters, native browsing, accessible dismissal and preserved pauses.
+- Align the [filtering plan](../design/live-activity-filters.md) and add an unchecked
+  presentation checkpoint before Part 3. This is a specification change; the
+  [current guide](../live-community-activity.md) still documents the implemented UI.
+
 ### 2026-10-16 — Part 2: complete-window city and event-type filters
 
 - Add lightweight complete-window projection, stable bitmap slots, canonical shared

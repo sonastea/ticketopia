@@ -4,6 +4,13 @@ Live activity is a sitewide view of public recommendations from the last
 ten minutes. Guests and enabled signed-in visitors can filter the public view. It starts
 collapsed above app content and never reorders Community or other collections.
 
+**Planned presentation change — 2026-10-17:** the
+[revised specification](design/live-community-activity.md#interface-and-notification-controls)
+replaces that disclosure with top-right activity toasts and a separate **Happening
+Now** navigation page. This guide describes the currently implemented UI until the
+[presentation checkpoint](design/live-activity-filters.md#presentation-checkpoint--top-right-toasts-and-happening-now)
+is delivered.
+
 Parts 1–2 of the [default-on filtering extension](design/live-activity-filters.md)
 add default-on preferences and complete-window city/event-type filtering.
 Artist/venue, private connection and radius filters remain unsupported and are

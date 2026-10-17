@@ -1,13 +1,17 @@
 # Live community activity
 
-**Status:** Implemented, default-off; manual/deployment acceptance remains open.
-**Date:** 2026-10-15.
+**Status:** Delivery baseline implemented; revised toast/navigation UI planned.
+Manual/deployment acceptance remains open.
+**Date:** 2026-10-15; presentation requirement revised 2026-10-17.
 **Scope:** Sitewide live public recommendations, refreshed event counts, and
 explicit first-name-only notification attribution.
 
-This is the original default-off specification. Default behavior and recipient
-controls are extended by [live activity filters, Part 1](live-activity-filters.md);
-see the [current guide](../live-community-activity.md) for implemented behavior.
+The original delivery baseline was default-off. Default behavior and recipient
+controls are extended by [live activity filters](live-activity-filters.md).
+The revised [interface requirements](#interface-and-notification-controls) below
+supersede the implemented above-content disclosure: use top-right toasts and a
+separate **Happening Now** navigation destination. See the
+[current guide](../live-community-activity.md) for implemented behavior.
 
 ## Outcome and agreed decisions
 
@@ -23,8 +27,11 @@ public activity; the initial audience is sitewide, across cities.
   the existing display name. Use **Someone** when it is absent.
 - Deliver through Server-Sent Events (SSE), backed by shared MariaDB state so a
   write on one app replica reaches visitors connected to another.
-- Use a bounded, dismissible live activity region. Group recommendations for the
-  same event and preserve the existing Community collection's anti-bumping order.
+- Deliver new activity as bounded, dismissible **top-right toast notifications**.
+  Add a **Happening Now** navigation link for deliberately browsing recent public
+  activity; do not reserve an activity section above ordinary page content.
+  Group recommendations for the same event and preserve the existing Community
+  collection's anti-bumping order.
 
 Examples, with illustrative content:
 
@@ -90,8 +97,8 @@ The recommendation composer must explain both audiences before Publish:
 > Live activity uses your chosen first name, or Someone.
 
 Existing event/profile recommendation attribution still follows its current
-display-name contract. The reduced attribution applies to the live notification
-surface and its API, not a promise of anonymity across the public site.
+display-name contract. The reduced attribution applies to activity toasts,
+Happening Now and their API, not a promise of anonymity across the public site.
 
 ### Server-side projection
 
@@ -270,54 +277,108 @@ the JSON snapshots every **15 seconds** while visible, with the same stale rules
 
 ## Interface and notification controls
 
+**Revised requirement — 2026-10-17; not yet implemented.** Replace the shared
+above-content disclosure with two connected surfaces: transient activity toasts
+and a dedicated Happening Now page. Ordinary page content starts directly, without
+an activity panel, collapsed summary, or reserved activity space above it.
+
 **Mode:** Operate. Extend the existing Manrope/plum/light-stone, flat event-first
 shell from [DESIGN.md](../../DESIGN.md); retain existing navigation thresholds.
 
-- Place a compact **Live activity** disclosure in the shared app workspace before
-  primary page content. It is available throughout the app, including to guests.
-  Keep it in normal flow, clear of compact navigation and phone keyboards.
-- Default to collapsed, with an unobtrusive **N new** event-group indicator. Opening
-  shows the current bounded list with event title, city, safe attribution and time.
-  Give each event a real Overview link using existing origin/return helpers.
-- Group repeated activity for the same event. For changes while expanded, offer
+### Top-right activity toasts
+
+- Show new eligible recommendations in a viewport-anchored **top-right** stack,
+  outside document flow, for guests and enabled signed-in visitors throughout the
+  app. Keep it below any compact header and inside safe-area edges. On narrow
+  screens, fit within the available width with readable wrapping and clear controls.
+- Show at most **three toasts**, or **one on compact screens**. Group repeated
+  recommendations for the same event. Coalesce bursts instead of building a backlog;
+  Happening Now is the place to browse the current bounded view.
+- Each toast shows the safe first name or grouped count, event title, city and
+  relative time, with a real event Overview link, **Dismiss**, and a **Happening
+  Now** link. Preserve the current browsing origin/return context for event links.
+- Auto-dismiss after **8 seconds** of visible, non-interacting time; suspend the
+  timer while hovered or keyboard-focused. Dismissal affects only the toast, not
+  the recommendation or its eligibility on Happening Now. A new contribution can
+  update a visible event toast without continually resetting its lifetime.
+- Initial connection, reconnect, navigation and filter changes establish a quiet
+  baseline. Only subsequently observed new publications produce toasts; name edits,
+  count refreshes, withdrawals and expiry never do. Deduplicate by event and
+  original contribution time. Do not replay missed activity as a toast backlog.
+- Do not show duplicate activity toasts while the visitor is on Happening Now;
+  that page uses its explicit new-update control. Use one activity stream per
+  document, shared with the existing count subscriptions.
+- Keep navigation, dialogs and the focused control unobscured; defer a toast when
+  the available space or an open dialog/keyboard would block the current task.
+  Do not truncate essential text to force it into the stack.
+
+### Happening Now navigation and page
+
+- Add a real **Happening Now** navigation link to **`/happening-now`**, available
+  to guests and signed-in visitors when the feature is available. In the default
+  desktop Browse group, place it after Community. Add the labeled destination to
+  the intermediate rail and compact navigation too; accommodate wrapping/enlarged
+  text and preserve the existing destinations and customization preferences.
+- Use **Happening Now** as the page heading, with **Public recommendations from the
+  last 10 minutes** explaining what visitors can see others doing. This is recent
+  public activity, not an online-user count or a broadcast of private actions.
+- Show the current filtered snapshot of up to **20 event groups**, with event
+  title, city, safe attribution, relative time and real Overview links. Preserve
+  the page's filter/scroll/return context when opening an event and coming back.
+- For new activity while reading, offer
   **Show N new updates** rather than automatically reordering rows under the reader.
   Apply withdrawals, name redactions and expiries promptly even while new rows are
-  waiting. Deduplicate by event and original contribution time; replays, name edits,
-  count refreshes and removals do not produce a new indicator/announcement.
-- Offer **Hide live activity** and a reachable **Show live activity** shell control.
+  waiting. Replays and non-publication changes do not create a new-update indicator.
+- Put **Filter live activity**, the confirmed scope summary, and toast visibility
+  controls on this page; retain equivalent account preference controls. Confirmed
+  filters apply to both the page and toasts. Do not put filter editors inside toasts
+  or restore an above-content activity section elsewhere.
+- The native page renders a current snapshot at request time, clearly labeled with
+  its update time and a **Refresh** link. Links and applicable native filter forms
+  work without JavaScript; SSE adds live updates. Keep Community as the separate
+  existing recommendation/discussion destination with its anti-bumping ordering.
+
+### Preferences, accessibility and states
+
+- Offer **Hide activity toasts** and a reachable **Show activity toasts** control
+  on Happening Now; carry forward existing browser-local hide choices.
   Remember the choice in browser-local storage; storage failure falls back to
   page memory. Store preference/deduplication markers only, never activity names or
-  notification bodies. Hiding clears the list and closes its stream; ordinary
-  event count reads and participation controls remain usable.
+  notification bodies. Hiding clears toasts and closes background activity delivery
+  outside Happening Now; it does not remove the navigation link or prevent browsing
+  that page. Ordinary event counts and participation remain usable.
 - Honor a signed-in recipient's existing **Pause all notifications** setting by
-  suppressing automatic activity display and streaming. Guests use local controls.
+  suppressing automatic activity display and streaming. Account live-disable also
+  remains authoritative. Happening Now stays reachable and shows the applicable
+  paused state and resume/settings controls; visiting it never silently re-enables
+  notifications. Guests use local toast controls.
   Recheck preferences at page entry, focus/BFCache and at most every 30 seconds
   while visible; a saved preference applies immediately in that document. Explain
   the effect in Preferences without changing email permission or reply frequency.
 - Do not create per-user unread records or add these entries to the reply inbox.
-  Initial connection/reconnection presents recent activity quietly, rather than
-  treating every historical row as a fresh alert.
 - No sound, flashing, focus stealing or forced navigation. Use one debounced polite
-  status message for new-update availability, not an announcement of every count.
-  Keep keyboard focus stable; if a focused withdrawn row disappears, move focus
-  locally to the disclosure/update control only if it has not already moved.
+  status message for new activity, not an announcement of every count. Keep keyboard
+  focus stable; if a focused toast/row is dismissed or removed, restore focus to its
+  prior usable control or the page's update control only if it has not already moved.
 - Use wrapping titles/names, 44px actions, visible outline focus, forced-colors
-  support and reduced-motion behavior. Native links/forms and the current static
-  Community page remain useful when JavaScript is unavailable.
+  support and reduced-motion behavior. Essential information stays browsable on
+  Happening Now for its eligibility window after a toast disappears.
 
-| State | Presentation |
-| --- | --- |
-| Connecting | Quiet connection status; no fabricated activity |
-| Connected, empty | “No recent recommendations. Explore Community.” |
-| Connected, populated | Current event groups and explicit update control |
-| Interrupted/unavailable | Clear attribution immediately on detection; “Live activity is reconnecting” and native Community link; retain stale counts |
-| Silent stalled connection | A **30-second heartbeat watchdog** clears activity and reconnects |
-| Paused/hidden | Explain the local/account pause and provide the applicable resume/settings control |
-| Feature disabled | Omit enhancement controls; current app continues normally |
+| State | Toasts | Happening Now |
+| --- | --- | --- |
+| Connecting | No toast | Quiet connection status; no fabricated activity |
+| Connected, empty | No toast | “No recent recommendations. Explore Community.” or explicit filtered no-matches state with Reset |
+| Connected, populated | New publications only | Current event groups and explicit update control |
+| Interrupted/unavailable | Clear toasts; no repeated error toasts | Clear attribution immediately; “Live activity is reconnecting” and native Community link; retain stale counts |
+| Silent stalled connection | Clear toasts | A **30-second heartbeat watchdog** clears activity and reconnects |
+| Locally hidden | No toasts | Current activity remains browsable; offer Show activity toasts |
+| Account paused/live-disabled | No toasts or activity stream | Explain pause/disable and provide applicable resume/settings control |
+| Feature disabled | No enhancement | Omit nav link; direct entry explains unavailability and links to Community |
 
-Expire or refresh a group at its server-supplied expiry even when the list is
-buffering new updates. Derive remaining lifetime from server `as_of` and monotonic
-elapsed time rather than assuming the visitor's wall clock is correct.
+Expire or refresh a group in both enhanced surfaces at its server-supplied expiry,
+even when the page buffers new updates or a toast's dismiss timer is suspended.
+Derive remaining lifetime from server `as_of` and monotonic elapsed time rather
+than assuming the visitor's wall clock is correct.
 A reconnect obtains the authoritative current list before
 showing any names. Keep recommendation composers and drafts mounted during all
 live updates. Live activity never reorders Discover, Saved, Interests, Radar or
@@ -345,17 +406,19 @@ never backfills publications made while disabled or replays expired activity.
    withdrawn eligibility; bounded grouping, expiry and batched count reads.
 3. [x] **Delivery:** shared per-replica polling, JSON/SSE contracts, bounded
    subscribers, reconnect/cleanup/shutdown and feature configuration.
-4. [x] **Web:** shared shell disclosure, first-name-only rows, pause/hide, update
-   grouping, in-place counts and existing Overview/return integration.
-5. [ ] **Verification/docs:** checks below, implemented guides/OpenAPI/history,
+4. [x] **Original web baseline:** shared shell disclosure, first-name-only rows,
+   pause/hide, grouping, in-place counts and Overview/return integration.
+5. [ ] **Revised presentation:** replace above-content activity with top-right
+   toasts, Happening Now navigation/page, shared filters and preserved controls.
+6. [ ] **Verification/docs:** checks below, implemented guides/OpenAPI/history,
    generated assets and release checklist updates after verified delivery.
 
 ## Acceptance and verification
 
 See the [current feature guide](../live-community-activity.md) for implementation,
-configuration and local verification. This specification retains its original
-acceptance requirements; physical devices, manual screen readers and target proxy/
-multi-replica load still require rollout verification before enabling.
+configuration and local verification. Original delivery checks remain applicable;
+the revised presentation needs its own checks below. Physical devices, manual
+screen readers and target proxy/multi-replica load still require rollout verification.
 
 ### Meaningful regression coverage
 
@@ -380,6 +443,11 @@ multi-replica load still require rollout verification before enabling.
   without changing private controls, explicit grouping/update controls, withdrawals
   while focused, offline/reconnect/BFCache, pause/hide/storage failure, SSE fallback,
   and event Overview/Back continuity without draft loss.
+- Revised presentation: no above-body activity section or reserved gap; top-right
+  placement, bounded bursts, timed/manual dismissal and focused/hovered lifetime;
+  quiet baselines and no duplicate toasts on Happening Now. Exercise its nav link
+  on every layout, native page/Refresh, shared filters, local-hide versus account
+  pause, prompt redaction/expiry in both surfaces, and event/Back continuity.
 - Check desktop/tablet/320–390px, 200% text, keyboard/automated accessibility,
   forced colors and reduced motion. Manually exercise a screen reader and real
   phone; quiet updates must not interrupt composing or obscure navigation.

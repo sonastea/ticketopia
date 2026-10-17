@@ -21,11 +21,11 @@ their status; they describe intended work rather than available features.
   enlarged-text navigation, sign-in continuity, conversation draft-safety, action/removal and return-hierarchy fixes,
   with remaining manual flow checks.
 - [Live community activity specification](design/live-community-activity.md): implemented
-  sitewide recommendations, count refreshes and chosen first-name-only attribution;
-  includes remaining manual/deployment acceptance checks.
+  delivery/first-name attribution; revised top-right toasts and **Happening Now**
+  navigation/page planned, with remaining manual/deployment acceptance checks.
 - [Default-on, filtered live activity](design/live-activity-filters.md): default-on preferences,
   city/type filtering and shared candidate indexing; planned entity/private filters
-  and six working checkpoints
+  and six working parts plus a toast/navigation presentation checkpoint
   with incremental verification and three-replica performance gates.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
