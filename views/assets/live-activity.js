@@ -8,8 +8,13 @@
   let reconnectTimer, debounceTimer, expiryTimer, announceTimer, lastMessage = 0, backoff = 5000, idsKey = '';
   let current = [], shown = [], baseline = true, serverAt = 0, receivedAt = 0, writes = 0;
   let authenticated = false, revision = 0, preferenceScope = '';
+  const defaults = () => ({ location: { mode: 'all' }, category_ids: [], artist_ids: [], venue_ids: [], connections: { mode: 'all_events', sources: [] } });
+  const storageKey = 'ticketopia-live-filters-v1';
+  let filters = defaults(), guestFilters = defaults(), enabled = true, catalog = [], saving = false;
+  try { const value = JSON.parse(localStorage.getItem(storageKey)); if (value && JSON.stringify(value).length <= 4096 && value.location && Array.isArray(value.category_ids)) guestFilters = value; } catch {}
+  const publicFilter = value => ({ location: value.location, category_ids: value.category_ids, artist_ids: [], venue_ids: [] });
   const activityURL = () => authenticated ? '/api/v1/me/community/activity' : '/api/v1/community/activity';
-  const activityQuery = values => { const q = query(values); if (authenticated) q.set('preferences_revision', revision); return q; };
+  const activityQuery = values => { const q = query(values); if (authenticated) q.set('preferences_revision', revision); else q.set('filter', JSON.stringify(publicFilter(filters))); return q; };
   const seen = new Map(), pending = new Set();
   try { hidden = localStorage.getItem('ticketopia-live-hidden') === 'true'; } catch { /* Page memory remains usable. */ }
   const ids = () => [...new Set([...document.querySelectorAll('[data-event-id], [data-interest-count], [data-event-recommendations], [data-live-total]')]
@@ -62,11 +67,15 @@
     node('badge').textContent = pending.size ? `${pending.size} new` : '';
     updates.hidden = !details.open || !pending.size;
     updates.textContent = `Show ${pending.size} new updates`;
-    node('connection').textContent = current.length ? 'Recent public recommendations · all cities' : 'No recent recommendations. Explore Community.';
+    node('connection').textContent = current.length ? 'Recent public recommendations' : (filters.location.mode !== 'all' || filters.category_ids.length ? 'No recent recommendations match these filters. Use Reset filters to see all events.' : 'No recent recommendations. Explore Community.');
   };
   const receive = data => {
     if (!Array.isArray(data.items) || !Number.isFinite(Date.parse(data.as_of))) throw new Error();
     if (!baseline && Date.parse(data.as_of) < serverAt) return;
+    // Metadata changes can admit older contributions. They replace this view
+    // quietly rather than being announced as newly published recommendations.
+    const quietReplacement = !baseline && data.items.some(item => !current.some(old => old.event_id === item.event_id) && Date.parse(item.latest_recommended_at) <= serverAt);
+    if (quietReplacement) pending.clear();
     serverAt = Date.parse(data.as_of); receivedAt = performance.now();
     current = data.items.filter(item => Date.parse(item.expires_at) > serverAt).slice(0, 20);
     const active = new Set(current.map(item => item.event_id));
@@ -75,12 +84,12 @@
     for (const item of current) {
       const previous = seen.get(item.event_id);
       const stamp = Date.parse(item.latest_recommended_at);
-      if (!baseline && (!previous || stamp > previous)) { pending.add(item.event_id); newlyAvailable = true; }
+      if (!baseline && !quietReplacement && (!previous || stamp > previous)) { pending.add(item.event_id); newlyAvailable = true; }
       seen.set(item.event_id, Math.max(previous || 0, stamp));
     }
     // Deduplication is page-local and bounded; no identity text enters storage.
     if (seen.size > 500) for (const id of seen.keys()) { if (!active.has(id)) seen.delete(id); if (seen.size <= 250) break; }
-    if (!details.open || baseline) shown = current.map(item => item.event_id);
+    if (!details.open || baseline || quietReplacement) shown = current.map(item => item.event_id);
     else shown = shown.filter(id => active.has(id));
     baseline = false; render();
     if (!pending.size) node('status').textContent = '';
@@ -171,19 +180,72 @@
     stream.onerror = () => { if (turn === generation) { interrupted(); preferences(); } };
   };
   let preferenceTurn = 0;
+  const summary = () => {
+    const names = filters.category_ids.map(id => catalog.find(c => c.id === id)?.name || id);
+    node('summary').textContent = `${filters.location.mode === 'city' ? filters.location.city + ', ' + filters.location.country : 'Everywhere'} · ${names.length ? names.join(' or ') : 'All event types'} · All events`;
+  };
+  const editFilters = value => {
+    node('location').value = value.location.mode;
+    node('city').value = value.location.city || ''; node('country').value = value.location.country || '';
+    const fieldset = node('categories');
+    fieldset.querySelectorAll('label').forEach(label => label.remove());
+    const choices = [...catalog];
+    value.category_ids.forEach(id => { if (!choices.some(c => c.id === id)) choices.push({ id, name: 'Selected category: ' + id }); });
+    for (const category of choices) {
+      const label = document.createElement('label'), input = document.createElement('input'), text = document.createElement('span');
+      input.type = 'checkbox'; input.name = 'live_category_ids'; input.value = category.id; input.checked = value.category_ids.includes(category.id);
+      text.textContent = category.name; label.append(input, text); fieldset.append(label);
+    }
+    node('reuse').hidden = !authenticated;
+  };
+  const draftFilters = () => ({ ...defaults(), location: node('location').value === 'city' ? { mode: 'city', city: node('city').value.trim().replace(/\s+/g, ' '), country: node('country').value.trim().toUpperCase() } : { mode: 'all' }, category_ids: [...node('categories').querySelectorAll('input:checked')].map(input => input.value).sort() });
+  node('filter-details').addEventListener('toggle', async () => {
+    if (!node('filter-details').open || catalog.length) return;
+    try { const data = await fetchJSON('/api/v1/categories'); const draft = draftFilters(); catalog = data.items; editFilters(draft); summary(); }
+    catch { node('filter-error').textContent = 'Event types could not load. Your saved selections remain available; close and reopen to retry.'; }
+  });
+  const browsing = document.querySelector('.search-form [name="city"], .community-filters [name="city"]');
+  const browsingCountry = document.querySelector('.search-form [name="country"], .community-filters [name="country"]');
+  node('browsing').hidden = !browsing?.value || !browsingCountry?.value;
+  node('browsing').onclick = () => { if (confirm(`Use ${browsing.value}, ${browsingCountry.value} for live activity?`)) { node('location').value = 'city'; node('city').value = browsing.value; node('country').value = browsingCountry.value; } };
+  node('reuse').onclick = () => { editFilters(guestFilters); node('filter-error').textContent = 'Browser filters copied. Apply to save them to your account.'; };
+  node('filter-form').addEventListener('submit', async event => {
+    event.preventDefault(); if (saving || !ready) return;
+    const next = event.submitter?.value === 'reset' ? defaults() : draftFilters();
+    const turn = preferenceTurn, scope = preferenceScope;
+    saving = true; node('filter-form').setAttribute('aria-busy', 'true'); node('filter-error').textContent = '';
+    try {
+      if (authenticated) {
+        const me = await fetchJSON('/api/v1/me');
+        const response = await fetch('/api/v1/me/live-activity-preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': me.csrf_token, 'If-Match': scope }, body: JSON.stringify({ version: 1, enabled, filters: next }), signal: AbortSignal.timeout(10000) });
+        if (response.status === 412) { await preferences(); throw new Error('Settings changed in another tab. Review the current filters and apply again.'); }
+        if (!response.ok) throw new Error('Filters could not be saved. Check the city, country and event types, then retry.');
+        if (scope !== preferenceScope) return;
+        await preferences();
+      } else {
+        const data = await fetchJSON('/api/v1/community/activity?filter=' + encodeURIComponent(JSON.stringify(publicFilter(next))));
+        if (turn !== preferenceTurn || authenticated) return;
+        guestFilters = next; filters = next;
+        try { localStorage.setItem(storageKey, JSON.stringify(publicFilter(next))); } catch { node('filter-error').textContent = 'Applied for this page. Browser storage is unavailable.'; }
+        stop(); editFilters(filters); summary(); receive(data); if (allowed()) connect();
+      }
+    } catch (error) { node('filter-error').textContent = error.message || 'Filters could not be applied. Your confirmed filters are unchanged.'; }
+    finally { saving = false; node('filter-form').removeAttribute('aria-busy'); }
+  });
   const preferences = async () => {
     const turn = ++preferenceTurn;
     try {
       const response = await fetch('/api/v1/me/live-activity-preferences', { cache: 'no-store', signal: AbortSignal.timeout(10000) });
-      let next, nextRevision = 0, nextAuth = false, nextScope = '';
+      let next, nextRevision = 0, nextAuth = false, nextScope = '', nextFilters = { ...defaults(), ...guestFilters }, nextEnabled = true;
       if (response.status === 401) next = authenticated;
-      else if (response.ok) { const data = await response.json(); next = data.notifications_paused === true || !data.enabled; nextRevision = data.revision; nextAuth = true; nextScope = response.headers.get('ETag') || ''; }
+      else if (response.ok) { const data = await response.json(); next = data.notifications_paused === true || !data.enabled; nextEnabled = data.enabled; nextFilters = data.filters; nextRevision = data.revision; nextAuth = true; nextScope = response.headers.get('ETag') || ''; }
       else throw new Error();
       if (turn !== preferenceTurn) return;
-      const changed = !ready || paused !== next || revision !== nextRevision || authenticated !== nextAuth || preferenceScope !== nextScope;
+      const changed = !ready || paused !== next || revision !== nextRevision || authenticated !== nextAuth || preferenceScope !== nextScope || JSON.stringify(filters) !== JSON.stringify(nextFilters);
       if (authenticated && !nextAuth) { paused = true; stop(); controls(); return; }
       if (preferenceScope.split('-')[1] !== nextScope.split('-')[1]) seen.clear();
       ready = true; paused = next; revision = nextRevision; authenticated = nextAuth; preferenceScope = nextScope; controls();
+      enabled = nextEnabled; filters = nextFilters; summary(); if (changed) editFilters(filters);
       if (changed) { stop(); if (allowed()) connect(); }
     } catch { if (turn === preferenceTurn) { paused = true; stop(); controls(); } }
   };
@@ -207,7 +269,10 @@
   window.addEventListener('pageshow', event => { if (event.persisted) resume(); });
   window.addEventListener('offline', interrupted); window.addEventListener('online', resume);
   window.addEventListener('focus', resume);
-  window.addEventListener('storage', event => { if (event.key === 'ticketopia-live-hidden') { hidden = event.newValue === 'true'; controls(); resume(); } });
+  window.addEventListener('storage', event => {
+    if (event.key === 'ticketopia-live-hidden') { hidden = event.newValue === 'true'; controls(); resume(); }
+    if (event.key === storageKey) { try { guestFilters = event.newValue ? { ...defaults(), ...JSON.parse(event.newValue) } : defaults(); if (!authenticated) resume(); } catch {} }
+  });
   setInterval(() => { if (!document.hidden) preferences(); }, 30000);
   setInterval(() => {
     if (document.hidden) return;

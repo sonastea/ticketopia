@@ -87,6 +87,9 @@ in the app.
 - [x] Enable notifications for existing/new accounts once and provide synced live
   preferences, native pause/disable controls and authenticated delivery
   ([live activity Part 1](docs/design/live-activity-filters.md#part-1--default-on-accounts-and-usable-notification-preferences)).
+- [x] Filter the complete recent live-activity window by city and event type, with
+  guest-local/account-synced Apply and Reset controls
+  ([live activity Part 2](docs/design/live-activity-filters.md#part-2--shared-candidate-index-city-and-event-type-filtering)).
 - [ ] Later: Mark an event Going and choose participation visibility.
 - [x] Post a question, tip, or comment on an event.
 - [x] Reply to another person's contribution.

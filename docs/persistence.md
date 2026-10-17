@@ -1,5 +1,10 @@
 # MariaDB foundation
 
+Schema 18 adds normalized live city/category filters on accounts and a stored
+public title projection on event snapshots. Existing pause/enable choices survive.
+The title follows accepted snapshot writes automatically; no new grants or indexes
+are needed. See [live filtering](live-community-activity.md#city-and-event-type-filters-part-2).
+
 Schema 17 changes the new-account notification pause default to false, adds
 versioned live activity enablement/revision and pause provenance, and resets all
 existing account pauses once as `migration_policy`. Later explicit choices are

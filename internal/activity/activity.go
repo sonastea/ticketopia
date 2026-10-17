@@ -3,6 +3,7 @@ package activity
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -23,9 +24,47 @@ type Item struct {
 	ExpiresAt             time.Time `json:"expires_at"`
 }
 type Snapshot struct {
-	AsOf  time.Time `json:"as_of"`
-	Items []Item    `json:"items"`
+	AsOf         time.Time `json:"as_of"`
+	Items        []Item    `json:"items"`
+	encodedItems []byte
+	encoded      []byte
+	contentHash  [sha256.Size]byte
 }
+
+func (s Snapshot) ContentHash() [sha256.Size]byte {
+	if s.encodedItems != nil {
+		return s.contentHash
+	}
+	return sha256.Sum256(s.ContentJSON())
+}
+
+// Cached snapshots are immutable. Identical public cohorts reuse both the
+// selection and its encoded payload; AsOf is refreshed once per projection read.
+func (s Snapshot) ContentJSON() []byte {
+	if s.encodedItems != nil {
+		return s.encodedItems
+	}
+	data, _ := json.Marshal(s.Items)
+	return data
+}
+func (s Snapshot) MarshalJSON() ([]byte, error) {
+	if s.encoded != nil {
+		return s.encoded, nil
+	}
+	return json.Marshal(struct {
+		AsOf  time.Time       `json:"as_of"`
+		Items json.RawMessage `json:"items"`
+	}{s.AsOf, s.ContentJSON()})
+}
+func (s *Snapshot) encode() {
+	s.encoded = nil
+	if s.encodedItems == nil {
+		s.encodedItems = s.ContentJSON()
+		s.contentHash = sha256.Sum256(s.encodedItems)
+	}
+	s.encoded, _ = s.MarshalJSON()
+}
+
 type Count struct {
 	EventID             string `json:"event_id"`
 	RecommendationCount int    `json:"recommendation_count"`
@@ -46,23 +85,45 @@ type Update struct {
 	Unavailable bool
 }
 type subscriber struct {
-	ids     []string
-	ch      chan Update
-	initial bool
+	ids      []string
+	ch       chan Update
+	initial  bool
+	filter   Filters
+	previous [sha256.Size]byte
 }
 type Service struct {
-	repo   Repository
-	mu     sync.Mutex
-	subs   map[*subscriber]struct{}
-	limit  int
-	cancel context.CancelFunc
-	done   chan struct{}
-	logger zerolog.Logger
+	repo       Repository
+	mu         sync.Mutex
+	subs       map[*subscriber]struct{}
+	limit      int
+	cancel     context.CancelFunc
+	done       chan struct{}
+	logger     zerolog.Logger
+	projection chan struct{}
+	index      *candidateIndex
+	readAt     time.Time
+	readErr    error
+	views      map[string]cachedView
+	keys       map[Location]string
+	viewBytes  int
+	jobs       chan struct{}
+	pending    chan struct{}
+}
+
+type cachedView struct {
+	snapshot Snapshot
+	used     time.Time
+	bytes    int
 }
 
 func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Logger) *Service {
 	ctx, cancel := context.WithCancel(ctx)
 	s := &Service{repo: repo, subs: make(map[*subscriber]struct{}), limit: limit, cancel: cancel, done: make(chan struct{})}
+	s.projection = make(chan struct{}, 1)
+	s.jobs = make(chan struct{}, 2)
+	s.pending = make(chan struct{}, 64)
+	s.views = map[string]cachedView{}
+	s.keys = map[Location]string{}
 	s.logger = zerolog.Nop()
 	if len(loggers) > 0 {
 		s.logger = loggers[0]
@@ -70,33 +131,265 @@ func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Log
 	go s.run(ctx)
 	return s
 }
-func (s *Service) Close()                                         { s.cancel(); <-s.done }
-func (s *Service) Done() <-chan struct{}                          { return s.done }
-func (s *Service) Snapshot(ctx context.Context) (Snapshot, error) { return s.repo.Snapshot(ctx) }
+func (s *Service) Close()                { s.cancel(); <-s.done }
+func (s *Service) Done() <-chan struct{} { return s.done }
+func (s *Service) Snapshot(ctx context.Context) (Snapshot, error) {
+	return s.FilteredSnapshot(ctx, DefaultPreferences().Filters)
+}
+
+func (s *Service) FilteredSnapshot(ctx context.Context, filter Filters) (Snapshot, error) {
+	select {
+	case s.pending <- struct{}{}:
+	default:
+		return Snapshot{}, ErrUnavailable
+	}
+	defer func() { <-s.pending }()
+	f, err := NormalizeFilters(filter)
+	if err != nil {
+		return Snapshot{}, err
+	}
+	select {
+	case s.projection <- struct{}{}:
+	case <-ctx.Done():
+		return Snapshot{}, ErrUnavailable
+	case <-s.done:
+		return Snapshot{}, ErrUnavailable
+	}
+	defer func() { <-s.projection }()
+	now := time.Now()
+	if now.Sub(s.readAt) >= 2*time.Second {
+		// Leave half the budget for in-progress assembly, plus fixed overhead for
+		// bounded location keys/readers. Eviction never changes filter semantics.
+		if s.index != nil && s.index.bytes+s.viewBytes > MemoryBudget/2-(2<<20) {
+			clear(s.views)
+			s.viewBytes = 0
+		}
+		if !s.acquireJob(ctx) {
+			return Snapshot{}, ErrUnavailable
+		}
+		var data Candidates
+		if repo, ok := s.repo.(CandidateRepository); ok {
+			data, err = repo.Candidates(ctx)
+		} else {
+			var snapshot Snapshot
+			snapshot, err = s.repo.Snapshot(ctx)
+			data.AsOf = snapshot.AsOf
+			for _, item := range snapshot.Items {
+				data.Items = append(data.Items, Candidate{Item: item})
+			}
+		}
+		<-s.jobs
+		var index *candidateIndex
+		if err == nil {
+			index, err = buildIndex(data, s.index)
+		}
+		// Start time conservatively includes SQL assembly in contribution age.
+		s.readAt = now
+		s.readErr = err
+		if err != nil {
+			reason := "projection_failed"
+			if errors.Is(err, ErrCandidateLimit) {
+				reason = "candidate_limit"
+			}
+			if errors.Is(err, ErrMemoryLimit) {
+				reason = "memory_limit"
+			}
+			s.logger.Warn().Str("reason", reason).Msg("Live activity generation unavailable")
+			s.index = nil
+			clear(s.views)
+			s.viewBytes = 0
+			return Snapshot{}, ErrUnavailable
+		}
+		if s.index == nil || s.index.fingerprint != index.fingerprint {
+			clear(s.views)
+			s.viewBytes = 0
+		}
+		s.index = index
+	}
+	if s.readErr != nil || s.index == nil || s.expired(time.Now()) {
+		return Snapshot{}, ErrUnavailable
+	}
+	return s.selectCached(ctx, f)
+}
+func (s *Service) expired(now time.Time) bool {
+	if s.index == nil {
+		return false
+	}
+	serverNow := s.index.data.AsOf.Add(now.Sub(s.readAt))
+	for _, c := range s.index.data.Items {
+		if !c.Item.ExpiresAt.IsZero() && !serverNow.Before(c.Item.ExpiresAt) {
+			return true
+		}
+	}
+	return false
+}
+func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error) {
+	key := ""
+	if f.Location.Mode == "city" {
+		var ok bool
+		key, ok = s.keys[f.Location]
+		if !ok {
+			repo, supported := s.repo.(CandidateRepository)
+			if !supported {
+				return Snapshot{}, ErrUnavailable
+			}
+			var err error
+			if !s.acquireJob(ctx) {
+				return Snapshot{}, ErrUnavailable
+			}
+			key, err = repo.LocationKey(ctx, f.Location)
+			<-s.jobs
+			if err != nil {
+				return Snapshot{}, err
+			}
+			if len(s.keys) >= 384 {
+				active := map[Location]bool{}
+				s.mu.Lock()
+				for sub := range s.subs {
+					active[sub.filter.Location] = true
+				}
+				s.mu.Unlock()
+				for location := range s.keys {
+					if !active[location] {
+						delete(s.keys, location)
+						break
+					}
+				}
+				if len(s.keys) >= 384 {
+					return Snapshot{}, ErrUnavailable
+				}
+			}
+			s.keys[f.Location] = key
+		}
+	}
+	digest := publicKey(key, f.CategoryIDs)
+	now := time.Now()
+	if v, ok := s.views[digest]; ok {
+		v.used = now
+		if !v.snapshot.AsOf.Equal(s.index.data.AsOf) {
+			v.snapshot.AsOf = s.index.data.AsOf
+			v.snapshot.encode()
+		}
+		s.views[digest] = v
+		return v.snapshot, nil
+	}
+	active := map[string]bool{}
+	s.mu.Lock()
+	for sub := range s.subs {
+		city := s.keys[sub.filter.Location]
+		if sub.filter.Location.Mode == "all" || city != "" {
+			active[publicKey(city, sub.filter.CategoryIDs)] = true
+		}
+	}
+	s.mu.Unlock()
+	extra := 0
+	oldest := ""
+	var oldestAt time.Time
+	for k, v := range s.views {
+		if active[k] {
+			continue
+		}
+		if now.Sub(v.used) >= 30*time.Second {
+			s.viewBytes -= v.bytes
+			delete(s.views, k)
+			continue
+		}
+		extra++
+		if oldest == "" || v.used.Before(oldestAt) {
+			oldest, oldestAt = k, v.used
+		}
+	}
+	if !active[digest] && extra >= 128 {
+		s.viewBytes -= s.views[oldest].bytes
+		delete(s.views, oldest)
+	}
+	view := s.index.selectView(f, key)
+	view.encode()
+	bytes := len(view.encoded)*4 + len(digest)*2 + 1024
+	if s.index.bytes*2+s.viewBytes+bytes+(2<<20) > MemoryBudget {
+		return Snapshot{}, ErrUnavailable
+	}
+	s.views[digest] = cachedView{view, now, bytes}
+	s.viewBytes += bytes
+	return view, nil
+}
+func publicKey(city string, categories []string) string {
+	data, _ := json.Marshal(struct {
+		City       string
+		Categories []string
+	}{city, categories})
+	return string(data)
+}
 func (s *Service) Counts(ctx context.Context, ids []string) (Counts, error) {
+	if !s.acquireJob(ctx) {
+		return Counts{}, ErrUnavailable
+	}
+	defer func() { <-s.jobs }()
 	return s.repo.Counts(ctx, ids)
 }
-func (s *Service) Subscribe(ids []string) (<-chan Update, func(), error) {
+func (s *Service) acquireJob(ctx context.Context) bool {
+	select {
+	case s.jobs <- struct{}{}:
+		return true
+	case <-ctx.Done():
+		return false
+	case <-s.done:
+		return false
+	}
+}
+func (s *Service) Subscribe(ids []string, filters ...Filters) (<-chan Update, func(), error) {
+	f := DefaultPreferences().Filters
+	if len(filters) > 0 {
+		f = filters[0]
+	}
+	var err error
+	f, err = NormalizeFilters(f)
+	if err != nil {
+		return nil, nil, err
+	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	select {
 	case <-s.done:
+		s.mu.Unlock()
 		return nil, nil, ErrUnavailable
 	default:
 	}
 	if len(s.subs) >= s.limit {
+		s.mu.Unlock()
 		return nil, nil, ErrUnavailable
 	}
-	sub := &subscriber{ids: append([]string(nil), ids...), ch: make(chan Update, 1), initial: true}
+	sub := &subscriber{ids: append([]string(nil), ids...), ch: make(chan Update, 1), initial: true, filter: f}
 	s.subs[sub] = struct{}{}
-	s.logger.Debug().Int("connections", len(s.subs)).Msg("Live activity connection opened")
+	connections := len(s.subs)
+	s.mu.Unlock()
+	// A valid warm view is delivered before initial count work. Never block on SQL
+	// while holding the subscriber lock.
+	select {
+	case s.projection <- struct{}{}:
+		if s.index != nil && s.readErr == nil && time.Since(s.readAt) < 2*time.Second && !s.expired(time.Now()) {
+			key := s.keys[f.Location]
+			if f.Location.Mode == "all" || key != "" {
+				view, err := s.selectCached(context.Background(), f)
+				if err == nil {
+					s.mu.Lock()
+					select {
+					case sub.ch <- Update{Snapshot: view}:
+					default:
+					}
+					s.mu.Unlock()
+				}
+			}
+		}
+		<-s.projection
+	default:
+	}
+	s.logger.Debug().Int("connections", connections).Msg("Live activity connection opened")
 	return sub.ch, func() { s.mu.Lock(); delete(s.subs, sub); s.mu.Unlock() }, nil
 }
 func (s *Service) run(ctx context.Context) {
 	defer close(s.done)
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
-	var previous string
 	var lastCounts, lastPoll, lastCleanup time.Time
 	var snapshot Snapshot
 	var readErr error
@@ -107,31 +400,56 @@ func (s *Service) run(ctx context.Context) {
 			return
 		case now = <-tick.C:
 		}
+		select {
+		case s.projection <- struct{}{}:
+			for key, view := range s.views {
+				if now.Sub(view.used) >= 30*time.Second {
+					s.viewBytes -= view.bytes
+					delete(s.views, key)
+				}
+			}
+			s.mu.Lock()
+			idle := len(s.subs) == 0
+			s.mu.Unlock()
+			if idle && now.Sub(s.readAt) >= 30*time.Second {
+				s.index = nil
+				clear(s.views)
+				s.viewBytes = 0
+				clear(s.keys)
+			}
+			<-s.projection
+		default:
+		}
 		if now.Sub(lastCleanup) >= time.Minute {
-			_ = s.repo.Cleanup(ctx)
+			if s.acquireJob(ctx) {
+				_ = s.repo.Cleanup(ctx)
+				<-s.jobs
+			}
 			lastCleanup = now
 		}
 		s.mu.Lock()
 		targets := make([]*subscriber, 0, len(s.subs))
 		ids := map[string]bool{}
 		due := now.Sub(lastCounts) >= 15*time.Second
+		regularCounts := due
 		for sub := range s.subs {
 			targets = append(targets, sub)
 			if sub.initial {
 				due = true
 			}
-			for _, id := range sub.ids {
-				ids[id] = true
+			if regularCounts || sub.initial {
+				for _, id := range sub.ids {
+					ids[id] = true
+				}
 			}
 		}
 		s.mu.Unlock()
 		if len(targets) == 0 {
-			previous = ""
 			continue
 		}
 		if now.Sub(lastPoll) >= 2*time.Second {
 			started := time.Now()
-			snapshot, readErr = s.repo.Snapshot(ctx)
+			snapshot, readErr = s.Snapshot(ctx)
 			lastPoll = now
 			if readErr != nil {
 				s.logger.Warn().Msg("Live activity poll failed")
@@ -139,8 +457,6 @@ func (s *Service) run(ctx context.Context) {
 			s.logger.Debug().Int("connections", len(targets)).Dur("duration", time.Since(started)).Msg("Live activity poll completed")
 		}
 		err := readErr
-		encoded, _ := json.Marshal(snapshot.Items)
-		changed := string(encoded) != previous
 		totals := Counts{Items: []Count{}}
 		if err == nil && due {
 			union := make([]string, 0, len(ids))
@@ -150,33 +466,43 @@ func (s *Service) run(ctx context.Context) {
 			for start := 0; start < len(union); start += 101 {
 				end := min(start+101, len(union))
 				var batch Counts
-				batch, err = s.repo.Counts(ctx, union[start:end])
+				batch, err = s.Counts(ctx, union[start:end])
 				if err != nil {
 					break
 				}
 				totals.AsOf = batch.AsOf
 				totals.Items = append(totals.Items, batch.Items...)
 			}
-			lastCounts = now
+			if regularCounts {
+				lastCounts = now
+			}
 		}
 		byID := map[string]Count{}
 		for _, c := range totals.Items {
 			byID[c.EventID] = c
 		}
-		s.mu.Lock()
 		for _, sub := range targets {
+			view := snapshot
+			viewErr := err
+			if viewErr == nil {
+				view, viewErr = s.FilteredSnapshot(ctx, sub.filter)
+			}
+			contentHash := view.ContentHash()
+			s.mu.Lock()
 			if _, ok := s.subs[sub]; !ok {
+				s.mu.Unlock()
 				continue
 			}
-			u := Update{Snapshot: snapshot, Unavailable: err != nil}
-			if due {
+			changed := contentHash != sub.previous
+			u := Update{Snapshot: view, Unavailable: viewErr != nil}
+			if due && (regularCounts || sub.initial) {
 				c := Counts{AsOf: totals.AsOf, Items: []Count{}}
 				for _, id := range sub.ids {
 					c.Items = append(c.Items, byID[id])
 				}
 				u.Counts = &c
 			}
-			if changed || due || sub.initial || err != nil {
+			if changed || u.Counts != nil || sub.initial || viewErr != nil {
 				select {
 				case sub.ch <- u:
 				default:
@@ -188,12 +514,12 @@ func (s *Service) run(ctx context.Context) {
 				}
 				sub.initial = false
 			}
-		}
-		s.mu.Unlock()
-		if err == nil {
-			previous = string(encoded)
-		} else {
-			previous = ""
+			if viewErr == nil {
+				sub.previous = contentHash
+			} else {
+				sub.previous = [sha256.Size]byte{}
+			}
+			s.mu.Unlock()
 		}
 	}
 }

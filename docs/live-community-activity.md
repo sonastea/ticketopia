@@ -1,13 +1,13 @@
 # Live community activity
 
 Live activity is a sitewide view of public recommendations from the last
-ten minutes. Guests and enabled signed-in visitors see the same public view. It starts
+ten minutes. Guests and enabled signed-in visitors can filter the public view. It starts
 collapsed above app content and never reorders Community or other collections.
 
-Part 1 of the [default-on filtering extension](design/live-activity-filters.md)
-adds default-on account preferences and authenticated all-events delivery.
-Location/type/entity and private connection filters remain planned; non-default
-filter values are explicitly rejected. Production rollout remains Part 5.
+Parts 1–2 of the [default-on filtering extension](design/live-activity-filters.md)
+add default-on preferences and complete-window city/event-type filtering.
+Artist/venue, private connection and radius filters remain unsupported and are
+explicitly rejected. Production rollout remains Part 5.
 
 ## Default-on preferences (Part 1)
 
@@ -18,9 +18,8 @@ Keep production explicitly off until the coordinated rollout and performance gat
 
 Schema 17 resets **all existing accounts**, including previously paused accounts,
 to notifications enabled once. New accounts also start unpaused with live activity
-enabled. Version 1 represents Everywhere / all event types / all events. The current
-implementation persists version, enabled and revision on the account; its only
-supported filter representation is the fixed all-events default.
+enabled. Version 1 starts with Everywhere / all event types / all events. The current
+implementation persists version, enabled, normalized filters and revision on the account.
 The migration labels pause provenance `migration_policy`, new accounts use `default`,
 and subsequent explicit pause saves use `user`. Restart, login and migration reruns
 never repeat the reset. Email permission, subscriptions and delivery history are
@@ -47,9 +46,56 @@ guest storage. No feed bodies or private account state are stored in browser sto
   Cross-replica revocation is bounded by 30 seconds. Authentication failure never
   broadens an already signed-in document to guest activity.
 
-Part 1 reuses the existing twenty-group public projection and existing count cadence.
-Complete-window filtering, shared snapshot caching and further resource budgets are
-later checkpoints, not claimed here.
+## City and event-type filters (Part 2)
+
+Open **Filter live activity**, choose Everywhere or a city with its two-letter
+country, and select catalog event types. **Apply** commits one change; **Reset
+filters** restores Everywhere / all types without enabling a disabled feed or
+clearing a pause/hide. Categories match any selection; location and categories
+compose with AND. No matches gives an explicit empty state, never a wider feed.
+The summary shows confirmed settings; unsaved changes stay in the editor.
+
+Guests retain only public filter settings in `ticketopia-live-filters-v1` local
+storage. Account settings win on sign-in; **Reuse this browser’s filters** copies
+them into a draft for explicit Apply. Account changes sync through MariaDB and
+conditional revisions. Preferences has equivalent native/JavaScript-disabled
+filter controls. Live activity remains an enhancement; native Community works
+without JavaScript. **Use browsing city**, when a browsing city/country is present,
+copies it after confirmation and does not track later navigation.
+
+City matching uses Community's authoritative first-venue, per-field event-place
+fallback. MariaDB Unicode collation weights preserve literal equality (including
+case/accent equivalence and trailing spaces), never substring/wildcard matching.
+Country is uppercased; city whitespace normalized. Equal city labels in one
+country cannot be distinguished. Missing locations match Everywhere only.
+Category IDs are case-sensitive catalog IDs, capped at 16 before deduplication,
+sorted before cache keys. Unsupported nonempty artist/venue or connection lists
+and radius requests fail explicitly.
+
+Schema 18 adds JSON filter storage and a stored title projection that follows the
+winning snapshot automatically, including backfill. It does not reset enabled or
+pause choices. Candidate queries read lightweight titles, Community location
+weights, metadata revisions and indexed category facets in one consistent read.
+All eligible groups are ordered before recipient matching; the twenty-group limit
+is applied last. Slots survive reorders/name edits; rebuilt bitmaps clear removed
+slots before reuse. Public views share canonical city/category cache keys and
+encoded snapshot payloads. Generation fingerprints hash bounded candidates one
+at a time rather than retaining a second name-bearing copy of the full window.
+
+Snapshots and streams coalesce through one generation builder per replica, at
+most once per two seconds. Valid warm subscriptions receive activity before count
+work. Joining count subscriptions read only their IDs without resetting the ordinary
+15-second cadence. No provider calls occur in the streaming path; each new city
+scope resolves its database collation key once and reuses the bounded key cache.
+Bounds: 10,000 candidate groups (cap+1 detects overflow), 64 MiB conservative
+candidate/index/assembly/view accounting, two concurrent activity SQL jobs, 64
+pending projection readers, and at most 128 extra snapshot-only cohorts beyond
+active stream cohorts, with 30-second idle expiry and earlier LRU eviction under
+pressure. A candidate's title/location/key facts are bounded to 64 KiB; exceeding
+that fails the projection rather than truncating an essential label. This is not
+an RSS cap. A failed, expired, overflowing or over-budget generation is unavailable,
+never truncated or silently widened;
+generation failures log bounded reasons without filter/actor values.
 
 ## Attribution and controls
 
@@ -106,13 +152,18 @@ invalidate older callbacks and trigger fresh reads.
 
 ## HTTP and operations
 
-- `GET /api/v1/community/activity`: bounded snapshot, no filters/pagination.
+- `GET /api/v1/community/activity`: bounded filtered snapshot, no pagination.
 - `GET /api/v1/community/activity/stream`: SSE `activity.snapshot`, optional
   `counts.snapshot`, `heartbeat` every 15 seconds, and content-free `unavailable`.
 - `GET /api/v1/events/activity-counts`: repeated `event_id`, at least one.
 
 Both count inputs accept at most 101 distinct provider IDs and 32768 query bytes;
 unknown parameters/invalid IDs are 400. Unknown valid IDs have zero totals.
+Public activity reads also accept one `filter` JSON object, at most 4 KiB decoded,
+with optional `location`, `category_ids`, empty `artist_ids` and empty `venue_ids`.
+Omission preserves the default view. Private reads use confirmed stored filters,
+not URL lists. Snapshot and stream starts share the IP limit; 429 includes
+`Retry-After: 60`. Counts remain independent of feed filters.
 Responses use `private, no-store`; SSE additionally uses `no-transform` and
 `X-Accel-Buffering: no`. No CORS is added. SSE has `retry: 5000`, no `id` or replay
 cursor, and ignores Last-Event-ID. Pre-header failures use problem JSON (400,
@@ -133,6 +184,51 @@ only still-eligible recent entries, without backfill. Related guides:
 [persistence](persistence.md), [UI](ui-components.md).
 
 ## Verification
+
+Part 2 local checks (2026-10-16) exercise a Berlin music recommendation older than
+25 globally newer London events, reset, normalized city/country, literal wildcards,
+accent/case collation, case-sensitive categories, metadata corrections, persisted
+canonical no-ops, complete-window reference comparisons, stable slots, shared
+reads/encoded views, candidate/memory/cohort caps and SQL overflow. The browser
+fixture uses production routes and isolated MariaDB; its 25-check filter journey covers
+guest/account scope, native Reset, fallback, Overview/Back, composer identity/drafts,
+private selected participation, keyboard focus and automated accessibility. The
+existing 64-check live-activity journey also passes, including pause/disable,
+credential changes, hide/reconnect, count updates and JavaScript-disabled forms.
+The full real-MariaDB race suite and final affected-package race checks, host vet,
+generated asset/binary build, OpenAPI lint and final Docker `make check` pass.
+OpenAPI retains the two existing health-probe warnings; the scoped styling
+detector reports no findings. Part 2 is a locally verified checkpoint.
+
+Desktop and 320px filter captures are in `.impeccable/review/live-filters/` locally.
+Filter controls wrap at 200% text and retain forced-colors focus/reduced-motion
+behavior. An existing Community **More recommendations** pagination button
+overflows at 320px with 200% root text; the enlarged-text assertion is scoped to
+the changed live region. Physical-device/manual screen-reader and deployment
+proxy/load verification remain Part 5.
+
+Populated-window baseline: Apple M1, darwin/arm64, local MariaDB 12.3.3 Docker
+service with no per-container memory/CPU limit, no proxy, one app reader. Fixtures
+use one contribution per group, two cities/categories and short synthetic titles;
+these are development measurements, not the three-replica load gate. In-memory
+selection averages 3.7 / 7.0 / 7.2 microseconds at 100 / 1,000 / 10,000 groups;
+index construction averages 0.13 / 1.28 / 12.1 ms, allocating approximately
+59 kB / 478 kB / 4.41 MB per generation. Benchmarks report Go `ns/op`, not p95.
+SQL projection p50/p95 over 20 samples was 6.2/6.7 ms at 100 groups,
+14.3/15.1 ms at 1,000, and 117.4/131.3 ms at 10,000. The 10,001-group case
+returned unavailable. Other local checks ran during fixture preparation; these
+numbers do not establish isolated production capacity or the larger-lineup gate.
+
+Reproduce SQL projection/overflow and in-memory baselines with:
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_FILTER_BENCHMARK=true \
+  go test ./internal/persistence -run TestMariaDBLiveFilterBaseline -count=1 -v
+go test ./internal/activity -run '^$' -bench BenchmarkCandidate -benchmem
+```
+
+For the filter browser demo, use the command below with
+`LIVE_ACTIVITY_BROWSER_SCRIPT=../../scripts/live-activity-filters-browser.cjs`.
 
 Part 1 local checkpoint (2026-10-16): real MariaDB upgrade/rerun tests cover both
 previous pause values, durable subsequent pause/disable, new-account defaults and

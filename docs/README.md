@@ -23,9 +23,9 @@ their status; they describe intended work rather than available features.
 - [Live community activity specification](design/live-community-activity.md): implemented
   sitewide recommendations, count refreshes and chosen first-name-only attribution;
   includes remaining manual/deployment acceptance checks.
-- [Default-on, filtered live activity](design/live-activity-filters.md): Part 1 default-on preferences;
-  planned event-location/type/entity and private connection filters, shared candidate
-  indexing, existing-account notification enablement and six working checkpoints
+- [Default-on, filtered live activity](design/live-activity-filters.md): default-on preferences,
+  city/type filtering and shared candidate indexing; planned entity/private filters
+  and six working checkpoints
   with incremental verification and three-replica performance gates.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.

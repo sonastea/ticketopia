@@ -286,11 +286,12 @@ templ Preferences(p Page) {
 					<input type="checkbox" name="enabled" aria-labelledby="live-enabled-label" aria-describedby="live-enabled-help" checked?={ p.LivePreferences.Enabled }/>
 					<span class="notification-copy">
 						<span id="live-enabled-label" class="notification-title">Enable live activity</span>
-						<span id="live-enabled-help" class="field-note">Everywhere · All event types · All events. Turn off just this feed without pausing replies or email reminders.</span>
+						<span id="live-enabled-help" class="field-note">Turn off just this feed without pausing replies or email reminders.</span>
 					</span>
 				</label></div>
 			</div>
 			<p class="field-note">Pause all notifications overrides this choice. Hide live activity hides it only in that browser, even while your account preference is enabled.</p>
+			@layouts.LiveFilterFields(p.LivePreferences.Filters, p.Categories)
 			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) { Save live activity }
 		</form>
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -28,7 +29,7 @@ func (r *liveRepository) Snapshot(context.Context) (activity.Snapshot, error) {
 	}
 	name := "Alex"
 	now := time.Now().UTC()
-	return activity.Snapshot{AsOf: now, Items: []activity.Item{{EventID: "ticketmaster:test", EventTitle: "A concert", City: "London", ActorFirstName: &name, RecentRecommendations: 1, LatestRecommendedAt: time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC), ExpiresAt: time.Date(2026, 10, 15, 12, 10, 0, 0, time.UTC)}}}, nil
+	return activity.Snapshot{AsOf: now, Items: []activity.Item{{EventID: "ticketmaster:test", EventTitle: "A concert", City: "London", ActorFirstName: &name, RecentRecommendations: 1, LatestRecommendedAt: now.Truncate(time.Minute), ExpiresAt: now.Add(10 * time.Minute)}}}, nil
 }
 func (r *liveRepository) Counts(_ context.Context, ids []string) (activity.Counts, error) {
 	c := activity.Counts{AsOf: time.Now().UTC(), Items: []activity.Count{}}
@@ -53,7 +54,7 @@ func TestLivePublicRoutesAndStream(t *testing.T) {
 	for _, test := range []struct {
 		path   string
 		status int
-	}{{"/api/v1/community/activity", 200}, {"/api/v1/community/activity?city=London", 400}, {"/api/v1/events/activity-counts", 400}, {"/api/v1/events/activity-counts?event_id=ticketmaster:test&event_id=ticketmaster:test", 200}, {"/api/v1/events/activity-counts?event_id=bad", 400}} {
+	}{{"/api/v1/community/activity", 200}, {"/api/v1/community/activity?filter=" + url.QueryEscape(`{"category_ids":["Music"]}`), 200}, {"/api/v1/community/activity?filter=" + url.QueryEscape(`{"connections":{"mode":"any","sources":["saved"]}}`), 400}, {"/api/v1/community/activity?filter=" + url.QueryEscape(`{"location":{"mode":"radius"}}`), 400}, {"/api/v1/community/activity?city=London", 400}, {"/api/v1/events/activity-counts", 400}, {"/api/v1/events/activity-counts?event_id=ticketmaster:test&event_id=ticketmaster:test", 200}, {"/api/v1/events/activity-counts?event_id=bad", 400}} {
 		response, err := http.Get(server.URL + test.path)
 		if err != nil {
 			t.Fatal(err)

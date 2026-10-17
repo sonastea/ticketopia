@@ -2,6 +2,7 @@ package layouts
 
 import "github.com/sonastea/ticketopia/views/components"
 import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/internal/activity"
 
 templ Base(title string) {
 	<!DOCTYPE html>
@@ -89,6 +90,10 @@ templ App(active string, title string) {
 						<p class="field-note" data-live-paused hidden>Live activity is paused. <a class="text-link" href="/me/preferences">Notification preferences</a></p>
 						<details data-live-details>
 							<summary>Live activity <span data-live-badge></span></summary>
+							<p class="field-note" data-live-summary>Everywhere · All event types · All events</p>
+							<form class="account-form" data-live-filter-form>
+								@LiveFilterFields(activity.DefaultPreferences().Filters, nil)
+							</form>
 							<p class="field-note" data-live-connection>Connecting to live activity…</p>
 							<button type="button" class="text-link" data-live-updates hidden></button>
 							<ul data-live-list></ul>

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### 2026-10-16 — Part 2: complete-window city and event-type filters
+
+- Add lightweight complete-window projection, stable bitmap slots, canonical shared
+  views, coalesced snapshots, immediate warm activity and bounded unavailable states.
+- Schema 18 persists city/category filters and projects titles without resetting
+  notification choices; reuse Community's literal MariaDB location collation.
+- Connect guest-local and conditional account-synced Apply/Reset, confirmed summaries,
+  explicit empty states, browser-filter reuse and native account controls.
+- Preserve independent counts, Overview/Back, draft/participation state and quiet
+  changes. Artist/venue, personal and radius filters remain explicitly unsupported.
+- See the [implemented guide](../live-community-activity.md#city-and-event-type-filters-part-2)
+  for bounds, local verification and populated-window baseline. Production stays off.
+- Pass 25 filter browser checks plus the existing 64-check live journey, real
+  MariaDB race regressions/full suite, vet, OpenAPI lint, generated builds and final
+  Docker validation. Record 100/1,000/10,000-group baselines and fail-closed overflow;
+  mark Part 2 complete locally, leaving Parts 3–6 unchecked.
+
 ### 2026-10-16 — Part 1: default-on accounts and live preferences
 
 - Add dependency-aware availability and preserve explicit deployment kill switches.

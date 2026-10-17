@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -374,6 +375,10 @@ func runActivityBrowser(t *testing.T, script string) {
 		}
 	}
 	seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "sports", Name: "Sports"}, Genres: []models.Genre{}}})
+	if strings.HasSuffix(script, "live-activity-filters-browser.cjs") {
+		seedLiveFilterWindow(t, p, owner.ID, 26)
+		seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "Music", Name: "Music"}}, {NamedID: models.NamedID{ID: "sports", Name: "Sports"}}})
+	}
 	if script == os.Getenv("ACTION_FEEDBACK_BROWSER_SCRIPT") {
 		// Six choices give both collection pages first/middle/last removals,
 		// without changing the shared three-event discovery fixture.

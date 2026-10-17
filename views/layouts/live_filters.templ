@@ -1,0 +1,40 @@
+package layouts
+
+import "github.com/sonastea/ticketopia/internal/activity"
+import "github.com/sonastea/ticketopia/internal/models"
+import "slices"
+
+templ LiveFilterFields(f activity.Filters, categories []models.Category) {
+	<details class="account-more" data-live-filter-details>
+		<summary>Filter live activity</summary>
+		<label class="field">Location
+			<select name="location_mode" aria-label="Location" data-live-location>
+				<option value="all" selected?={ f.Location.Mode == "all" }>Everywhere</option>
+				<option value="city" selected?={ f.Location.Mode == "city" }>City and country</option>
+			</select>
+		</label>
+		<div class="account-field-grid">
+			<label class="field">City <input name="live_city" value={ f.Location.City } maxlength="120" data-live-city/></label>
+			<label class="field">Two-letter country <input name="live_country" value={ f.Location.Country } maxlength="2" pattern="[A-Za-z]{2}" data-live-country/></label>
+		</div>
+		<button type="button" class="text-link" data-live-browsing hidden>Use browsing city</button>
+		<p class="field-note">City names match within a country. This does not change Discover.</p>
+		<fieldset class="account-checkboxes" data-live-categories><legend>Event types</legend>
+			<p class="field-note">No selections means all event types.</p>
+			for _, category := range categories {
+				<label><input type="checkbox" name="live_category_ids" value={ category.ID } checked?={ slices.Contains(f.CategoryIDs, category.ID) }/><span>{ category.Name }</span></label>
+			}
+			for _, id := range f.CategoryIDs {
+				if !slices.ContainsFunc(categories, func(c models.Category) bool { return c.ID == id }) {
+					<label><input type="checkbox" name="live_category_ids" value={ id } checked/><span>Selected category: { id }</span></label>
+				}
+			}
+		</fieldset>
+		<p class="field-note" data-live-filter-error role="status"></p>
+		<div class="account-actions">
+			<button type="submit" class="action action-secondary" name="filter_action" value="apply">Apply</button>
+			<button type="submit" class="text-link" name="filter_action" value="reset" data-live-reset formnovalidate>Reset filters</button>
+			<button type="button" class="text-link" data-live-reuse hidden>Reuse this browser’s filters</button>
+		</div>
+	</details>
+}

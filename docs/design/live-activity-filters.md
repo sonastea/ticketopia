@@ -1,6 +1,6 @@
 # Default-on, filtered live activity
 
-**Status:** Part 1 implemented and locally verified; Parts 2–6 remain planned.
+**Status:** Parts 1–2 implemented and locally verified; Parts 3–6 remain planned.
 **Date:** 2026-10-16.
 **Extends:** [Implemented live activity](../live-community-activity.md) and its
 [original specification](live-community-activity.md).
@@ -489,7 +489,7 @@ useful stopping/review points, not backend-only foundations awaiting a later UI.
 
 - [x] **Part 1:** Existing/new accounts have notifications enabled; live preferences
   and pause controls work on the current live feed.
-- [ ] **Part 2:** City and event-type filters work on the complete recent window.
+- [x] **Part 2:** City and event-type filters work on the complete recent window.
 - [ ] **Part 3:** Specific artist and venue filters compose with city/type filters.
 - [ ] **Part 4:** Saved/Interested/followed-artist/followed-venue personalization works
   across replicas.
@@ -560,6 +560,22 @@ unchanged channel-permission/subscription/delivery records, owner/other-account
 authorization, preference conflicts, session changes and browser hide/pause/fallback.
 
 ### Part 2 — Shared candidate index, city and event-type filtering
+
+**Completed locally — 2026-10-16.** Schema 18, complete-window shared projection,
+stable bitmap slots, canonical/encoded public view reuse, bounded overload behavior,
+public filters and conditional account preferences are connected to the shell and
+native account controls. The production-route demo reveals Berlin music behind
+25 newer London events and resets to the global view. Its 25 browser checks cover
+guest persistence, account sync, native Reset, fallback, Overview/Back, mounted
+composer/draft and private participation preservation, keyboard and accessibility;
+the existing 64-check live journey also passes. Real MariaDB regressions, the full
+race suite plus final affected-package checks, vet, OpenAPI lint, generated build
+and final Docker validation pass. SQL projection p95 is 6.7 / 15.1 / 131.3 ms for
+100 / 1,000 / 10,000 synthetic groups; overflow fails closed. The
+[implemented guide](../live-community-activity.md#verification) records resource
+bounds, reproducible baselines and the existing enlarged-text Community pagination
+limitation. Three-replica load, proxy, physical-device and manual screen-reader
+gates remain Part 5; no production deployment was performed.
 
 **Outcome:** a visitor selects a city and categories and sees the correct recent
 matches, including events outside the original global top twenty.

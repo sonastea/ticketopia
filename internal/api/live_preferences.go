@@ -51,7 +51,7 @@ func (a *api) livePreferences(c echo.Context) error {
 		if e != nil {
 			return liveProblem(c, 400, "invalid_preferences", e.Error())
 		}
-		pref, err = a.accounts.ReplaceLivePreferences(c.Request().Context(), p.Account.ID, revision, value.Enabled)
+		pref, err = a.accounts.ReplaceLivePreferences(c.Request().Context(), p.Account.ID, revision, value.Enabled, value.Filters)
 	} else {
 		pref, err = a.accounts.LivePreferences(c.Request().Context(), p.Account.ID)
 	}
@@ -66,7 +66,7 @@ func (a *api) livePreferences(c echo.Context) error {
 }
 func (a *api) livePreferencesPage(c echo.Context) error {
 	privateAccountResponse(c)
-	if err := parseAccountForm(c, "enabled", "revision"); err != nil {
+	if err := parseAccountForm(c, "enabled", "revision", "location_mode", "live_city", "live_country", "live_category_ids", "filter_action"); err != nil {
 		return a.accountPageError(c, err)
 	}
 	p, err := a.principal(c, true)
@@ -80,7 +80,24 @@ func (a *api) livePreferencesPage(c echo.Context) error {
 	if err != nil {
 		return a.renderAccount(c, 400, p, "preferences", "Reload preferences before saving.", "", "")
 	}
-	_, err = a.accounts.ReplaceLivePreferences(c.Request().Context(), p.Account.ID, revision, c.FormValue("enabled") == "on")
+	filters := []activity.Filters{}
+	if c.FormValue("location_mode") != "" {
+		f := activity.DefaultPreferences().Filters
+		if c.FormValue("filter_action") != "reset" {
+			f.Location.Mode = c.FormValue("location_mode")
+			if f.Location.Mode == "city" {
+				f.Location.City = c.FormValue("live_city")
+				f.Location.Country = c.FormValue("live_country")
+			}
+			f.CategoryIDs = append([]string{}, c.Request().PostForm["live_category_ids"]...)
+		}
+		f, err = activity.NormalizeFilters(f)
+		if err != nil {
+			return a.renderAccount(c, 400, p, "preferences", err.Error(), "", "")
+		}
+		filters = append(filters, f)
+	}
+	_, err = a.accounts.ReplaceLivePreferences(c.Request().Context(), p.Account.ID, revision, c.FormValue("enabled") == "on", filters...)
 	if errors.Is(err, accounts.ErrLiveConflict) {
 		return a.renderAccount(c, 412, p, "preferences", err.Error(), "", "")
 	}

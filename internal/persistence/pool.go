@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 17
+const SupportedSchemaVersion = 18
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -127,7 +127,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		return err
 	}
 	for _, query := range []string{
-		`SELECT live_activity_version,live_activity_enabled,live_activity_revision,notification_pause_source FROM accounts LIMIT 0`,
+		`SELECT live_activity_version,live_activity_enabled,live_activity_revision,notification_pause_source,live_activity_filters FROM accounts LIMIT 0`,
 		`SELECT id,next_send FROM reminder_dispatch LIMIT 0`,
 		`SELECT reminder_id,account_id,event_id,lead_minutes,active,state,next_check,lease_until,token FROM event_reminders LIMIT 0`,
 		`SELECT job_id,reminder_id,sale_at,state,attempts,attempted_at,message_id,unsubscribe_hash FROM reminder_jobs LIMIT 0`,
@@ -143,7 +143,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT ` + credentialColumns + ` FROM account_credentials LIMIT 0`,
 		`SELECT state_hash, browser_hash, verifier, nonce, return_to, expires_at FROM auth_flows LIMIT 0`,
 		`SELECT bucket_hash, attempts, expires_at FROM auth_rate_limits LIMIT 0`,
-		`SELECT event_id, snapshot, data_as_of, community_city, community_country FROM event_snapshots LIMIT 0`,
+		`SELECT event_id, snapshot, data_as_of, community_city, community_country,activity_title FROM event_snapshots LIMIT 0`,
 		`SELECT account_id, event_id, saved_at FROM saved_events LIMIT 0`,
 		`SELECT account_id, event_id, interested_at, visibility FROM event_interests LIMIT 0`,
 		`SELECT account_id, event_id, reason, recommended_at, updated_at, withdrawn_at FROM event_recommendations LIMIT 0`,

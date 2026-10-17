@@ -534,6 +534,17 @@ The composer inherits a bordered, plum-text native disclosure and the white acco
 
 Event, profile, and Community lists share flat, rule-separated attribution and reasons rather than raised social cards. Collection entries retain image/date indexing and essential event facts ahead of the linked author; event-local lists omit duplicate event artwork. Reasons preserve line breaks, wrap long text, and use the existing event-prose measure (70ch); publication and edit metadata stay secondary. See [public recommendations](docs/event-recommendations.md) and the [recommendation surface contract](.impeccable/surfaces/views-home-recommendations-templ.md) for audience, ordering, and browsing behavior.
 
+### Live Activity
+
+Live activity retains its collapsed native disclosure above the workspace. Its
+nested **Filter live activity** editor reuses account fields, checkbox rows and
+plum Apply/quiet Reset actions for city/country and catalog event types. Confirmed
+scope labels wrap in ordinary text; an empty match explicitly offers Reset without
+widening automatically. Guest settings stay browser-local, while account settings
+have equivalent native controls in Preferences. Applying filters replaces only the
+live region, preserving event composers, drafts, focus and participation controls.
+No new visual tokens, imagery or motion are introduced. See [live filtering](docs/live-community-activity.md#city-and-event-type-filters-part-2).
+
 ### Event Discussions
 
 Questions and replies inherit Manrope, plum actions, native disclosures, and flat

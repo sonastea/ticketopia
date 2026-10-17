@@ -18,7 +18,7 @@ type LivePreferences struct {
 }
 type LiveRepository interface {
 	LivePreferences(context.Context, string) (LivePreferences, error)
-	ReplaceLivePreferences(context.Context, string, uint64, bool) (LivePreferences, error)
+	ReplaceLivePreferences(context.Context, string, uint64, bool, ...activity.Filters) (LivePreferences, error)
 	LiveScopes(context.Context, []string) (map[string]LivePreferences, error)
 }
 
@@ -29,12 +29,12 @@ func (s *Service) LivePreferences(ctx context.Context, owner string) (LivePrefer
 	}
 	return r.LivePreferences(ctx, owner)
 }
-func (s *Service) ReplaceLivePreferences(ctx context.Context, owner string, revision uint64, enabled bool) (LivePreferences, error) {
+func (s *Service) ReplaceLivePreferences(ctx context.Context, owner string, revision uint64, enabled bool, filters ...activity.Filters) (LivePreferences, error) {
 	r, ok := s.repo.(LiveRepository)
 	if !ok {
 		return LivePreferences{}, activity.ErrUnavailable
 	}
-	p, e := r.ReplaceLivePreferences(ctx, owner, revision, enabled)
+	p, e := r.ReplaceLivePreferences(ctx, owner, revision, enabled, filters...)
 	if e == nil && p.Revision != revision {
 		s.invalidateLive(owner, false)
 	}

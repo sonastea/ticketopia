@@ -3,32 +3,39 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
 )
 
-const livePreferenceColumns = `live_activity_version,live_activity_enabled,live_activity_revision,notifications_paused`
+const livePreferenceColumns = `live_activity_version,live_activity_enabled,live_activity_revision,notifications_paused,live_activity_filters`
 
 func scanLive(row rowScanner) (accounts.LivePreferences, error) {
 	p := accounts.LivePreferences{Preferences: activity.DefaultPreferences()}
-	err := row.Scan(&p.Version, &p.Enabled, &p.Revision, &p.Paused)
+	var raw []byte
+	err := row.Scan(&p.Version, &p.Enabled, &p.Revision, &p.Paused, &raw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return p, accounts.ErrNotFound
 	}
 	if err != nil {
 		return p, safeError("live preference read", err)
 	}
-	return p, nil
+	if json.Unmarshal(raw, &p.Filters) != nil {
+		return p, activity.ErrUnavailable
+	}
+	p.Filters, err = activity.NormalizeFilters(p.Filters)
+	return p, err
 }
 func (r *AccountRepository) LivePreferences(ctx context.Context, owner string) (accounts.LivePreferences, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	return scanLive(r.db.QueryRowContext(ctx, `SELECT `+livePreferenceColumns+` FROM accounts WHERE account_id=?`, owner))
 }
-func (r *AccountRepository) ReplaceLivePreferences(ctx context.Context, owner string, revision uint64, enabled bool) (accounts.LivePreferences, error) {
+func (r *AccountRepository) ReplaceLivePreferences(ctx context.Context, owner string, revision uint64, enabled bool, filters ...activity.Filters) (accounts.LivePreferences, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
@@ -43,12 +50,21 @@ func (r *AccountRepository) ReplaceLivePreferences(ctx context.Context, owner st
 	if p.Revision != revision {
 		return p, accounts.ErrLiveConflict
 	}
-	if p.Enabled != enabled {
-		_, err = tx.ExecContext(ctx, `UPDATE accounts SET live_activity_enabled=?,live_activity_revision=live_activity_revision+1,updated_at=UTC_TIMESTAMP(6) WHERE account_id=?`, enabled, owner)
+	f := p.Filters
+	if len(filters) > 0 {
+		f, err = activity.NormalizeFilters(filters[0])
+		if err != nil {
+			return p, err
+		}
+	}
+	if p.Enabled != enabled || !reflect.DeepEqual(f, p.Filters) {
+		raw, _ := json.Marshal(f)
+		_, err = tx.ExecContext(ctx, `UPDATE accounts SET live_activity_enabled=?,live_activity_filters=?,live_activity_revision=live_activity_revision+1,updated_at=UTC_TIMESTAMP(6) WHERE account_id=?`, enabled, string(raw), owner)
 		if err != nil {
 			return p, safeError("live preference update", err)
 		}
 		p.Enabled = enabled
+		p.Filters = f
 		p.Revision++
 	}
 	if err = tx.Commit(); err != nil {

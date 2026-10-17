@@ -27,10 +27,10 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     const root = page.locator('[data-live-activity]');
     await root.waitFor({ state: 'visible' });
     await page.waitForFunction(() => document.querySelector('[data-live-connection]').textContent.includes('No recent'));
-    check('Default collapsed', !await root.locator('details').evaluate(element => element.open));
+    check('Default collapsed', !await root.locator('[data-live-details]').evaluate(element => element.open));
     await write('put', '/api/v1/me/event-recommendations/ticketmaster:Browser_0', { reason: 'Forbidden reason' });
     await page.waitForFunction(() => document.querySelector('[data-live-badge]').textContent === '1 new', null, { timeout: 5000 });
-    await root.locator('summary').click();
+    await root.locator('[data-live-details] > summary').click();
     await root.locator('[data-live-list]').getByText('Alex recommended', { exact: false }).waitFor();
     const serialized = await root.evaluate(element => element.outerHTML);
     for (const secret of ['Forbidden', me.item.id, me.item.email, '/users/']) check('DOM excludes ' + secret, !serialized.includes(secret));
@@ -47,22 +47,22 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     await link.focus();
     await write('delete', '/api/v1/me/event-recommendations/ticketmaster:Browser_0');
     await page.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
-    check('Focused withdrawal restores local disclosure focus', await root.locator('summary').evaluate(element => element === document.activeElement));
+    check('Focused withdrawal restores local disclosure focus', await root.locator('[data-live-details] > summary').evaluate(element => element === document.activeElement));
     await write('put', '/api/v1/me/event-recommendations/ticketmaster:Browser_0', { reason: '' });
     const snapshot = await (await owner.request.get(base + '/api/v1/community/activity')).json();
     check('Republish does not announce again', snapshot.items.length === 1);
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       check('No horizontal overflow at ' + width, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-      check('44px actions at ' + width, await root.locator('summary, button:visible, a:visible').evaluateAll(elements => elements.every(element => element.getBoundingClientRect().height >= 44)));
+      check('44px actions at ' + width, await root.locator('summary:visible, button:visible, a:visible').evaluateAll(elements => elements.every(element => element.getBoundingClientRect().height >= 44)));
       if (process.env.PARTICIPATION_SKIP_CAPTURES !== 'true') await page.screenshot({ path: path.join(output, `${width}.png`), fullPage: true });
     }
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
     check('200% text wraps', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
     await page.keyboard.press('Tab');
-    await root.locator('summary').focus();
-    check('Forced-colors focus visible', await root.locator('summary').evaluate(element => getComputedStyle(element).outlineStyle !== 'none'));
+    await root.locator('[data-live-details] > summary').focus();
+    check('Forced-colors focus visible', await root.locator('[data-live-details] > summary').evaluate(element => getComputedStyle(element).outlineStyle !== 'none'));
     if (process.env.AXE_SCRIPT) {
       await page.addScriptTag({ path: process.env.AXE_SCRIPT });
       const violations = await page.evaluate(async () => (await axe.run(document.querySelector('[data-live-activity]'))).violations);
@@ -75,11 +75,11 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     await page.waitForURL('**/community');
     check('Back preserves Community origin', true);
     await page.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
-    if (!await root.locator('details').evaluate(element => element.open)) await root.locator('summary').click();
+    if (!await root.locator('[data-live-details]').evaluate(element => element.open)) await root.locator('[data-live-details] > summary').click();
     await root.locator('[data-live-hide]').click();
     check('Hide clears attribution', await root.locator('li').count() === 0);
     await page.reload(); await root.locator('[data-live-show]').waitFor({ state: 'visible' });
-    check('Hide preference persists', await root.locator('details').isHidden());
+    check('Hide preference persists', await root.locator('[data-live-details]').isHidden());
     await root.locator('[data-live-show]').click();
     await page.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
     check('Reconnect is quiet', await root.locator('[data-live-badge]').textContent() === '');
@@ -114,7 +114,7 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     await settings.waitForURL('**/me/preferences?saved=preferences');
     await signedPage.locator('[data-live-paused]').waitFor({ state: 'visible', timeout: 5000 });
     check('Native live disable synchronizes another tab', await signedPage.locator('[data-live-list] li').count() === 0);
-    await stale.locator('form[action="/me/live-activity-preferences"] button').click();
+    await stale.getByRole('button', { name: 'Save live activity', exact: true }).click();
     await stale.getByText('live preferences changed; reload before saving', { exact: false }).waitFor();
     check('Stale native tab cannot overwrite confirmed preference', true);
     for (const width of [1440, 390, 320]) {

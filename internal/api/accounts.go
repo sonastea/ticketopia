@@ -669,6 +669,11 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 			page.CategoriesUnavailable = true
 		}
 	}
+	if section == "preferences" && a.events != nil {
+		catalog, err := a.events.Categories(c.Request().Context())
+		page.Categories = catalog.Items
+		page.CategoriesUnavailable = err != nil
+	}
 	return render(c, status, account.Settings(page))
 }
 func parseAccountForm(c echo.Context, allowed ...string) error {
@@ -705,7 +710,7 @@ func parseBoundedAccountForm(c echo.Context, maxBytes int64, allowed ...string) 
 				found = true
 			}
 		}
-		if !found || (key != "category_ids" && len(values) != 1) {
+		if !found || (key != "category_ids" && key != "live_category_ids" && len(values) != 1) {
 			return &accounts.ValidationError{Field: key, Message: "unsupported or repeated form field"}
 		}
 	}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -169,13 +170,18 @@ func liveProblem(c echo.Context, status int, code, detail string) error {
 }
 func (a *api) liveSnapshot(c echo.Context) error {
 	c.Response().Header().Set("Cache-Control", "private, no-store")
-	if _, err := activityIDs(c.Request().URL.RawQuery, false, false); err != nil {
+	f, _, err := liveQuery(c, false)
+	if err != nil {
 		return accountProblem(c, err)
 	}
 	if a.liveActivity == nil {
 		return liveUnavailable(c)
 	}
-	snapshot, err := a.liveActivity.Snapshot(c.Request().Context())
+	if !a.liveStarts.allow(c.RealIP()) {
+		c.Response().Header().Set("Retry-After", "60")
+		return liveProblem(c, 429, "rate_limited", "Try again in one minute.")
+	}
+	snapshot, err := a.liveActivity.FilteredSnapshot(c.Request().Context(), f)
 	if err != nil {
 		return liveUnavailable(c)
 	}
@@ -198,7 +204,7 @@ func (a *api) liveCounts(c echo.Context) error {
 }
 func (a *api) liveStream(c echo.Context) error {
 	c.Response().Header().Set("Cache-Control", "private, no-store, no-transform")
-	ids, err := activityIDs(c.Request().URL.RawQuery, false, true)
+	f, ids, err := liveQuery(c, true)
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -209,7 +215,13 @@ func (a *api) liveStream(c echo.Context) error {
 		c.Response().Header().Set("Retry-After", "60")
 		return liveProblem(c, 429, "rate_limited", "Try again in one minute.")
 	}
-	updates, release, err := a.liveActivity.Subscribe(ids)
+	// Resolve a new city's collation key and coalesce cold generation work before
+	// subscribing. A warm view can then be delivered without waiting for the tick
+	// or the initial count batch.
+	if _, err := a.liveActivity.FilteredSnapshot(c.Request().Context(), f); err != nil {
+		return liveUnavailable(c)
+	}
+	updates, release, err := a.liveActivity.Subscribe(ids, f)
 	if err != nil {
 		return liveUnavailable(c)
 	}
@@ -262,17 +274,17 @@ func (a *api) liveStream(c echo.Context) error {
 		}
 		return controller.Flush()
 	}
-	previous := ""
+	var previous [sha256.Size]byte
 	emit := func(u activity.Update) error {
 		if u.Unavailable {
 			return send("unavailable", struct{}{})
 		}
-		encoded, _ := json.Marshal(u.Snapshot.Items)
-		if string(encoded) != previous {
+		contentHash := u.Snapshot.ContentHash()
+		if contentHash != previous {
 			if err := send("activity.snapshot", u.Snapshot); err != nil {
 				return err
 			}
-			previous = string(encoded)
+			previous = contentHash
 		}
 		if u.Counts != nil && len(ids) > 0 {
 			return send("counts.snapshot", u.Counts)

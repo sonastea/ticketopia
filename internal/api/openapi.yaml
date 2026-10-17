@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.15.0
+  version: 1.16.0
   license:
     name: MIT
     identifier: MIT
@@ -46,8 +46,10 @@ paths:
       description: |
         Full replacement of version, enabled and filters, bounded to 8 KiB.
         Send the last confirmed ETag in If-Match; no-op replacements retain it.
-        Only the all-events defaults are supported at this checkpoint. Unknown versions,
-        fields, nulls, duplicate keys and non-default filters (including radius) are 400.
+        City/country and category filters are supported. Categories are case-sensitive catalog IDs,
+        sorted and deduplicated; city uses Community's literal database collation.
+        Unknown versions, fields, nulls, duplicate keys and unsupported artist/venue,
+        private-connection or radius filters are 400.
         Errors preserve confirmed settings. Cookie writes require same-origin CSRF;
         bearer writes do not. All responses are private, no-store.
       security: [{sessionCookie: []}, {bearerToken: []}]
@@ -90,7 +92,7 @@ paths:
       operationId: getOwnLiveActivity
       summary: Read the current public feed under your confirmed preference
       description: |
-        Authenticated all-events scope, private, no-store. Uses stored preferences;
+        Authenticated city/category scope, private, no-store. Uses stored preferences;
         account IDs and filter lists are not accepted. Disabled or globally paused
         accounts receive an explicit paused state. Invalid credentials return 401,
         never a public fallback. Deployment kill switch returns 503.
@@ -115,13 +117,20 @@ paths:
           content:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
+        '429':
+          description: Shared snapshot/stream start rate exceeded.
+          headers:
+            Retry-After: {schema: {type: integer, const: 60}}
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
         '503': {$ref: '#/components/responses/LiveUnavailable'}
   /api/v1/me/community/activity/stream:
     get:
       operationId: streamOwnLiveActivity
       summary: Stream activity under your authenticated preference scope
       description: |
-        Same all-events projection, SSE framing and count semantics as the public stream.
+        Uses stored city/category preferences and the public stream's SSE framing and count semantics.
         Private, no-store, no-transform; buffering disabled. Credential and preference
         checks are batched over active credentials every two seconds, with query deadlines;
         cross-replica revocations are bounded by 30 seconds. Known expiry closes the stream
@@ -186,8 +195,10 @@ paths:
   /api/v1/community/activity:
     get:
       operationId: getCommunityActivity
-      summary: Read recent public recommendations across all cities
-      description: Current replacement view, at most 20 event groups from the last ten database-UTC minutes. No filters or pagination. Only explicitly chosen first names are attributed; groups of multiple contributions have no name. Withdrawals and name changes reproject this view. Cache-Control is private, no-store. Disabled or failed storage returns 503.
+      summary: Read recent public recommendations with optional event filters
+      description: Current replacement view, at most 20 matching event groups from the complete last ten database-UTC minutes. OR within categories, AND with location. No pagination or personal fields. Only explicitly chosen first names are attributed; groups of multiple contributions have no name. Withdrawals and name changes reproject this view. Cache-Control is private, no-store. Disabled, overflowed or failed projection returns 503. Snapshot and stream starts share the per-IP limit (default 60 per minute); 429 includes Retry-After 60.
+      parameters:
+        - {$ref: '#/components/parameters/LivePublicFilter'}
       responses:
         '200':
           description: Current bounded public view.
@@ -199,6 +210,13 @@ paths:
                 items:
                   - {event_id: 'ticketmaster:example', event_title: Jazz Night, city: London, actor_first_name: Alex, recent_recommendations: 1, latest_recommended_at: '2026-10-15T18:29:50Z', expires_at: '2026-10-15T18:39:50Z'}
         '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '429':
+          description: Activity-start rate exceeded.
+          headers:
+            Retry-After: {schema: {type: integer, const: 60}}
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
         '503': {$ref: '#/components/responses/LiveUnavailable'}
   /api/v1/events/activity-counts:
     get:
@@ -234,11 +252,13 @@ paths:
         and on connection; heartbeat is emitted every 15 seconds even without changes.
         An unavailable event clears activity and marks retained counts stale before reconnect.
         Optional repeated event_id obeys the count route's 101 distinct ID / 32768 query-byte limits.
-        Other parameters are rejected. Default capacity is 256 streams per replica and 60 starts
+        Optional filter applies to the complete candidate window before limiting to twenty groups.
+        Other parameters are rejected. Default capacity is 256 streams per replica and 60 snapshot/stream starts
         per trusted client IP per minute; configured limits may differ. Slow writes have a five-second
         deadline. Cache-Control is private, no-store, no-transform; X-Accel-Buffering is no.
         No public CORS access. Capacity, storage and disabled-feature failures before headers are 503.
       parameters:
+        - {$ref: '#/components/parameters/LivePublicFilter'}
         - name: event_id
           in: query
           style: form
@@ -2090,6 +2110,14 @@ components:
       scheme: bearer
       description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
   parameters:
+    LivePublicFilter:
+      name: filter
+      in: query
+      description: Optional JSON object, at most 4096 decoded bytes; whole query at most 32768 bytes. Omission means Everywhere and all event types. Unknown fields, duplicate keys, nulls and personal fields fail explicitly. Category lists are deduplicated/sorted before matching.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/LivePublicFilter'}
+          example: {location: {mode: city, city: Berlin, country: DE}, category_ids: [KZFzniwnSyZfZ7v7nJ]}
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -2379,13 +2407,8 @@ components:
           additionalProperties: false
           required: [location, category_ids, artist_ids, venue_ids, connections]
           properties:
-            location:
-              type: object
-              additionalProperties: false
-              required: [mode]
-              properties:
-                mode: {type: string, const: all}
-            category_ids: {type: array, maxItems: 0, items: {type: string}}
+            location: {$ref: '#/components/schemas/LiveLocation'}
+            category_ids: {type: array, maxItems: 16, items: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}}
             artist_ids: {type: array, maxItems: 0, items: {type: string}}
             venue_ids: {type: array, maxItems: 0, items: {type: string}}
             connections:
@@ -2395,6 +2418,29 @@ components:
               properties:
                 mode: {type: string, const: all_events}
                 sources: {type: array, maxItems: 0, items: {type: string}}
+    LiveLocation:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [mode]
+          properties:
+            mode: {type: string, const: all}
+        - type: object
+          additionalProperties: false
+          required: [mode, city, country]
+          properties:
+            mode: {type: string, const: city}
+            city: {type: string, minLength: 1, maxLength: 120}
+            country: {type: string, pattern: '^[A-Za-z]{2}$'}
+      description: City whitespace is normalized and country uppercased. Literal city equality follows Community's database collation; equal names within one country cannot be distinguished. Radius is unsupported.
+    LivePublicFilter:
+      type: object
+      additionalProperties: false
+      properties:
+        location: {$ref: '#/components/schemas/LiveLocation'}
+        category_ids: {type: array, maxItems: 16, items: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}}
+        artist_ids: {type: array, maxItems: 0, items: {type: string}}
+        venue_ids: {type: array, maxItems: 0, items: {type: string}}
     LivePreferencesState:
       type: object
       additionalProperties: false
