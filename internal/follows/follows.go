@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 
 var ErrNotFound = errors.New("follow target not found")
 var ErrUnavailable = errors.New("follows unavailable")
-var targetID = regexp.MustCompile(`^ticketmaster:[A-Za-z0-9_-]{1,128}$`)
 
 type Item struct {
 	Target     models.FollowTarget `json:"target"`
@@ -64,7 +62,7 @@ func Validate(kind, id string) error {
 	if kind != "artist" && kind != "venue" {
 		return &accounts.ValidationError{Field: "kind", Message: "choose artist or venue"}
 	}
-	if !targetID.MatchString(id) {
+	if !models.ValidProviderID(id) {
 		return &accounts.ValidationError{Field: "target_id", Message: "use a Ticketmaster artist or venue ID"}
 	}
 	return nil

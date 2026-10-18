@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.16.0
+  version: 1.17.0
   license:
     name: MIT
     identifier: MIT
@@ -46,9 +46,10 @@ paths:
       description: |
         Full replacement of version, enabled and filters, bounded to 8 KiB.
         Send the last confirmed ETag in If-Match; no-op replacements retain it.
-        City/country and category filters are supported. Categories are case-sensitive catalog IDs,
-        sorted and deduplicated; city uses Community's literal database collation.
-        Unknown versions, fields, nulls, duplicate keys and unsupported artist/venue,
+        City/country, category, artist and venue filters are supported. Each ID list
+        is bounded to 16, sorted and deduplicated; IDs are case-sensitive. City uses
+        Community's literal database collation. OR within lists, AND across dimensions.
+        Unknown versions, fields, nulls, duplicate keys and unsupported
         private-connection or radius filters are 400.
         Errors preserve confirmed settings. Cookie writes require same-origin CSRF;
         bearer writes do not. All responses are private, no-store.
@@ -92,7 +93,7 @@ paths:
       operationId: getOwnLiveActivity
       summary: Read the current public feed under your confirmed preference
       description: |
-        Authenticated city/category scope, private, no-store. Uses stored preferences;
+        Authenticated city/category/artist/venue scope, private, no-store. Uses stored preferences;
         account IDs and filter lists are not accepted. Disabled or globally paused
         accounts receive an explicit paused state. Invalid credentials return 401,
         never a public fallback. Deployment kill switch returns 503.
@@ -130,7 +131,7 @@ paths:
       operationId: streamOwnLiveActivity
       summary: Stream activity under your authenticated preference scope
       description: |
-        Uses stored city/category preferences and the public stream's SSE framing and count semantics.
+        Uses stored city/category/artist/venue preferences and the public stream's SSE framing and count semantics.
         Private, no-store, no-transform; buffering disabled. Credential and preference
         checks are batched over active credentials every two seconds, with query deadlines;
         cross-replica revocations are bounded by 30 seconds. Known expiry closes the stream
@@ -758,6 +759,34 @@ paths:
         '200': {$ref: '#/components/responses/CatalogResults'}
         '400': {$ref: '#/components/responses/AccountBadRequest'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/FollowsUnavailable'}
+  /api/v1/artists/{target_id}:
+    get:
+      operationId: getArtist
+      summary: Resolve a selected artist label
+      description: Authenticated provider-scoped lookup using the shared catalog cache, budgets and stale fallback. No query parameters. All responses are private, no-store. Does not follow the artist.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {name: target_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200': {$ref: '#/components/responses/CatalogDetail'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/FollowNotFound'}
+        '503': {$ref: '#/components/responses/FollowsUnavailable'}
+  /api/v1/venues/{target_id}:
+    get:
+      operationId: getVenue
+      summary: Resolve a selected venue label
+      description: Authenticated provider-scoped lookup using the shared catalog cache, budgets and stale fallback. No query parameters. All responses are private, no-store. Does not follow the venue.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {name: target_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200': {$ref: '#/components/responses/CatalogDetail'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/FollowNotFound'}
         '503': {$ref: '#/components/responses/FollowsUnavailable'}
   /api/v1/me/radar:
     get:
@@ -2231,6 +2260,17 @@ components:
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
+    CatalogDetail:
+      description: Public catalog identity, resolved for the authenticated caller; private, no-store.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [item, meta]
+            properties:
+              item: {$ref: '#/components/schemas/FollowTarget'}
+              meta: {$ref: '#/components/schemas/Freshness'}
+          example: {item: {kind: artist, id: 'ticketmaster:ArtistExample', name: Example artist, source: {provider: ticketmaster, id: ArtistExample, url: 'https://www.ticketmaster.com/'}}, meta: {data_as_of: '2026-10-18T10:00:00Z', stale: false}}
     CatalogResults:
       description: Cached provider results with freshness and a kind/search-bound next cursor.
       content:
@@ -2395,6 +2435,11 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
   schemas:
+    LiveEntityIDs:
+      type: array
+      maxItems: 16
+      items: {type: string, pattern: '^ticketmaster:[A-Za-z0-9_-]{1,128}$'}
+      description: Exact case-sensitive provider IDs. Sorted and deduplicated before caching or saving; duplicates count toward the input bound. OR within this list, AND with other dimensions. Empty means unrestricted.
     LivePreferences:
       type: object
       additionalProperties: false
@@ -2409,8 +2454,8 @@ components:
           properties:
             location: {$ref: '#/components/schemas/LiveLocation'}
             category_ids: {type: array, maxItems: 16, items: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}}
-            artist_ids: {type: array, maxItems: 0, items: {type: string}}
-            venue_ids: {type: array, maxItems: 0, items: {type: string}}
+            artist_ids: {$ref: '#/components/schemas/LiveEntityIDs'}
+            venue_ids: {$ref: '#/components/schemas/LiveEntityIDs'}
             connections:
               type: object
               additionalProperties: false
@@ -2435,12 +2480,14 @@ components:
       description: City whitespace is normalized and country uppercased. Literal city equality follows Community's database collation; equal names within one country cannot be distinguished. Radius is unsupported.
     LivePublicFilter:
       type: object
+      description: Public event facts only. OR within each ID list, AND across location/category/artist/venue. Full eligible window is filtered before limiting to twenty groups. No personal connections or radius.
+      example: {location: {mode: city, city: Berlin, country: DE}, category_ids: [], artist_ids: ['ticketmaster:ArtistExample'], venue_ids: ['ticketmaster:VenueExample']}
       additionalProperties: false
       properties:
         location: {$ref: '#/components/schemas/LiveLocation'}
         category_ids: {type: array, maxItems: 16, items: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}}
-        artist_ids: {type: array, maxItems: 0, items: {type: string}}
-        venue_ids: {type: array, maxItems: 0, items: {type: string}}
+        artist_ids: {$ref: '#/components/schemas/LiveEntityIDs'}
+        venue_ids: {$ref: '#/components/schemas/LiveEntityIDs'}
     LivePreferencesState:
       type: object
       additionalProperties: false

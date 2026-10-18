@@ -19,10 +19,33 @@ func (a *api) followRoutes(e *echo.Echo) {
 	e.POST("/follows/:kind/:target_id", a.followPage)
 	e.GET("/api/v1/artists", a.catalogHandler("artist"))
 	e.GET("/api/v1/venues", a.catalogHandler("venue"))
+	e.GET("/api/v1/artists/:target_id", a.catalogDetailHandler("artist"))
+	e.GET("/api/v1/venues/:target_id", a.catalogDetailHandler("venue"))
 	e.GET("/api/v1/me/follows", a.followsHandler)
 	e.GET("/api/v1/me/follows/:kind/:target_id", a.getFollowHandler)
 	e.PUT("/api/v1/me/follows/:kind/:target_id", a.followHandler)
 	e.DELETE("/api/v1/me/follows/:kind/:target_id", a.removeFollowHandler)
+}
+func (a *api) catalogDetailHandler(kind string) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		privateAccountResponse(c)
+		if _, err := a.followPrincipal(c, false); err != nil {
+			return accountProblem(c, err)
+		}
+		id, err := url.PathUnescape(c.Param("target_id"))
+		if err != nil || follows.Validate(kind, id) != nil || len(c.QueryParams()) != 0 {
+			return accountProblem(c, &accounts.ValidationError{Field: "target_id", Message: "use a provider-scoped ID without query parameters"})
+		}
+		detail, err := a.events.CatalogDetail(c.Request().Context(), kind, id)
+		if errors.Is(err, discovery.ErrNotFound) {
+			return accountProblem(c, follows.ErrNotFound)
+		}
+		if err != nil {
+			setRetryAfter(c, err)
+			return accountProblem(c, catalogError(err))
+		}
+		return c.JSON(200, detail)
+	}
 }
 func (a *api) followPrincipal(c echo.Context, write bool) (accounts.Principal, error) {
 	p, err := a.principal(c, false)

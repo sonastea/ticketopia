@@ -113,6 +113,9 @@
 .account-checkboxes legend { font-size: 1.25rem; font-weight: 750; margin-block: 1rem; }
 .account-checkboxes label { display: flex; align-items: center; gap: .75rem; min-block-size: 2.75rem; padding-block: .5rem; cursor: pointer; }
 .account-checkboxes input { flex: none; inline-size: 1.25rem; block-size: 1.25rem; accent-color: var(--brand); }
+.live-entity-picker { display: grid; gap: .5rem; padding: 0; border: 0; min-inline-size: 0; }
+.live-entity-picker legend { font-size: 1.25rem; font-weight: 750; margin-block: 1rem; }
+.live-entity-picker > button { justify-self: start; }
 /* Keep notification help with its control; tall action links stay out of prose. */
 .notification-preferences { gap: var(--space-5); }
 .notification-preferences legend { margin-block: var(--space-4) var(--space-3); }

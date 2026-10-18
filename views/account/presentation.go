@@ -4,6 +4,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/views/home"
+	"github.com/sonastea/ticketopia/views/layouts"
 	"net/url"
 	"slices"
 	"strings"
@@ -55,6 +56,7 @@ func signInSection(returnTo string) string {
 
 type Page struct {
 	LivePreferences                        *accounts.LivePreferences
+	LiveEditor                             layouts.LiveFilterEditor
 	Account                                accounts.Account
 	CSRF, Section, Error, Notice, NewToken string
 	Tokens                                 []accounts.Credential

@@ -157,3 +157,112 @@ func TestMariaDBLiveFilterWindowAndPreferences(t *testing.T) {
 		t.Fatal("missing title was published", len(data.Items), err)
 	}
 }
+
+func seedLiveEntityWindow(t *testing.T, p *Pool, owner string) {
+	t.Helper()
+	seedLiveFilterWindow(t, p, owner, 28)
+	for i := range 4 {
+		d := savedDetail(fmt.Sprintf("LiveFilter_%d", i))
+		d.Meta.DataAsOf = time.Now().UTC()
+		d.Item.Name = fmt.Sprintf("Entity match %d", i)
+		artist, venue := "A", "Hall"
+		if i == 1 {
+			artist = "B"
+		}
+		if i == 2 {
+			venue = "Club"
+		}
+		if i == 3 {
+			artist = "C"
+		}
+		d.Item.Artists = []models.Artist{{ID: "ticketmaster:" + artist, Name: "Artist " + artist, Source: models.Source{Provider: "ticketmaster", ID: artist}}}
+		// Duplicate and secondary entities exercise full lists, not primary-only matching.
+		d.Item.Artists = append(d.Item.Artists, d.Item.Artists[0])
+		d.Item.Venues = []models.Venue{{ID: "ticketmaster:Primary", Place: models.Place{City: "Berlin", CountryCode: "DE"}}, {ID: "ticketmaster:" + venue, Place: models.Place{Name: venue, City: "Berlin", CountryCode: "DE"}}}
+		d.Item.Classifications = []models.Classification{{Segment: &models.NamedID{ID: "Music", Name: "Music"}}}
+		if _, _, err := p.Saved().Save(t.Context(), owner, d); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestMariaDBLiveEntityFiltersAndMetadata(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	owner, _ := loginAccount(t, accounts.New(p.Accounts(), accountProviderFixture{}), "live-entities")
+	seedLiveEntityWindow(t, p, owner.ID)
+	filter := activity.DefaultPreferences().Filters
+	filter.Location = activity.Location{Mode: "city", City: "Berlin", Country: "DE"}
+	filter.CategoryIDs = []string{"Music"}
+	filter.ArtistIDs = []string{"ticketmaster:A"}
+	filter.VenueIDs = []string{"ticketmaster:Hall"}
+	s := activity.New(t.Context(), p.Activity(), 256)
+	defer s.Close()
+	view, err := s.FilteredSnapshot(t.Context(), filter)
+	if err != nil || len(view.Items) != 1 || view.Items[0].EventID != "ticketmaster:LiveFilter_0" || view.Items[0].RecentRecommendations != 1 {
+		t.Fatal(view, err)
+	}
+	filter.ArtistIDs = []string{"ticketmaster:B", "ticketmaster:A", "ticketmaster:A"}
+	view, err = s.FilteredSnapshot(t.Context(), filter)
+	if err != nil || len(view.Items) != 2 {
+		t.Fatal(view, err)
+	}
+	pref, err := p.Accounts().ReplaceLivePreferences(t.Context(), owner.ID, 1, true, filter)
+	if err != nil || pref.Revision != 2 {
+		t.Fatal(pref, err)
+	}
+	filter.ArtistIDs = []string{"ticketmaster:A", "ticketmaster:B"}
+	pref, err = p.Accounts().ReplaceLivePreferences(t.Context(), owner.ID, 2, true, filter)
+	if err != nil || pref.Revision != 2 {
+		t.Fatal("noncanonical revision", pref, err)
+	}
+	other := f.open(t)
+	pref, err = other.Accounts().LivePreferences(t.Context(), owner.ID)
+	if err != nil || len(pref.Filters.ArtistIDs) != 2 || len(pref.Filters.VenueIDs) != 1 {
+		t.Fatal(pref, err)
+	}
+	filter.VenueIDs = []string{}
+	view, err = s.FilteredSnapshot(t.Context(), filter)
+	if err != nil || len(view.Items) != 3 {
+		t.Fatal(view, err)
+	}
+	filter.ArtistIDs = []string{"ticketmaster:a"}
+	view, err = s.FilteredSnapshot(t.Context(), filter)
+	if err != nil || len(view.Items) != 0 {
+		t.Fatal("ID case ignored", view, err)
+	}
+	// Corrected lineups remove a match without changing contribution eligibility.
+	d := savedDetail("LiveFilter_0")
+	d.Meta.DataAsOf = time.Now().UTC()
+	d.Item.Name = "Corrected lineup"
+	d.Item.Venues = []models.Venue{{ID: "ticketmaster:Corrected", Place: models.Place{City: "Berlin", CountryCode: "DE"}}}
+	if _, _, err := other.Saved().Save(t.Context(), owner.ID, d); err != nil {
+		t.Fatal(err)
+	}
+	stale := d
+	stale.Meta.DataAsOf = d.Meta.DataAsOf.Add(-time.Hour)
+	stale.Item.Artists = []models.Artist{{ID: "ticketmaster:A"}}
+	if _, _, err := other.Saved().Save(t.Context(), owner.ID, stale); err != nil {
+		t.Fatal(err)
+	}
+	filter = activity.DefaultPreferences().Filters
+	filter.ArtistIDs = []string{"ticketmaster:A"}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		view, err = s.FilteredSnapshot(t.Context(), filter)
+		if err == nil && len(view.Items) == 1 && view.Items[0].EventID == "ticketmaster:LiveFilter_2" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("metadata correction not visible", view, err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	filter.ArtistIDs = []string{}
+	filter.VenueIDs = []string{"ticketmaster:Corrected"}
+	view, err = s.FilteredSnapshot(t.Context(), filter)
+	if err != nil || len(view.Items) != 1 || view.Items[0].EventTitle != "Corrected lineup" {
+		t.Fatal("mixed metadata revisions", view, err)
+	}
+}

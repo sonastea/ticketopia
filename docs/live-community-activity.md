@@ -6,10 +6,10 @@ top-right toasts and browse the current filtered view on **Happening Now** at
 `/happening-now`. Ordinary pages have no above-content activity section. Community
 and other collections keep their existing order.
 
-Parts 1–2 of the [default-on filtering extension](design/live-activity-filters.md)
-add default-on preferences and complete-window city/event-type filtering.
-Artist/venue, private connection and radius filters remain unsupported and are
-explicitly rejected. Production rollout remains Part 5.
+Parts 1–3 of the [default-on filtering extension](design/live-activity-filters.md)
+add default-on preferences and complete-window city/event-type/artist/venue filtering.
+Private connection and radius filters remain unsupported and are explicitly
+rejected. Production rollout remains Part 5.
 
 ## Default-on preferences (Part 1)
 
@@ -74,16 +74,15 @@ case/accent equivalence and trailing spaces), never substring/wildcard matching.
 Country is uppercased; city whitespace normalized. Equal city labels in one
 country cannot be distinguished. Missing locations match Everywhere only.
 Category IDs are case-sensitive catalog IDs, capped at 16 before deduplication,
-sorted before cache keys. Unsupported nonempty artist/venue or connection lists
-and radius requests fail explicitly.
+sorted before cache keys. Unsupported connection lists and radius requests fail explicitly.
 
 Schema 18 adds JSON filter storage and a stored title projection that follows the
 winning snapshot automatically, including backfill. It does not reset enabled or
 pause choices. Candidate queries read lightweight titles, Community location
-weights, metadata revisions and indexed category facets in one consistent read.
+weights, metadata revisions and indexed category/artist/venue facets in one consistent read.
 All eligible groups are ordered before recipient matching; the twenty-group limit
 is applied last. Slots survive reorders/name edits; rebuilt bitmaps clear removed
-slots before reuse. Public views share canonical city/category cache keys and
+slots before reuse. Public views share canonical city/category/artist/venue cache keys and
 encoded snapshot payloads. Generation fingerprints hash bounded candidates one
 at a time rather than retaining a second name-bearing copy of the full window.
 
@@ -101,6 +100,38 @@ that fails the projection rather than truncating an essential label. This is not
 an RSS cap. A failed, expired, overflowing or over-budget generation is unavailable,
 never truncated or silently widened;
 generation failures log bounded reasons without filter/actor values.
+
+## Specific artists and venues (Part 3)
+
+Happening Now and account Preferences share artist/venue name-search pickers,
+selected labels, independent Clear actions and Reset filters. Select matches and
+press **Apply** once. Artist selections match **any** listed artist; venue selections
+match **any** listed venue. Both lists together require an artist **and** venue
+match, also satisfying city and event type. All event artists/venues participate,
+not just the primary venue; repeated entities never multiply rows or counts.
+
+Each list accepts at most 16 exact, case-sensitive `ticketmaster:SOURCE_ID` values
+before deduplication. Canonical sorted lists share encoded views across tabs and
+reordered/duplicate requests. Empty lists are unrestricted. The existing snapshot
+freshness guard updates facets atomically; metadata corrections replace matching
+views quietly and older snapshots cannot restore stale matches. Entity facets and
+bitmaps count toward the existing memory budget. No migration is added.
+
+Lookup preserves the existing authenticated catalog contract. Signed-in visitors
+search using `/api/v1/artists` and `/api/v1/venues`; corresponding `/{target_id}`
+reads resolve selected labels using the shared catalog cache and provider budget.
+All return `private, no-store`. Page label resolution has a three-second overall
+deadline; failed names retain their exact IDs. Search failures preserve selections
+and offer retry. No lookup occurs during activity projection/polling. Guests see
+a sign-in explanation and can retain, clear and apply public entity ID filters;
+sign-in never automatically uploads those browser settings. Names and search/feed
+responses are not persisted in browser storage.
+
+Without JavaScript, authenticated Search submits the filter draft without saving
+it or changing its conditional revision; checked results are committed only by
+Apply. Unchecking selections clears them. Both native editors retain selected
+IDs across searches, and stale Apply still returns a conflict. Native guest GET
+filters accept repeated `live_artist_ids` and `live_venue_ids`.
 
 ## Attribution and controls
 
@@ -185,7 +216,7 @@ invalidate older callbacks and trigger fresh reads.
 Both count inputs accept at most 101 distinct provider IDs and 32768 query bytes;
 unknown parameters/invalid IDs are 400. Unknown valid IDs have zero totals.
 Public activity reads also accept one `filter` JSON object, at most 4 KiB decoded,
-with optional `location`, `category_ids`, empty `artist_ids` and empty `venue_ids`.
+with optional `location`, `category_ids`, `artist_ids` and `venue_ids` (16 IDs per list).
 Omission preserves the default view. Private reads use confirmed stored filters,
 not URL lists. Snapshot and stream starts share the IP limit; 429 includes
 `Retry-After: 60`. Counts remain independent of feed filters.
@@ -209,6 +240,24 @@ only still-eligible recent entries, without backfill. Related guides:
 [persistence](persistence.md), [UI](ui-components.md).
 
 ## Verification
+
+**Part 3 — 2026-10-18:** isolated MariaDB verifies artist/venue composition beyond
+the global top twenty, full venue lists, duplicate suppression, case-sensitive IDs,
+durable canonical/no-op preferences and metadata corrections across connections
+with stale snapshot protection. Complete-window reference comparisons also verify
+mixed dimensions and shared encoded views for reordered/duplicate lists.
+`scripts/live-activity-entities-browser.cjs` passes 29 production-route checks:
+artist → venue → second artist → independent clear, lookup failure/retry, native
+search/Apply/Reset, no-op Reset of drafts, account/guest persistence, authenticated
+lookup boundaries, DTO/storage privacy and JSON fallback. Whole-page axe,
+1440/390/320px, 200% text and keyboard/forced-colors/reduced-motion checks pass.
+The existing filter/count/draft and presentation journeys pass 30 and 65 checks.
+The real-MariaDB full race suite, final affected-package race checks, vet, OpenAPI
+lint (only the two existing probe warnings), generated build and Docker `make check` pass. Screenshots
+and the entity check record are local under `.impeccable/review/live-entities/`.
+Run the entity script with the same browser fixture command below, substituting
+its filename for `live-activity-browser.cjs`. Three-replica load/proxy, physical
+devices and manual screen-reader verification remain Part 5 rollout gates.
 
 Presentation checkpoint (2026-10-18): 65 production-route/browser checks across
 two replica-local hubs and isolated MariaDB cover bounded toasts, dismissal/focus,

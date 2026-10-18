@@ -262,7 +262,7 @@ func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error)
 			s.keys[f.Location] = key
 		}
 	}
-	digest := publicKey(key, f.CategoryIDs)
+	digest := publicKey(key, f)
 	now := time.Now()
 	if v, ok := s.views[digest]; ok {
 		v.used = now
@@ -278,7 +278,7 @@ func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error)
 	for sub := range s.subs {
 		city := s.keys[sub.filter.Location]
 		if sub.filter.Location.Mode == "all" || city != "" {
-			active[publicKey(city, sub.filter.CategoryIDs)] = true
+			active[publicKey(city, sub.filter)] = true
 		}
 	}
 	s.mu.Unlock()
@@ -313,11 +313,13 @@ func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error)
 	s.viewBytes += bytes
 	return view, nil
 }
-func publicKey(city string, categories []string) string {
+func publicKey(city string, f Filters) string {
 	data, _ := json.Marshal(struct {
 		City       string
 		Categories []string
-	}{city, categories})
+		Artists    []string
+		Venues     []string
+	}{city, f.CategoryIDs, f.ArtistIDs, f.VenueIDs})
 	return string(data)
 }
 func (s *Service) Counts(ctx context.Context, ids []string) (Counts, error) {

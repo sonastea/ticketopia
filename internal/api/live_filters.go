@@ -10,7 +10,7 @@ import (
 
 func liveQuery(c echo.Context, stream bool) (activity.Filters, []string, error) {
 	f := activity.DefaultPreferences().Filters
-	invalid := &accounts.ValidationError{Field: "filter", Message: "Use a public location/category filter of at most 4 KiB."}
+	invalid := &accounts.ValidationError{Field: "filter", Message: "Use a public location/category/artist/venue filter of at most 4 KiB."}
 	if len(c.Request().URL.RawQuery) > 32768 {
 		return f, nil, invalid
 	}

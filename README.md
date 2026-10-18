@@ -92,6 +92,9 @@ in the app.
   ([live activity Part 2](docs/design/live-activity-filters.md#part-2--shared-candidate-index-city-and-event-type-filtering)).
 - [x] Show bounded activity toasts and provide Happening Now navigation, native
   browsing and shared filters ([presentation checkpoint](docs/design/live-activity-filters.md#presentation-checkpoint--top-right-toasts-and-happening-now)).
+- [x] Compose specific artist/venue filters with city/type, using persisted selections
+  and authenticated native/enhanced pickers
+  ([live activity Part 3](docs/design/live-activity-filters.md#part-3--specific-artist-and-venue-filters)).
 - [ ] Later: Mark an event Going and choose participation visibility.
 - [x] Post a question, tip, or comment on an event.
 - [x] Reply to another person's contribution.

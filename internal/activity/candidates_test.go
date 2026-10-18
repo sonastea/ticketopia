@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -154,7 +155,7 @@ func TestFilterValidationAndCanonicalization(t *testing.T) {
 	if err != nil || f.Location.City != "Berlin Mitte" || f.Location.Country != "DE" || strings.Join(f.CategoryIDs, ",") != "Arts,Music" {
 		t.Fatal(f, err)
 	}
-	for _, raw := range []string{`{"connections":{"mode":"all_events","sources":[]}}`, `{"category_ids":[],"category_ids":["Music"]}`, `{"location":{"mode":"radius"}}`, `{"location":{"mode":"city","city":"Berlin"}}`, `{"location":{"mode":"all","city":"Berlin"}}`, `{"category_ids":null}`, `{"Category_ids":[]}`, `{"artist_ids":["ticketmaster:a"]}`} {
+	for _, raw := range []string{`{"connections":{"mode":"all_events","sources":[]}}`, `{"category_ids":[],"category_ids":["Music"]}`, `{"location":{"mode":"radius"}}`, `{"location":{"mode":"city","city":"Berlin"}}`, `{"location":{"mode":"all","city":"Berlin"}}`, `{"category_ids":null}`, `{"Category_ids":[]}`, `{"artist_ids":["ticketmaster:a/b"]}`} {
 		if _, err := DecodePublicFilters([]byte(raw)); err == nil {
 			t.Fatal("accepted", raw)
 		}
@@ -164,6 +165,78 @@ func TestFilterValidationAndCanonicalization(t *testing.T) {
 	data, _ := json.Marshal(p)
 	if _, err := DecodePreferences(data); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestEntityCompositionReferenceAndCache(t *testing.T) {
+	data := candidateFixture(300)
+	for i := range data.Items {
+		data.Items[i].ArtistIDs = []string{fmt.Sprintf("ticketmaster:A%d", i%7), "ticketmaster:Shared", "ticketmaster:Shared"}
+		data.Items[i].VenueIDs = []string{fmt.Sprintf("ticketmaster:V%d", i%5), fmt.Sprintf("ticketmaster:V%d", i%3)}
+	}
+	r := &candidateRepository{data: data}
+	s := New(t.Context(), r, 256)
+	defer s.Close()
+	for _, artists := range [][]string{{}, {"ticketmaster:A1", "ticketmaster:A2"}, {"ticketmaster:Shared"}, {"ticketmaster:shared"}} {
+		for _, venues := range [][]string{{}, {"ticketmaster:V1", "ticketmaster:V2"}, {"ticketmaster:missing"}} {
+			for _, categories := range [][]string{{}, {"1", "2"}} {
+				for _, city := range []string{"", "1"} {
+					f := DefaultPreferences().Filters
+					f.ArtistIDs, f.VenueIDs, f.CategoryIDs = artists, venues, categories
+					if city != "" {
+						f.Location = Location{Mode: "city", City: city, Country: "DE"}
+					}
+					matches := func(want, facts []string) bool {
+						return len(want) == 0 || slices.ContainsFunc(want, func(id string) bool { return slices.Contains(facts, id) })
+					}
+					want := []Item{}
+					for _, c := range data.Items {
+						if (city == "" || c.CityKey == city) && matches(artists, c.ArtistIDs) && matches(venues, c.VenueIDs) && matches(categories, c.CategoryIDs) {
+							want = append(want, c.Item)
+						}
+						if len(want) == 20 {
+							break
+						}
+					}
+					got, err := s.FilteredSnapshot(t.Context(), f)
+					if err != nil || !reflect.DeepEqual(got.Items, want) {
+						t.Fatalf("filter %+v: %v, got %v want %v", f, err, got.Items, want)
+					}
+					f.ArtistIDs = append(append([]string{}, artists...), artists...)
+					f.VenueIDs = append(append([]string{}, venues...), venues...)
+					slices.Reverse(f.ArtistIDs)
+					slices.Reverse(f.VenueIDs)
+					again, err := s.FilteredSnapshot(t.Context(), f)
+					if err != nil || &got.encoded[0] != &again.encoded[0] {
+						t.Fatal("canonical view not reused", err)
+					}
+				}
+			}
+		}
+	}
+	if r.polls != 1 {
+		t.Fatal("SQL scaled with filters", r.polls)
+	}
+}
+
+func TestEntityPreferenceValidation(t *testing.T) {
+	for _, kind := range []string{"artist_ids", "venue_ids"} {
+		f, err := DecodePublicFilters([]byte(`{"` + kind + `":["ticketmaster:b","ticketmaster:A","ticketmaster:b"]}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := f.ArtistIDs
+		if kind == "venue_ids" {
+			ids = f.VenueIDs
+		}
+		if !slices.Equal(ids, []string{"ticketmaster:A", "ticketmaster:b"}) {
+			t.Fatal(ids)
+		}
+		for _, value := range []string{`null`, `["A"]`, `["ticketmaster:"]`, `["Ticketmaster:A"]`, `["ticketmaster:a b"]`, `["ticketmaster:a/b"]`, `["ticketmaster:` + strings.Repeat("x", 129) + `"]`, `[` + strings.Repeat(`"ticketmaster:a",`, 16) + `"ticketmaster:b"]`} {
+			if _, err := DecodePublicFilters([]byte(`{"` + kind + `":` + value + `}`)); err == nil {
+				t.Fatal("accepted", kind, value)
+			}
+		}
 	}
 }
 

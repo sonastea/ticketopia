@@ -4,8 +4,8 @@ import "github.com/sonastea/ticketopia/internal/activity"
 import "github.com/sonastea/ticketopia/internal/models"
 import "slices"
 
-templ LiveFilterFields(f activity.Filters, categories []models.Category) {
-	<details class="account-more" data-live-filter-details>
+templ LiveFilterFields(f activity.Filters, categories []models.Category, editor LiveFilterEditor) {
+	<details class="account-more" data-live-filter-details open?={ editor.Draft } data-live-draft?={ editor.Draft }>
 		<summary>Filter live activity</summary>
 		<label class="field">Location
 			<select name="location_mode" aria-label="Location" data-live-location>
@@ -30,6 +30,9 @@ templ LiveFilterFields(f activity.Filters, categories []models.Category) {
 				}
 			}
 		</fieldset>
+		<p class="field-note">Match any selected artist and any selected venue, together with the location and event types. Choose up to 16 of each; no selections means any artist or venue.</p>
+		@LiveEntityPicker("artist", "Artists", f.ArtistIDs, editor)
+		@LiveEntityPicker("venue", "Venues", f.VenueIDs, editor)
 		<p class="field-note" data-live-filter-error role="status"></p>
 		<div class="account-actions">
 			<button type="submit" class="action action-secondary" name="filter_action" value="apply">Apply</button>
@@ -38,3 +41,44 @@ templ LiveFilterFields(f activity.Filters, categories []models.Category) {
 		</div>
 	</details>
 }
+
+templ LiveEntityPicker(kind, title string, ids []string, editor LiveFilterEditor) {
+	<fieldset class="live-entity-picker" data-live-picker={ kind }>
+		<legend>{ title }</legend>
+		<div class="account-checkboxes" data-live-selected>
+			for _, id := range ids {
+				<label><input type="checkbox" name={ "live_" + kind + "_ids" } value={ id } checked/><span>{ editor.Label(kind, id) }</span></label>
+			}
+		</div>
+		<button type="button" class="text-link" data-live-clear hidden>{ "Clear " + title }</button>
+		if editor.SignedIn {
+			<label class="field">{ "Search " + title }<input name={ "live_" + kind + "_keyword" } value={ pickerKeyword(editor, kind) } maxlength="120" data-live-keyword/></label>
+			<button type="submit" class="action action-secondary" name="filter_action" value={ "search_" + kind } formnovalidate data-live-search>{ "Search " + title }</button>
+			<p class="field-note" role="status" data-live-picker-status>
+				if editor.Kind == kind {
+					if editor.Error != "" {
+						{ editor.Error }
+					} else if len(editor.Results) == 0 {
+						No matches. Try another name.
+					} else {
+						Select matches, then Apply. Refine the name if your choice is missing.
+					}
+				}
+			</p>
+			<div class="account-checkboxes" data-live-results>
+				if editor.Kind == kind {
+					for _, target := range editor.Results {
+						if !slices.Contains(ids, target.ID) {
+							<label><input type="checkbox" name={ "live_" + kind + "_ids" } value={ target.ID }/><span>{ target.Name }{ pickerPlace(target) }</span></label>
+							}
+					}
+				}
+			</div>
+		} else {
+			<p class="field-note"><a class="text-link" href="/auth/sign-in?return_to=%2Fhappening-now">Sign in to search artists and venues.</a> Account filters take precedence after sign-in; use Reuse this browser’s filters to copy them explicitly.</p>
+		}
+	</fieldset>
+}
+
+func pickerKeyword(e LiveFilterEditor, kind string) string { if e.Kind == kind { return e.Keyword }; return "" }
+func pickerPlace(t models.FollowTarget) string { if t.Location != nil && t.Location.City != "" { return " · " + t.Location.City + ", " + t.Location.CountryCode }; return "" }

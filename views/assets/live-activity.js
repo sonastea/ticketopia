@@ -79,7 +79,8 @@
   const storageKey = 'ticketopia-live-filters-v1';
   let filters = defaults(), guestFilters = defaults(), enabled = true, catalog = [], saving = false;
   try { const value = JSON.parse(localStorage.getItem(storageKey)); if (value && JSON.stringify(value).length <= 4096 && value.location && Array.isArray(value.category_ids)) guestFilters = value; } catch {}
-  const publicFilter = value => ({ location: value.location, category_ids: value.category_ids, artist_ids: [], venue_ids: [] });
+  const publicFilter = value => ({ location: value.location, category_ids: value.category_ids, artist_ids: value.artist_ids || [], venue_ids: value.venue_ids || [] });
+  const restricted = () => filters.location.mode !== 'all' || filters.category_ids.length || filters.artist_ids?.length || filters.venue_ids?.length;
   const activityURL = () => authenticated ? '/api/v1/me/community/activity' : '/api/v1/community/activity';
   const activityQuery = values => { const q = query(values); if (authenticated) q.set('preferences_revision', revision); else q.set('filter', JSON.stringify(publicFilter(filters))); return q; };
   const seen = new Map(), pending = new Set();
@@ -147,8 +148,8 @@
     node('badge').textContent = pending.size ? `${pending.size} new` : '';
     updates.hidden = !pending.size;
     updates.textContent = `Show ${pending.size} new updates`;
-    node('connection').textContent = current.length ? 'Recent public recommendations' : (filters.location.mode !== 'all' || filters.category_ids.length ? 'No recent recommendations match these filters. Use Reset filters to see all events.' : 'No recent recommendations. Explore Community.');
-    node('empty-reset').hidden = !!current.length || (filters.location.mode === 'all' && !filters.category_ids.length);
+    node('connection').textContent = current.length ? 'Recent public recommendations' : (restricted() ? 'No recent recommendations match these filters. Use Reset filters to see all events.' : 'No recent recommendations. Explore Community.');
+    node('empty-reset').hidden = !!current.length || !restricted();
   };
   const receive = data => {
     if (!Array.isArray(data.items) || !Number.isFinite(Date.parse(data.as_of))) throw new Error();
@@ -267,6 +268,8 @@
     const q = new URLSearchParams({ location_mode: filters.location.mode });
     if (filters.location.mode === 'city') { q.set('live_city', filters.location.city); q.set('live_country', filters.location.country); }
     filters.category_ids.forEach(id => q.append('live_category_ids', id));
+    (filters.artist_ids || []).forEach(id => q.append('live_artist_ids', id));
+    (filters.venue_ids || []).forEach(id => q.append('live_venue_ids', id));
     return '/happening-now?' + q;
   };
   const summary = () => {
@@ -274,10 +277,15 @@
     node('refresh').href = nativeURL();
     if (location.search) history.replaceState(history.state, '', nativeURL());
     const names = filters.category_ids.map(id => catalog.find(c => c.id === id)?.name || id);
-    node('summary').textContent = `${filters.location.mode === 'city' ? filters.location.city + ', ' + filters.location.country : 'Everywhere'} · ${names.length ? names.join(' or ') : 'All event types'} · All events`;
+    const entities = ['artist', 'venue'].map(kind => (filters[kind + '_ids'] || []).map(id => window.ticketopiaLivePickers?.name(kind, id) || id).join(' or ')).filter(Boolean);
+    node('summary').textContent = [filters.location.mode === 'city' ? filters.location.city + ', ' + filters.location.country : 'Everywhere', names.length ? names.join(' or ') : 'All event types', ...entities, 'All events'].join(' · ');
   };
+  document.addEventListener('ticketopia:live-labels', summary);
+  let nativeDraft = onPage && node('filter-details').hasAttribute('data-live-draft');
   const editFilters = value => {
     if (!onPage) return;
+    if (nativeDraft) { nativeDraft = false; return; }
+    window.ticketopiaLivePickers?.set(value, authenticated);
     node('location').value = value.location.mode;
     node('city').value = value.location.city || ''; node('country').value = value.location.country || '';
     const fieldset = node('categories');
@@ -291,7 +299,7 @@
     }
     node('reuse').hidden = !authenticated;
   };
-  const draftFilters = () => ({ ...defaults(), location: node('location').value === 'city' ? { mode: 'city', city: node('city').value.trim().replace(/\s+/g, ' '), country: node('country').value.trim().toUpperCase() } : { mode: 'all' }, category_ids: [...node('categories').querySelectorAll('input:checked')].map(input => input.value).sort() });
+  const draftFilters = () => ({ ...defaults(), ...window.ticketopiaLivePickers?.get(), location: node('location').value === 'city' ? { mode: 'city', city: node('city').value.trim().replace(/\s+/g, ' '), country: node('country').value.trim().toUpperCase() } : { mode: 'all' }, category_ids: [...node('categories').querySelectorAll('input:checked')].map(input => input.value).sort() });
   let browsingCity;
   const browseQuery = new URLSearchParams(location.search);
   if (location.pathname === '/' && browseQuery.get('city') && /^[a-z]{2}$/i.test(browseQuery.get('country') || '')) {
@@ -317,9 +325,10 @@
         const me = await fetchJSON('/api/v1/me');
         const response = await fetch('/api/v1/me/live-activity-preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': me.csrf_token, 'If-Match': scope }, body: JSON.stringify({ version: 1, enabled, filters: next }), signal: AbortSignal.timeout(10000) });
         if (response.status === 412) { await preferences(); throw new Error('Settings changed in another tab. Review the current filters and apply again.'); }
-        if (!response.ok) throw new Error('Filters could not be saved. Check the city, country and event types, then retry.');
+        if (!response.ok) throw new Error('Filters could not be saved. Check the city/country and choose at most 16 event types, artists and venues each, then retry.');
         if (scope !== preferenceScope) return;
         await preferences();
+        editFilters(filters);
       } else {
         const data = await fetchJSON('/api/v1/community/activity?filter=' + encodeURIComponent(JSON.stringify(publicFilter(next))));
         if (turn !== preferenceTurn || authenticated) return;

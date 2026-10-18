@@ -23,7 +23,7 @@ func TestPreferenceValidation(t *testing.T) {
 		strings.Replace(valid, `"mode":"all"`, `"mode":"city","city":"Berlin"`, 1),
 		strings.Replace(valid, `"mode":"all"`, `"mode":"radius"`, 1),
 		strings.Replace(valid, `"category_ids":[]`, `"category_ids":["invalid/id"]`, 1),
-		strings.Replace(valid, `"artist_ids":[]`, `"artist_ids":["ticketmaster:a"]`, 1),
+		strings.Replace(valid, `"artist_ids":[]`, `"artist_ids":["other:a"]`, 1),
 		strings.Replace(valid, `"venue_ids":[]`, `"venue_ids":null`, 1),
 		strings.Replace(valid, `"sources":[]`, `"sources":["saved"]`, 1),
 		strings.Replace(valid, `"mode":"all_events"`, `"mode":"any"`, 1),

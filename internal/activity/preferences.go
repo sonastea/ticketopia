@@ -11,6 +11,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/sonastea/ticketopia/internal/models"
 )
 
 type Location struct {
@@ -39,12 +41,12 @@ func DefaultPreferences() Preferences {
 	return Preferences{1, true, Filters{Location{Mode: "all"}, []string{}, []string{}, []string{}, Connections{"all_events", []string{}}}}
 }
 
-var ErrPreferences = errors.New("provide complete version 1 preferences with Everywhere or city/country and up to 16 category IDs; other filters are not supported")
+var ErrPreferences = errors.New("provide complete version 1 preferences with Everywhere or city/country and up to 16 IDs each for categories, artists and venues; personal connections are not supported")
 
 var categoryID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 func NormalizeFilters(f Filters) (Filters, error) {
-	if f.CategoryIDs == nil || f.ArtistIDs == nil || f.VenueIDs == nil || f.Connections.Sources == nil || len(f.CategoryIDs) > 16 || len(f.ArtistIDs) != 0 || len(f.VenueIDs) != 0 || f.Connections.Mode != "all_events" || len(f.Connections.Sources) != 0 {
+	if f.CategoryIDs == nil || f.ArtistIDs == nil || f.VenueIDs == nil || f.Connections.Sources == nil || len(f.CategoryIDs) > 16 || len(f.ArtistIDs) > 16 || len(f.VenueIDs) > 16 || f.Connections.Mode != "all_events" || len(f.Connections.Sources) != 0 {
 		return f, ErrPreferences
 	}
 	switch f.Location.Mode {
@@ -72,7 +74,21 @@ func NormalizeFilters(f Filters) (Filters, error) {
 	}
 	slices.Sort(f.CategoryIDs)
 	f.CategoryIDs = slices.Compact(f.CategoryIDs)
+	for _, ids := range []*[]string{&f.ArtistIDs, &f.VenueIDs} {
+		*ids = append([]string{}, (*ids)...)
+		for _, id := range *ids {
+			if !models.ValidProviderID(id) {
+				return f, ErrPreferences
+			}
+		}
+		slices.Sort(*ids)
+		*ids = slices.Compact(*ids)
+	}
 	return f, nil
+}
+
+func (f Filters) Unrestricted() bool {
+	return f.Location.Mode == "all" && len(f.CategoryIDs) == 0 && len(f.ArtistIDs) == 0 && len(f.VenueIDs) == 0
 }
 
 // DecodePublicFilters uses the same strict decoder without accepting owner fields.

@@ -145,7 +145,7 @@ func HappeningNow(p HappeningNowPage) templ.Component {
 						}
 					}
 				}
-				templ_7745c5c3_Err = layouts.LiveFilterFields(p.Filters, p.Categories).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = layouts.LiveFilterFields(p.editingFilters(), p.Categories, p.Editor).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -197,7 +197,7 @@ func HappeningNow(p HappeningNowPage) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				} else if len(p.Snapshot.Items) == 0 {
-					if p.Filters.Location.Mode == "all" && len(p.Filters.CategoryIDs) == 0 {
+					if p.Filters.Unrestricted() {
 						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "No recent recommendations. Explore Community.")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -218,7 +218,7 @@ func HappeningNow(p HappeningNowPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if p.Error != "" || len(p.Snapshot.Items) > 0 || (p.Filters.Location.Mode == "all" && len(p.Filters.CategoryIDs) == 0) {
+				if p.Error != "" || len(p.Snapshot.Items) > 0 || p.Filters.Unrestricted() {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, " hidden")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

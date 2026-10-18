@@ -60,10 +60,16 @@ All routes below require a browser session or personal bearer token and return
 | --- | --- | --- |
 | GET | `/api/v1/artists?keyword=…` | Name search with `limit` and `cursor` |
 | GET | `/api/v1/venues?keyword=…` | Name search; optional `city`, `country`, `limit`, `cursor` |
+| GET | `/api/v1/artists/{target_id}` | Public catalog label/detail for a selected artist; no query parameters |
+| GET | `/api/v1/venues/{target_id}` | Public catalog label/detail for a selected venue; no query parameters |
 | GET | `/api/v1/me/follows` | Owner-only `{items, next_cursor}`; optional `kind=artist` or `venue`, `limit`, `cursor` |
 | GET | `/api/v1/me/follows/{kind}/{target_id}` | Own follow and retained metadata; 404 when not followed by you |
 | PUT | `/api/v1/me/follows/{kind}/{target_id}` | Empty body; 201 + Location for new follows, 200 for existing follows |
 | DELETE | `/api/v1/me/follows/{kind}/{target_id}` | Empty body; 204, including already absent follows |
+
+Catalog detail reads share lookup caching/budgets and return `{item, meta}`;
+they do not require or create a follow. They support the
+[live entity filter pickers](live-community-activity.md#specific-artists-and-venues-part-3).
 
 `kind` is singular `artist` or `venue`. Target IDs are case-sensitive
 `ticketmaster:SOURCE_ID` identities; artists and venues with identical source IDs

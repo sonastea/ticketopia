@@ -81,6 +81,8 @@ func TestFollowAPIAuthenticationOwnershipCSRFAndIdempotency(t *testing.T) {
 	}{
 		{"GET", "/api/v1/me/follows", "", "", "", "", "", 401},
 		{"GET", "/api/v1/artists?keyword=a", "", "", "", "", "", 401},
+		{"GET", "/api/v1/artists/ticketmaster:One", "", "", "", "", "", 401},
+		{"GET", "/api/v1/venues/ticketmaster:One", "", "", "", "", "", 401},
 		{"PUT", path, "", browser, "", "", "", 403},
 		{"PUT", path, "", browser, "", csrf, "https://evil.example", 403},
 		{"PUT", path, `{"account_id":"other"}`, "", bearer, "", "", 400},
@@ -157,6 +159,14 @@ func TestFollowOrdinaryFormsSearchAndSafeReturns(t *testing.T) {
 		w = accountRequest(a, "GET", "/api/v1/"+kind+"s?keyword=Private", "", "", bearer, "", "", "")
 		if w.Code != 200 || !strings.Contains(w.Body.String(), `"kind":"`+kind+`"`) {
 			t.Fatal("authenticated search failed", w.Code, w.Body.String())
+		}
+		w = accountRequest(a, "GET", "/api/v1/"+kind+"s/ticketmaster:One", "", browser, "", "", "", "")
+		if w.Code != 200 || w.Header().Get("Cache-Control") != "private, no-store" || !strings.Contains(w.Body.String(), `"name":"Private `+kind+`"`) {
+			t.Fatal("selected catalog label lookup", w.Code, w.Body.String())
+		}
+		w = accountRequest(a, "GET", "/api/v1/"+kind+"s/ticketmaster:One?account_id=other", "", "", bearer, "", "", "")
+		if w.Code != 400 {
+			t.Fatal("lookup accepted owner parameter", w.Code)
 		}
 		for _, verb := range []string{"follow", "unfollow"} {
 			form := url.Values{"csrf_token": {csrf}, "action": {verb}, "return_to": {"/follows?kind=" + kind + "&keyword=Private"}}

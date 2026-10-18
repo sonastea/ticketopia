@@ -617,12 +617,18 @@ func (a *api) accountPage(section string) echo.HandlerFunc {
 		return a.renderAccount(c, 200, p, section, "", notice, "")
 	}
 }
-func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, section, message, notice, token string) error {
+func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, section, message, notice, token string, draft ...liveFilterDraft) error {
 	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NewToken: token}
 	if section == "preferences" {
 		pref, err := a.accounts.LivePreferences(c.Request().Context(), p.Account.ID)
 		if err == nil {
 			page.LivePreferences = &pref
+			if len(draft) > 0 {
+				page.LivePreferences = &draft[0].preferences
+				page.LiveEditor = draft[0].editor
+			} else {
+				page.LiveEditor = a.liveEditor(c, pref.Filters, true)
+			}
 		}
 	}
 	page.ModerationEnabled = a.moderationEnabled()
@@ -710,7 +716,7 @@ func parseBoundedAccountForm(c echo.Context, maxBytes int64, allowed ...string) 
 				found = true
 			}
 		}
-		if !found || (key != "category_ids" && key != "live_category_ids" && len(values) != 1) {
+		if !found || (key != "category_ids" && key != "live_category_ids" && key != "live_artist_ids" && key != "live_venue_ids" && len(values) != 1) {
 			return &accounts.ValidationError{Field: key, Message: "unsupported or repeated form field"}
 		}
 	}

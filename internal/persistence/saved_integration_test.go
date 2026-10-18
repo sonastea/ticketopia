@@ -379,6 +379,28 @@ func runActivityBrowser(t *testing.T, script string) {
 		seedLiveFilterWindow(t, p, owner.ID, 26)
 		seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "Music", Name: "Music"}}, {NamedID: models.NamedID{ID: "sports", Name: "Sports"}}})
 	}
+	if strings.HasSuffix(script, "live-activity-entities-browser.cjs") {
+		seedLiveEntityWindow(t, p, owner.ID)
+		seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "Music", Name: "Music"}}, {NamedID: models.NamedID{ID: "sports", Name: "Sports"}}})
+		for _, kind := range []string{"artist", "venue"} {
+			ids := []string{"A", "B", "C"}
+			if kind == "venue" {
+				ids = []string{"Hall", "Club"}
+			}
+			items := []models.FollowTarget{}
+			for _, id := range ids {
+				item := models.FollowTarget{Kind: kind, ID: "ticketmaster:" + id, Name: kind + " " + id, Source: models.Source{Provider: "ticketmaster", ID: id}}
+				items = append(items, item)
+				seed("ticketmaster:v1:catalog:"+kind+":"+item.ID, item)
+			}
+			q, err := discovery.ParseCatalogQuery(kind, url.Values{"keyword": {"fixture"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			sum := sha256.Sum256([]byte(kind + "\x00" + q.Values().Encode()))
+			seed(fmt.Sprintf("ticketmaster:v1:catalog-search:%x:0", sum), map[string]any{"items": items, "total": len(items), "totalPages": 1})
+		}
+	}
 	if script == os.Getenv("ACTION_FEEDBACK_BROWSER_SCRIPT") {
 		// Six choices give both collection pages first/middle/last removals,
 		// without changing the shared three-event discovery fixture.
@@ -410,6 +432,9 @@ func runActivityBrowser(t *testing.T, script string) {
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
 		options := []api.Option{}
 		if enabled {
+			if strings.HasSuffix(script, "live-activity-entities-browser.cjs") {
+				options = append(options, api.WithFollows(p.Follows()))
+			}
 			if script == os.Getenv("LIVE_ACTIVITY_BROWSER_SCRIPT") {
 				service := activity.New(t.Context(), p.Activity(), 256)
 				t.Cleanup(service.Close)

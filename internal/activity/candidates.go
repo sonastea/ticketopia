@@ -20,6 +20,8 @@ type Candidate struct {
 	Item        Item
 	CityKey     string
 	CategoryIDs []string
+	ArtistIDs   []string
+	VenueIDs    []string
 	Revision    time.Time
 }
 type Candidates struct {
@@ -40,6 +42,8 @@ type candidateIndex struct {
 	slots       map[string]int
 	cities      map[string]bitmap
 	categories  map[string]bitmap
+	artists     map[string]bitmap
+	venues      map[string]bitmap
 	bytes       int
 	fingerprint [sha256.Size]byte
 }
@@ -48,7 +52,7 @@ func buildIndex(data Candidates, previous *candidateIndex) (*candidateIndex, err
 	if len(data.Items) > MaxCandidates {
 		return nil, ErrCandidateLimit
 	}
-	x := &candidateIndex{data: data, slots: map[string]int{}, cities: map[string]bitmap{}, categories: map[string]bitmap{}}
+	x := &candidateIndex{data: data, slots: map[string]int{}, cities: map[string]bitmap{}, categories: map[string]bitmap{}, artists: map[string]bitmap{}, venues: map[string]bitmap{}}
 	used := make([]bool, MaxCandidates)
 	for _, c := range data.Items {
 		if previous != nil {
@@ -88,9 +92,17 @@ func buildIndex(data Candidates, previous *candidateIndex) (*candidateIndex, err
 		if c.CityKey != "" {
 			add(x.cities, c.CityKey, slot)
 		}
-		for _, id := range c.CategoryIDs {
-			add(x.categories, id, slot)
-			x.bytes += 128 + 4*len(id)
+		for _, dimension := range []struct {
+			ids  []string
+			sets map[string]bitmap
+		}{{c.CategoryIDs, x.categories}, {c.ArtistIDs, x.artists}, {c.VenueIDs, x.venues}} {
+			for _, id := range dimension.ids {
+				add(dimension.sets, id, slot)
+				x.bytes += 128 + 4*len(id)
+				if x.bytes > MemoryBudget/2-(2<<20) {
+					return nil, ErrMemoryLimit
+				}
+			}
 		}
 		// Reserve half for old/in-progress data and encoded views.
 		if x.bytes > MemoryBudget/2-(2<<20) {
@@ -111,15 +123,21 @@ func buildIndex(data Candidates, previous *candidateIndex) (*candidateIndex, err
 }
 func (x *candidateIndex) selectView(f Filters, cityKey string) Snapshot {
 	result := Snapshot{AsOf: x.data.AsOf, Items: []Item{}}
-	var categories bitmap
-	if len(f.CategoryIDs) > 0 {
-		categories = make(bitmap, (MaxCandidates+63)/64)
-		for _, id := range f.CategoryIDs {
-			for i, word := range x.categories[id] {
-				categories[i] |= word
+	union := func(ids []string, sets map[string]bitmap) bitmap {
+		if len(ids) == 0 {
+			return nil
+		}
+		result := make(bitmap, (MaxCandidates+63)/64)
+		for _, id := range ids {
+			for i, word := range sets[id] {
+				result[i] |= word
 			}
 		}
+		return result
 	}
+	categories := union(f.CategoryIDs, x.categories)
+	artists := union(f.ArtistIDs, x.artists)
+	venues := union(f.VenueIDs, x.venues)
 	city := x.cities[cityKey]
 	for _, c := range x.data.Items {
 		slot := x.slots[c.Item.EventID]
@@ -127,6 +145,9 @@ func (x *candidateIndex) selectView(f Filters, cityKey string) Snapshot {
 			continue
 		}
 		if categories != nil && !categories.has(slot) {
+			continue
+		}
+		if artists != nil && !artists.has(slot) || venues != nil && !venues.has(slot) {
 			continue
 		}
 		result.Items = append(result.Items, c.Item)

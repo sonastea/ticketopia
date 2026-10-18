@@ -20,6 +20,7 @@ templ Base(title string) {
 			<script src="/assets/recommendations.js" defer></script>
 			<script src="/assets/discussions.js" defer></script>
 			if LiveActivityEnabled(ctx) {
+				<script src="/assets/live-pickers.js" defer></script>
 				<script src="/assets/live-activity.js" defer></script>
 			}
 			<title>{ title } · Ticketopia</title>

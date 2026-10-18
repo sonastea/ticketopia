@@ -21,7 +21,7 @@ templ HappeningNow(p HappeningNowPage) {
 							<input type="hidden" name="enabled" value="on"/>
 						}
 					}
-					@layouts.LiveFilterFields(p.Filters, p.Categories)
+					@layouts.LiveFilterFields(p.editingFilters(), p.Categories, p.Editor)
 				</form>
 				<div class="account-actions">
 					<button type="button" class="text-link" data-live-hide hidden>Hide activity toasts</button>
@@ -34,7 +34,7 @@ templ HappeningNow(p HappeningNowPage) {
 						if p.Error != "" {
 							{ p.Error }
 						} else if len(p.Snapshot.Items) == 0 {
-							if p.Filters.Location.Mode == "all" && len(p.Filters.CategoryIDs) == 0 {
+							if p.Filters.Unrestricted() {
 								No recent recommendations. Explore Community.
 							} else {
 								No recent recommendations match these filters. Use Reset filters to see all events.
@@ -43,7 +43,7 @@ templ HappeningNow(p HappeningNowPage) {
 							Recent public recommendations
 						}
 					</p>
-					<button type="submit" form="live-filter-form" name="filter_action" value="reset" formnovalidate class="text-link" data-live-empty-reset hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || (p.Filters.Location.Mode == "all" && len(p.Filters.CategoryIDs) == 0) }>Reset filters</button>
+					<button type="submit" form="live-filter-form" name="filter_action" value="reset" formnovalidate class="text-link" data-live-empty-reset hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || p.Filters.Unrestricted() }>Reset filters</button>
 					if !p.Snapshot.AsOf.IsZero() {
 						<p class="field-note">Snapshot updated <time datetime={ p.Snapshot.AsOf.Format("2006-01-02T15:04:05Z07:00") }>{ p.Snapshot.AsOf.UTC().Format("15:04:05 UTC") }</time>. Refresh for the latest snapshot; live updates appear when connected.</p>
 					}

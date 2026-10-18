@@ -6,12 +6,15 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/views/layouts"
 )
 
 type HappeningNowPage struct {
 	Enabled, Paused, SignedIn, LiveEnabled bool
 	Snapshot                               activity.Snapshot
 	Filters                                activity.Filters
+	DraftFilters                           *activity.Filters
+	Editor                                 layouts.LiveFilterEditor
 	Categories                             []models.Category
 	Revision                               uint64
 	CSRF, ReturnURL, Error                 string
@@ -36,7 +39,27 @@ func (p HappeningNowPage) summary() string {
 	if len(names) > 0 {
 		types = strings.Join(names, " or ")
 	}
-	return place + " · " + types + " · All events"
+	parts := []string{place, types}
+	for _, d := range []struct {
+		kind string
+		ids  []string
+	}{{"artist", p.Filters.ArtistIDs}, {"venue", p.Filters.VenueIDs}} {
+		labels := []string{}
+		for _, id := range d.ids {
+			labels = append(labels, p.Editor.Label(d.kind, id))
+		}
+		if len(labels) > 0 {
+			parts = append(parts, strings.Join(labels, " or "))
+		}
+	}
+	return strings.Join(append(parts, "All events"), " · ")
+}
+
+func (p HappeningNowPage) editingFilters() activity.Filters {
+	if p.DraftFilters != nil {
+		return *p.DraftFilters
+	}
+	return p.Filters
 }
 
 func activityAttribution(item activity.Item) string {

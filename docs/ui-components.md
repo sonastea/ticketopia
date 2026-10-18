@@ -15,6 +15,13 @@ preserves local hide/account pause and reconciles redaction/expiry in place with
 remounting composers. `views/styles/app.css` owns logical spacing, responsive toast
 bounds and shared-token focus/press treatment. Regenerate templ and CSS after edits.
 
+The shared live-filter fields include native artist/venue search and checkbox
+selections on Happening Now and Preferences. `views/assets/live-pickers.js` enhances
+only lookup/selection; Apply still confirms the entire filter. Names remain in
+document memory, IDs in preferences. Picker search fields use ordinary `.field`
+styles; only selection/result rows use `.account-checkboxes` so text fields remain
+shrinkable on compact/enlarged layouts.
+
 Use Go 1.27+ and Node.js 24 with npm. The Node release line is declared in
 `package.json` and `.nvmrc`; with nvm, run `nvm install` and `nvm use` first:
 

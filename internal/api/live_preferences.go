@@ -66,7 +66,7 @@ func (a *api) livePreferences(c echo.Context) error {
 }
 func (a *api) livePreferencesPage(c echo.Context) error {
 	privateAccountResponse(c)
-	if err := parseAccountForm(c, "enabled", "revision", "location_mode", "live_city", "live_country", "live_category_ids", "filter_action", "return_to"); err != nil {
+	if err := parseAccountForm(c, "enabled", "revision", "location_mode", "live_city", "live_country", "live_category_ids", "live_artist_ids", "live_venue_ids", "live_artist_keyword", "live_venue_keyword", "filter_action", "return_to"); err != nil {
 		return a.accountPageError(c, err)
 	}
 	p, err := a.principal(c, true)
@@ -81,6 +81,13 @@ func (a *api) livePreferencesPage(c echo.Context) error {
 		return a.renderAccount(c, 400, p, "preferences", "Reload preferences before saving.", "", "")
 	}
 	filters := []activity.Filters{}
+	action := c.FormValue("filter_action")
+	if action != "" && action != "apply" && action != "reset" && action != "search_artist" && action != "search_venue" {
+		return a.renderAccount(c, 400, p, "preferences", "Unknown filter action.", "", "")
+	}
+	if (action == "search_artist" || action == "search_venue") && c.FormValue("location_mode") == "" {
+		return a.renderAccount(c, 400, p, "preferences", "Reload the filter editor before searching.", "", "")
+	}
 	if c.FormValue("location_mode") != "" {
 		f := activity.DefaultPreferences().Filters
 		if c.FormValue("filter_action") != "reset" {
@@ -90,12 +97,17 @@ func (a *api) livePreferencesPage(c echo.Context) error {
 				f.Location.Country = c.FormValue("live_country")
 			}
 			f.CategoryIDs = append([]string{}, c.Request().PostForm["live_category_ids"]...)
+			f.ArtistIDs = append([]string{}, c.Request().PostForm["live_artist_ids"]...)
+			f.VenueIDs = append([]string{}, c.Request().PostForm["live_venue_ids"]...)
 		}
 		f, err = activity.NormalizeFilters(f)
 		if err != nil {
 			return a.renderAccount(c, 400, p, "preferences", err.Error(), "", "")
 		}
 		filters = append(filters, f)
+		if action == "search_artist" || action == "search_venue" {
+			return a.searchLivePicker(c, p, f, revision)
+		}
 	}
 	_, err = a.accounts.ReplaceLivePreferences(c.Request().Context(), p.Account.ID, revision, c.FormValue("enabled") == "on", filters...)
 	if errors.Is(err, accounts.ErrLiveConflict) {

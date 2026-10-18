@@ -13,11 +13,11 @@ import (
 func happeningFilters(q url.Values) (activity.Filters, error) {
 	f := activity.DefaultPreferences().Filters
 	for key, values := range q {
-		if key != "live_category_ids" && len(values) != 1 {
+		if key != "live_category_ids" && key != "live_artist_ids" && key != "live_venue_ids" && len(values) != 1 {
 			return f, errors.New("Use one value per filter field.")
 		}
 		switch key {
-		case "location_mode", "live_city", "live_country", "live_category_ids", "filter_action":
+		case "location_mode", "live_city", "live_country", "live_category_ids", "live_artist_ids", "live_venue_ids", "filter_action":
 		default:
 			return f, errors.New("Unknown activity filter.")
 		}
@@ -35,6 +35,8 @@ func happeningFilters(q url.Values) (activity.Filters, error) {
 		f.Location.City, f.Location.Country = q.Get("live_city"), q.Get("live_country")
 	}
 	f.CategoryIDs = append([]string{}, q["live_category_ids"]...)
+	f.ArtistIDs = append([]string{}, q["live_artist_ids"]...)
+	f.VenueIDs = append([]string{}, q["live_venue_ids"]...)
 	return activity.NormalizeFilters(f)
 }
 
@@ -71,15 +73,21 @@ func (a *api) happeningNowPage(c echo.Context) error {
 			status = 400
 		}
 	}
+	p.Editor = a.liveEditor(c, p.Filters, p.SignedIn)
+	return a.renderHappeningNow(c, status, p)
+}
+
+func (a *api) renderHappeningNow(c echo.Context, status int, p home.HappeningNowPage) error {
 	if a.events != nil {
 		catalog, _ := a.events.Categories(c.Request().Context())
 		p.Categories = catalog.Items
 	}
-	if !p.Paused && p.Error == "" {
+	if p.Enabled && !p.Paused && p.Error == "" {
 		if !a.liveStarts.allow(c.RealIP()) {
 			status, p.Error = 429, "Live activity is temporarily unavailable. Refresh in one minute."
 			c.Response().Header().Set("Retry-After", "60")
 		} else {
+			var err error
 			p.Snapshot, err = a.liveActivity.FilteredSnapshot(c.Request().Context(), p.Filters)
 			if err != nil {
 				status, p.Error = 503, "Live activity is unavailable. Refresh to try again."

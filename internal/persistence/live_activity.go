@@ -113,23 +113,30 @@ func (r *ActivityRepository) Candidates(ctx context.Context) (activity.Candidate
 			args = append(args, result.Items[i].Item.EventID)
 			byID[result.Items[i].Item.EventID] = i
 		}
-		facets, err := tx.QueryContext(ctx, `SELECT event_id,value FROM event_search_facets WHERE kind='category' AND event_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")+`)`, args...)
+		facets, err := tx.QueryContext(ctx, `SELECT event_id,kind,value FROM event_search_facets WHERE kind IN ('category','artist','venue') AND event_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")+`) ORDER BY event_id,kind,value`, args...)
 		if err != nil {
 			return activity.Candidates{}, activity.ErrUnavailable
 		}
 		for facets.Next() {
-			var id, category string
-			if facets.Scan(&id, &category) != nil {
+			var id, kind, value string
+			if facets.Scan(&id, &kind, &value) != nil {
 				facets.Close()
 				return activity.Candidates{}, activity.ErrUnavailable
 			}
-			bytes += 128 + 4*len(category)
+			bytes += 128 + 4*len(value)
 			if bytes > activity.MemoryBudget/4 {
 				facets.Close()
 				return activity.Candidates{}, activity.ErrMemoryLimit
 			}
 			i := byID[id]
-			result.Items[i].CategoryIDs = append(result.Items[i].CategoryIDs, category)
+			switch kind {
+			case "category":
+				result.Items[i].CategoryIDs = append(result.Items[i].CategoryIDs, value)
+			case "artist":
+				result.Items[i].ArtistIDs = append(result.Items[i].ArtistIDs, value)
+			case "venue":
+				result.Items[i].VenueIDs = append(result.Items[i].VenueIDs, value)
+			}
 		}
 		err = facets.Err()
 		facets.Close()

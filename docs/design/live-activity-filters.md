@@ -1,7 +1,7 @@
 # Default-on, filtered live activity
 
-**Status:** Parts 1–2 and the toast/Happening Now presentation checkpoint implemented
-and locally verified. Parts 3–6 remain planned.
+**Status:** Parts 1–3 and the toast/Happening Now presentation checkpoint implemented
+and locally verified. Parts 4–6 remain planned.
 **Date:** 2026-10-16; presentation requirement revised 2026-10-17.
 **Extends:** [Implemented live activity](../live-community-activity.md) and its
 [original specification](live-community-activity.md).
@@ -513,7 +513,7 @@ useful stopping/review points, not backend-only foundations awaiting a later UI.
 - [x] **Part 2:** City and event-type filters work on the complete recent window.
 - [x] **Presentation checkpoint:** Top-right toasts replace the above-content
   disclosure; Happening Now navigation/page exposes the same filtered activity.
-- [ ] **Part 3:** Specific artist and venue filters compose with city/type filters.
+- [x] **Part 3:** Specific artist and venue filters compose with city/type filters.
 - [ ] **Part 4:** Saved/Interested/followed-artist/followed-venue personalization works
   across replicas.
 - [ ] **Part 5:** The combined feature meets measured load, resilience and rollout
@@ -656,6 +656,19 @@ redaction/expiry, counts and drafts. Update current guides and generated assets
 only when implemented and verified; this checkpoint does not reset preferences.
 
 ### Part 3 — Specific artist and venue filters
+
+**Completed locally — 2026-10-18.** Exact full-list entity facets compose with
+city/type predicates before the twenty-group limit, with canonical shared views
+and snapshot-consistent metadata corrections. Both filter editors have authenticated
+catalog pickers, selected labels, independent clears, native draft searches and
+conditional Apply/Reset. Guest public IDs persist without storing names or changing
+lookup authorization. No migration or preference reset was added.
+The production-route demo passes 29 browser checks against isolated MariaDB;
+existing filter and presentation journeys pass 30 and 65 checks. Mixed-dimension
+reference/cache tests, real-MariaDB persistence/correction regressions, the full
+race suite, final affected-package checks, vet, OpenAPI lint, generated build and
+Docker `make check` pass. See the [verification record](../live-community-activity.md#verification).
+Parts 4–6 and production rollout remain planned.
 
 **Outcome:** visitors can narrow the working feed to chosen artists or venues and
 combine those choices predictably with location and event type.

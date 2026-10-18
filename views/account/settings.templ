@@ -291,7 +291,7 @@ templ Preferences(p Page) {
 				</label></div>
 			</div>
 			<p class="field-note">Pause all notifications overrides this choice. Hide activity toasts on Happening Now hides automatic notifications only in that browser; you can still browse that page.</p>
-			@layouts.LiveFilterFields(p.LivePreferences.Filters, p.Categories)
+			@layouts.LiveFilterFields(p.LivePreferences.Filters, p.Categories, p.LiveEditor)
 			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) { Save live activity }
 		</form>
 	}
