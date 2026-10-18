@@ -2,7 +2,6 @@ package layouts
 
 import "github.com/sonastea/ticketopia/views/components"
 import "github.com/sonastea/ticketopia/views/components/button"
-import "github.com/sonastea/ticketopia/internal/activity"
 
 templ Base(title string) {
 	<!DOCTYPE html>
@@ -37,7 +36,7 @@ templ Base(title string) {
 
 templ App(active string, title string) {
 	@Base(title) {
-		<div class="app-shell">
+		<div class="app-shell" data-live-activity?={ LiveActivityEnabled(ctx) }>
 			<aside class="sidebar" data-sidebar data-customizing="false">
 				<div class="sidebar-head">
 					<a href="/" class="brand" aria-label="Ticketopia home">
@@ -53,6 +52,9 @@ templ App(active string, title string) {
 					@NavGroup("browse", "Browse") {
 						@NavItem("/", "Discover", "discover", active == "discover")
 						@NavItem("/community", "Community", "community", active == "community")
+						if LiveActivityEnabled(ctx) {
+							@NavItem("/happening-now", "Happening Now", "activity", active == "happening-now")
+						}
 					}
 					@NavGroup("your-space", "Your space") {
 						@NavItem("/radar", "Radar", "radar", active == "radar")
@@ -84,33 +86,24 @@ templ App(active string, title string) {
 					</a>
 					<span>Live events, worth finding.</span>
 				</header>
-				if LiveActivityEnabled(ctx) {
-					<section class="live-activity" data-live-activity hidden aria-label="Live activity">
-						<button type="button" class="text-link" data-live-show hidden>Show live activity</button>
-						<p class="field-note" data-live-paused hidden>Live activity is paused. <a class="text-link" href="/me/preferences">Notification preferences</a></p>
-						<details data-live-details>
-							<summary>Live activity <span data-live-badge></span></summary>
-							<p class="field-note" data-live-summary>Everywhere · All event types · All events</p>
-							<form class="account-form" data-live-filter-form>
-								@LiveFilterFields(activity.DefaultPreferences().Filters, nil)
-							</form>
-							<p class="field-note" data-live-connection>Connecting to live activity…</p>
-							<button type="button" class="text-link" data-live-updates hidden></button>
-							<ul data-live-list></ul>
-							<div class="account-actions"><a href="/community" class="text-link">Explore Community</a><button type="button" class="text-link" data-live-hide>Hide live activity</button></div>
-						</details>
-						<p class="sr-only" role="status" aria-atomic="true" data-live-status></p>
-						<p class="field-note" data-live-count-status hidden>Event counts couldn't refresh. Showing last-known totals.</p>
-					</section>
-				}
 				{ children... }
 			</div>
 			<nav class="bottom-nav" aria-label="Main navigation">
 				@NavLink("/", "Discover", "discover", active == "discover")
 				@NavLink("/saved", "Saved", "saved", active == "saved")
 				@NavLink("/community", "Community", "community", active == "community")
+				if LiveActivityEnabled(ctx) {
+					@NavLink("/happening-now", "Happening Now", "activity", active == "happening-now")
+				}
 				@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests" || active == "follows" || active == "radar")
 			</nav>
+			if LiveActivityEnabled(ctx) {
+				<aside aria-label="Activity notifications">
+					<ul class="activity-toasts" data-live-toasts aria-label="New public recommendations"></ul>
+					<p class="sr-only" role="status" aria-atomic="true" data-live-status></p>
+					<p class="sr-only" data-live-count-status hidden>Event counts couldn't refresh. Showing last-known totals.</p>
+				</aside>
+			}
 		</div>
 	}
 }

@@ -1,15 +1,10 @@
 # Live community activity
 
 Live activity is a sitewide view of public recommendations from the last
-ten minutes. Guests and enabled signed-in visitors can filter the public view. It starts
-collapsed above app content and never reorders Community or other collections.
-
-**Planned presentation change — 2026-10-17:** the
-[revised specification](design/live-community-activity.md#interface-and-notification-controls)
-replaces that disclosure with top-right activity toasts and a separate **Happening
-Now** navigation page. This guide describes the currently implemented UI until the
-[presentation checkpoint](design/live-activity-filters.md#presentation-checkpoint--top-right-toasts-and-happening-now)
-is delivered.
+ten minutes. Guests and enabled signed-in visitors receive new recommendations as
+top-right toasts and browse the current filtered view on **Happening Now** at
+`/happening-now`. Ordinary pages have no above-content activity section. Community
+and other collections keep their existing order.
 
 Parts 1–2 of the [default-on filtering extension](design/live-activity-filters.md)
 add default-on preferences and complete-window city/event-type filtering.
@@ -33,7 +28,7 @@ never repeat the reset. Email permission, subscriptions and delivery history are
 untouched; configured replies/reminders can resume under their existing rules.
 
 **Preferences → Live activity** has its own native conditional save. **Pause all
-notifications** overrides live enablement; **Hide live activity** remains device-local
+notifications** overrides live enablement; **Hide activity toasts** remains device-local
 and survives the upgrade. Signed-in settings are authoritative, never uploaded from
 guest storage. No feed bodies or private account state are stored in browser storage.
 
@@ -55,7 +50,7 @@ guest storage. No feed bodies or private account state are stored in browser sto
 
 ## City and event-type filters (Part 2)
 
-Open **Filter live activity**, choose Everywhere or a city with its two-letter
+On Happening Now, open **Filter live activity**, choose Everywhere or a city with its two-letter
 country, and select catalog event types. **Apply** commits one change; **Reset
 filters** restores Everywhere / all types without enabling a disabled feed or
 clearing a pause/hide. Categories match any selection; location and categories
@@ -66,9 +61,12 @@ Guests retain only public filter settings in `ticketopia-live-filters-v1` local
 storage. Account settings win on sign-in; **Reuse this browser’s filters** copies
 them into a draft for explicit Apply. Account changes sync through MariaDB and
 conditional revisions. Preferences has equivalent native/JavaScript-disabled
-filter controls. Live activity remains an enhancement; native Community works
-without JavaScript. **Use browsing city**, when a browsing city/country is present,
-copies it after confirmation and does not track later navigation.
+filter controls. Happening Now also renders a native snapshot, timestamp, Refresh
+link and guest GET/account conditional POST filter forms without JavaScript.
+Native guest selections are URL-scoped; JavaScript shares confirmed public filters
+with browser-local toast settings. **Use browsing city** copies an explicitly
+selected Discover city/country remembered in this tab, after confirmation. It does
+not infer location or track later navigation.
 
 City matching uses Community's authoritative first-venue, per-field event-place
 fallback. MariaDB Unicode collation weights preserve literal equality (including
@@ -119,14 +117,29 @@ name, contribution count and publication/expiry times. It contains no account ID
 profile link, display name, email, avatar, biography or recommendation reason.
 Multiple contributions to an event show a count, never a list of names.
 
-Opening **Live activity** shows up to 20 event groups and real Overview links with
-browsing return context. New rows wait behind **Show N new updates** while reading;
-withdrawals, name clearing and expiries apply immediately. Reconnects show current
-activity quietly. **Hide live activity** stores only a browser-local preference;
-**Show live activity** remains reachable. Storage failure uses page memory.
-Signed-in **Pause all notifications** suppresses display and streaming. Preferences
-are checked at entry/focus/BFCache and every 30 seconds while visible. Neither
-pause nor hiding disables ordinary aggregate count refreshes or participation.
+Happening Now is reachable from desktop Browse (after Community), the intermediate
+rail and compact navigation. It shows up to 20 event groups with real Overview
+links and browsing return context. New rows wait behind **Show N new updates**;
+withdrawals, name clearing and expiry apply immediately. No duplicate toasts appear
+there. A filtered empty view offers Reset filters explicitly.
+
+Elsewhere, new publications show at most three toasts, or one below the compact
+navigation threshold. Each offers an event link, Happening Now and Dismiss. Toasts
+expire after eight visible non-interacting seconds, suspended during hover/focus.
+Repeated contributions update a visible event without resetting its lifetime. Bursts
+are coalesced without a backlog; insufficient space, dialogs and focused controls
+defer display. Dismissal never removes the event from Happening Now. Initial,
+reconnect, filter-change and navigation snapshots are quiet. One debounced polite
+status announces availability, without reading every count or stealing focus.
+
+**Hide activity toasts** and **Show activity toasts** live on Happening Now and
+preserve the existing `ticketopia-live-hidden` browser preference. Hiding closes
+background activity delivery elsewhere; deliberate page browsing stays available.
+Storage failure uses page memory. Signed-in **Pause all notifications** or live-disable
+suppresses activity and streaming even on Happening Now, which explains the state
+and links to preferences. Reset filters never changes pause/enable/hide choices.
+Preferences are checked at entry/focus/BFCache and every 30 seconds while visible.
+Neither pause nor hiding disables aggregate count refreshes or participation.
 
 An interrupted connection clears attribution immediately and retains counts as
 stale. A 30-second heartbeat watchdog detects silent stalls. Reconnect uses jittered
@@ -159,6 +172,11 @@ invalidate older callbacks and trigger fresh reads.
 
 ## HTTP and operations
 
+- `GET /happening-now`: native page, owner preferences or bounded public form-query
+  filters; shares the snapshot start limiter and `private, no-store`. Disabled
+  deployments retain an explanatory page and omit navigation/enhancement.
+- `POST /me/live-activity-preferences`: existing cookie-CSRF and revision-checked
+  native replacement; an exact `/happening-now` return target returns to the feed.
 - `GET /api/v1/community/activity`: bounded filtered snapshot, no pagination.
 - `GET /api/v1/community/activity/stream`: SSE `activity.snapshot`, optional
   `counts.snapshot`, `heartbeat` every 15 seconds, and content-free `unavailable`.
@@ -191,6 +209,23 @@ only still-eligible recent entries, without backfill. Related guides:
 [persistence](persistence.md), [UI](ui-components.md).
 
 ## Verification
+
+Presentation checkpoint (2026-10-18): 65 production-route/browser checks across
+two replica-local hubs and isolated MariaDB cover bounded toasts, dismissal/focus,
+hover/lifetime/grouping, quiet reconnects, page buffering, redaction/expiry,
+native guest/owner forms, preserved hide/pause/disable, account switching/revocation,
+fallback, navigation and Overview/Back. The updated city/type journey passes 30
+checks, including matching toast filters, complete-window results, native Reset,
+unchanged mounted drafts/private participation, and independent authoritative counts.
+Whole-page axe, 1440/1050/390/320px navigation, 200% text and forced-colors/reduced-motion
+checks pass. Screenshots are in `.impeccable/review/live-activity/` and `live-filters/`.
+The full real-MariaDB race suite, vet, generated asset/binary build and Docker
+`make check` pass.
+The styling detector reports only pre-existing provider-font and token advisories.
+Local screenshot inspection completed; an independent finish-review attempt was
+blocked by the review service's usage limit and is not recorded as a sign-off.
+Physical devices, manual screen-reader, proxy and three-replica load remain Part 5;
+this checkpoint adds no migration and does not change production configuration.
 
 Part 2 local checks (2026-10-16) exercise a Berlin music recommendation older than
 25 globally newer London events, reset, normalized city/country, literal wildcards,

@@ -117,6 +117,10 @@ func isCommunityURL(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && (u.Path == "/community" || u.Path == "/community/discussions")
 }
+func isHappeningNowURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && u.Path == "/happening-now"
+}
 func isProfileURL(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && strings.HasPrefix(u.Path, "/users/")

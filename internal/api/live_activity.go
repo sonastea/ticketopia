@@ -61,6 +61,7 @@ func WithLiveActivity(service *activity.Service, starts int) Option {
 	return func(a *api) { a.liveActivity = service; a.liveStarts.limit = starts }
 }
 func (a *api) liveActivityRoutes(e *echo.Echo) {
+	e.GET("/happening-now", a.happeningNowPage)
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if a.liveActivity != nil {

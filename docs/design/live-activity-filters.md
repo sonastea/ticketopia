@@ -1,7 +1,7 @@
 # Default-on, filtered live activity
 
-**Status:** Parts 1–2 implemented and locally verified; toast/Happening Now
-presentation checkpoint and Parts 3–6 remain planned.
+**Status:** Parts 1–2 and the toast/Happening Now presentation checkpoint implemented
+and locally verified. Parts 3–6 remain planned.
 **Date:** 2026-10-16; presentation requirement revised 2026-10-17.
 **Extends:** [Implemented live activity](../live-community-activity.md) and its
 [original specification](live-community-activity.md).
@@ -413,7 +413,7 @@ are omitted. Unknown fields/versions fail explicitly rather than broadening scop
 
 ## 7. Recipient experience
 
-**Revised requirement — 2026-10-17; presentation work remains planned.** Extend the
+**Revised requirement — 2026-10-17; implemented locally 2026-10-18.** Extend the
 existing Manrope/plum/light-stone shell with top-right activity toasts and the
 **Happening Now** navigation destination at `/happening-now`. Follow the
 [toast/page contract](live-community-activity.md#interface-and-notification-controls)
@@ -511,7 +511,7 @@ useful stopping/review points, not backend-only foundations awaiting a later UI.
 - [x] **Part 1:** Existing/new accounts have notifications enabled; live preferences
   and pause controls work on the current live feed.
 - [x] **Part 2:** City and event-type filters work on the complete recent window.
-- [ ] **Presentation checkpoint:** Top-right toasts replace the above-content
+- [x] **Presentation checkpoint:** Top-right toasts replace the above-content
   disclosure; Happening Now navigation/page exposes the same filtered activity.
 - [ ] **Part 3:** Specific artist and venue filters compose with city/type filters.
 - [ ] **Part 4:** Saved/Interested/followed-artist/followed-venue personalization works
@@ -626,8 +626,15 @@ Record a populated-window benchmark baseline before adding personalization.
 
 ### Presentation checkpoint — Top-right toasts and Happening Now
 
-**Planned — 2026-10-17.** Parts 1–2 above record the implemented disclosure-based
-baseline; their completion does not imply this revised presentation has shipped.
+**Completed locally — 2026-10-18.** Top-right bounded toasts, all navigation layouts,
+the native Happening Now snapshot/Refresh/filter page and shared confirmed filters
+are connected. Production-route browser journeys pass 65 presentation checks and
+30 filter/count/draft checks against isolated MariaDB, including native forms,
+pause/disable/hide, account switching/revocation, dismissal/focus/hover timers,
+buffering/redaction/expiry, fallback and Overview/Back. Whole-page accessibility,
+responsive/enlarged-text checks, the real-MariaDB race suite, vet, Docker validation and generated build
+pass. See the [verification record](../live-community-activity.md#verification).
+No migration or production preference reset was added; Part 5 rollout gates remain.
 
 **Outcome:** visitors notice new public recommendations through top-right toasts
 while browsing, and choose Happening Now in navigation to inspect recent activity.

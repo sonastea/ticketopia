@@ -66,7 +66,7 @@ func (a *api) livePreferences(c echo.Context) error {
 }
 func (a *api) livePreferencesPage(c echo.Context) error {
 	privateAccountResponse(c)
-	if err := parseAccountForm(c, "enabled", "revision", "location_mode", "live_city", "live_country", "live_category_ids", "filter_action"); err != nil {
+	if err := parseAccountForm(c, "enabled", "revision", "location_mode", "live_city", "live_country", "live_category_ids", "filter_action", "return_to"); err != nil {
 		return a.accountPageError(c, err)
 	}
 	p, err := a.principal(c, true)
@@ -103,6 +103,9 @@ func (a *api) livePreferencesPage(c echo.Context) error {
 	}
 	if err != nil {
 		return a.accountPageError(c, err)
+	}
+	if c.FormValue("return_to") == "/happening-now" {
+		return c.Redirect(303, "/happening-now")
 	}
 	return c.Redirect(303, "/me/preferences?saved=preferences")
 }

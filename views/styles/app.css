@@ -12,13 +12,39 @@
 }
 
 /* Account forms extend the existing flat, plum/light-stone app shell. */
-.live-activity { padding-block: .5rem; padding-inline: var(--page-padding, 1.25rem); border-block-end: 1px solid var(--line); }
+.live-activity > * + * { margin-block-start: 1rem; }
 .live-activity summary { min-block-size: 2.75rem; padding-block: .6rem; color: var(--brand); font-weight: 700; cursor: pointer; }
 .live-activity summary:active { background: var(--brand-soft); }
 .live-activity summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .live-activity ul { list-style: none; padding: 0; margin-block: .5rem; }
 .live-activity li { padding-block: .5rem; border-block-start: 1px solid var(--line); }
 .live-activity [data-live-badge] { font-variant-numeric: tabular-nums; font-weight: 500; }
+.activity-toasts {
+  position: fixed;
+  inset-block-start: calc(max(var(--activity-header-edge, 0px), env(safe-area-inset-top)) + .75rem);
+  inset-inline-end: max(.75rem, env(safe-area-inset-right));
+  inline-size: min(25rem, calc(100% - 1.5rem - env(safe-area-inset-right) - env(safe-area-inset-left)));
+  display: grid;
+  gap: .75rem;
+  z-index: 35;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  pointer-events: none;
+}
+.activity-toasts[hidden] { display: none; }
+.activity-toast {
+  padding: 1rem;
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  pointer-events: auto;
+}
+.activity-toast > [data-live-attribution], .activity-toast > [data-live-meta] { display: block; }
+.activity-toast > a { font-weight: 750; }
+.activity-toast .account-actions { margin-block-start: .5rem; }
+.activity-toast .text-link { min-block-size: 2.75rem; }
 @media (hover: hover) and (pointer: fine) {
   .live-activity summary:hover { background: var(--nav-hover); }
 }

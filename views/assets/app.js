@@ -569,7 +569,7 @@
       sessionStorage.setItem(returnKey, JSON.stringify({ from: location.href, to: url.href, journey }));
     } catch { /* The normal return link still preserves filters without storage. */ }
   };
-  const collectionPaths = new Set(['/saved', '/me/interests', '/radar']);
+  const collectionPaths = new Set(['/saved', '/me/interests', '/radar', '/happening-now']);
   const isCollectionPath = path => collectionPaths.has(path) || path === '/community' || path === '/community/discussions' || /^\/users\/[^/]+$/.test(path);
   const validJourney = journey => {
     try {

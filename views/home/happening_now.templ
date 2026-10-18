@@ -1,0 +1,69 @@
+package home
+
+import "fmt"
+import "github.com/sonastea/ticketopia/views/layouts"
+
+templ HappeningNow(p HappeningNowPage) {
+	@layouts.App("happening-now", "Happening Now") {
+		<main id="main" class="destination-page live-activity" data-live-page data-live-guest?={ !p.SignedIn && p.Error == "" }>
+			<h1 tabindex="-1" data-live-heading>Happening Now</h1>
+			<p>Public recommendations from the last 10 minutes</p>
+			if !p.Enabled {
+				<p>Live activity is unavailable on this server.</p>
+			} else {
+				<p class="field-note" data-live-summary>{ p.summary() }</p>
+				<form id="live-filter-form" class="account-form" method={ happeningMethod(p.SignedIn) } action={ happeningAction(p.SignedIn) } data-live-filter-form>
+					if p.SignedIn {
+						<input type="hidden" name="csrf_token" value={ p.CSRF }/>
+						<input type="hidden" name="revision" value={ fmt.Sprint(p.Revision) }/>
+						<input type="hidden" name="return_to" value="/happening-now"/>
+						if p.LiveEnabled {
+							<input type="hidden" name="enabled" value="on"/>
+						}
+					}
+					@layouts.LiveFilterFields(p.Filters, p.Categories)
+				</form>
+				<div class="account-actions">
+					<button type="button" class="text-link" data-live-hide hidden>Hide activity toasts</button>
+					<button type="button" class="text-link" data-live-show hidden>Show activity toasts</button>
+					<a href={ templ.URL(p.ReturnURL) } class="text-link" data-live-refresh>Refresh</a>
+				</div>
+				<p class="field-note" data-live-paused hidden?={ !p.Paused }>Live activity is paused or disabled. <a class="text-link" href="/me/preferences">Notification preferences</a></p>
+				<section data-live-details hidden?={ p.Paused } aria-label="Recent activity">
+					<p class="field-note" data-live-connection>
+						if p.Error != "" {
+							{ p.Error }
+						} else if len(p.Snapshot.Items) == 0 {
+							if p.Filters.Location.Mode == "all" && len(p.Filters.CategoryIDs) == 0 {
+								No recent recommendations. Explore Community.
+							} else {
+								No recent recommendations match these filters. Use Reset filters to see all events.
+							}
+						} else {
+							Recent public recommendations
+						}
+					</p>
+					<button type="submit" form="live-filter-form" name="filter_action" value="reset" formnovalidate class="text-link" data-live-empty-reset hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || (p.Filters.Location.Mode == "all" && len(p.Filters.CategoryIDs) == 0) }>Reset filters</button>
+					if !p.Snapshot.AsOf.IsZero() {
+						<p class="field-note">Snapshot updated <time datetime={ p.Snapshot.AsOf.Format("2006-01-02T15:04:05Z07:00") }>{ p.Snapshot.AsOf.UTC().Format("15:04:05 UTC") }</time>. Refresh for the latest snapshot; live updates appear when connected.</p>
+					}
+					<button type="button" class="text-link" data-live-updates hidden></button>
+					<span data-live-badge class="sr-only"></span>
+					<ul data-live-list>
+						for _, item := range p.Snapshot.Items {
+							<li data-id={ item.EventID }>
+								<span data-live-attribution>{ activityAttribution(item) }</span>
+								<a class="text-link" data-event-link data-live-event-link data-id={ item.EventID } href={ templ.URL(eventURL(item.EventID, "overview", p.ReturnURL)) }>{ item.EventTitle }</a>
+								<span class="field-note" data-live-meta> · { item.City } · { p.relativeTime(item) }</span>
+							</li>
+						}
+					</ul>
+				</section>
+			}
+			<a href="/community" class="text-link">Explore Community</a>
+		</main>
+	}
+}
+
+func happeningMethod(signedIn bool) string { if signedIn { return "post" }; return "get" }
+func happeningAction(signedIn bool) string { if signedIn { return "/me/live-activity-preferences" }; return "/happening-now" }

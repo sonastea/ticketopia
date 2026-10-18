@@ -17,6 +17,8 @@ templ Event(page EventPage) {
 					Back to Interests
 				} else if isRadarURL(page.ReturnURL) {
 					Back to Radar
+				} else if isHappeningNowURL(page.ReturnURL) {
+					Back to Happening Now
 				} else if isCommunityURL(page.ReturnURL) {
 					Back to Community
 				} else if isProfileURL(page.ReturnURL) {

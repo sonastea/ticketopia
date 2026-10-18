@@ -1,6 +1,6 @@
 # Live community activity
 
-**Status:** Delivery baseline implemented; revised toast/navigation UI planned.
+**Status:** Delivery and toast/Happening Now presentation implemented and locally verified.
 Manual/deployment acceptance remains open.
 **Date:** 2026-10-15; presentation requirement revised 2026-10-17.
 **Scope:** Sitewide live public recommendations, refreshed event counts, and
@@ -277,7 +277,7 @@ the JSON snapshots every **15 seconds** while visible, with the same stale rules
 
 ## Interface and notification controls
 
-**Revised requirement — 2026-10-17; not yet implemented.** Replace the shared
+**Revised requirement — 2026-10-17; implemented locally 2026-10-18.** Replace the shared
 above-content disclosure with two connected surfaces: transient activity toasts
 and a dedicated Happening Now page. Ordinary page content starts directly, without
 an activity panel, collapsed summary, or reserved activity space above it.
@@ -408,7 +408,7 @@ never backfills publications made while disabled or replays expired activity.
    subscribers, reconnect/cleanup/shutdown and feature configuration.
 4. [x] **Original web baseline:** shared shell disclosure, first-name-only rows,
    pause/hide, grouping, in-place counts and Overview/return integration.
-5. [ ] **Revised presentation:** replace above-content activity with top-right
+5. [x] **Revised presentation:** replace above-content activity with top-right
    toasts, Happening Now navigation/page, shared filters and preserved controls.
 6. [ ] **Verification/docs:** checks below, implemented guides/OpenAPI/history,
    generated assets and release checklist updates after verified delivery.
@@ -416,8 +416,8 @@ never backfills publications made while disabled or replays expired activity.
 ## Acceptance and verification
 
 See the [current feature guide](../live-community-activity.md) for implementation,
-configuration and local verification. Original delivery checks remain applicable;
-the revised presentation needs its own checks below. Physical devices, manual
+configuration and local verification, including the revised presentation's browser
+journeys. Original delivery checks remain applicable. Physical devices, manual
 screen readers and target proxy/multi-replica load still require rollout verification.
 
 ### Meaningful regression coverage

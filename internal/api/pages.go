@@ -63,6 +63,20 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 }
 
 func safeReturnURL(raw string) string {
+	if strings.HasPrefix(raw, "/happening-now") {
+		u, err := url.Parse(raw)
+		if err != nil || len(raw) > 8192 || u.IsAbs() || u.Host != "" || u.Path != "/happening-now" || u.Fragment != "" {
+			return "/"
+		}
+		q, err := url.ParseQuery(u.RawQuery)
+		if err != nil {
+			return "/"
+		}
+		if _, err := happeningFilters(q); err != nil {
+			return "/"
+		}
+		return u.String()
+	}
 	if strings.HasPrefix(raw, "/me/discussions") || strings.HasPrefix(raw, "/me/notifications") {
 		return safeDiscussionFollowReturn(raw)
 	}

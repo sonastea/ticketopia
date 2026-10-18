@@ -2,15 +2,24 @@
 
 ## Unreleased
 
+### 2026-10-18 — Toasts and Happening Now presentation checkpoint
+
+- Implement the native `/happening-now` snapshot/Refresh/filter page, all navigation
+  layouts and bounded eight-second toasts with shared preferences and one stream.
+- Preserve hide/pause/disable, quiet baselines, first-name-only attribution,
+  immediate redaction/expiry, explicit updates, independent counts and Overview/Back.
+- Pass 65 presentation and 30 filter/draft/count browser checks against isolated
+  MariaDB, whole-page axe, responsive/enlarged-text/focus checks, race suite, vet
+  and Docker `make check`.
+  See the [current guide](../live-community-activity.md#verification). No new migration
+  or production configuration change; rollout/manual-device gates remain Part 5.
+
 ### 2026-10-17 — Toasts and Happening Now specification
 
 - Revise the [interface contract](../design/live-community-activity.md#interface-and-notification-controls)
   to replace above-content activity with bounded top-right toast notifications.
 - Specify a **Happening Now** navigation page for recent public recommendations,
   with shared filters, native browsing, accessible dismissal and preserved pauses.
-- Align the [filtering plan](../design/live-activity-filters.md) and add an unchecked
-  presentation checkpoint before Part 3. This is a specification change; the
-  [current guide](../live-community-activity.md) still documents the implemented UI.
 
 ### 2026-10-16 — Part 2: complete-window city and event-type filters
 

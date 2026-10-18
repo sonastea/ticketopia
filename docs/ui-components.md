@@ -7,12 +7,13 @@ paths, the Nova base style, and the embedded script bundle.
 
 ## Build and develop
 
-The shared shell's optional [Live activity disclosure](live-community-activity.md)
-uses native details/summary and flat rule-separated rows. Its standalone embedded
-`views/assets/live-activity.js` owns one stream, local hide/pause behavior, replacement
-snapshots and numeric count updates. It does not remount event composers or reorder
-collections. `views/styles/app.css` owns its logical spacing and shared-token focus/
-press treatment. Regenerate templ and CSS when changing the shell.
+The shared shell's [live activity toasts](live-community-activity.md) sit outside
+document flow. Happening Now owns the native recent snapshot, filter disclosure,
+explicit updates and toast visibility controls. The standalone embedded
+`views/assets/live-activity.js` shares one stream with numeric count updates,
+preserves local hide/account pause and reconciles redaction/expiry in place without
+remounting composers. `views/styles/app.css` owns logical spacing, responsive toast
+bounds and shared-token focus/press treatment. Regenerate templ and CSS after edits.
 
 Use Go 1.27+ and Node.js 24 with npm. The Node release line is declared in
 `package.json` and `.nvmrc`; with nvm, run `nvm install` and `nvm use` first:

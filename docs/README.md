@@ -21,8 +21,8 @@ their status; they describe intended work rather than available features.
   enlarged-text navigation, sign-in continuity, conversation draft-safety, action/removal and return-hierarchy fixes,
   with remaining manual flow checks.
 - [Live community activity specification](design/live-community-activity.md): implemented
-  delivery/first-name attribution; revised top-right toasts and **Happening Now**
-  navigation/page planned, with remaining manual/deployment acceptance checks.
+  delivery/first-name attribution, top-right toasts and **Happening Now**
+  navigation/page, with remaining manual/deployment acceptance checks.
 - [Default-on, filtered live activity](design/live-activity-filters.md): default-on preferences,
   city/type filtering and shared candidate indexing; planned entity/private filters
   and six working parts plus a toast/navigation presentation checkpoint

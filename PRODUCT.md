@@ -66,7 +66,8 @@ small-pilot feedback remain; cluster upgrades/migrations, shared-replica state,
 publishing and backup/restore will be verified after Kubernetes deployment.
 
 A bounded [live community activity extension](docs/live-community-activity.md)
-is implemented and default-off: sitewide public recommendations, refreshed event
+is implemented with dependency-aware defaults and an explicit production kill switch:
+top-right public recommendation toasts, the Happening Now feed, refreshed event
 counts, and explicitly chosen first-name-only notification attribution, with Someone
 as the fallback. Private saves remain private; named Interested broadcasts are a
 separate future slice.
