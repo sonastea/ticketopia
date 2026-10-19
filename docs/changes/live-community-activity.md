@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-10-19 — Part 4: private connection filters
+
+- Add schema 19 transactional membership revisions, candidate-scoped batched joins,
+  incremental per-account bitmaps, private cache separation and bounded rebuilds.
+- Connect Saved/Interested/followed-artist/followed-venue controls to authenticated
+  snapshots/streams and native preferences, with guest explanation and quiet updates.
+- Preserve public attribution/counts, later pauses, drafts and owner isolation.
+  See the [guide and verification](../live-community-activity.md#private-connections-part-4).
+- Pass 25 new and 95 existing browser checks, real-MariaDB race/rollback/replica
+  regressions, vet, OpenAPI lint, generated build and Docker `make check`.
+
+Older entries: [archive](archive/live-community-activity/).
+
 ### 2026-10-18 — Part 3: specific artists and venues
 
 - Add exact full-lineup/venue predicates, canonical shared views and bounded facets.
@@ -78,23 +91,3 @@
   readiness and optional radius filtering, each with a demo and exit checks.
 - Link the [proposed extension](../design/live-activity-filters.md). Runtime defaults,
   routes and filters remain unchanged; implementation milestones are unchecked.
-
-### 2026-10-15 — Live community activity
-
-- Specify sitewide live public recommendations and aggregate event-count refreshes,
-  grouped and dismissible, with SSE snapshots backed by shared MariaDB state.
-- Choose an optional, explicit activity first name with Someone as the fallback;
-  omit surnames, display names and email fragments from notification payloads.
-- Define atomic eligibility/withdrawal, anti-repeat behavior, expiry, replica
-  delivery, pause controls, proposed API contracts and acceptance checks.
-- Implement schema 16, optional owner-only first-name profile validation, transactional
-  eligibility/removal, current grouped projection, batched counts and shared per-replica
-  SSE delivery with bounded connections, rate limits, deadlines and shutdown.
-- Add the shell disclosure, explicit updates, immediate redaction/withdrawal, local
-  hide, account pause, watchdog/reconnect, JSON fallback and count-only reconciliation.
-- Add real MariaDB lifecycle/rollback/replica tests and production-shell browser
-  journeys. Keep target-proxy/load, physical-device and manual screen-reader checks
-  as rollout work. See the [feature guide](../live-community-activity.md) and retained
-  [implementation specification](../design/live-community-activity.md).
-- Verify the full real-MariaDB race suite, vet, OpenAPI lint, generated build,
-  final Docker `make check` and 49 browser checks including automated accessibility.

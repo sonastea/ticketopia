@@ -65,9 +65,9 @@ func TestMariaDBLivePreferenceUpgrade(t *testing.T) {
 	if _, _, err = posts.Create(t.Context(), fmt.Sprintf("%032d", 1), root.EventID, root.ID, "", "Existing reply", accounts.ID()); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = oldPool.Saved().Save(t.Context(), fmt.Sprintf("%032d", 1), detail); err != nil {
-		t.Fatal(err)
-	}
+	// Seed the historical row directly: today's writer requires schema 19's
+	// transactional membership revision, which deliberately does not exist yet.
+	execSQL(t, db, `INSERT INTO saved_events(account_id,event_id) VALUES (?,?)`, fmt.Sprintf("%032d", 1), detail.Item.ID)
 	if _, err = oldPool.Reminders().Set(t.Context(), fmt.Sprintf("%032d", 1), detail.Item.ID, 60); err != nil {
 		t.Fatal(err)
 	}

@@ -379,7 +379,7 @@ func runActivityBrowser(t *testing.T, script string) {
 		seedLiveFilterWindow(t, p, owner.ID, 26)
 		seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "Music", Name: "Music"}}, {NamedID: models.NamedID{ID: "sports", Name: "Sports"}}})
 	}
-	if strings.HasSuffix(script, "live-activity-entities-browser.cjs") {
+	if strings.HasSuffix(script, "live-activity-entities-browser.cjs") || strings.HasSuffix(script, "live-activity-connections-browser.cjs") {
 		seedLiveEntityWindow(t, p, owner.ID)
 		seed("ticketmaster:v1:categories:en", []models.Category{{NamedID: models.NamedID{ID: "Music", Name: "Music"}}, {NamedID: models.NamedID{ID: "sports", Name: "Sports"}}})
 		for _, kind := range []string{"artist", "venue"} {
@@ -428,11 +428,15 @@ func runActivityBrowser(t *testing.T, script string) {
 	defaultSum := sha256.Sum256([]byte(defaultQuery.Values().Encode()))
 	seed(fmt.Sprintf("ticketmaster:v1:events:%x:0", defaultSum), map[string]any{"items": entries, "total": 3, "total_pages": 1})
 	start := func(store kv.Store, enabled bool) *httptest.Server {
+		p := p
+		if strings.HasSuffix(script, "live-activity-connections-browser.cjs") {
+			p = f.open(t)
+		}
 		server := httptest.NewUnstartedServer(nil)
 		config := accounts.Config{Enabled: enabled, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
 		options := []api.Option{}
 		if enabled {
-			if strings.HasSuffix(script, "live-activity-entities-browser.cjs") {
+			if strings.HasSuffix(script, "live-activity-entities-browser.cjs") || strings.HasSuffix(script, "live-activity-connections-browser.cjs") {
 				options = append(options, api.WithFollows(p.Follows()))
 			}
 			if script == os.Getenv("LIVE_ACTIVITY_BROWSER_SCRIPT") {
@@ -462,7 +466,11 @@ func runActivityBrowser(t *testing.T, script string) {
 	server := start(cache, true)
 	noCache := kv.NewMemory()
 	defer noCache.Close()
-	fallback := start(noCache, true)
+	fallbackStore := kv.Store(noCache)
+	if strings.HasSuffix(script, "live-activity-connections-browser.cjs") {
+		fallbackStore = cache
+	}
+	fallback := start(fallbackStore, true)
 	disabled := start(cache, false)
 	command := exec.CommandContext(t.Context(), "node", script)
 	command.Env = append(os.Environ(), "SAVED_BASE_URL="+server.URL, "SAVED_FALLBACK_URL="+fallback.URL, "SAVED_DISABLED_URL="+disabled.URL, "SAVED_SEARCH_PATH=/?"+q.Values().Encode(), "SAVED_FIXTURE_TOKEN="+raw, "SAVED_OTHER_TOKEN="+otherRaw, "SAVED_FIXTURE_ID="+owner.ID, "SAVED_OTHER_ID="+other.ID, "MODERATION_FIXTURE_TOKEN="+modRaw)

@@ -59,6 +59,9 @@ func (r *InterestRepository) Set(ctx context.Context, owner string, detail model
 	for attempt := range 3 {
 		item, created, retry, err := r.setOnce(ctx, owner, detail, visibility, args, data)
 		if err == nil {
+			if created {
+				notifyActivityMembership(r.db, owner)
+			}
 			return item, created, nil
 		}
 		if !retry || attempt == 2 {
@@ -84,12 +87,19 @@ func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail m
 		return interests.Item{}, false, retryable(err), err
 	}
 	var count int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_interests WHERE account_id=? AND event_id=?`, owner, detail.Item.ID).Scan(&count); err != nil {
+	// Lock an existing choice through the upsert. Otherwise a concurrent removal
+	// could turn a visibility-only update into an unrevisioned re-insertion.
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_interests WHERE account_id=? AND event_id=? FOR UPDATE`, owner, detail.Item.ID).Scan(&count); err != nil {
 		return interests.Item{}, false, retryable(err), err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,?) ON DUPLICATE KEY UPDATE visibility=VALUES(visibility)`, owner, detail.Item.ID, visibility)
 	if err != nil {
 		return interests.Item{}, false, retryable(err), err
+	}
+	if count == 0 {
+		if err = bumpActivityMembership(ctx, tx, owner); err != nil {
+			return interests.Item{}, false, retryable(err), err
+		}
 	}
 	item, err := scanInterest(tx.QueryRowContext(ctx, `SELECT `+interestColumns+` FROM event_interests i JOIN event_snapshots e ON e.event_id=i.event_id WHERE i.account_id=? AND i.event_id=?`, owner, detail.Item.ID))
 	if err != nil {
@@ -102,13 +112,23 @@ func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail m
 	return item, count == 0, false, nil
 }
 func (r *InterestRepository) Remove(ctx context.Context, owner, id string) error {
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
-	defer cancel()
-	_, err := r.db.ExecContext(ctx, `DELETE FROM event_interests WHERE account_id=? AND event_id=?`, owner, id)
-	if err != nil {
-		return safeError("event interest removal", err)
+	changed := false
+	err := historyTransaction(ctx, r.db, r.timeout, "event interest removal", func(ctx context.Context, tx *sql.Tx) error {
+		changed = false
+		result, err := tx.ExecContext(ctx, `DELETE FROM event_interests WHERE account_id=? AND event_id=?`, owner, id)
+		if err != nil {
+			return err
+		}
+		if n, _ := result.RowsAffected(); n > 0 {
+			changed = true
+			return bumpActivityMembership(ctx, tx, owner)
+		}
+		return nil
+	})
+	if err == nil && changed {
+		notifyActivityMembership(r.db, owner)
 	}
-	return nil
+	return err
 }
 
 // Counts include private interest; viewer fields are selected only for the owner.

@@ -10,7 +10,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const SupportedSchemaVersion = 18
+const SupportedSchemaVersion = 19
 
 var ErrUnavailable = errors.New("database unavailable")
 
@@ -127,7 +127,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		return err
 	}
 	for _, query := range []string{
-		`SELECT live_activity_version,live_activity_enabled,live_activity_revision,notification_pause_source,live_activity_filters FROM accounts LIMIT 0`,
+		`SELECT live_activity_version,live_activity_enabled,live_activity_revision,notification_pause_source,live_activity_filters,activity_membership_revision FROM accounts LIMIT 0`,
 		`SELECT id,next_send FROM reminder_dispatch LIMIT 0`,
 		`SELECT reminder_id,account_id,event_id,lead_minutes,active,state,next_check,lease_until,token FROM event_reminders LIMIT 0`,
 		`SELECT job_id,reminder_id,sale_at,state,attempts,attempted_at,message_id,unsubscribe_hash FROM reminder_jobs LIMIT 0`,

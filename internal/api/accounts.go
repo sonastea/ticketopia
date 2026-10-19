@@ -716,7 +716,7 @@ func parseBoundedAccountForm(c echo.Context, maxBytes int64, allowed ...string) 
 				found = true
 			}
 		}
-		if !found || (key != "category_ids" && key != "live_category_ids" && key != "live_artist_ids" && key != "live_venue_ids" && len(values) != 1) {
+		if !found || (key != "category_ids" && key != "live_category_ids" && key != "live_artist_ids" && key != "live_venue_ids" && key != "live_connection_sources" && len(values) != 1) {
 			return &accounts.ValidationError{Field: key, Message: "unsupported or repeated form field"}
 		}
 	}

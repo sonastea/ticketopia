@@ -95,6 +95,9 @@ in the app.
 - [x] Compose specific artist/venue filters with city/type, using persisted selections
   and authenticated native/enhanced pickers
   ([live activity Part 3](docs/design/live-activity-filters.md#part-3--specific-artist-and-venue-filters)).
+- [x] Filter live activity by private Saved/Interested/artist-follow/venue-follow
+  connections, with incremental updates across replicas
+  ([live activity Part 4](docs/design/live-activity-filters.md#part-4--private-connection-filters-with-incremental-matching)).
 - [ ] Later: Mark an event Going and choose participation visibility.
 - [x] Post a question, tip, or comment on an event.
 - [x] Reply to another person's contribution.

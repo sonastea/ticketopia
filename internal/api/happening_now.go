@@ -88,7 +88,15 @@ func (a *api) renderHappeningNow(c echo.Context, status int, p home.HappeningNow
 			c.Response().Header().Set("Retry-After", "60")
 		} else {
 			var err error
-			p.Snapshot, err = a.liveActivity.FilteredSnapshot(c.Request().Context(), p.Filters)
+			owner := ""
+			if p.SignedIn {
+				principal, authErr := a.principal(c, true)
+				if authErr != nil {
+					return a.accountPageError(c, authErr)
+				}
+				owner = principal.Account.ID
+			}
+			p.Snapshot, err = a.liveActivity.OwnerSnapshot(c.Request().Context(), owner, p.Filters)
 			if err != nil {
 				status, p.Error = 503, "Live activity is unavailable. Refresh to try again."
 			}

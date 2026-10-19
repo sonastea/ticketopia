@@ -8,6 +8,13 @@ import (
 	"github.com/sonastea/ticketopia/internal/activity"
 )
 
+func liveOwner(c echo.Context) string {
+	if scope, ok := c.Get("live.scope").(privateLiveScope); ok {
+		return scope.principal.Account.ID
+	}
+	return ""
+}
+
 func liveQuery(c echo.Context, stream bool) (activity.Filters, []string, error) {
 	f := activity.DefaultPreferences().Filters
 	invalid := &accounts.ValidationError{Field: "filter", Message: "Use a public location/category/artist/venue filter of at most 4 KiB."}

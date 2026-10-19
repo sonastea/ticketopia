@@ -182,7 +182,7 @@ func (a *api) liveSnapshot(c echo.Context) error {
 		c.Response().Header().Set("Retry-After", "60")
 		return liveProblem(c, 429, "rate_limited", "Try again in one minute.")
 	}
-	snapshot, err := a.liveActivity.FilteredSnapshot(c.Request().Context(), f)
+	snapshot, err := a.liveActivity.OwnerSnapshot(c.Request().Context(), liveOwner(c), f)
 	if err != nil {
 		return liveUnavailable(c)
 	}
@@ -219,10 +219,10 @@ func (a *api) liveStream(c echo.Context) error {
 	// Resolve a new city's collation key and coalesce cold generation work before
 	// subscribing. A warm view can then be delivered without waiting for the tick
 	// or the initial count batch.
-	if _, err := a.liveActivity.FilteredSnapshot(c.Request().Context(), f); err != nil {
+	if _, err := a.liveActivity.OwnerSnapshot(c.Request().Context(), liveOwner(c), f); err != nil {
 		return liveUnavailable(c)
 	}
-	updates, release, err := a.liveActivity.Subscribe(ids, f)
+	updates, release, err := a.liveActivity.SubscribeOwner(liveOwner(c), ids, f)
 	if err != nil {
 		return liveUnavailable(c)
 	}

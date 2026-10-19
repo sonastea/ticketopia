@@ -72,6 +72,9 @@ func (r *SavedRepository) Save(ctx context.Context, owner string, detail models.
 	for attempt := range 3 {
 		item, created, retry, err := r.saveOnce(ctx, owner, detail, args, data)
 		if err == nil {
+			if created {
+				notifyActivityMembership(r.db, owner)
+			}
 			return item, created, nil
 		}
 		if !retry || attempt == 2 {
@@ -156,6 +159,9 @@ func (r *SavedRepository) saveOnce(ctx context.Context, owner string, detail mod
 		if err != nil {
 			return saved.Item{}, false, retryable(err), err
 		}
+		if err = bumpActivityMembership(ctx, tx, owner); err != nil {
+			return saved.Item{}, false, retryable(err), err
+		}
 	}
 	item, err := scanSaved(tx.QueryRowContext(ctx, `SELECT e.snapshot,e.data_as_of,s.saved_at FROM saved_events s JOIN event_snapshots e ON e.event_id=s.event_id WHERE s.account_id=? AND s.event_id=?`, owner, detail.Item.ID))
 	if err != nil {
@@ -169,29 +175,30 @@ func (r *SavedRepository) saveOnce(ctx context.Context, owner string, detail mod
 	return item, count == 0, false, nil
 }
 func (r *SavedRepository) Remove(ctx context.Context, owner, id string) error {
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
-	defer cancel()
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return safeError("saved event removal", err)
+	changed := false
+	err := historyTransaction(ctx, r.db, r.timeout, "saved event removal", func(ctx context.Context, tx *sql.Tx) error {
+		changed = false
+		var who string
+		if err := tx.QueryRowContext(ctx, `SELECT account_id FROM accounts WHERE account_id=? FOR UPDATE`, owner).Scan(&who); err != nil {
+			return err
+		}
+		if err := stopRemindersTx(ctx, tx, owner, id); err != nil {
+			return err
+		}
+		result, err := tx.ExecContext(ctx, `DELETE FROM saved_events WHERE account_id=? AND event_id=?`, owner, id)
+		if err != nil {
+			return err
+		}
+		if n, _ := result.RowsAffected(); n > 0 {
+			changed = true
+			return bumpActivityMembership(ctx, tx, owner)
+		}
+		return nil
+	})
+	if err == nil && changed {
+		notifyActivityMembership(r.db, owner)
 	}
-	defer tx.Rollback()
-	var who string
-	if err = tx.QueryRowContext(ctx, `SELECT account_id FROM accounts WHERE account_id=? FOR UPDATE`, owner).Scan(&who); err != nil {
-		return safeError("saved event removal", err)
-	}
-	err = stopRemindersTx(ctx, tx, owner, id)
-	if err != nil {
-		return safeError("saved reminder stop", err)
-	}
-	_, err = tx.ExecContext(ctx, `DELETE FROM saved_events WHERE account_id=? AND event_id=?`, owner, id)
-	if err != nil {
-		return safeError("saved event removal", err)
-	}
-	if err = tx.Commit(); err != nil {
-		return safeError("saved event removal", err)
-	}
-	return nil
+	return err
 }
 func (r *SavedRepository) List(ctx context.Context, owner string, q saved.Query) ([]saved.Item, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)

@@ -1,5 +1,9 @@
 # MariaDB foundation
 
+Schema 19 adds transactional live-activity membership revisions on accounts;
+save/interest/artist-follow/venue-follow changes increment them without resetting
+notification preferences. See [private live filters](live-community-activity.md#private-connections-part-4).
+
 Schema 18 adds normalized live city/category filters on accounts and a stored
 public title projection on event snapshots. Existing pause/enable choices survive.
 The title follows accepted snapshot writes automatically; no new grants or indexes
@@ -327,7 +331,7 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 17 only**. Versions 0–16 and 18+ are rejected;
+This binary supports **clean schema version 19 only**. Versions 0–18 and 20+ are rejected;
 Partial schemas/missing columns or non-InnoDB tables fail startup. The
 v16-to-v17 upgrade requires drained writes and the normal migrate/reconcile/start
 sequence. Roll back with a schema-17-compatible image and the live kill switch;

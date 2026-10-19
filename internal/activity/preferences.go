@@ -41,14 +41,29 @@ func DefaultPreferences() Preferences {
 	return Preferences{1, true, Filters{Location{Mode: "all"}, []string{}, []string{}, []string{}, Connections{"all_events", []string{}}}}
 }
 
-var ErrPreferences = errors.New("provide complete version 1 preferences with Everywhere or city/country and up to 16 IDs each for categories, artists and venues; personal connections are not supported")
+var ErrPreferences = errors.New("provide complete version 1 preferences with Everywhere or city/country, up to 16 IDs per dimension, and all_events or any supported personal connection sources; radius and unknown sources are not supported")
 
 var categoryID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 func NormalizeFilters(f Filters) (Filters, error) {
-	if f.CategoryIDs == nil || f.ArtistIDs == nil || f.VenueIDs == nil || f.Connections.Sources == nil || len(f.CategoryIDs) > 16 || len(f.ArtistIDs) > 16 || len(f.VenueIDs) > 16 || f.Connections.Mode != "all_events" || len(f.Connections.Sources) != 0 {
+	if f.CategoryIDs == nil || f.ArtistIDs == nil || f.VenueIDs == nil || f.Connections.Sources == nil || len(f.CategoryIDs) > 16 || len(f.ArtistIDs) > 16 || len(f.VenueIDs) > 16 || len(f.Connections.Sources) > 4 {
 		return f, ErrPreferences
 	}
+	if f.Connections.Mode == "all_events" {
+		if len(f.Connections.Sources) != 0 {
+			return f, ErrPreferences
+		}
+	} else if f.Connections.Mode != "any" || len(f.Connections.Sources) == 0 {
+		return f, ErrPreferences
+	}
+	f.Connections.Sources = append([]string{}, f.Connections.Sources...)
+	for _, source := range f.Connections.Sources {
+		if SourceBit(source) == 0 {
+			return f, ErrPreferences
+		}
+	}
+	slices.Sort(f.Connections.Sources)
+	f.Connections.Sources = slices.Compact(f.Connections.Sources)
 	switch f.Location.Mode {
 	case "all":
 		if f.Location.City != "" || f.Location.Country != "" {
@@ -88,7 +103,7 @@ func NormalizeFilters(f Filters) (Filters, error) {
 }
 
 func (f Filters) Unrestricted() bool {
-	return f.Location.Mode == "all" && len(f.CategoryIDs) == 0 && len(f.ArtistIDs) == 0 && len(f.VenueIDs) == 0
+	return f.Location.Mode == "all" && len(f.CategoryIDs) == 0 && len(f.ArtistIDs) == 0 && len(f.VenueIDs) == 0 && f.Connections.Mode == "all_events"
 }
 
 // DecodePublicFilters uses the same strict decoder without accepting owner fields.

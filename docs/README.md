@@ -24,7 +24,7 @@ their status; they describe intended work rather than available features.
   delivery/first-name attribution, top-right toasts and **Happening Now**
   navigation/page, with remaining manual/deployment acceptance checks.
 - [Default-on, filtered live activity](design/live-activity-filters.md): default-on preferences,
-  city/type/artist/venue filtering and shared candidate indexing; planned private filters
+  city/type/artist/venue and private connection filtering with shared candidate indexing;
   and six working parts plus a toast/navigation presentation checkpoint
   with incremental verification and three-replica performance gates.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on

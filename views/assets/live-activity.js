@@ -80,7 +80,7 @@
   let filters = defaults(), guestFilters = defaults(), enabled = true, catalog = [], saving = false;
   try { const value = JSON.parse(localStorage.getItem(storageKey)); if (value && JSON.stringify(value).length <= 4096 && value.location && Array.isArray(value.category_ids)) guestFilters = value; } catch {}
   const publicFilter = value => ({ location: value.location, category_ids: value.category_ids, artist_ids: value.artist_ids || [], venue_ids: value.venue_ids || [] });
-  const restricted = () => filters.location.mode !== 'all' || filters.category_ids.length || filters.artist_ids?.length || filters.venue_ids?.length;
+  const restricted = () => filters.location.mode !== 'all' || filters.category_ids.length || filters.artist_ids?.length || filters.venue_ids?.length || filters.connections.mode === 'any';
   const activityURL = () => authenticated ? '/api/v1/me/community/activity' : '/api/v1/community/activity';
   const activityQuery = values => { const q = query(values); if (authenticated) q.set('preferences_revision', revision); else q.set('filter', JSON.stringify(publicFilter(filters))); return q; };
   const seen = new Map(), pending = new Set();
@@ -278,7 +278,8 @@
     if (location.search) history.replaceState(history.state, '', nativeURL());
     const names = filters.category_ids.map(id => catalog.find(c => c.id === id)?.name || id);
     const entities = ['artist', 'venue'].map(kind => (filters[kind + '_ids'] || []).map(id => window.ticketopiaLivePickers?.name(kind, id) || id).join(' or ')).filter(Boolean);
-    node('summary').textContent = [filters.location.mode === 'city' ? filters.location.city + ', ' + filters.location.country : 'Everywhere', names.length ? names.join(' or ') : 'All event types', ...entities, 'All events'].join(' · ');
+    const connections = { saved: 'Saved', interested: 'Interested', followed_artists: 'Followed artists', followed_venues: 'Followed venues' };
+    node('summary').textContent = [filters.location.mode === 'city' ? filters.location.city + ', ' + filters.location.country : 'Everywhere', names.length ? names.join(' or ') : 'All event types', ...entities, filters.connections.sources.map(id => connections[id]).join(' or ') || 'All events'].join(' · ');
   };
   document.addEventListener('ticketopia:live-labels', summary);
   let nativeDraft = onPage && node('filter-details').hasAttribute('data-live-draft');
@@ -288,6 +289,7 @@
     window.ticketopiaLivePickers?.set(value, authenticated);
     node('location').value = value.location.mode;
     node('city').value = value.location.city || ''; node('country').value = value.location.country || '';
+    node('connections')?.querySelectorAll('input').forEach(input => { input.checked = value.connections?.sources?.includes(input.value) || false; });
     const fieldset = node('categories');
     fieldset.querySelectorAll('label').forEach(label => label.remove());
     const choices = [...catalog];
@@ -299,7 +301,10 @@
     }
     node('reuse').hidden = !authenticated;
   };
-  const draftFilters = () => ({ ...defaults(), ...window.ticketopiaLivePickers?.get(), location: node('location').value === 'city' ? { mode: 'city', city: node('city').value.trim().replace(/\s+/g, ' '), country: node('country').value.trim().toUpperCase() } : { mode: 'all' }, category_ids: [...node('categories').querySelectorAll('input:checked')].map(input => input.value).sort() });
+  const draftFilters = () => {
+    const sources = [...(node('connections')?.querySelectorAll('input:checked') || [])].map(input => input.value).sort();
+    return { ...defaults(), ...window.ticketopiaLivePickers?.get(), location: node('location').value === 'city' ? { mode: 'city', city: node('city').value.trim().replace(/\s+/g, ' '), country: node('country').value.trim().toUpperCase() } : { mode: 'all' }, category_ids: [...node('categories').querySelectorAll('input:checked')].map(input => input.value).sort(), connections: { mode: sources.length ? 'any' : 'all_events', sources } };
+  };
   let browsingCity;
   const browseQuery = new URLSearchParams(location.search);
   if (location.pathname === '/' && browseQuery.get('city') && /^[a-z]{2}$/i.test(browseQuery.get('country') || '')) {

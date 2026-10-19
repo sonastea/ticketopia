@@ -52,7 +52,18 @@ func (p HappeningNowPage) summary() string {
 			parts = append(parts, strings.Join(labels, " or "))
 		}
 	}
-	return strings.Join(append(parts, "All events"), " · ")
+	connections := []string{}
+	for _, id := range p.Filters.Connections.Sources {
+		for _, choice := range layouts.LiveConnectionChoices {
+			if choice.ID == id {
+				connections = append(connections, choice.Name)
+			}
+		}
+	}
+	if len(connections) == 0 {
+		connections = append(connections, "All events")
+	}
+	return strings.Join(append(parts, strings.Join(connections, " or ")), " · ")
 }
 
 func (p HappeningNowPage) editingFilters() activity.Filters {

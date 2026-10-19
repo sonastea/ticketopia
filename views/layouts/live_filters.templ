@@ -33,6 +33,17 @@ templ LiveFilterFields(f activity.Filters, categories []models.Category, editor 
 		<p class="field-note">Match any selected artist and any selected venue, together with the location and event types. Choose up to 16 of each; no selections means any artist or venue.</p>
 		@LiveEntityPicker("artist", "Artists", f.ArtistIDs, editor)
 		@LiveEntityPicker("venue", "Venues", f.VenueIDs, editor)
+		if editor.SignedIn {
+			<fieldset class="account-checkboxes" data-live-connections>
+				<legend>Match any of these connections</legend>
+				<p class="field-note">No selections means all events. These choices stay private and only filter existing public recommendations.</p>
+				for _, source := range LiveConnectionChoices {
+					<label><input type="checkbox" name="live_connection_sources" value={ source.ID } checked?={ slices.Contains(f.Connections.Sources, source.ID) }/><span>{ source.Name }</span></label>
+				}
+			</fieldset>
+		} else {
+			<p class="field-note"><a class="text-link" href="/auth/sign-in?return_to=%2Fhappening-now">Sign in to filter by your connections.</a> Match saved events, Interested choices, followed artists or followed venues privately.</p>
+		}
 		<p class="field-note" data-live-filter-error role="status"></p>
 		<div class="account-actions">
 			<button type="submit" class="action action-secondary" name="filter_action" value="apply">Apply</button>

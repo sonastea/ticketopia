@@ -157,6 +157,9 @@ func (r *FollowRepository) Follow(ctx context.Context, owner string, detail mode
 			if _, err := tx.ExecContext(ctx, `INSERT INTO `+collection+` (account_id,`+column+`) VALUES (?,?)`, owner, t.ID); err != nil {
 				return err
 			}
+			if err := bumpActivityMembership(ctx, tx, owner); err != nil {
+				return err
+			}
 		}
 		var err error
 		item, err = scanFollow(tx.QueryRowContext(ctx, `SELECT '`+t.Kind+`',c.snapshot,c.last_seen,f.followed_at FROM `+collection+` f JOIN `+catalog+` c ON c.`+column+`=f.`+column+` WHERE f.account_id=? AND f.`+column+`=?`, owner, t.ID))
@@ -165,6 +168,9 @@ func (r *FollowRepository) Follow(ctx context.Context, owner string, detail mode
 	if err != nil {
 		return follows.Item{}, false, err
 	}
+	if created {
+		notifyActivityMembership(r.db, owner)
+	}
 	return item, created, nil
 }
 func (r *FollowRepository) Remove(ctx context.Context, owner, kind, id string) error {
@@ -172,13 +178,23 @@ func (r *FollowRepository) Remove(ctx context.Context, owner, kind, id string) e
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
-	defer cancel()
-	_, err = r.db.ExecContext(ctx, `DELETE FROM `+collection+` WHERE account_id=? AND `+column+`=?`, owner, id)
-	if err != nil {
-		return safeError("follow removal", err)
+	changed := false
+	err = historyTransaction(ctx, r.db, r.timeout, "follow removal", func(ctx context.Context, tx *sql.Tx) error {
+		changed = false
+		result, err := tx.ExecContext(ctx, `DELETE FROM `+collection+` WHERE account_id=? AND `+column+`=?`, owner, id)
+		if err != nil {
+			return err
+		}
+		if n, _ := result.RowsAffected(); n > 0 {
+			changed = true
+			return bumpActivityMembership(ctx, tx, owner)
+		}
+		return nil
+	})
+	if err == nil && changed {
+		notifyActivityMembership(r.db, owner)
 	}
-	return nil
+	return err
 }
 func (r *FollowRepository) List(ctx context.Context, owner string, q follows.Query) ([]follows.Item, error) {
 	kinds := []string{"artist", "venue"}

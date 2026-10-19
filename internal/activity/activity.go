@@ -85,6 +85,7 @@ type Update struct {
 	Unavailable bool
 }
 type subscriber struct {
+	owner    string
 	ids      []string
 	ch       chan Update
 	initial  bool
@@ -92,22 +93,29 @@ type subscriber struct {
 	previous [sha256.Size]byte
 }
 type Service struct {
-	repo       Repository
-	mu         sync.Mutex
-	subs       map[*subscriber]struct{}
-	limit      int
-	cancel     context.CancelFunc
-	done       chan struct{}
-	logger     zerolog.Logger
-	projection chan struct{}
-	index      *candidateIndex
-	readAt     time.Time
-	readErr    error
-	views      map[string]cachedView
-	keys       map[Location]string
-	viewBytes  int
-	jobs       chan struct{}
-	pending    chan struct{}
+	invalidAll        bool
+	invalidMembers    map[string]bool
+	unwatchMembership func()
+	members           map[string]*memberState
+	memberFacts       map[string]MembershipCandidate
+	memberSlots       map[string]int
+	memberAt          time.Time
+	repo              Repository
+	mu                sync.Mutex
+	subs              map[*subscriber]struct{}
+	limit             int
+	cancel            context.CancelFunc
+	done              chan struct{}
+	logger            zerolog.Logger
+	projection        chan struct{}
+	index             *candidateIndex
+	readAt            time.Time
+	readErr           error
+	views             map[string]cachedView
+	keys              map[Location]string
+	viewBytes         int
+	jobs              chan struct{}
+	pending           chan struct{}
 }
 
 type cachedView struct {
@@ -123,8 +131,34 @@ func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Log
 	s.jobs = make(chan struct{}, 2)
 	s.pending = make(chan struct{}, 64)
 	s.views = map[string]cachedView{}
+	s.members = map[string]*memberState{}
+	s.invalidMembers = map[string]bool{}
+	s.memberFacts = map[string]MembershipCandidate{}
+	s.memberSlots = map[string]int{}
 	s.keys = map[Location]string{}
 	s.logger = zerolog.Nop()
+	if repo, ok := repo.(interface{ WatchMembership(func(string)) func() }); ok {
+		s.unwatchMembership = repo.WatchMembership(func(owner string) {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			// Overflow invalidates all scopes rather than dropping a removal.
+			if len(s.invalidMembers) < 384 {
+				s.invalidMembers[owner] = true
+			} else {
+				s.invalidAll = true
+			}
+			for sub := range s.subs {
+				if sub.owner != owner || sub.filter.Connections.Mode != "any" {
+					continue
+				}
+				select {
+				case <-sub.ch:
+				default:
+				}
+				sub.ch <- Update{Unavailable: true}
+			}
+		})
+	}
 	if len(loggers) > 0 {
 		s.logger = loggers[0]
 	}
@@ -138,6 +172,14 @@ func (s *Service) Snapshot(ctx context.Context) (Snapshot, error) {
 }
 
 func (s *Service) FilteredSnapshot(ctx context.Context, filter Filters) (Snapshot, error) {
+	return s.OwnerSnapshot(ctx, "", filter)
+}
+
+// OwnerSnapshot accepts only a server-authenticated owner; public callers must
+// use FilteredSnapshot, which rejects personal connection predicates.
+func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filters) (Snapshot, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	select {
 	case s.pending <- struct{}{}:
 	default:
@@ -147,6 +189,9 @@ func (s *Service) FilteredSnapshot(ctx context.Context, filter Filters) (Snapsho
 	f, err := NormalizeFilters(filter)
 	if err != nil {
 		return Snapshot{}, err
+	}
+	if f.Connections.Mode == "any" && owner == "" {
+		return Snapshot{}, ErrPreferences
 	}
 	select {
 	case s.projection <- struct{}{}:
@@ -183,6 +228,13 @@ func (s *Service) FilteredSnapshot(ctx context.Context, filter Filters) (Snapsho
 		if err == nil {
 			index, err = buildIndex(data, s.index)
 		}
+		if err == nil && index.bytes*2+s.membershipBytes()+s.viewBytes+(8<<20) > MemoryBudget {
+			clear(s.views)
+			s.viewBytes = 0
+			if index.bytes*2+s.membershipBytes()+(8<<20) > MemoryBudget {
+				err = ErrMemoryLimit
+			}
+		}
 		// Start time conservatively includes SQL assembly in contribution age.
 		s.readAt = now
 		s.readErr = err
@@ -209,7 +261,12 @@ func (s *Service) FilteredSnapshot(ctx context.Context, filter Filters) (Snapsho
 	if s.readErr != nil || s.index == nil || s.expired(time.Now()) {
 		return Snapshot{}, ErrUnavailable
 	}
-	return s.selectCached(ctx, f)
+	if f.Connections.Mode == "any" {
+		if err := s.refreshMembership(ctx, owner, f); err != nil {
+			return Snapshot{}, ErrUnavailable
+		}
+	}
+	return s.selectOwnerCached(ctx, f, owner)
 }
 func (s *Service) expired(now time.Time) bool {
 	if s.index == nil {
@@ -224,6 +281,17 @@ func (s *Service) expired(now time.Time) bool {
 	return false
 }
 func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error) {
+	return s.selectOwnerCached(ctx, f, "")
+}
+func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string) (Snapshot, error) {
+	if f.Connections.Mode == "any" {
+		s.mu.Lock()
+		invalid := s.invalidAll || s.invalidMembers[owner]
+		s.mu.Unlock()
+		if invalid {
+			return Snapshot{}, ErrUnavailable
+		}
+	}
 	key := ""
 	if f.Location.Mode == "city" {
 		var ok bool
@@ -263,6 +331,15 @@ func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error)
 		}
 	}
 	digest := publicKey(key, f)
+	var membership bitmap
+	if f.Connections.Mode == "any" {
+		m := s.members[owner]
+		if m == nil || !m.valid {
+			return Snapshot{}, ErrUnavailable
+		}
+		membership = m.union(f)
+		digest += m.key(owner, f)
+	}
 	now := time.Now()
 	if v, ok := s.views[digest]; ok {
 		v.used = now
@@ -278,7 +355,13 @@ func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error)
 	for sub := range s.subs {
 		city := s.keys[sub.filter.Location]
 		if sub.filter.Location.Mode == "all" || city != "" {
-			active[publicKey(city, sub.filter)] = true
+			key := publicKey(city, sub.filter)
+			if sub.filter.Connections.Mode == "any" {
+				if m := s.members[sub.owner]; m != nil {
+					key += m.key(sub.owner, sub.filter)
+				}
+			}
+			active[key] = true
 		}
 	}
 	s.mu.Unlock()
@@ -303,10 +386,10 @@ func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error)
 		s.viewBytes -= s.views[oldest].bytes
 		delete(s.views, oldest)
 	}
-	view := s.index.selectView(f, key)
+	view := s.index.selectView(f, key, membership)
 	view.encode()
 	bytes := len(view.encoded)*4 + len(digest)*2 + 1024
-	if s.index.bytes*2+s.viewBytes+bytes+(2<<20) > MemoryBudget {
+	if s.index.bytes*2+s.viewBytes+bytes+s.membershipBytes()+(8<<20) > MemoryBudget {
 		return Snapshot{}, ErrUnavailable
 	}
 	s.views[digest] = cachedView{view, now, bytes}
@@ -340,6 +423,9 @@ func (s *Service) acquireJob(ctx context.Context) bool {
 	}
 }
 func (s *Service) Subscribe(ids []string, filters ...Filters) (<-chan Update, func(), error) {
+	return s.SubscribeOwner("", ids, filters...)
+}
+func (s *Service) SubscribeOwner(owner string, ids []string, filters ...Filters) (<-chan Update, func(), error) {
 	f := DefaultPreferences().Filters
 	if len(filters) > 0 {
 		f = filters[0]
@@ -348,6 +434,9 @@ func (s *Service) Subscribe(ids []string, filters ...Filters) (<-chan Update, fu
 	f, err = NormalizeFilters(f)
 	if err != nil {
 		return nil, nil, err
+	}
+	if f.Connections.Mode == "any" && owner == "" {
+		return nil, nil, ErrPreferences
 	}
 	s.mu.Lock()
 	select {
@@ -360,7 +449,7 @@ func (s *Service) Subscribe(ids []string, filters ...Filters) (<-chan Update, fu
 		s.mu.Unlock()
 		return nil, nil, ErrUnavailable
 	}
-	sub := &subscriber{ids: append([]string(nil), ids...), ch: make(chan Update, 1), initial: true, filter: f}
+	sub := &subscriber{owner: owner, ids: append([]string(nil), ids...), ch: make(chan Update, 1), initial: true, filter: f}
 	s.subs[sub] = struct{}{}
 	connections := len(s.subs)
 	s.mu.Unlock()
@@ -371,12 +460,14 @@ func (s *Service) Subscribe(ids []string, filters ...Filters) (<-chan Update, fu
 		if s.index != nil && s.readErr == nil && time.Since(s.readAt) < 2*time.Second && !s.expired(time.Now()) {
 			key := s.keys[f.Location]
 			if f.Location.Mode == "all" || key != "" {
-				view, err := s.selectCached(context.Background(), f)
+				view, err := s.selectOwnerCached(context.Background(), f, owner)
 				if err == nil {
 					s.mu.Lock()
-					select {
-					case sub.ch <- Update{Snapshot: view}:
-					default:
+					if f.Connections.Mode != "any" || (!s.invalidAll && !s.invalidMembers[owner]) {
+						select {
+						case sub.ch <- Update{Snapshot: view}:
+						default:
+						}
 					}
 					s.mu.Unlock()
 				}
@@ -390,6 +481,9 @@ func (s *Service) Subscribe(ids []string, filters ...Filters) (<-chan Update, fu
 }
 func (s *Service) run(ctx context.Context) {
 	defer close(s.done)
+	if s.unwatchMembership != nil {
+		defer s.unwatchMembership()
+	}
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	var lastCounts, lastPoll, lastCleanup time.Time
@@ -410,6 +504,15 @@ func (s *Service) run(ctx context.Context) {
 					delete(s.views, key)
 				}
 			}
+			for owner, member := range s.members {
+				if now.Sub(member.used) >= 30*time.Second {
+					delete(s.members, owner)
+				}
+			}
+			if len(s.members) == 0 {
+				clear(s.memberFacts)
+				clear(s.memberSlots)
+			}
 			s.mu.Lock()
 			idle := len(s.subs) == 0
 			s.mu.Unlock()
@@ -418,6 +521,9 @@ func (s *Service) run(ctx context.Context) {
 				clear(s.views)
 				s.viewBytes = 0
 				clear(s.keys)
+				clear(s.members)
+				clear(s.memberFacts)
+				clear(s.memberSlots)
 			}
 			<-s.projection
 		default:
@@ -487,13 +593,16 @@ func (s *Service) run(ctx context.Context) {
 			view := snapshot
 			viewErr := err
 			if viewErr == nil {
-				view, viewErr = s.FilteredSnapshot(ctx, sub.filter)
+				view, viewErr = s.OwnerSnapshot(ctx, sub.owner, sub.filter)
 			}
 			contentHash := view.ContentHash()
 			s.mu.Lock()
 			if _, ok := s.subs[sub]; !ok {
 				s.mu.Unlock()
 				continue
+			}
+			if sub.filter.Connections.Mode == "any" && (s.invalidAll || s.invalidMembers[sub.owner]) {
+				viewErr = ErrUnavailable
 			}
 			changed := contentHash != sub.previous
 			u := Update{Snapshot: view, Unavailable: viewErr != nil}

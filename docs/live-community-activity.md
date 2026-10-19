@@ -6,9 +6,9 @@ top-right toasts and browse the current filtered view on **Happening Now** at
 `/happening-now`. Ordinary pages have no above-content activity section. Community
 and other collections keep their existing order.
 
-Parts 1–3 of the [default-on filtering extension](design/live-activity-filters.md)
-add default-on preferences and complete-window city/event-type/artist/venue filtering.
-Private connection and radius filters remain unsupported and are explicitly
+Parts 1–4 of the [default-on filtering extension](design/live-activity-filters.md)
+add default-on preferences and complete-window city/event-type/artist/venue and
+private connection filtering. Radius remains unsupported and is explicitly
 rejected. Production rollout remains Part 5.
 
 ## Default-on preferences (Part 1)
@@ -74,7 +74,7 @@ case/accent equivalence and trailing spaces), never substring/wildcard matching.
 Country is uppercased; city whitespace normalized. Equal city labels in one
 country cannot be distinguished. Missing locations match Everywhere only.
 Category IDs are case-sensitive catalog IDs, capped at 16 before deduplication,
-sorted before cache keys. Unsupported connection lists and radius requests fail explicitly.
+sorted before cache keys. Unknown connection sources and radius requests fail explicitly.
 
 Schema 18 adds JSON filter storage and a stored title projection that follows the
 winning snapshot automatically, including backfill. It does not reset enabled or
@@ -100,6 +100,45 @@ that fails the projection rather than truncating an essential label. This is not
 an RSS cap. A failed, expired, overflowing or over-budget generation is unavailable,
 never truncated or silently widened;
 generation failures log bounded reasons without filter/actor values.
+
+## Private connections (Part 4)
+
+Signed-in visitors can select **Saved**, **Interested**, **Followed artists** and
+**Followed venues** under **Match any of these connections** on Happening Now or
+account Preferences. No selection means all events. Any selected source may match;
+public city/type/artist/venue dimensions still compose with AND. Both private and
+public Interested choices qualify. A match only selects an existing public
+recommendation: it never publishes a relationship or changes its visibility.
+Guests see a sign-in explanation. No personal choices travel in feed URLs or
+browser storage. Native Apply/Reset and conditional JSON writes share validation.
+
+Schema 19 adds `accounts.activity_membership_revision`, without resetting any
+notification choices. Actual save/interest/artist-follow/venue-follow additions
+and removals bump it in the same transaction. Retries/no-ops and Interested
+visibility-only changes do not bump it. Event/catalog writes retain existing lock
+order and bounded deadlock retries; uncertain commits are never replayed internally.
+Committed local changes invalidate local subscriptions; other replicas batch-poll
+the active account union on the two-second cycle. New joins do not reset that clock.
+
+Membership uses server-only source bitmaps over stable candidate slots, shared by
+an account's tabs. Only needed sources are allocated. Changed accounts rebuild;
+new/corrected candidates update incrementally, while reorders/name changes reuse
+membership. Reads use at most 128 owners × 256 candidates per SQL work unit, indexed
+source joins and `UNION ALL`, checking candidate metadata and account revisions
+inside repeatable-read snapshots and rechecking account revisions after assembly.
+They never load historical collections or run one query per account/event pair.
+Private cache keys include owner, source selection and membership generation;
+public cohorts remain separate. Matching precedes the twenty-group limit and does
+not change public contribution counts or the first-name-only item DTO.
+
+Rebuilds run behind the shared projection gate, at most 64 work units per sweep
+with a two-second deadline and the shared two-SQL-job limit. The 64 MiB accounting
+includes membership bitmaps, candidate revision maps and an 8 MiB assembly reserve;
+at most 384 owner scopes are retained, with 30-second unused expiry. Over-budget,
+failed or inconsistent private views are unavailable, never broadened or reported
+as zero matches. Public views continue after private matching failures. Existing
+auth leases, pause/disable, counts, account switching and quiet replacement rules
+apply; old recommendations entering through a membership change are not new toasts.
 
 ## Specific artists and venues (Part 3)
 
@@ -240,6 +279,33 @@ only still-eligible recent entries, without backfill. Related guides:
 [persistence](persistence.md), [UI](ui-components.md).
 
 ## Verification
+
+**Part 4 — 2026-10-19:** real MariaDB tests cover concurrent/idempotent saves,
+all four source mutations, visibility-only no-ops, actual writer failure/rollback,
+separate-pool revision delivery, owner isolation and mismatched metadata rejection.
+Reference tests cover OR-source/AND-public composition, complete-window selection,
+thirty duplicate readers sharing work, incremental metadata refresh, reorder reuse
+and private failure without breaking public views.
+`scripts/live-activity-connections-browser.cjs` passes 25 production-route checks
+using two services with separate SQL pools: source additions/removals reach both
+recipient tabs, owner independence, quiet updates, actual SSE/DOM/storage privacy,
+guest boundaries, native Apply/Reset, 1440/390/320px, 200% text, forced-colors keyboard
+focus and whole-page axe. Existing filter/count/draft and presentation journeys
+pass 30 and 65 checks. The scoped style detector reports no findings; captures and
+the check record are local under `.impeccable/review/live-connections/`.
+The full real-MariaDB race suite, final affected-package regression, vet, OpenAPI
+lint (two existing health-probe warnings) and generated asset/binary build pass.
+Docker `make check` also passes, validating the filtered publishing build context.
+
+The candidate-scoped saved-membership baseline (one owner, 256 candidates, 20
+samples) averages 4.53 ms for one match and 5.29 ms for 256 matches on the same
+Apple M1/local MariaDB environment described below, without race instrumentation.
+These small sparse/dense baselines do not establish production capacity. Reproduce
+with `MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./internal/persistence -run
+TestMariaDBMembershipBenchmark -count=1 -v`. Use the browser fixture command below
+with `LIVE_ACTIVITY_BROWSER_SCRIPT=../../scripts/live-activity-connections-browser.cjs`.
+Three-replica load/proxy, physical devices, manual screen readers and production
+migration/default-on rollout remain Part 5.
 
 **Part 3 — 2026-10-18:** isolated MariaDB verifies artist/venue composition beyond
 the global top twenty, full venue lists, duplicate suppression, case-sensitive IDs,

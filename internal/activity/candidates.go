@@ -121,7 +121,7 @@ func buildIndex(data Candidates, previous *candidateIndex) (*candidateIndex, err
 	copy(x.fingerprint[:], h.Sum(nil))
 	return x, nil
 }
-func (x *candidateIndex) selectView(f Filters, cityKey string) Snapshot {
+func (x *candidateIndex) selectView(f Filters, cityKey string, memberships ...bitmap) Snapshot {
 	result := Snapshot{AsOf: x.data.AsOf, Items: []Item{}}
 	union := func(ids []string, sets map[string]bitmap) bitmap {
 		if len(ids) == 0 {
@@ -141,6 +141,9 @@ func (x *candidateIndex) selectView(f Filters, cityKey string) Snapshot {
 	city := x.cities[cityKey]
 	for _, c := range x.data.Items {
 		slot := x.slots[c.Item.EventID]
+		if len(memberships) > 0 && memberships[0] != nil && !memberships[0].has(slot) {
+			continue
+		}
 		if f.Location.Mode == "city" && (city == nil || !city.has(slot)) {
 			continue
 		}

@@ -9,7 +9,9 @@ resolved setting on all replicas, including recommendation writers.
 Schema 17 resets all existing notification pauses once and initializes enabled live
 preferences. Apply it to production only during that final rollout, not early as a
 schema-only change. Schema 18 adds city/category filters and stored public titles
-without resetting later choices. Drain old replicas, migrate through schema 18, reconcile the runtime
+without resetting later choices. Schema 19 adds membership revisions for private
+connection filtering, also preserving later choices. Drain old replicas, migrate
+through schema 19, reconcile the runtime
 grants (including INSERT/DELETE on `live_recommendation_activity`), then start the
 new binary. Startup probes verify the column/table and permissions.
 The new preference columns use existing account table grants. Subsequent pauses and

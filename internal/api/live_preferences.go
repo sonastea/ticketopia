@@ -66,7 +66,7 @@ func (a *api) livePreferences(c echo.Context) error {
 }
 func (a *api) livePreferencesPage(c echo.Context) error {
 	privateAccountResponse(c)
-	if err := parseAccountForm(c, "enabled", "revision", "location_mode", "live_city", "live_country", "live_category_ids", "live_artist_ids", "live_venue_ids", "live_artist_keyword", "live_venue_keyword", "filter_action", "return_to"); err != nil {
+	if err := parseAccountForm(c, "enabled", "revision", "location_mode", "live_city", "live_country", "live_category_ids", "live_artist_ids", "live_venue_ids", "live_connection_sources", "live_artist_keyword", "live_venue_keyword", "filter_action", "return_to"); err != nil {
 		return a.accountPageError(c, err)
 	}
 	p, err := a.principal(c, true)
@@ -99,6 +99,10 @@ func (a *api) livePreferencesPage(c echo.Context) error {
 			f.CategoryIDs = append([]string{}, c.Request().PostForm["live_category_ids"]...)
 			f.ArtistIDs = append([]string{}, c.Request().PostForm["live_artist_ids"]...)
 			f.VenueIDs = append([]string{}, c.Request().PostForm["live_venue_ids"]...)
+			f.Connections.Sources = append([]string{}, c.Request().PostForm["live_connection_sources"]...)
+			if len(f.Connections.Sources) > 0 {
+				f.Connections.Mode = "any"
+			}
 		}
 		f, err = activity.NormalizeFilters(f)
 		if err != nil {
