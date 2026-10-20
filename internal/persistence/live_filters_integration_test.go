@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -12,6 +13,68 @@ import (
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/models"
 )
+
+func TestMariaDBLiveFacetReuseStillRefreshesNamesAndCorrections(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	auth := accounts.New(p.Accounts(), accountProviderFixture{})
+	owner, _ := loginAccount(t, auth, "live-facet-reuse")
+	name := "Casey"
+	if _, err := auth.UpdateProfile(t.Context(), owner.ID, accounts.ProfilePatch{ActivityFirstName: &name}); err != nil {
+		t.Fatal(err)
+	}
+	seedLiveFilterWindow(t, p, owner.ID, 26)
+	r := p.Activity()
+	first, err := r.Candidates(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := r.QueryCount()
+	name = ""
+	if _, err := auth.UpdateProfile(t.Context(), owner.ID, accounts.ProfilePatch{ActivityFirstName: &name}); err != nil {
+		t.Fatal(err)
+	}
+	warm, err := r.RefreshCandidates(t.Context(), first)
+	if err != nil || len(warm.Items) != 26 {
+		t.Fatal("warm projection", err)
+	}
+	if r.QueryCount()-before != 2 {
+		t.Fatal("unchanged facets were reread", r.QueryCount()-before)
+	}
+	for _, c := range warm.Items {
+		if c.Item.ActorFirstName != nil {
+			t.Fatal("name survived facet reuse")
+		}
+	}
+	d := savedDetail("LiveFilter_0")
+	d.Meta.DataAsOf = time.Now().UTC()
+	d.Item.Name = "Corrected metadata"
+	d.Item.Artists = []models.Artist{{ID: "ticketmaster:NewArtist", Name: "Changed", Source: models.Source{Provider: "ticketmaster", ID: "NewArtist"}}}
+	if _, _, err := p.Saved().Save(t.Context(), owner.ID, d); err != nil {
+		t.Fatal(err)
+	}
+	before = r.QueryCount()
+	corrected, err := r.RefreshCandidates(t.Context(), warm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.QueryCount()-before != 3 {
+		t.Fatal("changed facts not read in one batch", r.QueryCount()-before)
+	}
+	reference, err := r.Candidates(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(corrected.Items, reference.Items) {
+		t.Fatal("reused projection differs from full snapshot reference")
+	}
+	for _, c := range corrected.Items {
+		if c.Item.EventID == d.Item.ID && (c.Item.EventTitle != d.Item.Name || !slices.Equal(c.ArtistIDs, []string{"ticketmaster:NewArtist"})) {
+			t.Fatal("old facets survived newer metadata")
+		}
+	}
+}
 
 func TestMariaDBLiveFilterBaseline(t *testing.T) {
 	if os.Getenv("LIVE_FILTER_BENCHMARK") != "true" {

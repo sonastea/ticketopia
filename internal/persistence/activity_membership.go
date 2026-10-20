@@ -76,6 +76,9 @@ func membershipRevisions(ctx context.Context, q interface {
 func (r *ActivityRepository) MembershipRevisions(ctx context.Context, owners []string) (map[string]uint64, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
+	if len(owners) > 0 && len(owners) <= 128 {
+		r.statements.Add(1)
+	}
 	result, err := membershipRevisions(ctx, r.db, owners)
 	if err != nil {
 		return nil, safeError("activity membership revisions", err)
@@ -99,6 +102,9 @@ func (r *ActivityRepository) Memberships(ctx context.Context, owners []activity.
 	for _, o := range owners {
 		ids = append(ids, o.ID)
 	}
+	if len(ids) > 0 {
+		r.statements.Add(1)
+	}
 	revisions, err := membershipRevisions(ctx, tx, ids)
 	if err != nil {
 		return nil, safeError("activity membership read", err)
@@ -120,6 +126,7 @@ func (r *ActivityRepository) Memberships(ctx context.Context, owners []activity.
 		expected[c.ID] = c
 	}
 	in := strings.TrimSuffix(strings.Repeat("?,", len(candidates)), ",")
+	r.statements.Add(1)
 	rows, err := tx.QueryContext(ctx, `SELECT event_id,data_as_of FROM event_snapshots WHERE event_id IN (`+in+`)`, eventArgs...)
 	if err != nil {
 		return nil, safeError("activity membership metadata", err)
@@ -170,6 +177,7 @@ func (r *ActivityRepository) Memberships(ctx context.Context, owners []activity.
 		args = append(args, eventArgs...)
 	}
 	if len(parts) > 0 {
+		r.statements.Add(1)
 		rows, err := tx.QueryContext(ctx, strings.Join(parts, ` UNION ALL `), args...)
 		if err != nil {
 			return nil, safeError("activity membership matches", err)

@@ -1,7 +1,7 @@
 # Default-on, filtered live activity
 
 **Status:** Parts 1–4 and the toast/Happening Now presentation checkpoint implemented
-and locally verified. Parts 5–6 remain planned.
+and locally verified. Part 5 is in progress; Part 6 remains planned.
 **Date:** 2026-10-16; presentation requirement revised 2026-10-17.
 **Extends:** [Implemented live activity](../live-community-activity.md) and its
 [original specification](live-community-activity.md).
@@ -729,6 +729,16 @@ storage/log privacy checks, multi-tab query reuse and sparse/dense membership
 benchmarks. Confirm counts, private controls and unsubmitted drafts stay intact.
 
 ### Part 5 — Performance, resilience and production readiness
+
+**In progress — 2026-10-20.** Fixed-dimension operational telemetry, fresh joining-
+count reuse and the real three-container/nginx deployment load fixture are available.
+See the [performance and rollout record](../live-activity-rollout.md) for measured
+results, failures, remaining workload/device gates and the operator procedure.
+Keep this milestone unchecked and production explicitly off until all exit checks
+and the authorized coordinated rollout are complete.
+The rich 1,000-group, 256-account, 768-stream scenario passes locally. The optimized
+10,000-group run still fails the ordinary-write p95 gate (+37.4%, limit +10%);
+the remaining workload/device/ingress gates are not waived by smaller passing runs.
 
 **Outcome:** the combined feature is measured under the intended three-replica
 deployment and is ready for a coordinated default-on rollout.

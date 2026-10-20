@@ -20,6 +20,58 @@ func candidateFixture(n int) Candidates {
 	}
 	return data
 }
+
+// Duplicate tabs/fallback readers should reuse a warm cohort without work
+// proportional to the candidate window on every read.
+func BenchmarkWarmSharedSnapshot(b *testing.B) {
+	for _, n := range []int{100, 1000, 10000} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			r := &candidateRepository{data: candidateFixture(n)}
+			s := New(b.Context(), r, 256)
+			defer s.Close()
+			if _, err := s.Snapshot(b.Context()); err != nil {
+				b.Fatal(err)
+			}
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := s.Snapshot(b.Context()); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerationExpiryIncludesGroupsBeyondPublicLimit(t *testing.T) {
+	data := candidateFixture(30)
+	data.Items[29].Item.ExpiresAt = data.AsOf.Add(3 * time.Second)
+	x, err := buildIndex(data, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Service{index: x, readAt: time.Now()}
+	if s.expired(s.readAt.Add(3*time.Second-time.Nanosecond)) || !s.expired(s.readAt.Add(3*time.Second)) {
+		t.Fatal("complete-window expiry boundary lost")
+	}
+	data.Items = data.Items[:29]
+	s.index, err = buildIndex(data, x)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.expired(s.readAt.Add(3 * time.Second)) {
+		t.Fatal("removed candidate retained expiry deadline")
+	}
+	for i := range data.Items {
+		data.Items[i].Item.ExpiresAt = time.Time{}
+	}
+	s.index, err = buildIndex(data, s.index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.expired(s.readAt.Add(time.Hour)) {
+		t.Fatal("absent expiry became a deadline")
+	}
+}
 func TestCompleteWindowReferenceAndStableSlots(t *testing.T) {
 	data := candidateFixture(300)
 	data.Items[10].CityKey = "" // Missing location matches Everywhere only.

@@ -67,7 +67,14 @@ func (a *api) liveActivityRoutes(e *echo.Echo) {
 			if a.liveActivity != nil {
 				c.SetRequest(c.Request().WithContext(layouts.WithLiveActivity(c.Request().Context())))
 			}
-			return next(c)
+			err := next(c)
+			if a.liveActivity != nil {
+				switch c.Path() {
+				case "/happening-now", "/api/v1/community/activity", "/api/v1/community/activity/stream", "/api/v1/me/community/activity", "/api/v1/me/community/activity/stream", "/api/v1/events/activity-counts":
+					a.liveActivity.RecordHTTP(c.Response().Status)
+				}
+			}
+			return err
 		}
 	})
 	e.GET("/api/v1/community/activity", a.liveSnapshot)
@@ -222,7 +229,7 @@ func (a *api) liveStream(c echo.Context) error {
 	if _, err := a.liveActivity.OwnerSnapshot(c.Request().Context(), liveOwner(c), f); err != nil {
 		return liveUnavailable(c)
 	}
-	updates, release, err := a.liveActivity.SubscribeOwner(liveOwner(c), ids, f)
+	updates, release, err := a.liveActivity.SubscribeOwnerContext(c.Request().Context(), liveOwner(c), ids, f)
 	if err != nil {
 		return liveUnavailable(c)
 	}
@@ -262,7 +269,9 @@ func (a *api) liveStream(c echo.Context) error {
 	response.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	response.Header().Set("X-Accel-Buffering", "no")
 	controller := http.NewResponseController(response.Writer)
-	send := func(event string, value any) error {
+	send := func(event string, value any) (sendErr error) {
+		started := time.Now()
+		defer func() { a.liveActivity.RecordDelivery(started, sendErr) }()
 		data, err := json.Marshal(value)
 		if err != nil {
 			return err

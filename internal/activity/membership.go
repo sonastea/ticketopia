@@ -46,6 +46,7 @@ type memberState struct {
 	dirty      bitmap
 	valid      bool
 	used       time.Time
+	retryAt    time.Time
 	generation uint64
 }
 
@@ -102,6 +103,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		for _, m := range s.members {
 			m.revision = 0
 			m.valid = false
+			m.retryAt = time.Time{}
 		}
 		s.invalidAll = false
 		changed = true
@@ -110,6 +112,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		if m := s.members[id]; m != nil {
 			m.revision = 0
 			m.valid = false
+			m.retryAt = time.Time{}
 			changed = true
 		}
 		delete(s.invalidMembers, id)
@@ -137,6 +140,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 			for _, m := range s.members {
 				m.dirty.add(slot)
 				m.valid = false
+				m.retryAt = time.Time{}
 			}
 			s.memberFacts[c.Item.EventID] = MembershipCandidate{c.Item.EventID, c.Revision}
 			s.memberSlots[c.Item.EventID] = slot
@@ -147,6 +151,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		m := s.members[id]
 		if m == nil {
 			if len(s.members) >= 384 || s.index.bytes*2+s.viewBytes+s.membershipBytes()+8192+(8<<20) > MemoryBudget {
+				s.metrics.memoryLimit.Add(1)
 				return ErrUnavailable
 			}
 			m = &memberState{dirty: make(bitmap, (MaxCandidates+63)/64)}
@@ -163,6 +168,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 			m.sources |= mask
 			m.valid = false
 			m.revision = 0
+			m.retryAt = time.Time{}
 			changed = true
 		}
 		// Retain only source bitmaps required by this account's current views.
@@ -172,6 +178,12 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 			}
 		}
 		m.sources = mask
+		// A different owner's reconnect can consume a coalesced invalidation
+		// while this owner has no active stream. Incomplete membership still
+		// needs assembly on re-entry; only an actual failed attempt backs off.
+		if !m.valid && !now.Before(m.retryAt) {
+			changed = true
+		}
 	}
 	if !changed && !periodic {
 		if s.members[owner].valid {
@@ -188,10 +200,21 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 	defer cancel()
 	ids := []string{}
 	for id := range wanted {
-		if periodic || !s.members[id].valid {
+		m := s.members[id]
+		if (periodic || !m.valid) && (m.valid || !now.Before(m.retryAt)) {
 			ids = append(ids, id)
 		}
 	}
+	defer func() {
+		// Start backoff after assembly, so timeouts cannot cause every queued
+		// tab to immediately repeat the same failed read.
+		retryAt := time.Now().Add(2 * time.Second)
+		for _, id := range ids {
+			if m := s.members[id]; !m.valid {
+				m.retryAt = retryAt
+			}
+		}
+	}()
 	jobs := 0
 	for start := 0; start < len(ids); start += 128 {
 		chunk := ids[start:min(start+128, len(ids))]
@@ -201,7 +224,9 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 			}
 			return ErrUnavailable
 		}
+		started := time.Now()
 		revisions, err := repo.MembershipRevisions(ctx, chunk)
+		s.metrics.membership.observe(started)
 		<-s.jobs
 		if err != nil {
 			for _, id := range chunk {
@@ -242,11 +267,14 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		for pos := 0; pos < len(candidates); pos += 256 {
 			jobs++
 			if jobs > 64 || !s.acquireJob(ctx) {
+				s.metrics.queueLimit.Add(1)
 				failed = true
 				break
 			}
 			batch := candidates[pos:min(pos+256, len(candidates))]
+			started := time.Now()
 			matches, err := repo.Memberships(ctx, work, batch)
+			s.metrics.membership.observe(started)
 			<-s.jobs
 			if err != nil {
 				failed = true
@@ -278,12 +306,15 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		// Recheck after multi-batch assembly. A concurrent writer invalidates rather
 		// than combining membership generations in a published private view.
 		if !failed && s.acquireJob(ctx) {
+			started := time.Now()
 			final, err := repo.MembershipRevisions(ctx, chunk)
+			s.metrics.membership.observe(started)
 			<-s.jobs
 			for _, o := range work {
 				m := s.members[o.ID]
 				if err == nil && final[o.ID] == revisions[o.ID] {
 					m.valid = true
+					m.retryAt = time.Time{}
 					m.revision = final[o.ID]
 					clear(m.dirty)
 					m.generation++

@@ -223,7 +223,7 @@ paths:
     get:
       operationId: getEventActivityCounts
       summary: Read public recommendation and Interested totals
-      description: Requires repeated event_id, deduplicated to at most 101 provider-scoped IDs. Query length is bounded to 32768 bytes; other parameters are rejected. Unknown valid IDs have zero totals. Interested includes private choices, never actors or viewer flags. Cache-Control is private, no-store.
+      description: Requires repeated event_id, deduplicated to at most 101 provider-scoped IDs. Query length is bounded to 32768 bytes; other parameters are rejected. Unknown valid IDs have zero totals. Interested includes private choices, never actors or viewer flags. Reads share bounded activity work admission and have a five-second service deadline; saturation returns 503 rather than partial totals. Cache-Control is private, no-store.
       parameters:
         - name: event_id
           in: query
@@ -250,7 +250,9 @@ paths:
         heartbeat uses an object with a date-time as_of, and unavailable uses an empty object.
         Initial connection sends current snapshots quietly. Shared activity polls run at most
         once per two seconds; unchanged activity is not resent. Counts refresh every 15 seconds
-        and on connection; heartbeat is emitted every 15 seconds even without changes.
+        and on connection; joining connections may reuse counts read less than 15 seconds ago.
+        New count IDs are batched without resetting existing connections' refresh cadence.
+        Heartbeat is emitted every 15 seconds even without changes.
         An unavailable event clears activity and marks retained counts stale before reconnect.
         Optional repeated event_id obeys the count route's 101 distinct ID / 32768 query-byte limits.
         Optional filter applies to the complete candidate window before limiting to twenty groups.

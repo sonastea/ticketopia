@@ -280,6 +280,20 @@ only still-eligible recent entries, without backfill. Related guides:
 
 ## Verification
 
+**Part 5 in progress — 2026-10-20:** bounded operational telemetry, shared fresh
+joining-count reuse and a real three-container/nginx load fixture are implemented.
+Load testing also fixes inactive-account membership re-entry and bounds retired
+private-view cohorts when memberships change.
+Profiled improvements make warm expiry checks constant-time and reuse immutable
+facets by metadata revision while always refreshing attribution.
+See the [performance and rollout record](live-activity-rollout.md) for commands,
+measurements, failed/outstanding gates and the coordinated kill-switch procedure.
+The production-readiness milestone remains unchecked until all exit gates pass.
+The optimized rich 1,000-group / 256-account / 768-stream scenario passes, including
+SQL recovery and drain. At 10,000 groups, write p95 still regresses 37.4% against
+the 10% gate. Final race, vet, Docker and browser regression checks pass; retain the
+explicit production kill switch while performance/manual rollout gates are open.
+
 **Part 4 — 2026-10-19:** real MariaDB tests cover concurrent/idempotent saves,
 all four source mutations, visibility-only no-ops, actual writer failure/rollback,
 separate-pool revision delivery, owner isolation and mismatched metadata rejection.

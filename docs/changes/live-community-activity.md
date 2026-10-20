@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 2026-10-20 — Part 5: operational measurement and deployment fixture
+
+- Add bounded, identity-free metrics for caches, work, SQL statements, timing,
+  failures and delivery; reuse fresh counts for joining tabs and bound count reads.
+- Bound the aggregate delivery cycle and fix inactive-account membership rebuilds
+  after coalesced invalidation, retaining per-account failed-read backoff.
+- Enforce the unreferenced-cohort cap across private membership revisions too.
+- Profile warm reads, cache complete-window expiry, and reuse revision-matched
+  facets without reusing attribution; improve contended warm stream delivery.
+- Add a production-image three-replica/nginx load and SQL-recovery/drain fixture.
+- Pass the rich 1,000-group/256-account/768-stream scenario and final regressions;
+  retain the failed 10,000-group write-latency gate (+37.4% versus +10%) explicitly.
+- Record measurements and outstanding gates in the [rollout record](../live-activity-rollout.md).
+  Part 5 remains in progress; production remains explicitly off.
+
 ### 2026-10-19 — Part 4: private connection filters
 
 - Add schema 19 transactional membership revisions, candidate-scoped batched joins,
@@ -76,18 +91,3 @@ Older entries: [archive](archive/live-community-activity/).
   forms, conflict recovery, account switching, fallback and automated accessibility.
 - Pass the real-MariaDB race suite, vet, OpenAPI lint, generated build and Docker
   validation; mark Part 1 complete locally. Later milestones remain unchecked.
-
-### 2026-10-16 — Default-on filtering specification
-
-- Specify default-on live activity and the agreed one-time migration enabling
-  account notifications for existing accounts, including previously paused ones.
-  Later pause choices persist; email permissions and subscriptions stay independent.
-- Specify event-city/type/artist/venue and recipient saved/interested/followed
-  filters, with radius as a later coordinate-backed extension.
-- Define full-window shared indexing, reusable filter views, batched incremental
-  membership reads, explicit overload behavior and three-replica load gates.
-- Divide implementation into six runnable checkpoints: defaults/preferences,
-  city/type filtering, artist/venue filtering, private connections, production
-  readiness and optional radius filtering, each with a demo and exit checks.
-- Link the [proposed extension](../design/live-activity-filters.md). Runtime defaults,
-  routes and filters remain unchanged; implementation milestones are unchecked.

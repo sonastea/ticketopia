@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -93,6 +94,7 @@ type subscriber struct {
 	previous [sha256.Size]byte
 }
 type Service struct {
+	metrics           metrics
 	invalidAll        bool
 	invalidMembers    map[string]bool
 	unwatchMembership func()
@@ -183,6 +185,7 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 	select {
 	case s.pending <- struct{}{}:
 	default:
+		s.metrics.queueLimit.Add(1)
 		return Snapshot{}, ErrUnavailable
 	}
 	defer func() { <-s.pending }()
@@ -201,6 +204,10 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 		return Snapshot{}, ErrUnavailable
 	}
 	defer func() { <-s.projection }()
+	defer s.accountMetrics()
+	if ctx.Err() != nil {
+		return Snapshot{}, ErrUnavailable
+	}
 	now := time.Now()
 	if now.Sub(s.readAt) >= 2*time.Second {
 		// Leave half the budget for in-progress assembly, plus fixed overhead for
@@ -213,7 +220,14 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 			return Snapshot{}, ErrUnavailable
 		}
 		var data Candidates
-		if repo, ok := s.repo.(CandidateRepository); ok {
+		started := time.Now()
+		if repo, ok := s.repo.(CandidateRefreshRepository); ok {
+			var previous Candidates
+			if s.index != nil {
+				previous = s.index.data
+			}
+			data, err = repo.RefreshCandidates(ctx, previous)
+		} else if repo, ok := s.repo.(CandidateRepository); ok {
 			data, err = repo.Candidates(ctx)
 		} else {
 			var snapshot Snapshot
@@ -228,6 +242,7 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 		if err == nil {
 			index, err = buildIndex(data, s.index)
 		}
+		s.metrics.projection.observe(started)
 		if err == nil && index.bytes*2+s.membershipBytes()+s.viewBytes+(8<<20) > MemoryBudget {
 			clear(s.views)
 			s.viewBytes = 0
@@ -242,10 +257,13 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 			reason := "projection_failed"
 			if errors.Is(err, ErrCandidateLimit) {
 				reason = "candidate_limit"
+				s.metrics.candidateLimit.Add(1)
 			}
 			if errors.Is(err, ErrMemoryLimit) {
 				reason = "memory_limit"
+				s.metrics.memoryLimit.Add(1)
 			}
+			s.metrics.projectionFailed.Add(1)
 			s.logger.Warn().Str("reason", reason).Msg("Live activity generation unavailable")
 			s.index = nil
 			clear(s.views)
@@ -263,22 +281,18 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 	}
 	if f.Connections.Mode == "any" {
 		if err := s.refreshMembership(ctx, owner, f); err != nil {
+			s.metrics.membershipFailed.Add(1)
 			return Snapshot{}, ErrUnavailable
 		}
 	}
 	return s.selectOwnerCached(ctx, f, owner)
 }
 func (s *Service) expired(now time.Time) bool {
-	if s.index == nil {
+	if s.index == nil || s.index.expiresAt.IsZero() {
 		return false
 	}
 	serverNow := s.index.data.AsOf.Add(now.Sub(s.readAt))
-	for _, c := range s.index.data.Items {
-		if !c.Item.ExpiresAt.IsZero() && !serverNow.Before(c.Item.ExpiresAt) {
-			return true
-		}
-	}
-	return false
+	return !serverNow.Before(s.index.expiresAt)
 }
 func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error) {
 	return s.selectOwnerCached(ctx, f, "")
@@ -305,7 +319,9 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 			if !s.acquireJob(ctx) {
 				return Snapshot{}, ErrUnavailable
 			}
+			started := time.Now()
 			key, err = repo.LocationKey(ctx, f.Location)
+			s.metrics.location.observe(started)
 			<-s.jobs
 			if err != nil {
 				return Snapshot{}, err
@@ -334,7 +350,7 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 	var membership bitmap
 	if f.Connections.Mode == "any" {
 		m := s.members[owner]
-		if m == nil || !m.valid {
+		if m == nil || !m.valid || sourceMask(f)&^m.sources != 0 {
 			return Snapshot{}, ErrUnavailable
 		}
 		membership = m.union(f)
@@ -342,6 +358,7 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 	}
 	now := time.Now()
 	if v, ok := s.views[digest]; ok {
+		s.metrics.hits.Add(1)
 		v.used = now
 		if !v.snapshot.AsOf.Equal(s.index.data.AsOf) {
 			v.snapshot.AsOf = s.index.data.AsOf
@@ -365,9 +382,7 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 		}
 	}
 	s.mu.Unlock()
-	extra := 0
-	oldest := ""
-	var oldestAt time.Time
+	extra := []string{}
 	for k, v := range s.views {
 		if active[k] {
 			continue
@@ -377,19 +392,29 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 			delete(s.views, k)
 			continue
 		}
-		extra++
-		if oldest == "" || v.used.Before(oldestAt) {
-			oldest, oldestAt = k, v.used
+		extra = append(extra, k)
+	}
+	budget := 128
+	if !active[digest] {
+		budget--
+	}
+	if len(extra) > budget {
+		// Membership revisions can retire all active private keys at once. Bound
+		// those unreferenced generations too, not just new snapshot-only views.
+		slices.SortFunc(extra, func(a, b string) int { return s.views[a].used.Compare(s.views[b].used) })
+		for _, key := range extra[:len(extra)-budget] {
+			s.viewBytes -= s.views[key].bytes
+			delete(s.views, key)
 		}
 	}
-	if !active[digest] && extra >= 128 {
-		s.viewBytes -= s.views[oldest].bytes
-		delete(s.views, oldest)
-	}
+	s.metrics.misses.Add(1)
+	started := time.Now()
 	view := s.index.selectView(f, key, membership)
 	view.encode()
+	s.metrics.selection.observe(started)
 	bytes := len(view.encoded)*4 + len(digest)*2 + 1024
 	if s.index.bytes*2+s.viewBytes+bytes+s.membershipBytes()+(8<<20) > MemoryBudget {
+		s.metrics.memoryLimit.Add(1)
 		return Snapshot{}, ErrUnavailable
 	}
 	s.views[digest] = cachedView{view, now, bytes}
@@ -406,10 +431,20 @@ func publicKey(city string, f Filters) string {
 	return string(data)
 }
 func (s *Service) Counts(ctx context.Context, ids []string) (Counts, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	select {
+	case s.pending <- struct{}{}:
+	default:
+		s.metrics.queueLimit.Add(1)
+		return Counts{}, ErrUnavailable
+	}
+	defer func() { <-s.pending }()
 	if !s.acquireJob(ctx) {
 		return Counts{}, ErrUnavailable
 	}
 	defer func() { <-s.jobs }()
+	defer s.metrics.counts.observe(time.Now())
 	return s.repo.Counts(ctx, ids)
 }
 func (s *Service) acquireJob(ctx context.Context) bool {
@@ -426,6 +461,10 @@ func (s *Service) Subscribe(ids []string, filters ...Filters) (<-chan Update, fu
 	return s.SubscribeOwner("", ids, filters...)
 }
 func (s *Service) SubscribeOwner(owner string, ids []string, filters ...Filters) (<-chan Update, func(), error) {
+	return s.SubscribeOwnerContext(context.Background(), owner, ids, filters...)
+}
+
+func (s *Service) SubscribeOwnerContext(ctx context.Context, owner string, ids []string, filters ...Filters) (<-chan Update, func(), error) {
 	f := DefaultPreferences().Filters
 	if len(filters) > 0 {
 		f = filters[0]
@@ -446,6 +485,7 @@ func (s *Service) SubscribeOwner(owner string, ids []string, filters ...Filters)
 	default:
 	}
 	if len(s.subs) >= s.limit {
+		s.metrics.streamLimit.Add(1)
 		s.mu.Unlock()
 		return nil, nil, ErrUnavailable
 	}
@@ -453,14 +493,23 @@ func (s *Service) SubscribeOwner(owner string, ids []string, filters ...Filters)
 	s.subs[sub] = struct{}{}
 	connections := len(s.subs)
 	s.mu.Unlock()
+	release := func() { s.mu.Lock(); delete(s.subs, sub); s.mu.Unlock() }
 	// A valid warm view is delivered before initial count work. Never block on SQL
-	// while holding the subscriber lock.
+	// while holding the subscriber lock. Brief selection contention should not
+	// turn a warm subscription into a wait for the next one-second worker tick.
+	warm := time.NewTimer(100 * time.Millisecond)
+	defer warm.Stop()
 	select {
 	case s.projection <- struct{}{}:
+		if ctx.Err() != nil {
+			<-s.projection
+			release()
+			return nil, nil, ErrUnavailable
+		}
 		if s.index != nil && s.readErr == nil && time.Since(s.readAt) < 2*time.Second && !s.expired(time.Now()) {
 			key := s.keys[f.Location]
 			if f.Location.Mode == "all" || key != "" {
-				view, err := s.selectOwnerCached(context.Background(), f, owner)
+				view, err := s.selectOwnerCached(ctx, f, owner)
 				if err == nil {
 					s.mu.Lock()
 					if f.Connections.Mode != "any" || (!s.invalidAll && !s.invalidMembers[owner]) {
@@ -474,10 +523,16 @@ func (s *Service) SubscribeOwner(owner string, ids []string, filters ...Filters)
 			}
 		}
 		<-s.projection
-	default:
+	case <-warm.C:
+	case <-ctx.Done():
+		release()
+		return nil, nil, ErrUnavailable
+	case <-s.done:
+		release()
+		return nil, nil, ErrUnavailable
 	}
 	s.logger.Debug().Int("connections", connections).Msg("Live activity connection opened")
-	return sub.ch, func() { s.mu.Lock(); delete(s.subs, sub); s.mu.Unlock() }, nil
+	return sub.ch, release, nil
 }
 func (s *Service) run(ctx context.Context) {
 	defer close(s.done)
@@ -486,15 +541,24 @@ func (s *Service) run(ctx context.Context) {
 	}
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
-	var lastCounts, lastPoll, lastCleanup time.Time
+	var lastCounts, lastPoll, lastCleanup, lastMetrics time.Time
 	var snapshot Snapshot
 	var readErr error
+	type cachedCount struct {
+		value        Count
+		asOf, readAt time.Time
+	}
+	countCache := map[string]cachedCount{}
 	for {
 		var now time.Time
 		select {
 		case <-ctx.Done():
 			return
 		case now = <-tick.C:
+		}
+		if now.Sub(lastMetrics) >= 15*time.Second {
+			s.logger.Info().Interface("activity", s.Stats()).Msg("Live activity metrics")
+			lastMetrics = now
 		}
 		select {
 		case s.projection <- struct{}{}:
@@ -525,12 +589,15 @@ func (s *Service) run(ctx context.Context) {
 				clear(s.memberFacts)
 				clear(s.memberSlots)
 			}
+			s.accountMetrics()
 			<-s.projection
 		default:
 		}
 		if now.Sub(lastCleanup) >= time.Minute {
 			if s.acquireJob(ctx) {
+				started := time.Now()
 				_ = s.repo.Cleanup(ctx)
+				s.metrics.cleanup.observe(started)
 				<-s.jobs
 			}
 			lastCleanup = now
@@ -538,10 +605,14 @@ func (s *Service) run(ctx context.Context) {
 		s.mu.Lock()
 		targets := make([]*subscriber, 0, len(s.subs))
 		ids := map[string]bool{}
+		activeIDs := map[string]bool{}
 		due := now.Sub(lastCounts) >= 15*time.Second
 		regularCounts := due
 		for sub := range s.subs {
 			targets = append(targets, sub)
+			for _, id := range sub.ids {
+				activeIDs[id] = true
+			}
 			if sub.initial {
 				due = true
 			}
@@ -552,12 +623,21 @@ func (s *Service) run(ctx context.Context) {
 			}
 		}
 		s.mu.Unlock()
+		for id := range countCache {
+			if !activeIDs[id] {
+				delete(countCache, id)
+			}
+		}
 		if len(targets) == 0 {
 			continue
 		}
+		// Bound the complete shared cycle, not just each SQL batch or recipient.
+		// A large visible-ID union or failing scope must not turn fanout into
+		// hundreds of serial five-second waits before other views can clear.
+		cycle, cancelCycle := context.WithTimeout(ctx, 5*time.Second)
 		if now.Sub(lastPoll) >= 2*time.Second {
 			started := time.Now()
-			snapshot, readErr = s.Snapshot(ctx)
+			snapshot, readErr = s.Snapshot(cycle)
 			lastPoll = now
 			if readErr != nil {
 				s.logger.Warn().Msg("Live activity poll failed")
@@ -569,16 +649,29 @@ func (s *Service) run(ctx context.Context) {
 		if err == nil && due {
 			union := make([]string, 0, len(ids))
 			for id := range ids {
+				if cached, ok := countCache[id]; ok && !regularCounts && now.Sub(cached.readAt) < 15*time.Second {
+					totals.Items = append(totals.Items, cached.value)
+					if totals.AsOf.IsZero() || cached.asOf.Before(totals.AsOf) {
+						totals.AsOf = cached.asOf
+					}
+					continue
+				}
 				union = append(union, id)
 			}
 			for start := 0; start < len(union); start += 101 {
 				end := min(start+101, len(union))
 				var batch Counts
-				batch, err = s.Counts(ctx, union[start:end])
+				batch, err = s.Counts(cycle, union[start:end])
 				if err != nil {
+					clear(countCache)
 					break
 				}
-				totals.AsOf = batch.AsOf
+				if totals.AsOf.IsZero() || batch.AsOf.Before(totals.AsOf) {
+					totals.AsOf = batch.AsOf
+				}
+				for _, value := range batch.Items {
+					countCache[value.EventID] = cachedCount{value, batch.AsOf, now}
+				}
 				totals.Items = append(totals.Items, batch.Items...)
 			}
 			if regularCounts {
@@ -593,7 +686,7 @@ func (s *Service) run(ctx context.Context) {
 			view := snapshot
 			viewErr := err
 			if viewErr == nil {
-				view, viewErr = s.OwnerSnapshot(ctx, sub.owner, sub.filter)
+				view, viewErr = s.OwnerSnapshot(cycle, sub.owner, sub.filter)
 			}
 			contentHash := view.ContentHash()
 			s.mu.Lock()
@@ -617,6 +710,7 @@ func (s *Service) run(ctx context.Context) {
 				select {
 				case sub.ch <- u:
 				default:
+					s.metrics.overwritten.Add(1)
 					select {
 					case <-sub.ch:
 					default:
@@ -632,5 +726,6 @@ func (s *Service) run(ctx context.Context) {
 			}
 			s.mu.Unlock()
 		}
+		cancelCycle()
 	}
 }

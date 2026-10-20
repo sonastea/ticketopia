@@ -47,6 +47,8 @@ their status; they describe intended work rather than available features.
 
 - [Live community activity](live-community-activity.md): dependency-aware default-on SSE recommendations,
   explicit first-name attribution, private-safe totals, grouping and pause controls.
+- [Live activity performance and rollout](live-activity-rollout.md): operational
+  telemetry, real three-replica load fixture, measured/outstanding gates and rollback.
 
 - [Local development services](local-development.md): `ses-setup`, `db-setup` and
   combined `local-setup`, with isolated MiniStack SES capture and local settings.

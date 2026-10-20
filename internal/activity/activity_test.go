@@ -86,3 +86,44 @@ func TestUnionBatchingAndSlowSubscriberIsolation(t *testing.T) {
 		t.Fatal("missing requested IDs", len(seen))
 	}
 }
+
+func TestJoiningTabsReuseFreshCounts(t *testing.T) {
+	repo := &batchRepository{}
+	s := New(t.Context(), repo, 4)
+	defer s.Close()
+	wait := func(ch <-chan Update) {
+		t.Helper()
+		timer := time.NewTimer(4 * time.Second)
+		defer timer.Stop()
+		for {
+			select {
+			case u := <-ch:
+				if u.Unavailable {
+					t.Fatal("unavailable")
+				}
+				if u.Counts != nil {
+					return
+				}
+			case <-timer.C:
+				t.Fatal("initial counts missing")
+			}
+		}
+	}
+	first, release, err := s.Subscribe([]string{"ticketmaster:shared"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	wait(first)
+	second, release, err := s.Subscribe([]string{"ticketmaster:shared", "ticketmaster:new"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	wait(second)
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	if len(repo.batches) != 2 || len(repo.batches[1]) != 1 || repo.batches[1][0] != "ticketmaster:new" {
+		t.Fatal("joining tab reread existing counts", repo.batches)
+	}
+}

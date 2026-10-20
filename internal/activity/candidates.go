@@ -32,6 +32,13 @@ type CandidateRepository interface {
 	Candidates(context.Context) (Candidates, error)
 	LocationKey(context.Context, Location) (string, error)
 }
+
+// CandidateRefreshRepository reuses only immutable public facets from the last
+// successful generation. Eligibility, attribution and revisions are always read
+// again; a failed poll discards the prior generation before the next attempt.
+type CandidateRefreshRepository interface {
+	RefreshCandidates(context.Context, Candidates) (Candidates, error)
+}
 type bitmap []uint64
 
 func (b bitmap) add(slot int)      { b[slot/64] |= 1 << (slot % 64) }
@@ -45,6 +52,7 @@ type candidateIndex struct {
 	artists     map[string]bitmap
 	venues      map[string]bitmap
 	bytes       int
+	expiresAt   time.Time
 	fingerprint [sha256.Size]byte
 }
 
@@ -83,6 +91,9 @@ func buildIndex(data Candidates, previous *candidateIndex) (*candidateIndex, err
 	for _, c := range data.Items {
 		if len(c.Item.EventTitle)+len(c.Item.City)+len(c.CityKey) > MaxFactBytes {
 			return nil, ErrMemoryLimit
+		}
+		if expiry := c.Item.ExpiresAt; !expiry.IsZero() && (x.expiresAt.IsZero() || expiry.Before(x.expiresAt)) {
+			x.expiresAt = expiry
 		}
 		x.bytes += 1024 + 4*(len(c.Item.EventID)+len(c.Item.EventTitle)+len(c.Item.City)+len(c.CityKey))
 		if c.Item.ActorFirstName != nil {

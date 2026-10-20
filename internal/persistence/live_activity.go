@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
@@ -12,13 +13,18 @@ import (
 )
 
 type ActivityRepository struct {
-	db      *sql.DB
-	timeout time.Duration
+	db         *sql.DB
+	timeout    time.Duration
+	statements atomic.Uint64
 }
 
 func (p *Pool) Activity() *ActivityRepository {
-	return &ActivityRepository{p.db, p.config.QueryTimeout}
+	return &ActivityRepository{db: p.db, timeout: p.config.QueryTimeout}
 }
+
+// QueryCount counts attempted activity SELECT/DML statements, excluding
+// transaction control. No SQL text or parameters enter telemetry.
+func (r *ActivityRepository) QueryCount() uint64 { return r.statements.Load() }
 func (r *ActivityRepository) Snapshot(ctx context.Context) (activity.Snapshot, error) {
 	data, err := r.Candidates(ctx)
 	result := activity.Snapshot{AsOf: data.AsOf, Items: []activity.Item{}}
@@ -39,6 +45,7 @@ func (r *ActivityRepository) LocationKey(ctx context.Context, l activity.Locatio
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	var key string
+	r.statements.Add(1)
 	err := r.db.QueryRowContext(ctx, `SELECT CONCAT(HEX(WEIGHT_STRING(RTRIM(CONVERT(? USING utf8mb4)) COLLATE utf8mb4_unicode_ci)),':',HEX(WEIGHT_STRING(RTRIM(CONVERT(? USING utf8mb4)) COLLATE utf8mb4_unicode_ci)))`, l.City, l.Country).Scan(&key)
 	if err != nil {
 		return "", activity.ErrUnavailable
@@ -47,17 +54,31 @@ func (r *ActivityRepository) LocationKey(ctx context.Context, l activity.Locatio
 }
 
 func (r *ActivityRepository) Candidates(ctx context.Context) (activity.Candidates, error) {
+	return r.RefreshCandidates(ctx, activity.Candidates{})
+}
+
+func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous activity.Candidates) (activity.Candidates, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
+	if len(previous.Items) > activity.MaxCandidates {
+		return activity.Candidates{}, activity.ErrCandidateLimit
+	}
+	prior := make(map[string]int, len(previous.Items))
+	for i, c := range previous.Items {
+		prior[c.Item.EventID] = i
+	}
+	changed := []int{}
 	result := activity.Candidates{Items: []activity.Candidate{}}
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
 		return result, activity.ErrUnavailable
 	}
 	defer tx.Rollback()
+	r.statements.Add(1)
 	if err = tx.QueryRowContext(ctx, `SELECT UTC_TIMESTAMP(6)`).Scan(&result.AsOf); err != nil {
 		return result, activity.ErrUnavailable
 	}
+	r.statements.Add(1)
 	rows, err := tx.QueryContext(ctx, `SELECT g.event_id,g.n,g.latest,g.expiry,IF(g.n=1,a.activity_first_name,NULL),LEFT(e.activity_title,65537),LEFT(e.community_city,65537),IF(OCTET_LENGTH(e.activity_title)+OCTET_LENGTH(e.community_city)+OCTET_LENGTH(e.community_country)>65536,'',`+activityLocationKey+`),e.data_as_of
  FROM (SELECT l.event_id,COUNT(*) n,MAX(l.published_at) latest,MIN(l.expires_at) expiry,MIN(l.account_id) actor
  FROM live_recommendation_activity l JOIN event_recommendations r ON r.account_id=l.account_id AND r.event_id=l.event_id AND r.withdrawn_at IS NULL
@@ -99,20 +120,37 @@ func (r *ActivityRepository) Candidates(ctx context.Context) (activity.Candidate
 				item.ActorFirstName = &name
 			}
 		}
+		if i, ok := prior[item.EventID]; ok && previous.Items[i].Revision.Equal(candidate.Revision) {
+			// Facets are projected only with a strictly newer accepted snapshot,
+			// atomically with data_as_of. Never reuse the name-bearing Item.
+			old := previous.Items[i]
+			candidate.CategoryIDs, candidate.ArtistIDs, candidate.VenueIDs = old.CategoryIDs, old.ArtistIDs, old.VenueIDs
+			for _, ids := range [][]string{candidate.CategoryIDs, candidate.ArtistIDs, candidate.VenueIDs} {
+				for _, id := range ids {
+					bytes += 128 + 4*len(id)
+				}
+			}
+			if bytes > activity.MemoryBudget/4 {
+				return activity.Candidates{}, activity.ErrMemoryLimit
+			}
+		} else {
+			changed = append(changed, len(result.Items))
+		}
 		result.Items = append(result.Items, candidate)
 	}
 	if rows.Err() != nil {
 		return result, activity.ErrUnavailable
 	}
 	rows.Close()
-	for start := 0; start < len(result.Items); start += 256 {
-		end := min(start+256, len(result.Items))
+	for start := 0; start < len(changed); start += 256 {
+		end := min(start+256, len(changed))
 		args := []any{}
 		byID := map[string]int{}
-		for i := start; i < end; i++ {
+		for _, i := range changed[start:end] {
 			args = append(args, result.Items[i].Item.EventID)
 			byID[result.Items[i].Item.EventID] = i
 		}
+		r.statements.Add(1)
 		facets, err := tx.QueryContext(ctx, `SELECT event_id,kind,value FROM event_search_facets WHERE kind IN ('category','artist','venue') AND event_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")+`) ORDER BY event_id,kind,value`, args...)
 		if err != nil {
 			return activity.Candidates{}, activity.ErrUnavailable
@@ -161,6 +199,7 @@ func (r *ActivityRepository) Counts(ctx context.Context, ids []string) (activity
 		return result, activity.ErrUnavailable
 	}
 	defer tx.Rollback()
+	r.statements.Add(1)
 	if tx.QueryRowContext(ctx, `SELECT UTC_TIMESTAMP(6)`).Scan(&result.AsOf) != nil {
 		return result, activity.ErrUnavailable
 	}
@@ -184,6 +223,7 @@ func (r *ActivityRepository) Counts(ctx context.Context, ids []string) (activity
 			query += ` AND withdrawn_at IS NULL`
 		}
 		query += ` GROUP BY event_id`
+		r.statements.Add(1)
 		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
 			return result, activity.ErrUnavailable
@@ -217,6 +257,7 @@ func (r *ActivityRepository) Counts(ctx context.Context, ids []string) (activity
 func (r *ActivityRepository) Cleanup(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
+	r.statements.Add(1)
 	_, err := r.db.ExecContext(ctx, `DELETE FROM live_recommendation_activity WHERE expires_at<=UTC_TIMESTAMP(6) ORDER BY expires_at LIMIT 500`)
 	if err != nil {
 		return activity.ErrUnavailable

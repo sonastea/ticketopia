@@ -16,7 +16,7 @@ grants (including INSERT/DELETE on `live_recommendation_activity`), then start t
 new binary. Startup probes verify the column/table and permissions.
 The new preference columns use existing account table grants. Subsequent pauses and
 live disables survive restarts/reruns; email permissions and delivery history remain
-independent. Rollback means a schema-18-compatible image with the live kill switch
+independent. Rollback means a schema-19-compatible image with the live kill switch
 off, preserving preferences rather than reversing the account reset.
 
 Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and
@@ -39,6 +39,12 @@ closes. Logs report counts/timing/failures without notification payloads. Rollba
 by disabling the feature keeps recommendation writes usable; no historical activity
 is backfilled when re-enabled. Physical-device/screen-reader and target-proxy
 verification remain deployment acceptance work.
+
+The [Part 5 performance/rollout record](live-activity-rollout.md) documents the
+three-container load fixture, operational metric fields, measured and outstanding
+gates, and coordinated migration/enablement/rollback procedure. Proxy descriptors
+must cover both downstream and upstream sockets; connection counts alone do not
+establish capacity. Part 5 is not yet a production sign-off.
 
 Ticketopia ships a multi-stage [Dockerfile](../Dockerfile). The builder uses Go
 1.27 and Node.js 24 to install pinned npm dependencies, bundle component scripts,
