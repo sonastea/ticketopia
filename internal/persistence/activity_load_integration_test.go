@@ -148,6 +148,7 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 	prefix := strings.ReplaceAll(f.runtime.Database, "_", "-")
+	profile := newLoadProfile(t, f, "ticketopia-db-mariadb-1")
 	containers := []string{}
 	t.Cleanup(func() {
 		for i := len(containers) - 1; i >= 0; i-- {
@@ -241,42 +242,34 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 	t.Logf("image=%s groups=%d app_limits=3x2GiB/1CPU proxy=128MiB/0.5CPU docker=%s", image, n, docker("info", "--format", "{{.NCPU}} CPUs {{.MemTotal}} bytes"))
 	t.Logf("image_id=%s distinct_accounts=%t rich=%s", docker("image", "inspect", image, "--format", "{{.Id}}"), distinct, os.Getenv("LIVE_ACTIVITY_LOAD_RICH"))
 	t.Logf("database=%s", docker("inspect", "ticketopia-db-mariadb-1", "--format", "{{.Config.Image}} memory={{.HostConfig.Memory}} nanocpus={{.HostConfig.NanoCpus}}"))
-	ordinary := func() [2]time.Duration {
-		var samples [2][]time.Duration
-		for i := range 105 {
-			for operation := range 2 {
-				method, path, body, credential := "GET", "/r0/community", "", ""
-				if operation == 1 {
-					method, path, credential = "PUT", "/r0/api/v1/me/event-interests/ticketmaster:LiveFilter_0", token
-					body = `{"visibility":"private"}`
-					if i%2 == 0 {
-						method, body = "DELETE", ""
-					}
-				}
-				started := time.Now()
-				resp, err := request(t.Context(), method, path, "203.0.113.90", credential, body)
-				if err != nil {
-					t.Fatal(err)
-				}
-				io.Copy(io.Discard, resp.Body)
-				resp.Body.Close()
-				if resp.StatusCode >= 300 {
-					t.Fatalf("ordinary traffic %s: %d", method, resp.StatusCode)
-				}
-				if i >= 5 {
-					samples[operation] = append(samples[operation], time.Since(started))
-				}
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-		var result [2]time.Duration
-		for i := range samples {
-			slices.Sort(samples[i])
-			result[i] = samples[i][(len(samples[i])*95-1)/100]
-		}
-		return result
+	profile.containers = []string{containers[0], proxy}
+	// Probe ordinary traffic from its own container on the deployment network,
+	// through the proxy. A host-side probe shares the test process and Docker's
+	// host port forwarding with the 768 load-generator streams; on 2026-10-20
+	// that path alone added ~2ms to write p95, even for an unmodified image.
+	probe := filepath.Join(dir, "loadprobe")
+	build := exec.CommandContext(t.Context(), "go", "build", "-o", probe, "./testdata/loadprobe")
+	build.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+docker("version", "--format", "{{.Server.Arch}}"), "CGO_ENABLED=0")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("load probe build: %v\n%s", err, out)
 	}
-	baseline := ordinary()
+	ordinary := func(label string) [2]time.Duration {
+		profile.begin()
+		phase := time.Now()
+		defer func() { profile.end(label, time.Since(phase)) }()
+		var result struct {
+			Browse  time.Duration `json:"browse_p95"`
+			Write   time.Duration `json:"write_p95"`
+			Samples int           `json:"samples"`
+		}
+		out := docker("run", "--rm", "--network", network, "--cpus", "1", "--memory", "128m", "-e", "LOAD_PROBE_TOKEN="+token, "-v", probe+":/loadprobe:ro", "gcr.io/distroless/static-debian12:nonroot", "/loadprobe", "http://"+proxy+":8080/r0")
+		// The result is the final line; a first run may precede it with pull output.
+		if err := json.Unmarshal([]byte(out[strings.LastIndex(out, "\n")+1:]), &result); err != nil || result.Samples != 100 {
+			t.Fatal("invalid load probe result", err)
+		}
+		return [2]time.Duration{result.Browse, result.Write}
+	}
+	baseline := ordinary("baseline")
 
 	type frame struct {
 		event    string
@@ -407,12 +400,18 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 	for _, s := range probes {
 		wait(s, 20*time.Second, func(f frame) bool { return f.event == "heartbeat" })
 	}
-	loaded := ordinary()
+	loaded := ordinary("loaded")
 	for i, label := range []string{"browse", "write"} {
-		t.Logf("ordinary %s p95 baseline=%s loaded=%s ratio=%.3f samples=100", label, baseline[i], loaded[i], float64(loaded[i])/float64(baseline[i]))
+		t.Logf("ordinary %s p95 baseline=%s loaded=%s ratio=%.3f samples=100 (in-network probe via proxy)", label, baseline[i], loaded[i], float64(loaded[i])/float64(baseline[i]))
 		if loaded[i] > baseline[i]*11/10 {
 			t.Errorf("ordinary %s exceeds 10%% regression gate", label)
 		}
+	}
+	if os.Getenv("LIVE_ACTIVITY_LOAD_PHASE") == "ordinary" {
+		// Profiling iterations stop after the regression gate; this is never a
+		// complete scenario result.
+		t.Log("stopping after ordinary-traffic gate (LIVE_ACTIVITY_LOAD_PHASE=ordinary)")
+		return
 	}
 	for range 60 {
 		resp, err := request(t.Context(), "GET", "/r0/api/v1/community/activity", "203.0.113.2", "", "")

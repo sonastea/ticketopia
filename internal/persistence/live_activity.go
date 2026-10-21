@@ -68,7 +68,9 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 		prior[c.Item.EventID] = i
 	}
 	changed := []int{}
-	result := activity.Candidates{Items: []activity.Candidate{}}
+	// Size from the previous generation and scan rows in place: regrowing and
+	// copying ~10,000 escaping candidates dominated projection allocation.
+	result := activity.Candidates{Items: make([]activity.Candidate, 0, min(max(len(previous.Items), 64), activity.MaxCandidates))}
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
 		return result, activity.ErrUnavailable
@@ -92,14 +94,16 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 	defer rows.Close()
 	bytes := 0
 	groups := 0
+	var actor sql.NullString
 	for rows.Next() {
 		groups++
 		if groups > activity.MaxCandidates {
 			return activity.Candidates{}, activity.ErrCandidateLimit
 		}
-		var candidate activity.Candidate
+		result.Items = append(result.Items, activity.Candidate{})
+		candidate := &result.Items[len(result.Items)-1]
 		item := &candidate.Item
-		if rows.Scan(&item.EventID, &item.RecentRecommendations, &item.LatestRecommendedAt, &item.ExpiresAt, &item.ActorFirstName, &item.EventTitle, &item.City, &candidate.CityKey, &candidate.Revision) != nil {
+		if rows.Scan(&item.EventID, &item.RecentRecommendations, &item.LatestRecommendedAt, &item.ExpiresAt, &actor, &item.EventTitle, &item.City, &candidate.CityKey, &candidate.Revision) != nil {
 			return result, activity.ErrUnavailable
 		}
 		// The empty key is an oversized-fact sentinel, never a truncated view.
@@ -111,11 +115,11 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 			return activity.Candidates{}, activity.ErrMemoryLimit
 		}
 		if saved.ValidateID(item.EventID) != nil || strings.TrimSpace(item.EventTitle) == "" {
+			result.Items = result.Items[:len(result.Items)-1]
 			continue
 		}
-		if item.ActorFirstName != nil {
-			name, err := accounts.ActivityFirstName(*item.ActorFirstName)
-			item.ActorFirstName = nil
+		if actor.Valid {
+			name, err := accounts.ActivityFirstName(actor.String)
 			if err == nil && name != "" {
 				item.ActorFirstName = &name
 			}
@@ -134,9 +138,8 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 				return activity.Candidates{}, activity.ErrMemoryLimit
 			}
 		} else {
-			changed = append(changed, len(result.Items))
+			changed = append(changed, len(result.Items)-1)
 		}
-		result.Items = append(result.Items, candidate)
 	}
 	if rows.Err() != nil {
 		return result, activity.ErrUnavailable

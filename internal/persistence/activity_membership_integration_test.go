@@ -184,6 +184,23 @@ func TestMariaDBActivityMembership(t *testing.T) {
 	if _, err := a.Activity().Memberships(t.Context(), []activity.MembershipOwner{{ID: owner.ID, Sources: 15}}, []activity.MembershipCandidate{stale}); err == nil {
 		t.Fatal("mixed metadata accepted")
 	}
+	for _, sources := range []uint8{4, 8} {
+		if _, err := a.Activity().Memberships(t.Context(), []activity.MembershipOwner{{ID: owner.ID, Sources: sources}}, []activity.MembershipCandidate{stale}); err == nil {
+			t.Fatal("facet join accepted mixed metadata", sources)
+		}
+	}
+	// Event-ID sources cannot mix facts, so a metadata correction after the
+	// generation must not fail (and back off) their assembly.
+	if _, _, err := a.Interests().Set(t.Context(), owner.ID, savedDetail(strings.TrimPrefix(stale.ID, "ticketmaster:")), "private"); err != nil {
+		t.Fatal(err)
+	}
+	matched, err := a.Activity().Memberships(t.Context(), []activity.MembershipOwner{{ID: owner.ID, Sources: 3}}, []activity.MembershipCandidate{stale})
+	if err != nil || matched[owner.ID].Matches[stale.ID] != 2 {
+		t.Fatal("event-ID membership rejected after metadata correction", matched, err)
+	}
+	if err := a.Interests().Remove(t.Context(), owner.ID, stale.ID); err != nil {
+		t.Fatal(err)
+	}
 	// Other account's seeded saves remain independent, and public callers fail closed.
 	view, err := service.OwnerSnapshot(t.Context(), other.ID, filter)
 	if err != nil || len(view.Items) != 4 {

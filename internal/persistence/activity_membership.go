@@ -125,28 +125,38 @@ func (r *ActivityRepository) Memberships(ctx context.Context, owners []activity.
 		eventArgs = append(eventArgs, c.ID)
 		expected[c.ID] = c
 	}
-	in := strings.TrimSuffix(strings.Repeat("?,", len(candidates)), ",")
-	r.statements.Add(1)
-	rows, err := tx.QueryContext(ctx, `SELECT event_id,data_as_of FROM event_snapshots WHERE event_id IN (`+in+`)`, eventArgs...)
-	if err != nil {
-		return nil, safeError("activity membership metadata", err)
+	facets := false
+	for _, o := range owners {
+		facets = facets || o.Sources&(activity.SourceBit("followed_artists")|activity.SourceBit("followed_venues")) != 0
 	}
-	for rows.Next() {
-		var c activity.MembershipCandidate
-		if err := rows.Scan(&c.ID, &c.Revision); err != nil {
-			rows.Close()
-			return nil, err
+	in := strings.TrimSuffix(strings.Repeat("?,", len(candidates)), ",")
+	// Only artist/venue joins read event facets, so only they can combine newer
+	// relationship matches with older generation facts. Saved/interested match
+	// by event ID: verifying metadata there made every assembly fail (and back
+	// off) while corrections arrived faster than the projection interval.
+	if facets {
+		r.statements.Add(1)
+		rows, err := tx.QueryContext(ctx, `SELECT event_id,data_as_of FROM event_snapshots WHERE event_id IN (`+in+`)`, eventArgs...)
+		if err != nil {
+			return nil, safeError("activity membership metadata", err)
 		}
-		if !expected[c.ID].Revision.Equal(c.Revision) {
-			rows.Close()
+		for rows.Next() {
+			var c activity.MembershipCandidate
+			if err := rows.Scan(&c.ID, &c.Revision); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			if !expected[c.ID].Revision.Equal(c.Revision) {
+				rows.Close()
+				return nil, activity.ErrUnavailable
+			}
+			delete(expected, c.ID)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil || len(expected) != 0 {
 			return nil, activity.ErrUnavailable
 		}
-		delete(expected, c.ID)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil || len(expected) != 0 {
-		return nil, activity.ErrUnavailable
 	}
 	parts := []string{}
 	args := []any{}

@@ -97,9 +97,12 @@ pending projection readers, and at most 128 extra snapshot-only cohorts beyond
 active stream cohorts, with 30-second idle expiry and earlier LRU eviction under
 pressure. A candidate's title/location/key facts are bounded to 64 KiB; exceeding
 that fails the projection rather than truncating an essential label. This is not
-an RSS cap. A failed, expired, overflowing or over-budget generation is unavailable,
+an RSS cap. A failed, overflowing or over-budget generation is unavailable,
 never truncated or silently widened;
-generation failures log bounded reasons without filter/actor values.
+generation failures log bounded reasons without filter/actor values. Expiry is
+per view: one group's expiry never makes the generation (and every stream on the
+replica) unavailable. Each cached view carries its earliest selected expiry and is
+reselected in memory at that boundary, so the next matching group takes the slot.
 
 ## Private connections (Part 4)
 
@@ -124,8 +127,10 @@ Membership uses server-only source bitmaps over stable candidate slots, shared b
 an account's tabs. Only needed sources are allocated. Changed accounts rebuild;
 new/corrected candidates update incrementally, while reorders/name changes reuse
 membership. Reads use at most 128 owners × 256 candidates per SQL work unit, indexed
-source joins and `UNION ALL`, checking candidate metadata and account revisions
-inside repeatable-read snapshots and rechecking account revisions after assembly.
+source joins and `UNION ALL`, checking account revisions inside repeatable-read
+snapshots and rechecking them after assembly. Followed-artist/venue joins also
+verify candidate metadata revisions, since they read event facets; Saved/Interested
+match by event ID alone, so metadata corrections cannot fail their assembly.
 They never load historical collections or run one query per account/event pair.
 Private cache keys include owner, source selection and membership generation;
 public cohorts remain separate. Matching precedes the twenty-group limit and does
@@ -229,7 +234,10 @@ Projection joins active recommendations, accounts and stored event snapshots in 
 consistent SQL transaction; it needs no provider call. Database UTC controls expiry.
 Missing/invalid event metadata is suppressed and invalid stored names become null.
 Groups sort by newest remaining original contribution, then event ID; expiry is
-the earliest remaining contribution expiry. Cleanup deletes at most 500 expired
+the earliest remaining contribution expiry. Views exclude a group from that instant
+(conservative database time), so a partially expired group's count, time or name
+is never shown; the next projection returns it with its remaining contributions.
+Cleanup deletes at most 500 expired
 rows per replica per minute, including when there are no subscribers.
 
 Each replica shares activity polling across its subscribers (at most once per two
@@ -290,9 +298,13 @@ See the [performance and rollout record](live-activity-rollout.md) for commands,
 measurements, failed/outstanding gates and the coordinated kill-switch procedure.
 The production-readiness milestone remains unchecked until all exit gates pass.
 The optimized rich 1,000-group / 256-account / 768-stream scenario passes, including
-SQL recovery and drain. At 10,000 groups, write p95 still regresses 37.4% against
-the 10% gate. Final race, vet, Docker and browser regression checks pass; retain the
-explicit production kill switch while performance/manual rollout gates are open.
+SQL recovery and drain. The full 10,000-group scenario now also passes its 10%
+ordinary-traffic gate (browse 1.040×, write 1.053×), measured from an in-network
+probe; the earlier 37.4% failure came from the host-side probe path. A real-MariaDB
+resilience/privacy stress test found and fixed expiry-driven stream interruption,
+stale worker failures after recovery and private rebuild livelock under metadata
+corrections. Race, vet and Docker checks pass; retain the explicit production kill
+switch while the remaining workload/manual rollout gates are open.
 
 **Part 4 — 2026-10-19:** real MariaDB tests cover concurrent/idempotent saves,
 all four source mutations, visibility-only no-ops, actual writer failure/rollback,

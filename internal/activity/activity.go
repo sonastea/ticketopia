@@ -121,9 +121,10 @@ type Service struct {
 }
 
 type cachedView struct {
-	snapshot Snapshot
-	used     time.Time
-	bytes    int
+	snapshot  Snapshot
+	used      time.Time
+	bytes     int
+	expiresAt time.Time // earliest selected group expiry; zero when none
 }
 
 func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Logger) *Service {
@@ -276,7 +277,7 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 		}
 		s.index = index
 	}
-	if s.readErr != nil || s.index == nil || s.expired(time.Now()) {
+	if s.readErr != nil || s.index == nil {
 		return Snapshot{}, ErrUnavailable
 	}
 	if f.Connections.Mode == "any" {
@@ -287,12 +288,13 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 	}
 	return s.selectOwnerCached(ctx, f, owner)
 }
-func (s *Service) expired(now time.Time) bool {
-	if s.index == nil || s.index.expiresAt.IsZero() {
-		return false
-	}
-	serverNow := s.index.data.AsOf.Add(now.Sub(s.readAt))
-	return !serverNow.Before(s.index.expiresAt)
+
+// serverNow conservatively estimates database time: readAt precedes the SQL
+// that read AsOf, so the estimate is never earlier than actual server time.
+// Expiry is applied per view; one group's expiry never makes the generation
+// (and every stream on the replica) unavailable.
+func (s *Service) serverNow(now time.Time) time.Time {
+	return s.index.data.AsOf.Add(now.Sub(s.readAt))
 }
 func (s *Service) selectCached(ctx context.Context, f Filters) (Snapshot, error) {
 	return s.selectOwnerCached(ctx, f, "")
@@ -357,6 +359,12 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 		digest += m.key(owner, f)
 	}
 	now := time.Now()
+	serverNow := s.serverNow(now)
+	if v, ok := s.views[digest]; ok && !v.expiresAt.IsZero() && !serverNow.Before(v.expiresAt) {
+		// A selected group expired: reselect from the in-memory generation.
+		s.viewBytes -= v.bytes
+		delete(s.views, digest)
+	}
 	if v, ok := s.views[digest]; ok {
 		s.metrics.hits.Add(1)
 		v.used = now
@@ -409,7 +417,7 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 	}
 	s.metrics.misses.Add(1)
 	started := time.Now()
-	view := s.index.selectView(f, key, membership)
+	view, expiresAt := s.index.selectView(f, key, serverNow, membership)
 	view.encode()
 	s.metrics.selection.observe(started)
 	bytes := len(view.encoded)*4 + len(digest)*2 + 1024
@@ -417,7 +425,7 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 		s.metrics.memoryLimit.Add(1)
 		return Snapshot{}, ErrUnavailable
 	}
-	s.views[digest] = cachedView{view, now, bytes}
+	s.views[digest] = cachedView{view, now, bytes, expiresAt}
 	s.viewBytes += bytes
 	return view, nil
 }
@@ -506,7 +514,7 @@ func (s *Service) SubscribeOwnerContext(ctx context.Context, owner string, ids [
 			release()
 			return nil, nil, ErrUnavailable
 		}
-		if s.index != nil && s.readErr == nil && time.Since(s.readAt) < 2*time.Second && !s.expired(time.Now()) {
+		if s.index != nil && s.readErr == nil && time.Since(s.readAt) < 2*time.Second {
 			key := s.keys[f.Location]
 			if f.Location.Mode == "all" || key != "" {
 				view, err := s.selectOwnerCached(ctx, f, owner)
@@ -542,8 +550,6 @@ func (s *Service) run(ctx context.Context) {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	var lastCounts, lastPoll, lastCleanup, lastMetrics time.Time
-	var snapshot Snapshot
-	var readErr error
 	type cachedCount struct {
 		value        Count
 		asOf, readAt time.Time
@@ -635,16 +641,18 @@ func (s *Service) run(ctx context.Context) {
 		// A large visible-ID union or failing scope must not turn fanout into
 		// hundreds of serial five-second waits before other views can clear.
 		cycle, cancelCycle := context.WithTimeout(ctx, 5*time.Second)
+		// Read the shared generation every tick; the service owns the two-second
+		// refresh and failure backoff. Caching a failed poll here kept broadcasting
+		// unavailable, closing every stream, after another reader had recovered.
+		started := time.Now()
+		snapshot, err := s.Snapshot(cycle)
 		if now.Sub(lastPoll) >= 2*time.Second {
-			started := time.Now()
-			snapshot, readErr = s.Snapshot(cycle)
 			lastPoll = now
-			if readErr != nil {
+			if err != nil {
 				s.logger.Warn().Msg("Live activity poll failed")
 			}
 			s.logger.Debug().Int("connections", len(targets)).Dur("duration", time.Since(started)).Msg("Live activity poll completed")
 		}
-		err := readErr
 		totals := Counts{Items: []Count{}}
 		if err == nil && due {
 			union := make([]string, 0, len(ids))

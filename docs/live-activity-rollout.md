@@ -4,10 +4,13 @@ Part 5 is **in progress**, not a production-readiness or deployment sign-off.
 Keep production's explicit `LIVE_ACTIVITY_ENABLED=false` until the outstanding
 gates below pass and the coordinated migration/deployment is authorized.
 
-**Latest result — 2026-10-20:** the rich 1,000-group / 256-account scenario passes
-at 768 streams. The optimized 10,000-group scenario still fails the ordinary-write
-latency gate: p95 rises from 6.454 to 8.870 ms (**37.4%**, limit 10%). Full workload,
-physical-device, screen-reader and actual-ingress verification also remain open.
+**Latest result — 2026-10-20 (later):** the full 10,000-group scenario now passes,
+including the ordinary-traffic gate (browse 1.040×, write 1.053×). The earlier
+"37.4% write regression" was a probe-placement artifact, not database or app
+contention; see [regression-gate investigation](#regression-gate-investigation--2026-10-20).
+Resilience/privacy stress checks found and fixed three availability defects. The
+rich 1,000-group run has not been repeated on the new image. Physical-device,
+screen-reader and actual-ingress verification remain open.
 
 ## Operational telemetry
 
@@ -57,8 +60,13 @@ Obsolete private membership revisions count against the 128 unreferenced-cohort
 allowance, including when replacements belong to active streams. They cannot
 accumulate a fresh set of retired cohorts on every membership change.
 
-Each generation caches its earliest contribution expiry, so every warm reader
-checks expiry in constant time over the **complete** window. Subscriptions can
+Each cached view stores the earliest expiry among its selected groups, so warm
+readers check expiry in constant time and reselect in memory at that boundary.
+Expiry never makes the whole generation unavailable: with ten-minute contributions
+a 10,000-group window expires a group roughly every 60 ms, which previously closed
+every stream on the replica between projections. The worker reads the service's
+current generation each tick rather than reusing its own last poll, so recovery
+by another reader is never overwritten with a stale failure. Subscriptions can
 wait up to 100 ms for brief selection contention before falling back to the shared
 worker, avoiding an unnecessary one-second tick wait for an already-valid view.
 Request cancellation also releases that pending subscription.
@@ -94,6 +102,10 @@ Repeat with `LIVE_ACTIVITY_LOAD_GROUPS=100` and `10000`. Set
 artists and two contributions per group. A failed rich-window run is a failed
 capacity gate, not permission to truncate the candidate window or raise limits.
 The existing populated-window test separately verifies 10,001-group overflow.
+`LIVE_ACTIVITY_LOAD_PROFILE=true` adds per-statement server timing (a temporary
+global statement log on the isolated local server, restored on cleanup);
+`LIVE_ACTIVITY_LOAD_PHASE=ordinary` stops after the ordinary-traffic gate for
+profiling iterations and is never a complete scenario result.
 `LIVE_ACTIVITY_LOAD_DISTINCT=true` substitutes 256 distinct private accounts
 (one tab per account per replica) for the shared-account phase. Each has its own
 stored preferences and credentials; additions/removals use production HTTP writes.
@@ -119,6 +131,72 @@ SIGTERM drain while another replica remains available. These are server/proxy
 observations, not browser paint timings or a physical-device claim.
 
 ## Results and outstanding gates
+
+### Regression-gate investigation — 2026-10-20
+
+Profiling (opt-in `LIVE_ACTIVITY_LOAD_PROFILE=true`: a temporary zero-threshold
+statement log on the isolated server, plus status and per-container CPU deltas)
+showed **no database contention**: ordinary write transactions took the same server
+time without and with 768 streams (p50 0.81→0.82 ms, p95 1.84→1.78 ms), with zero
+row-lock waits, no connection churn and MariaDB at 0.47→0.52 cores. Server-side
+handler time on r0 moved write p95 5.31→5.65 ms and browse 56.8→54.2 ms.
+
+The extra ~2 ms appeared only on the host-side probe path, which shared the test
+process and Docker's host port forwarding with the 768 load-generator streams. From
+a separate probe container on the deployment network, through nginx, **unmodified
+HEAD** also passed (write 1.012×, browse 1.013×) while the host probe in the same
+run reported 1.294×. The fixture now measures ordinary traffic with that in-network
+probe ([`testdata/loadprobe`](../internal/persistence/testdata/loadprobe/main.go)).
+Earlier host-probe ratios below are retained as recorded, not as app regressions.
+Single-run p95 ratios over 100 samples also vary by about ±0.1 between runs.
+Replicas run with `GOMAXPROCS=2` under the one-CPU quota (Go's container minimum).
+
+Projection assembly was still reduced, as measured headroom rather than the gate
+fix: an allocation-free fingerprint and in-place row scanning cut a warm
+10,000-group build from 12.7 to 2.4 ms and its allocation from 23 to 7 MB (GC
+cycles per 30 projections 66→25) in the in-process real-MariaDB harness.
+
+| Full 10,000-group scenario, image `sha256:13b5a1b7…19c6e5` | Result |
+| --- | --- |
+| Ordinary browse / write p95 (in-network via proxy) | 52.0→54.1 ms (1.040×) / 5.62→5.92 ms (1.053×) |
+| Initial public snapshot p95 / max | 121.1 / 128.0 ms |
+| Publication p95 (3,840 observations) | 3.025 s |
+| Membership addition / removal p95 | 1.580 / 2.769 s |
+| App memory samples | 36.0–39.9 MiB |
+
+The run also passed skewed-replica rejection, 60/61 shared-IP starts, proxy
+heartbeats, SQL outage/recovery, drain, resource bounds and log privacy.
+
+### Resilience and privacy stress — 2026-10-20
+
+`TestMariaDBLiveActivityResilienceStress` (real MariaDB, part of the normal
+real-database suite; `LIVE_ACTIVITY_STRESS_SECONDS` extends the churn) runs two
+replicas with separate pools plus stallable connections, 26 SSE and 6 fallback
+clients (public, Berlin-filtered, private Interested). It continuously publishes,
+shortens expiries, renames/redacts contributors, corrects titles/cities and changes
+private interests, then stalls readers, mass-withdraws 15 groups and private
+interests concurrently, forces a reconnect burst and an SQL outage. Every frame is
+checked against database-clock commit bounds: no withdrawn, expired, stale-name,
+stale-metadata or non-member item, no account data, and convergence within 5 s.
+
+Against unmodified HEAD it found no privacy violation, but every healthy public
+client was interrupted ~88 times in about 15 s. Fixed defects:
+
+- **Expiry interrupted every stream:** any group expiring between projections made
+  the generation unavailable, closing all streams and refusing reconnects with 503.
+  Expiry is now per view (see operational telemetry above).
+- **Stale worker failure:** after an outage the worker re-broadcast its own cached
+  failed poll for up to two ticks, closing streams that had already recovered.
+- **Private livelock under corrections:** membership assembly verified metadata
+  revisions even for Saved/Interested, so corrections arriving faster than the
+  projection interval failed and backed off nearly every rebuild. Only
+  artist/venue facet joins now verify them; facet sources still fail closed.
+
+With the fixes, eight consecutive runs passed (≈650–770 checked frames each).
+Stalled readers release in ~6 s through the write deadline; mass withdrawal
+converges in 1–3 s. A burst of concurrent removals can still discard one private
+assembly and back off two seconds, by design; local membership changes still close
+that owner's streams for quiet reconnect.
 
 ### Latest optimized deployment measurements — 2026-10-20
 

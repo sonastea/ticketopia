@@ -166,7 +166,7 @@ func TestConnectionCompositionReference(t *testing.T) {
 				}
 			}
 		}
-		got := x.selectView(f, "", b)
+		got, _ := x.selectView(f, "", data.AsOf, b)
 		if len(got.Items) != len(want) {
 			t.Fatal(mask, len(got.Items), len(want))
 		}

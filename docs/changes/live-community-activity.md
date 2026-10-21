@@ -12,8 +12,11 @@
 - Profile warm reads, cache complete-window expiry, and reuse revision-matched
   facets without reusing attribution; improve contended warm stream delivery.
 - Add a production-image three-replica/nginx load and SQL-recovery/drain fixture.
-- Pass the rich 1,000-group/256-account/768-stream scenario and final regressions;
-  retain the failed 10,000-group write-latency gate (+37.4% versus +10%) explicitly.
+- Pass the rich 1,000-group/256-account/768-stream scenario. Profiling showed the
+  10,000-group write "regression" was host-probe placement, not DB/app contention;
+  probe in-network and pass the full 10,000-group gate (1.040×/1.053×).
+- Add a real-MariaDB resilience/privacy stress test; fix expiry closing all streams,
+  stale worker failures after recovery and private rebuild livelock under corrections.
 - Record measurements and outstanding gates in the [rollout record](../live-activity-rollout.md).
   Part 5 remains in progress; production remains explicitly off.
 

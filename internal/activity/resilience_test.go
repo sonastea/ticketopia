@@ -72,6 +72,43 @@ func TestFailedGenerationDropsAttributionAndRecovers(t *testing.T) {
 	}
 }
 
+// A stream start or fallback read can rebuild the generation after the
+// worker's poll failed. The worker must deliver that recovery rather than
+// re-broadcast its own stale failure, which closes every recovered stream.
+func TestWorkerDeliversRecoveryAfterFailedPoll(t *testing.T) {
+	r := &failingCandidates{candidateRepository: candidateRepository{data: candidateFixture(3)}, fail: true}
+	s := New(t.Context(), r, 4)
+	defer s.Close()
+	updates, release, err := s.Subscribe(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	select {
+	case u := <-updates:
+		if !u.Unavailable {
+			t.Fatal("failed poll delivered a view")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("failed poll not delivered")
+	}
+	s.projection <- struct{}{}
+	r.fail = false
+	s.readAt = time.Now().Add(-3 * time.Second)
+	<-s.projection
+	if _, err := s.Snapshot(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case u := <-updates:
+		if u.Unavailable || len(u.Snapshot.Items) != 3 {
+			t.Fatal("worker re-broadcast a stale poll failure after recovery")
+		}
+	case <-time.After(2500 * time.Millisecond):
+		t.Fatal("recovered view not delivered")
+	}
+}
+
 func TestQueueOverloadAndMetricsDoNotWaitForSQL(t *testing.T) {
 	s := New(t.Context(), &candidateRepository{data: candidateFixture(1)}, 1)
 	defer s.Close()

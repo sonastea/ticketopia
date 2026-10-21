@@ -42,34 +42,116 @@ func BenchmarkWarmSharedSnapshot(b *testing.B) {
 	}
 }
 
-func TestGenerationExpiryIncludesGroupsBeyondPublicLimit(t *testing.T) {
+// A fact omitted from the fingerprint would let a cached view (for example a
+// redacted first name or corrected city) survive a changed generation.
+func TestFingerprintCoversEveryCandidateField(t *testing.T) {
+	base := candidateFixture(2)
+	original := fingerprint(base.Items)
+	mutate := func(v reflect.Value) {
+		switch v.Interface().(type) {
+		case string:
+			v.SetString(v.String() + "changed")
+		case int:
+			v.SetInt(v.Int() + 1)
+		case time.Time:
+			v.Set(reflect.ValueOf(v.Interface().(time.Time).Add(time.Nanosecond)))
+		case *string:
+			changed := "Changed"
+			v.Set(reflect.ValueOf(&changed))
+		case []string:
+			v.Set(reflect.ValueOf(append(slices.Clone(v.Interface().([]string)), "changed")))
+		default:
+			t.Fatalf("unhandled candidate field type %s", v.Type())
+		}
+	}
+	candidate := reflect.TypeFor[Candidate]()
+	for i := range candidate.NumField() {
+		paths := [][]int{{i}}
+		if candidate.Field(i).Type == reflect.TypeFor[Item]() {
+			paths = nil
+			for j := range candidate.Field(i).Type.NumField() {
+				paths = append(paths, []int{i, j})
+			}
+		}
+		for _, field := range paths {
+			items := slices.Clone(base.Items)
+			mutate(reflect.ValueOf(&items[1]).Elem().FieldByIndex(field))
+			if fingerprint(items) == original {
+				t.Errorf("fingerprint ignores %v", field)
+			}
+		}
+	}
+	// Moving a value across a list boundary must also change the digest.
+	split := slices.Clone(base.Items)
+	split[0].CategoryIDs, split[1].CategoryIDs = []string{"a", "b"}, []string{"c"}
+	joined := slices.Clone(base.Items)
+	joined[0].CategoryIDs, joined[1].CategoryIDs = []string{"a"}, []string{"b", "c"}
+	if fingerprint(split) == fingerprint(joined) {
+		t.Fatal("ambiguous list boundary")
+	}
+}
+
+// With ten-minute contributions, a large window has an expiry nearly every
+// poll. Expiry must remove the affected group from each view at its boundary
+// (including groups beyond the public twenty) without making the whole
+// generation, and therefore every stream on the replica, unavailable.
+func TestExpiryIsPerViewAndKeepsGenerationAvailable(t *testing.T) {
 	data := candidateFixture(30)
-	data.Items[29].Item.ExpiresAt = data.AsOf.Add(3 * time.Second)
+	data.AsOf = time.Now().UTC()
+	for i := range data.Items {
+		data.Items[i].Item.ExpiresAt = data.AsOf.Add(time.Minute)
+	}
+	late := DefaultPreferences().Filters
+	late.CategoryIDs = []string{"late"}
+	data.Items[29].CategoryIDs = []string{"late"}
+	data.Items[29].Item.ExpiresAt = data.AsOf.Add(400 * time.Millisecond)
+	data.Items[0].Item.ExpiresAt = data.AsOf.Add(200 * time.Millisecond)
 	x, err := buildIndex(data, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &Service{index: x, readAt: time.Now()}
-	if s.expired(s.readAt.Add(3*time.Second-time.Nanosecond)) || !s.expired(s.readAt.Add(3*time.Second)) {
-		t.Fatal("complete-window expiry boundary lost")
+	boundary := data.Items[29].Item.ExpiresAt
+	if view, deadline := x.selectView(late, "", boundary.Add(-time.Nanosecond)); len(view.Items) != 1 || !deadline.Equal(boundary) {
+		t.Fatal("view deadline lost", view.Items, deadline)
 	}
-	data.Items = data.Items[:29]
-	s.index, err = buildIndex(data, x)
-	if err != nil {
-		t.Fatal(err)
+	if view, _ := x.selectView(late, "", boundary); len(view.Items) != 0 {
+		t.Fatal("expired group selected at its boundary")
 	}
-	if s.expired(s.readAt.Add(3 * time.Second)) {
-		t.Fatal("removed candidate retained expiry deadline")
+	s := New(t.Context(), &candidateRepository{data: data}, 4)
+	defer s.Close()
+	read := func(f Filters) []string {
+		t.Helper()
+		view, err := s.FilteredSnapshot(t.Context(), f)
+		if err != nil {
+			t.Fatal("expiry interrupted the generation", err)
+		}
+		ids := []string{}
+		for _, item := range view.Items {
+			ids = append(ids, item.EventID)
+		}
+		return ids
 	}
-	for i := range data.Items {
-		data.Items[i].Item.ExpiresAt = time.Time{}
+	everywhere := DefaultPreferences().Filters
+	if ids := read(everywhere); len(ids) != 20 || ids[0] != data.Items[0].Item.EventID {
+		t.Fatal(ids)
 	}
-	s.index, err = buildIndex(data, s.index)
-	if err != nil {
-		t.Fatal(err)
+	if ids := read(late); !slices.Equal(ids, []string{data.Items[29].Item.EventID}) {
+		t.Fatal(ids)
 	}
-	if s.expired(s.readAt.Add(time.Hour)) {
-		t.Fatal("absent expiry became a deadline")
+	time.Sleep(250 * time.Millisecond)
+	// The cached top-20 view is reselected: the next group takes the slot.
+	if ids := read(everywhere); len(ids) != 20 || slices.Contains(ids, data.Items[0].Item.EventID) || ids[19] != data.Items[20].Item.EventID {
+		t.Fatal("expired top group retained or not replaced", ids)
+	}
+	if ids := read(late); len(ids) != 1 {
+		t.Fatal("unexpired group beyond the public limit removed early", ids)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if ids := read(late); len(ids) != 0 {
+		t.Fatal("group beyond the public limit outlived its expiry", ids)
+	}
+	if n := s.Stats().Operations["projection"].Count; n != 1 {
+		t.Fatal("expiry required a projection", n)
 	}
 }
 func TestCompleteWindowReferenceAndStableSlots(t *testing.T) {
@@ -107,7 +189,7 @@ func TestCompleteWindowReferenceAndStableSlots(t *testing.T) {
 					break
 				}
 			}
-			got := x.selectView(f, key)
+			got, _ := x.selectView(f, key, data.AsOf)
 			if !reflect.DeepEqual(got.Items, want) {
 				t.Fatalf("city=%d category=%d", city, category)
 			}
@@ -329,7 +411,7 @@ func BenchmarkCandidateSelection(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				x.selectView(f, "1")
+				x.selectView(f, "1", data.AsOf)
 			}
 		})
 	}
