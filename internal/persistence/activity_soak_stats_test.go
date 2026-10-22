@@ -28,7 +28,8 @@ const (
 	soakSeed      = 20261021
 )
 
-var soakOrder = []string{soakLoaded, soakNoLive, soakNoLive, soakLoaded, soakLoaded, soakNoLive, soakNoLive, soakLoaded}
+// soakOrder is ABBA×4: eight pairs for the bootstrap's outer stage.
+var soakOrder = slices.Repeat([]string{soakLoaded, soakNoLive, soakNoLive, soakLoaded}, 4)
 
 // soakSample is one retained probe observation.
 type soakSample struct {
@@ -80,6 +81,32 @@ func writeSoakCSV(path string, samples []soakSample) (string, error) {
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// soakEvent is a retained diagnostic observation: an r0 count-frame arrival
+// bucket (value = frames) or a CPU rate over the preceding interval (cores).
+type soakEvent struct {
+	Kind  string
+	At    time.Time
+	Value float64
+}
+
+func writeSoakEvents(path string, events []soakEvent) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	w := csv.NewWriter(file)
+	_ = w.Write([]string{"kind", "at_utc", "value"})
+	for _, e := range events {
+		_ = w.Write([]string{e.Kind, e.At.UTC().Format(time.RFC3339Nano), strconv.FormatFloat(e.Value, 'f', -1, 64)})
+	}
+	w.Flush()
+	if err := w.Error(); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
 }
 
 func readSoakCSV(path string) ([]soakSample, error) {
@@ -317,7 +344,7 @@ func TestActivitySoakBootstrap(t *testing.T) {
 		if i%2 == 0 {
 			base = base[:0]
 			level := 5 * time.Millisecond
-			for j := range 100 {
+			for j := range 60 {
 				if j%25 == 0 {
 					level = time.Duration(4+r.IntN(4)) * time.Millisecond
 				}
@@ -336,7 +363,7 @@ func TestActivitySoakBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if periods[1].errors["write"] != 1 || len(periods[1].op["write"]) != 100 {
+	if periods[1].errors["write"] != 1 || len(periods[1].op["write"]) != 60 {
 		t.Fatal("errors must be counted, not sampled")
 	}
 	first, second := analyzeSoak(periods, "write"), analyzeSoak(periods, "write")

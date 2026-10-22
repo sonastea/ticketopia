@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime/trace"
 	"strconv"
 	"time"
 
@@ -169,6 +170,7 @@ func (a *api) Routes() *echo.Echo {
 	if e.IPExtractor == nil {
 		e.IPExtractor = echo.ExtractIPDirect()
 	}
+	e.Use(traceRequests)
 
 	e.GET("/healthz", healthHandler)
 	e.GET("/readyz", a.readinessHandler)
@@ -199,6 +201,22 @@ func (a *api) Routes() *echo.Echo {
 	}, a.publicCacheBoundary)
 
 	return e
+}
+
+// traceRequests makes each request an execution-trace task while a trace is
+// recording (only diagnostic builds start one); otherwise it is one atomic
+// check. The log carries the method and route pattern, never IDs or values.
+func traceRequests(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if !trace.IsEnabled() {
+			return next(c)
+		}
+		ctx, task := trace.NewTask(c.Request().Context(), "http.request")
+		defer task.End()
+		trace.Log(ctx, "route", c.Request().Method+" "+c.Path())
+		c.SetRequest(c.Request().WithContext(ctx))
+		return next(c)
+	}
 }
 
 func render(ctx echo.Context, status int, t templ.Component) error {

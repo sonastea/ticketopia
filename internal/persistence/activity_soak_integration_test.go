@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"math/rand/v2"
 	"net/url"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -73,7 +75,7 @@ func meanFloat(values []float64) float64 {
 // clients, visible-ID count subscriptions up to 101 IDs, rotating filters and
 // accounts, continuous publication with natural ten-minute expiry, private
 // membership writes and periodic in-network ordinary browse/write probes. After
-// the sustained soak, an interleaved ABBA×2 phase measures the ordinary-traffic
+// the sustained soak, an interleaved ABBA×4 phase measures the ordinary-traffic
 // gate: live clients stop and restart per period while writers keep running.
 func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	image, raw := os.Getenv("LIVE_ACTIVITY_LOAD_IMAGE"), os.Getenv("LIVE_ACTIVITY_SOAK")
@@ -182,6 +184,50 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	var running, liveRunning sync.WaitGroup
 	stopLive := func() {}
 	defer func() { stop(); liveRunning.Wait(); running.Wait() }()
+	// Diagnostics retained beside the latency samples.
+	var eventsMu sync.Mutex
+	events := []soakEvent{}
+	r0Frames := map[time.Time]int{}
+	r0Frame := func(at time.Time) {
+		eventsMu.Lock()
+		r0Frames[at.Truncate(100*time.Millisecond)]++
+		eventsMu.Unlock()
+	}
+	// Raw samples are saved even when the test fails before analysis.
+	samplesPath := os.Getenv("LIVE_ACTIVITY_SOAK_SAMPLES")
+	if samplesPath == "" {
+		samplesPath = fmt.Sprintf("../../.local/activity-soak-%s.csv", time.Now().UTC().Format("20060102T150405Z"))
+	}
+	saved := false
+	requests := []soakRequest{}
+	save := func() {
+		if saved {
+			return
+		}
+		saved = true
+		digest, err := writeSoakCSV(samplesPath, retained)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if len(requests) > 0 {
+			if err := writeSoakRequests(strings.TrimSuffix(samplesPath, ".csv")+"-requests.csv", requests); err != nil {
+				t.Error(err)
+			}
+		}
+		eventsMu.Lock()
+		for at, frames := range r0Frames {
+			events = append(events, soakEvent{"r0_count_frames", at, float64(frames)})
+		}
+		slices.SortStableFunc(events, func(a, b soakEvent) int { return a.At.Compare(b.At) })
+		err = writeSoakEvents(strings.TrimSuffix(samplesPath, ".csv")+"-events.csv", events)
+		eventsMu.Unlock()
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("raw samples: %s (%d rows, sha256 %s); diagnostics: %s", samplesPath, len(retained), digest, strings.TrimSuffix(samplesPath, ".csv")+"-events.csv")
+	}
+	t.Cleanup(save)
 	streams := []*soakStream{}
 	for replica, count := range []int{256, 256, 192} {
 		for k := range count {
@@ -236,6 +282,9 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 					// between them is legitimately shorter. Only later intervals
 					// measure the fifteen-second cadence.
 					s.frames++
+					if s.replica == 0 && s.frames >= 2 {
+						r0Frame(now) // r0's shared delivery ticks, for burst analysis
+					}
 					if s.frames >= 3 {
 						interval := now.Sub(s.lastCounts)
 						if interval < 13500*time.Millisecond && len(s.intervals) > 0 && len(s.early) < 8 {
@@ -460,6 +509,92 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 		samples = append(samples, s)
 		samplesMu.Unlock()
 	})
+	// CPU diagnostics every 5s, identical in both states: the Docker VM's busy
+	// cores (from /proc/stat in an idle helper container), this test process
+	// (the load generator) and, when present, the Colima/Lima host processes
+	// (QEMU VM, limactl host agents and SSH mux, which forward the host port).
+	helper := d.proxy + "-cpu"
+	d.docker("run", "-d", "--name", helper, "--network", "none", "--memory", "16m", "--cpus", "0.1", "alpine:3", "sleep", "86400")
+	t.Cleanup(func() { exec.Command("docker", "rm", "-f", helper).Run() })
+	cpuSeconds := func(value string) float64 {
+		total := 0.0
+		for _, part := range strings.Split(value, ":") {
+			v, _ := strconv.ParseFloat(part, 64)
+			total = total*60 + v
+		}
+		return total
+	}
+	var lastAt time.Time
+	var lastBusy, lastTotal, lastSelf float64
+	lastHost := map[string]float64{}
+	every(ctx, 5*time.Second, func(int) {
+		at := time.Now()
+		sampled := map[string]float64{}
+		vmCPUs, busy, total := 0.0, 0.0, 0.0
+		probe, cancel := context.WithTimeout(ctx, 4*time.Second)
+		if out, err := execOutput(probe, "docker", "exec", helper, "cat", "/proc/stat"); err == nil {
+			for _, line := range strings.Split(out, "\n") {
+				fields := strings.Fields(line)
+				if len(fields) > 0 && strings.HasPrefix(fields[0], "cpu") && fields[0] != "cpu" {
+					vmCPUs++
+				}
+				if len(fields) < 6 || fields[0] != "cpu" {
+					continue
+				}
+				for k, field := range fields[1:] {
+					v, _ := strconv.ParseFloat(field, 64)
+					total += v
+					if k != 3 && k != 4 { // idle, iowait
+						busy += v
+					}
+				}
+			}
+		}
+		cancel()
+		var usage syscall.Rusage
+		self := 0.0
+		if syscall.Getrusage(syscall.RUSAGE_SELF, &usage) == nil {
+			self = time.Duration(usage.Utime.Nano() + usage.Stime.Nano()).Seconds()
+		}
+		probe, cancel = context.WithTimeout(ctx, 4*time.Second)
+		if out, err := execOutput(probe, "ps", "-A", "-o", "cputime=,command="); err == nil {
+			for _, line := range strings.Split(out, "\n") {
+				fields := strings.Fields(line)
+				if len(fields) < 2 {
+					continue
+				}
+				command := strings.Join(fields[1:], " ")
+				kind := ""
+				switch {
+				case strings.Contains(command, "qemu-system"):
+					kind = "host_qemu_vm"
+				case strings.Contains(command, "limactl"):
+					kind = "host_limactl"
+				case strings.HasPrefix(command, "ssh") && strings.Contains(command, "colima"):
+					kind = "host_lima_ssh"
+				}
+				if kind != "" {
+					sampled[kind] += cpuSeconds(fields[0])
+				}
+			}
+		}
+		cancel()
+		if !lastAt.IsZero() {
+			elapsed := at.Sub(lastAt).Seconds()
+			eventsMu.Lock()
+			if total > lastTotal && lastTotal > 0 {
+				events = append(events, soakEvent{"vm_busy", at, (busy - lastBusy) / (total - lastTotal) * vmCPUs})
+			}
+			events = append(events, soakEvent{"test_process", at, (self - lastSelf) / elapsed})
+			for kind, value := range sampled {
+				if previous, ok := lastHost[kind]; ok {
+					events = append(events, soakEvent{kind, at, (value - previous) / elapsed})
+				}
+			}
+			eventsMu.Unlock()
+		}
+		lastAt, lastBusy, lastTotal, lastSelf, lastHost = at, busy, total, self, sampled
+	})
 
 	soakStart := time.Now()
 	logsSince := soakStart.UTC().Format(time.RFC3339)
@@ -483,7 +618,7 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	}
 
 	// Interleaved gate measurement. Continuous writes grow the data that ordinary
-	// pages read, so loaded and no-live periods alternate in a fixed ABBA×2
+	// pages read, so loaded and no-live periods alternate in a fixed ABBA×4
 	// order and drift cancels within each adjacent pair. Before every period live
 	// clients stop and teardown is verified; loaded periods then start a fresh
 	// client epoch and wait for every tab to reconnect. Every period then settles
@@ -551,6 +686,25 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 		start, end                               time.Time
 	}
 	interleavedErrors := 0
+	type window struct {
+		state      string
+		start, end time.Time
+	}
+	periodWindows := []window{}
+	// Diagnostics: every period's probe requests are joined to nginx's probe
+	// log. With LIVE_ACTIVITY_LOAD_TRACE, r0 is also traced in pairs 2, 3, 6
+	// and 7 (both pair orders), leaving the other pairs to measure tracing
+	// overhead; traces are analyzed after sampling ends, off the measured path.
+	type tracedPeriod struct {
+		period     int
+		state      string
+		path       string
+		result     loadProbeResult
+		logged     []probeLogEntry
+		iterations int
+	}
+	tracedPeriods := []tracedPeriod{}
+	tracing := d.traceDir != ""
 	for i, state := range soakOrder {
 		transition := time.Now()
 		stopLive()
@@ -565,8 +719,22 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 		fallbackBefore, rotatedBefore, publishedBefore, membershipBefore := fallbackRequests.Load(), rotations.Load(), published.Load(), membershipWrites.Load()
 		record.start = time.Now()
 		label := fmt.Sprintf("interleaved-%d-%s", i+1, state)
+		d.probeLog() // discard earlier probe runs' lines
+		traced := tracing && slices.Contains([]int{2, 3}, (i/2)%4+1)
+		if traced {
+			d.traceStart()
+		}
 		result := d.probeRun(label, token, periodIterations)
 		record.end = time.Now()
+		logged := d.probeLog()
+		if traced {
+			path := fmt.Sprintf("%s-trace-%d.trace", strings.TrimSuffix(samplesPath, ".csv"), i+1)
+			d.traceStop(path)
+			tracedPeriods = append(tracedPeriods, tracedPeriod{i + 1, state, path, result, logged, periodIterations})
+		} else {
+			requests = append(requests, joinSoakRequests(t, i+1, state, periodIterations, result, logged, nil)...)
+		}
+		periodWindows = append(periodWindows, window{state, record.start, record.end})
 		record.fallback, record.rotated = fallbackRequests.Load()-fallbackBefore, rotations.Load()-rotatedBefore
 		record.published, record.membership = published.Load()-publishedBefore, membershipWrites.Load()-membershipBefore
 		if state == soakNoLive && (record.open != 0 || record.fallback != 0 || record.rotated != 0) {
@@ -585,17 +753,44 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	stop()
 	liveRunning.Wait()
 	running.Wait()
+	for _, p := range tracedPeriods {
+		summary, err := analyzeTrace(t.Context(), p.path)
+		if err != nil {
+			t.Errorf("period %d trace: %v", p.period, err)
+			continue
+		}
+		logTraceRuntime(t, p.period, p.state, summary, traceFileSize(p.path))
+		requests = append(requests, joinSoakRequests(t, p.period, p.state, p.iterations, p.result, p.logged, &summary)...)
+	}
 
 	// Retain raw samples for reanalysis (TestActivitySoakSampleAnalysis).
-	samplesPath := os.Getenv("LIVE_ACTIVITY_SOAK_SAMPLES")
-	if samplesPath == "" {
-		samplesPath = fmt.Sprintf("../../.local/activity-soak-%s.csv", soakStart.UTC().Format("20060102T150405Z"))
+	save()
+	logSoakRequestDiagnostics(t, requests)
+	// Per-state CPU during sampling: is the loaded shift VM/host contention?
+	eventsMu.Lock()
+	cpu := map[string]map[string][]float64{}
+	for _, e := range events {
+		if e.Kind == "r0_count_frames" {
+			continue
+		}
+		for _, p := range periodWindows {
+			if e.At.After(p.start) && !e.At.After(p.end.Add(5*time.Second)) {
+				if cpu[e.Kind] == nil {
+					cpu[e.Kind] = map[string][]float64{}
+				}
+				cpu[e.Kind][p.state] = append(cpu[e.Kind][p.state], e.Value)
+			}
+		}
 	}
-	digest, err := writeSoakCSV(samplesPath, retained)
-	if err != nil {
-		t.Fatal(err)
+	eventsMu.Unlock()
+	kinds := slices.Sorted(maps.Keys(cpu))
+	for _, kind := range kinds {
+		t.Logf("cpu %-22s loaded mean=%.2f cores (n=%d) no-live mean=%.2f cores (n=%d)", kind,
+			meanFloat(cpu[kind][soakLoaded]), len(cpu[kind][soakLoaded]), meanFloat(cpu[kind][soakNoLive]), len(cpu[kind][soakNoLive]))
 	}
-	t.Logf("raw samples: %s (%d rows, sha256 %s)", samplesPath, len(retained), digest)
+	if tracing || d.profile.logFile != "" {
+		t.Log("instrumented run (trace build on r0 and/or statement log): a diagnostic result, not a P1.3 gate result")
+	}
 	for _, r := range logSoakAnalysis(t, retained) {
 		if r.ratio > 1.10 {
 			t.Errorf("ordinary %s exceeds the 10%% gate: pooled loaded/no-live p95 ratio %.3f", r.operation, r.ratio)

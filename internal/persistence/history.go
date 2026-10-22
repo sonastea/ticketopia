@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/trace"
 	"slices"
 	"strings"
 	"time"
@@ -31,11 +32,15 @@ func historyTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for attempt := range 3 {
+		region := trace.StartRegion(ctx, "sql.tx")
 		tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 		if err == nil {
 			err = fn(ctx, tx)
 			if err == nil {
+				commit := trace.StartRegion(ctx, "sql.commit")
 				err = tx.Commit()
+				commit.End()
+				region.End()
 				if err != nil {
 					return safeError(operation, err)
 				}
@@ -44,6 +49,7 @@ func historyTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, 
 			}
 			_ = tx.Rollback()
 		}
+		region.End()
 		if errors.Is(err, history.ErrNoTask) || errors.Is(err, history.ErrLeaseLost) {
 			return err
 		}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"runtime/trace"
 	"strings"
 	"time"
 
@@ -78,6 +79,7 @@ func (r *InterestRepository) Set(ctx context.Context, owner string, detail model
 	panic("unreachable")
 }
 func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail models.EventDetail, visibility string, args []any, data []byte) (interests.Item, bool, bool, error) {
+	defer trace.StartRegion(ctx, "sql.tx").End()
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return interests.Item{}, false, retryable(err), err
@@ -105,7 +107,10 @@ func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail m
 	if err != nil {
 		return interests.Item{}, false, false, err
 	}
-	if err := tx.Commit(); err != nil {
+	commit := trace.StartRegion(ctx, "sql.commit")
+	err = tx.Commit()
+	commit.End()
+	if err != nil {
 		return interests.Item{}, false, false, err
 	}
 	invalidateDiscoverCounts()

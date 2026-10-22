@@ -28,6 +28,78 @@ type activityDeployment struct {
 	client     *http.Client
 	profile    *loadProfile
 	probe      string
+	traceDir   string // set when r0 runs the trace-capable build
+	traces     int
+	probeLines int // probe log lines already returned by probeLog
+}
+
+// loadProbeIP is testdata/loadprobe's X-Load-IP; nginx logs only its requests.
+const loadProbeIP = "203.0.113.90"
+
+const probeLogPath = "/tmp/probe.log"
+
+// probeLogEntry is one probe request as nginx saw it. Times have nginx's
+// millisecond resolution; upstream values are -1 when not reported.
+type probeLogEntry struct {
+	End                                    time.Time
+	Method                                 string
+	Status                                 int
+	Request, Connect, Header, ResponseTime time.Duration
+}
+
+// probeLog returns probe requests logged since the previous call, in order.
+func (d *activityDeployment) probeLog() []probeLogEntry {
+	d.t.Helper()
+	out := d.docker("exec", d.proxy, "cat", probeLogPath)
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if out == "" {
+		lines = nil
+	}
+	entries := []probeLogEntry{}
+	seconds := func(value string) time.Duration {
+		v, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return -1 // "-" when nginx did not reach the upstream
+		}
+		return time.Duration(v * float64(time.Second))
+	}
+	for _, line := range lines[min(d.probeLines, len(lines)):] {
+		fields := strings.Fields(line)
+		if len(fields) != 7 {
+			d.t.Fatalf("unexpected probe log line %q", line)
+		}
+		end, _ := strconv.ParseFloat(fields[0], 64)
+		status, _ := strconv.Atoi(fields[2])
+		entries = append(entries, probeLogEntry{time.UnixMilli(int64(end*1000 + 0.5)), fields[1], status,
+			seconds(fields[3]), seconds(fields[4]), seconds(fields[5]), seconds(fields[6])})
+	}
+	d.probeLines = len(lines)
+	return entries
+}
+
+// traceStart begins an execution trace on r0 (LIVE_ACTIVITY_LOAD_TRACE only).
+func (d *activityDeployment) traceStart() {
+	d.t.Helper()
+	d.docker("kill", "--signal", "USR1", d.containers[0])
+	d.traces++
+}
+
+// traceStop ends the current trace and copies it to dest.
+func (d *activityDeployment) traceStop(dest string) {
+	d.t.Helper()
+	d.docker("kill", "--signal", "USR2", d.containers[0])
+	source := fmt.Sprintf("%s:/tmp/%d.trace", d.containers[0], d.traces)
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		out, err := exec.CommandContext(d.t.Context(), "docker", "cp", source, dest).CombinedOutput()
+		if err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			d.t.Fatalf("trace copy: %v %s", err, out)
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
 }
 
 type loadProbeResult struct {
@@ -100,16 +172,37 @@ func startActivityDeployment(t *testing.T, f mariaFixture, image, extraServer st
 			}
 		}
 	})
+	// LIVE_ACTIVITY_LOAD_TRACE=true runs r0 (the probed replica) as the same
+	// source built with -tags activitytrace, whose execution trace the caller
+	// starts and stops per period (traceStart/traceStop). Not for gate results.
+	var traced []string
+	if os.Getenv("LIVE_ACTIVITY_LOAD_TRACE") == "true" {
+		binary := filepath.Join(dir, "ticketopia-trace")
+		build := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-tags", "activitytrace", "-o", binary, "../../cmd/ticketopia")
+		build.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+d.docker("version", "--format", "{{.Server.Arch}}"), "CGO_ENABLED=0")
+		if out, err := build.CombinedOutput(); err != nil {
+			t.Fatalf("trace build: %v\n%s", err, out)
+		}
+		traced = []string{"-e", "TICKETOPIA_TRACE_DIR=/tmp", "-v", binary + ":/trace/ticketopia:ro", "--entrypoint", "/trace/ticketopia"}
+		d.traceDir = dir
+	}
 	for i := range 3 {
 		id := prefix + "-" + strconv.Itoa(i)
 		d.containers = append(d.containers, id)
-		d.docker("run", "-d", "--name", id, "--network", d.network, "--memory", "2g", "--cpus", "1", "--env-file", filepath.Join(dir, "app.env"), "-v", filepath.Join(dir, "ca.crt")+":/load/ca.crt:ro", image)
+		args := []string{"run", "-d", "--name", id, "--network", d.network, "--memory", "2g", "--cpus", "1", "--env-file", filepath.Join(dir, "app.env"), "-v", filepath.Join(dir, "ca.crt") + ":/load/ca.crt:ro"}
+		if i == 0 {
+			args = append(args, traced...)
+		}
+		d.docker(append(args, image)...)
 	}
-	config := "worker_rlimit_nofile 8192; events { worker_connections 4096; }\nhttp { access_log off; upstream apps {"
+	// Only the in-network probe's requests are logged, with proxy and upstream
+	// timings, so the log costs the same in loaded and no-live periods.
+	config := "worker_rlimit_nofile 8192; events { worker_connections 4096; }\nhttp { access_log off; map $http_x_load_ip $probe_request { " + loadProbeIP + " 1; default 0; } " +
+		"log_format probe '$msec $request_method $status $request_time $upstream_connect_time $upstream_header_time $upstream_response_time'; upstream apps {"
 	for i := range 3 {
 		config += fmt.Sprintf("server %s-%d:8080;", prefix, i)
 	}
-	config += "} server { listen 8080; proxy_http_version 1.1; proxy_set_header Connection ''; proxy_set_header X-Forwarded-For $http_x_load_ip; proxy_buffering off; proxy_read_timeout 40s;"
+	config += "} server { listen 8080; access_log " + probeLogPath + " probe if=$probe_request; proxy_http_version 1.1; proxy_set_header Connection ''; proxy_set_header X-Forwarded-For $http_x_load_ip; proxy_buffering off; proxy_read_timeout 40s;"
 	for i := range 3 {
 		config += fmt.Sprintf("location /r%d/ { proxy_pass http://%s-%d:8080/; }", i, prefix, i)
 	}

@@ -501,3 +501,63 @@ func TestCappedRebuildHoldsQueuedAccounts(t *testing.T) {
 		}
 	}
 }
+
+// watchedMembership captures the persistence layer's membership callback.
+type watchedMembership struct {
+	*membershipFixture
+	notify func(string)
+}
+
+func (r *watchedMembership) WatchMembership(fn func(string)) func() {
+	r.notify = fn
+	return func() {}
+}
+
+// A committed membership change reaches exactly its owner's private streams
+// through the owner index, and released streams leave the index.
+func TestMembershipNotificationReachesOnlyOwnerStreams(t *testing.T) {
+	r := &watchedMembership{membershipFixture: &membershipFixture{candidateRepository: candidateRepository{data: candidateFixture(1)},
+		revisions: map[string]uint64{"a": 1, "b": 1}, matches: map[string]map[string]uint8{"a": {}, "b": {}}}}
+	s := New(t.Context(), r, 256)
+	defer s.Close()
+	private := DefaultPreferences().Filters
+	private.Connections = Connections{Mode: "any", Sources: []string{"saved"}}
+	subscribe := func(owner string, f Filters) (<-chan Update, func()) {
+		ch, release, err := s.SubscribeOwner(owner, nil, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ch, release
+	}
+	a1, releaseA1 := subscribe("a", private)
+	a2, releaseA2 := subscribe("a", private)
+	b, releaseB := subscribe("b", private)
+	defer releaseB()
+	public, releasePublic := subscribe("a", DefaultPreferences().Filters)
+	defer releasePublic()
+	r.notify("a")
+	changed := func(ch <-chan Update) bool {
+		select {
+		case u := <-ch:
+			return u.MembershipChanged
+		default:
+			return false
+		}
+	}
+	if !changed(a1) || !changed(a2) {
+		t.Fatal("owner's private streams were not told of the membership change")
+	}
+	if changed(b) || changed(public) {
+		t.Fatal("membership change reached another owner's or a public stream")
+	}
+	releaseA1()
+	releaseA2()
+	s.mu.Lock()
+	_, indexed := s.private["a"]
+	remaining := len(s.private["b"])
+	s.mu.Unlock()
+	if indexed || remaining != 1 {
+		t.Fatalf("owner index not maintained on release: a indexed=%v, b=%d", indexed, remaining)
+	}
+	r.notify("a") // no streams left for a
+}

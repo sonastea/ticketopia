@@ -111,9 +111,9 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 	periodic := now.Sub(s.memberAt) >= 2*time.Second
 	wanted := map[string]uint8{owner: sourceMask(f)}
 	s.mu.Lock()
-	for sub := range s.subs {
-		if sub.filter.Connections.Mode == "any" {
-			wanted[sub.owner] |= sourceMask(sub.filter)
+	for id, subs := range s.private {
+		for sub := range subs {
+			wanted[id] |= sourceMask(sub.filter)
 		}
 	}
 	// Requests queued behind this one join the same batched assembly instead of

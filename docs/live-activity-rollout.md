@@ -4,12 +4,16 @@ Part 5 is **in progress**, not a production-readiness or deployment sign-off.
 Keep production's explicit `LIVE_ACTIVITY_ENABLED=false` until the outstanding
 gates below pass and the coordinated migration/deployment is authorized.
 
-**Latest result — 2026-10-21:** the [P1 rollout gates](#p1-rollout-gates--2026-10-21)
+**Latest result — 2026-10-22:** the [P1 rollout gates](#p1-rollout-gates--2026-10-21)
 found and fixed calibration and latency defects. Distinct public filters,
 personalization and the production-image deployment scenario now pass at 10,000
-rich groups. Open: the [rerun 40-minute soak](#p13-40-minute-soak-with-interleaved-gate--2026-10-21)
-on the current image fails the observed write gate (interleaved pooled p95 1.135×;
-95% CI 1.076–1.193, inconclusive against 1.10), while browse passes. The
+rich groups. Open: the [ABBA×4 soak rerun](#p13-soak-rerun-abba4-with-cpu-diagnostics--2026-10-22)
+fails the write gate with statistical support (pooled p95 1.160×; 95% CI
+1.105–1.226, entirely above 1.10), while browse passes (1.048×). The
+[request-level diagnosis](#p13-write-gate-request-level-diagnosis--2026-10-22)
+fixed the synchronous membership-notification cost. The remaining shift is mostly
+SQL time under concurrent read load on the local VM; it needs validation on
+representative Linux infrastructure, and the gate stays failed until then. The
 actual-ingress check (P1.5) has tooling but has not been run, and the cold-start
 target needs agreement. Physical-device and screen-reader verification also remain open.
 
@@ -147,7 +151,7 @@ MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_CAPACITY_GROUPS=100,1000,4000,100
 # P1.3 soak on the deployment fixture (at least 30m for a gate result)
 MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_LOAD_IMAGE=ticketopia:activity-load \
   LIVE_ACTIVITY_SOAK=40m go test ./internal/persistence \
-  -run '^TestMariaDBActivityDeploymentSoak$' -count=1 -timeout=110m -v
+  -run '^TestMariaDBActivityDeploymentSoak$' -count=1 -timeout=150m -v
 # P1.4 browser-visible latency (Chromium through Playwright)
 MARIADB_TEST_ADDR=127.0.0.1:3307 PLAYWRIGHT_MODULE=/path/to/node_modules/playwright \
   LIVE_ACTIVITY_LATENCY_BROWSER_SCRIPT=../../scripts/live-activity-latency-browser.cjs \
@@ -163,15 +167,208 @@ LIVE_ACTIVITY_INGRESS_URL=https://staging.example LIVE_ACTIVITY_INGRESS_REPLICAS
 membership at once. The soak keeps
 1,000 groups (`LIVE_ACTIVITY_LOAD_GROUPS`, at most 9,000) under continuous replacement,
 excludes a five-minute warmup from growth checks, and measures the ordinary-traffic
-gate in an interleaved phase after the sustained soak (methodology in the
+gate in an interleaved ABBA×4 phase after the sustained soak (methodology in the
 [soak result](#p13-40-minute-soak-with-interleaved-gate--2026-10-21)). Raw samples go
 to `LIVE_ACTIVITY_SOAK_SAMPLES` (default `.local/activity-soak-<UTC>.csv`); rerun the
 analysis offline with `LIVE_ACTIVITY_SOAK_ANALYZE=<csv> go test ./internal/persistence
--run '^TestActivitySoakSampleAnalysis$' -v`. Allow `-timeout=110m` for a 40-minute soak. The
+-run '^TestActivitySoakSampleAnalysis$' -v`. A companion `<csv>-events.csv` holds
+r0 count-frame arrivals and 5 s CPU rates for the Docker VM, the test process and,
+on Colima, the host QEMU/Lima processes. Samples are saved even when the test
+fails. Allow `-timeout=150m` for a 40-minute soak.
+
+Request-level diagnostics are portable (Docker and the Go toolchain only).
+nginx logs only the in-network probe's requests, with `$request_time` and
+`$upstream_{connect,header,response}_time`, so the log costs the same in both
+states. Each interleaved probe request is joined to its log line in
+`<csv>-requests.csv`. `LIVE_ACTIVITY_LOAD_TRACE=true` runs r0 as the same source
+built with `-tags activitytrace`; release builds have no trace control. That build
+records a Go execution trace (`<csv>-trace-<period>.trace`) in pairs 2, 3, 6 and 7,
+covering both pair orders, and leaves the other pairs to measure tracing overhead.
+Production code marks each request as a trace task and marks the SQL transaction,
+commit and synchronous membership notification as regions. These cost one atomic
+check unless a trace is recording. After sampling, `go tool trace -d=parsed`
+splits each matched handler into running, runnable (scheduler latency), network
+(SQL round trips), mutex and GC time. Combine it with `LIVE_ACTIVITY_LOAD_PROFILE=true`
+for server-side statement and commit times. Instrumented runs are diagnostics, not
+gate results. The
 latency fixture allows 600 starts per minute because every journey shares one
 loopback address; production keeps 60.
 
 ## Results and outstanding gates
+
+### P1.3 write-gate request-level diagnosis — 2026-10-22
+
+**Result: the write gate remains failed on this fixture, and the 1.10 threshold
+is unchanged.** The membership-notification path was a measured application
+contributor and is fixed. Most of the remaining shift is in SQL round trips and
+r0 scheduling, not in a single application hot spot.
+
+Method: two instrumented runs, which are diagnostics and not gate results. Each had
+a 15-minute sustained phase followed by the standard ABBA×4 interleaved phase, with
+`LIVE_ACTIVITY_LOAD_TRACE=true` and `LIVE_ACTIVITY_LOAD_PROFILE=true`
+([tooling](#reproducible-local-deployment-fixture)). Each of the 2,400 probe writes per state is joined to
+its nginx log line. In traced pairs (1,200 per state), all 600 requests per period
+matched an r0 trace task (none ambiguous). Overhead: traced and untraced pairs gave
+write p95 ratios of 1.131 and 1.149 (before the fix) and 1.127 and 1.133 (after),
+so tracing does not inflate the shift. The statement log records every statement,
+so it costs more in loaded periods; its server times are compared only by state.
+Images: `sha256:719e6021…` (before) and `sha256:4ad51332…` (after), from the
+working tree; r0 runs the same source built with `-tags activitytrace`.
+
+Traced writes, loaded minus no-live, before the fix (ms). "Tail" is the slowest
+10% in each state.
+
+| Component | Δmean | Δtail |
+| --- | --- | --- |
+| Client total | +0.35 | +1.34 |
+| Probe↔nginx, nginx itself, upstream connect | +0.01 | −0.01 |
+| nginx↔r0 outside r0's Go process | +0.04 | +0.17 |
+| r0 accept/read before the handler; response flush | +0.00 | +0.02 |
+| Handler: waiting on network (SQL round trips) | +0.17 | +0.66 |
+| …of which in the write transaction / its commit | +0.13 / +0.06 | +0.45 / +0.09 |
+| Handler: runnable (waiting for one of r0's 2 Ps) | +0.04 | +0.22 |
+| Handler: running / in syscalls | +0.06 / +0.02 | +0.13 / +0.10 |
+| Membership notification (inside the handler rows above) | +0.03 | +0.13 |
+
+MariaDB's own times (statement log, mean of eight periods per state, both runs)
+rise when loaded. Write-transaction p50 is 0.95–0.96 vs 0.88–0.89 ms and p95 is
+1.73–1.76 vs 1.46–1.48 ms. COMMIT p95 is 1.22 vs 1.04–1.07 ms. The writes are the
+same in both states, so the increase comes from the read-only live load sharing
+the server, the VM and its storage. Its CPU stays well below one core (0.31–0.41
+vs 0.26–0.37 cores) and there were no lock waits.
+
+In r0, runnable waits longer than 100 µs total 30–49 ms per loaded period against
+7–8 ms no-live. About 75% of that time overlaps the GC background mark worker, and
+most of the rest overlaps live-delivery work (the delivery loop, cache-miss
+selection and JSON encoding). r0 used 0.07–0.08 cores of Go CPU, so this is
+short-lived contention for GOMAXPROCS=2, not saturation.
+
+**Application fix: synchronous membership notification.** An interest write
+notified the activity service on the request path. It waited for the activity
+mutex and scanned every subscription, while delivery held that mutex for
+O(subscriptions) loops (each tick's visible-ID collection and every cache-miss
+selection, which marshalled a JSON key per subscription). Private subscriptions are
+now indexed by owner, so a notification and the membership sweep touch only that
+owner's streams. Delivery copies subscriber pointers under the mutex and derives
+IDs and keys outside it, and each subscription caches its public key (its filter
+is immutable). After the fix, loaded notification time was 0.003 ms mean, the
+same as no-live, with no mutex wait. Handler runnable p95 fell from 0.42 to
+0.20 ms, loaded GC cycles from 2.1–2.3/s to 1.5–1.7/s, and r0 Go CPU from about
+0.075 to 0.061 cores.
+
+| Write p95 ratio (2,400 per state) | Pooled | 95% CI (8 pairs + block) |
+| --- | --- | --- |
+| Before fix, instrumented | 1.142 | 1.098–1.196 |
+| After fix, instrumented | 1.137 | 1.096–1.185 |
+
+Browse passed in both (1.026 and 1.032). The overall change is within run-to-run
+variation: the notification was about a tenth of the shift. After the fix, the
+traced loaded mean is still +0.33 ms, of which +0.19 ms is SQL network wait.
+
+**Interpretation and next step.** The largest remaining component is SQL time
+under concurrent read load, measured both at the client and in MariaDB, including
+COMMIT. Smaller parts are runnable time on r0's two Ps (GC marking and delivery
+work) and the nginx↔r0 hop. This evidence points to shared database, VM scheduling
+and storage capacity on one 4-CPU local VM. It does not identify another
+demonstrated application bottleneck, and it does not show that platform effects
+explain the whole shift. Next: run the same instrumented soak on representative
+Linux infrastructure, with production-like separation of the database, replicas
+and storage. Reconsider the gate only after that, and only against an explicit
+performance requirement. Until then the write gate stays failed.
+
+Raw data (git-ignored, not committed): `.local/activity-soak-20261022-diag*` and
+`.local/activity-soak-20261022-diagfix*` (samples, events, `-requests.csv` and
+eight `.trace` files per run, plus run logs).
+
+### P1.3 soak rerun, ABBA×4 with CPU diagnostics — 2026-10-22
+
+**Result: write fails the gate with statistical support. The pooled p95 ratio is
+1.160 and its 95% interval (1.105–1.226) lies entirely above 1.10.** Browse passes
+at 1.048× (0.991–1.099, below the limit). Every other soak assertion passed. The
+order (ABBA×4), settle, probe, block length, seed and gate were fixed before the run,
+and it was not repeated.
+
+Image: the same linux/arm64 manifest as the 2026-10-21 run,
+`sha256:8b45a4d570b91ff21d25f1e2b88915cb90a37dda0283d3bd576b542d0c32f995`; it was
+rebuilt from the working tree after `8bb7369`, with test-only changes (index
+`sha256:49485dda34b8bcbeac4917393b9d2d4c165fc6dc8504aed9c09406109a3d48b6`).
+Environment: unchanged (Apple M1, Colima arm64 VM with 4 CPUs and 8.3 GB, MariaDB 12.3.3).
+
+**Sustained soak (40 min).** 704 SSE tabs and, separately, 64 fallback polling
+clients; in the soak, 4,015 publications, 1,204 membership writes and 3,840 rotations.
+Over the whole run there were 9 client epochs and 11,892 SSE connections: 704 per
+epoch plus 5,556 reconnects, of which 4,912 were rotations (the rest are not
+classified). 26,692 fallback requests had no failures; no refused starts or
+`unavailable` frames. Count cadence: 63,275 intervals, 14.95–16.10 s; none early
+or late. No growth: goroutines about 532/531/404, heap 12–16 MiB, memory 30–37 MiB,
+SQL connections 2 per replica, database sessions 7, proxy about 698, cohorts ≤160,
+owners 16. In-soak loaded probes: browse 15.1 → 34.3 ms with data growth, write
+6.1–7.4 ms.
+
+**Interleaved phase.** Same method as the
+[2026-10-21 run](#p13-40-minute-soak-with-interleaved-gate--2026-10-21) with 16 periods
+(eight loaded/no-live pairs). Readiness took 11–15 s (loaded) and 8–15 s (no-live),
+followed by the fixed 60 s settle. At sampling start, loaded periods had 701–704/704
+tabs open and 689–692 proxy connections; no-live periods had 0 tabs and 2 proxy
+connections. All 16 periods had 300 browse + 300 write samples and 0 errors.
+
+| Pair (periods) | Loaded write p95 | No-live write p95 | Write ratio | Browse ratio |
+| --- | --- | --- | --- | --- |
+| 1 (1/2) | 6.593 ms | 5.763 ms | 1.144 | 0.973 |
+| 2 (4/3) | 6.480 ms | 5.857 ms | 1.106 | 1.051 |
+| 3 (5/6) | 6.203 ms | 5.774 ms | 1.074 | 1.004 |
+| 4 (8/7) | 6.625 ms | 5.710 ms | 1.160 | 1.073 |
+| 5 (9/10) | 6.425 ms | 5.830 ms | 1.102 | 1.008 |
+| 6 (12/11) | 6.683 ms | 5.690 ms | 1.175 | 1.068 |
+| 7 (13/14) | 6.057 ms | 5.743 ms | 1.055 | 1.017 |
+| 8 (16/15) | 7.589 ms | 5.908 ms | 1.285 | 1.179 |
+
+Browse p95 per period rose 34.1 → 60.9 ms with data growth, and the pairs absorbed
+that drift. Pair 8 is the largest for both operations; it was kept, as planned.
+
+| Pooled (2,400 per state) | Loaded p95 | No-live p95 | Ratio | Gate ≤1.10 | 95% CI (8 pairs + block) | Block-only CI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Browse | 51.62 ms | 49.26 ms | 1.048 | pass | 0.991–1.099 (below limit) | 1.034–1.070 |
+| Write | 6.701 ms | 5.777 ms | 1.160 | **fail** | 1.105–1.226 (**above limit**) | 1.129–1.198 |
+
+Write percentiles, loaded vs no-live: p50 4.56 vs 3.89 ms (+0.67), p90 +0.47, p95
++0.92 and p99 +1.97 ms. The whole distribution shifts. The bootstrap limitations
+above still apply, but eight pairs give the outer stage 6,435 distinct multisets
+instead of 35.
+
+**Diagnostics (5 s samples during probe sampling, mean cores).**
+
+| Source | Loaded | No-live |
+| --- | --- | --- |
+| Docker VM busy (of 4) | 0.97 | 0.62 |
+| Host QEMU process | 1.04 | 0.69 |
+| Host Lima SSH mux (port forwarding) | 0.10 | 0.01 |
+| Host `limactl` | 0.04 | 0.03 |
+| Test process (load generator) | 0.02 | 0.01 |
+| r0 container (1-CPU quota; 0 throttled periods) | 0.084 | 0.047 |
+| MariaDB | 0.46 | 0.43 |
+| nginx | 0.010 | 0.008 |
+
+The VM is about a quarter busy when loaded, and nothing is throttled. Host port
+forwarding costs about 0.1 core. These 5 s means are evidence against sustained
+saturation of the VM or of r0's quota. They cannot exclude CPU contention shorter
+than a sample, or effects on scheduling latency.
+
+Burst check against **recorded** r0 delivery ticks (194 ticks, median spacing
+15.9 s): loaded slow writes (above the no-live p95; 14.8% of loaded writes) and
+medians are flat across the 15 s after a tick. The first 3 s held 22% of slow writes,
+where an even spread gives 20%. Browse is also flat. This is evidence against
+delivery-aligned bursts as the main cause. Caveat: probe times use the VM clock
+and ticks the host clock, so a small offset would blur only sub-second alignment.
+
+**Remaining failure.** Writes slow by about 0.7–0.9 ms at p50–p95 when live
+clients are connected. The data above is evidence against delivery-aligned bursts
+and sustained CPU saturation. It does not locate the time, which the
+[request-level diagnosis](#p13-write-gate-request-level-diagnosis--2026-10-22) follows.
+
+Raw samples: `.local/activity-soak-20261022.csv` (11,800 rows, SHA-256
+`2d83b7d4…3bfc692a`) and `.local/activity-soak-20261022-events.csv` (4,315 rows,
+SHA-256 `e600dc2b…4013da`), git-ignored and not committed.
 
 ### P1.3 40-minute soak with interleaved gate — 2026-10-21
 
@@ -183,8 +380,9 @@ predetermined run; it was not repeated.
 Image: built from the working tree at `556ad66` plus measurement-only test changes,
 index `sha256:e5d7204da1dddce29952211dece58cd700c2ae5e38ee6dea23c48f8ca13cc271`
 (linux/arm64 manifest `sha256:8b45a4d570b91ff21d25f1e2b88915cb90a37dda0283d3bd576b542d0c32f995`).
-Environment: Apple M1, Docker 29.1.4 arm64 VM (4 CPUs, 8.3 GB), MariaDB 12.3.3
-without cgroup limits; the fixture as described above.
+Environment: Apple M1, Colima (Lima/QEMU) arm64 VM running Docker 29.1.4 (4 CPUs,
+8.3 GB), MariaDB 12.3.3 without cgroup limits; the fixture as described above. This
+run used ABBA×2; the harness has since moved to ABBA×4.
 
 **Sustained soak (40 min, continuous).** 1,000 rich groups with natural ten-minute
 expiry; 4,015 publications and 1,204 membership writes. **704 SSE tabs** (256/256/192)
@@ -249,13 +447,24 @@ give the outer stage only 35 distinct multisets, so the interval is coarse and i
 nominal 95% coverage is not assured. The block length was chosen in advance, not
 tuned. Percentile bootstraps of a p95 are biased at small sizes. One run on one
 local VM does not represent production. Loaded periods also put load-generator
-connection handling (Docker port forwarding and nginx) on the same 4-CPU VM.
+connection handling (Colima/Lima host port forwarding and nginx) on the same 4-CPU VM.
 
 Interpretation: the write slowdown is consistent in direction (all four pairs >1.0;
 the interval excludes 1.0) and is about 0.5–1 ms at p95. The data cannot show whether
 it exceeds 10%. Ordering does not explain the previous 1.113×: interleaving moved
 the estimate to 1.135×. The probe's profile showed no CPU-quota throttling in either
 state (r0 0.05 → 0.08–0.09 cores; MariaDB 0.38–0.42 → 0.40–0.45 cores).
+
+Exploratory follow-up (after the run, with a decision rule fixed before looking; not a
+gate result): 15.2% of loaded writes exceeded the no-live p95, against 5.0% of
+no-live writes. Arranged by position within a 15 s cycle (count delivery) or 10 s
+cycle (rotation), in 1 s slots, the loaded excess was spread across every slot rather
+than concentrated. The busiest 3 s window held 24% (15 s) and 35% (10 s) of slow
+writes, where an even spread gives 20% and 30%; the no-live control held 27% and 35%.
+Each loaded period's busiest window fell at a different position. The whole
+distribution shifted: write p50 4.59 vs 3.95 ms (+0.64 ms), p90 +0.58 ms, p99 +2.0 ms.
+This argues against short periodic bursts as the main cause, but cannot exclude
+them, because the replica's timer timing was not recorded.
 
 Raw samples: `.local/activity-soak-20261021.csv` (7,000 rows: start baseline,
 in-soak and interleaved, with UTC start time, operation, period, state, latency and

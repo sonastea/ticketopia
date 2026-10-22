@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"runtime/trace"
 	"strings"
 	"sync"
 
@@ -30,7 +31,11 @@ func (r *ActivityRepository) WatchMembership(fn func(string)) func() {
 		}
 	}
 }
+
+// notifyActivityMembership runs synchronously on the committing request; the
+// trace region (free unless a diagnostic trace records) times lock waits too.
 func notifyActivityMembership(db *sql.DB, owner string) {
+	defer trace.StartRegion(context.Background(), "activity.membership.notify").End()
 	membershipWatches.Lock()
 	defer membershipWatches.Unlock()
 	for fn := range membershipWatches.entries[db] {

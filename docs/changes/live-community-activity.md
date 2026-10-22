@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### 2026-10-22 — Part 5: soak write-gate diagnosis
+
+- Extend the interleaved soak phase to ABBA×4, save samples on failure, and record
+  r0 delivery ticks and CPU. Join each probe request to nginx's probe-only timing log
+  and, with `LIVE_ACTIVITY_LOAD_TRACE`, to r0's Go execution trace (tagged builds
+  only; production marks request tasks and SQL/notification regions).
+- Index private streams by owner and keep delivery's subscriber scans outside the
+  activity mutex, so membership writes no longer wait for O(streams) work (loaded
+  notification 0.035 → 0.003 ms mean).
+- Open: the write gate fails on this fixture (ABBA×4 1.160×, 95% CI 1.105–1.226), and
+  the 1.10 threshold is unchanged. The remaining shift is mostly SQL time under
+  concurrent read load; it needs validation on representative Linux infrastructure.
+  The diagnostics are evidence against CPU saturation and delivery-aligned bursts;
+  they do not eliminate CPU, database or platform effects. Ingress has not been run.
+  See the [rollout record](../live-activity-rollout.md#p13-write-gate-request-level-diagnosis--2026-10-22).
+
 ### 2026-10-21 — Part 5: P1 capacity, soak, latency and ingress gates
 
 - Add opt-in gates for distinct public filters, personalization with large histories,
@@ -21,9 +37,6 @@
 - Measure the soak's ordinary-traffic gate in an interleaved ABBA×2 phase (live
   clients stopped/restarted per period, writers unchanged), retain timestamped raw
   samples, and report a seeded paired-period block-bootstrap interval.
-- Open: interleaved soak write p95 is 1.135× (95% CI 1.076–1.193, inconclusive
-  against 1.10); ingress verification not run.
-  See the [rollout record](../live-activity-rollout.md#p13-40-minute-soak-with-interleaved-gate--2026-10-21).
 
 ### 2026-10-20 — Part 5: operational measurement and deployment fixture
 

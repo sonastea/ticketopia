@@ -92,11 +92,14 @@ type Update struct {
 type subscriber struct {
 	held     time.Time // first skipped delivery while a rebuild is in progress
 	owner    string
-	ids      []string
+	ids      []string // owner, ids and filter are immutable after Subscribe
 	ch       chan Update
 	initial  bool
 	filter   Filters
 	previous [sha256.Size]byte
+	// The public cohort key for keyCity, cached under the projection gate.
+	keyCity, key string
+	keyed        bool
 }
 type Service struct {
 	metrics           metrics
@@ -110,20 +113,23 @@ type Service struct {
 	repo              Repository
 	mu                sync.Mutex
 	subs              map[*subscriber]struct{}
-	waiting           map[*waiter]struct{}
-	limit             int
-	cancel            context.CancelFunc
-	done              chan struct{}
-	logger            zerolog.Logger
-	projection        chan struct{}
-	index             *candidateIndex
-	readAt            time.Time
-	readErr           error
-	views             map[string]cachedView
-	keys              map[Location]string
-	viewBytes         int
-	jobs              chan struct{}
-	pending           chan struct{}
+	// private indexes connection-filtered subscriptions by owner (under mu), so
+	// a committing membership write touches only its owner's streams.
+	private    map[string]map[*subscriber]struct{}
+	waiting    map[*waiter]struct{}
+	limit      int
+	cancel     context.CancelFunc
+	done       chan struct{}
+	logger     zerolog.Logger
+	projection chan struct{}
+	index      *candidateIndex
+	readAt     time.Time
+	readErr    error
+	views      map[string]cachedView
+	keys       map[Location]string
+	viewBytes  int
+	jobs       chan struct{}
+	pending    chan struct{}
 }
 
 type cachedView struct {
@@ -135,7 +141,7 @@ type cachedView struct {
 
 func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Logger) *Service {
 	ctx, cancel := context.WithCancel(ctx)
-	s := &Service{repo: repo, subs: make(map[*subscriber]struct{}), waiting: map[*waiter]struct{}{}, limit: limit, cancel: cancel, done: make(chan struct{})}
+	s := &Service{repo: repo, subs: make(map[*subscriber]struct{}), private: map[string]map[*subscriber]struct{}{}, waiting: map[*waiter]struct{}{}, limit: limit, cancel: cancel, done: make(chan struct{})}
 	s.projection = make(chan struct{}, 1)
 	s.jobs = make(chan struct{}, 2)
 	s.pending = make(chan struct{}, 64)
@@ -156,10 +162,7 @@ func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Log
 			} else {
 				s.invalidAll = true
 			}
-			for sub := range s.subs {
-				if sub.owner != owner || sub.filter.Connections.Mode != "any" {
-					continue
-				}
+			for sub := range s.private[owner] {
 				select {
 				case <-sub.ch:
 				default:
@@ -401,12 +404,22 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 		s.views[digest] = v
 		return v.snapshot, nil
 	}
-	active := map[string]bool{}
+	// Hold mu only to copy the subscriber set: membership writes take it on the
+	// request path. Keys are derived under the projection gate (held here).
 	s.mu.Lock()
+	subs := make([]*subscriber, 0, len(s.subs))
 	for sub := range s.subs {
+		subs = append(subs, sub)
+	}
+	s.mu.Unlock()
+	active := map[string]bool{}
+	for _, sub := range subs {
 		city := s.keys[sub.filter.Location]
 		if sub.filter.Location.Mode == "all" || city != "" {
-			key := publicKey(city, sub.filter)
+			if !sub.keyed || sub.keyCity != city {
+				sub.keyCity, sub.key, sub.keyed = city, publicKey(city, sub.filter), true
+			}
+			key := sub.key
 			if sub.filter.Connections.Mode == "any" {
 				if m := s.members[sub.owner]; m != nil {
 					key += m.key(sub.owner, sub.filter)
@@ -415,7 +428,6 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 			active[key] = true
 		}
 	}
-	s.mu.Unlock()
 	extra := []string{}
 	for k, v := range s.views {
 		if active[k] {
@@ -525,9 +537,25 @@ func (s *Service) SubscribeOwnerContext(ctx context.Context, owner string, ids [
 	}
 	sub := &subscriber{owner: owner, ids: append([]string(nil), ids...), ch: make(chan Update, 1), initial: true, filter: f}
 	s.subs[sub] = struct{}{}
+	if f.Connections.Mode == "any" {
+		if s.private[owner] == nil {
+			s.private[owner] = map[*subscriber]struct{}{}
+		}
+		s.private[owner][sub] = struct{}{}
+	}
 	connections := len(s.subs)
 	s.mu.Unlock()
-	release := func() { s.mu.Lock(); delete(s.subs, sub); s.mu.Unlock() }
+	release := func() {
+		s.mu.Lock()
+		delete(s.subs, sub)
+		if owned := s.private[sub.owner]; owned != nil {
+			delete(owned, sub)
+			if len(owned) == 0 {
+				delete(s.private, sub.owner)
+			}
+		}
+		s.mu.Unlock()
+	}
 	// A valid warm view is delivered before initial count work. Never block on SQL
 	// while holding the subscriber lock. Brief selection contention should not
 	// turn a warm subscription into a wait for the next one-second worker tick.
@@ -634,27 +662,33 @@ func (s *Service) run(ctx context.Context) {
 			}
 			lastCleanup = now
 		}
+		// Copy targets under mu (membership writes take it on the request
+		// path); their visible IDs are immutable, so collect those outside it.
 		s.mu.Lock()
 		targets := make([]*subscriber, 0, len(s.subs))
+		initial := make([]bool, 0, len(s.subs))
+		for sub := range s.subs {
+			targets = append(targets, sub)
+			initial = append(initial, sub.initial)
+		}
+		s.mu.Unlock()
 		ids := map[string]bool{}
 		activeIDs := map[string]bool{}
 		due := now.Sub(lastCounts) >= 15*time.Second
 		regularCounts := due
-		for sub := range s.subs {
-			targets = append(targets, sub)
+		for i, sub := range targets {
 			for _, id := range sub.ids {
 				activeIDs[id] = true
 			}
-			if sub.initial {
+			if initial[i] {
 				due = true
 			}
-			if regularCounts || sub.initial {
+			if regularCounts || initial[i] {
 				for _, id := range sub.ids {
 					ids[id] = true
 				}
 			}
 		}
-		s.mu.Unlock()
 		for id := range countCache {
 			if !activeIDs[id] {
 				delete(countCache, id)
