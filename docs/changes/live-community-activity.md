@@ -18,8 +18,12 @@
   complete view (≤10 s) while a remote rebuild progresses; back off only on SQL
   errors; keep worker reads out of request admission. The production-image
   10,000-rich-group, 256-account scenario passes (membership p95 2.8 s).
-- Open: soak write p95 1.113× its same-volume baseline; ingress verification not run.
-  See the [rollout record](../live-activity-rollout.md#p1-rollout-gates--2026-10-21).
+- Measure the soak's ordinary-traffic gate in an interleaved ABBA×2 phase (live
+  clients stopped/restarted per period, writers unchanged), retain timestamped raw
+  samples, and report a seeded paired-period block-bootstrap interval.
+- Open: interleaved soak write p95 is 1.135× (95% CI 1.076–1.193, inconclusive
+  against 1.10); ingress verification not run.
+  See the [rollout record](../live-activity-rollout.md#p13-40-minute-soak-with-interleaved-gate--2026-10-21).
 
 ### 2026-10-20 — Part 5: operational measurement and deployment fixture
 

@@ -7,9 +7,11 @@ gates below pass and the coordinated migration/deployment is authorized.
 **Latest result — 2026-10-21:** the [P1 rollout gates](#p1-rollout-gates--2026-10-21)
 found and fixed calibration and latency defects. Distinct public filters,
 personalization and the production-image deployment scenario now pass at 10,000
-rich groups. Open: the 40-minute soak's write p95 was 1.113× its same-volume no-live
-baseline (before these changes), the actual-ingress check (P1.5) has tooling but
-has not been run, and the cold-start target needs agreement. Physical-device and screen-reader verification also remain open.
+rich groups. Open: the [rerun 40-minute soak](#p13-40-minute-soak-with-interleaved-gate--2026-10-21)
+on the current image fails the observed write gate (interleaved pooled p95 1.135×;
+95% CI 1.076–1.193, inconclusive against 1.10), while browse passes. The
+actual-ingress check (P1.5) has tooling but has not been run, and the cold-start
+target needs agreement. Physical-device and screen-reader verification also remain open.
 
 ## Operational telemetry
 
@@ -145,7 +147,7 @@ MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_CAPACITY_GROUPS=100,1000,4000,100
 # P1.3 soak on the deployment fixture (at least 30m for a gate result)
 MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_LOAD_IMAGE=ticketopia:activity-load \
   LIVE_ACTIVITY_SOAK=40m go test ./internal/persistence \
-  -run '^TestMariaDBActivityDeploymentSoak$' -count=1 -timeout=80m -v
+  -run '^TestMariaDBActivityDeploymentSoak$' -count=1 -timeout=110m -v
 # P1.4 browser-visible latency (Chromium through Playwright)
 MARIADB_TEST_ADDR=127.0.0.1:3307 PLAYWRIGHT_MODULE=/path/to/node_modules/playwright \
   LIVE_ACTIVITY_LATENCY_BROWSER_SCRIPT=../../scripts/live-activity-latency-browser.cjs \
@@ -160,12 +162,110 @@ LIVE_ACTIVITY_INGRESS_URL=https://staging.example LIVE_ACTIVITY_INGRESS_REPLICAS
 `LIVE_ACTIVITY_PERSONAL_BURST` (default 64, at most 256) sets how many accounts change
 membership at once. The soak keeps
 1,000 groups (`LIVE_ACTIVITY_LOAD_GROUPS`, at most 9,000) under continuous replacement,
-excludes a five-minute warmup from growth checks, and compares ordinary traffic with
-a no-live baseline after live clients stop while ordinary writers continue. The
+excludes a five-minute warmup from growth checks, and measures the ordinary-traffic
+gate in an interleaved phase after the sustained soak (methodology in the
+[soak result](#p13-40-minute-soak-with-interleaved-gate--2026-10-21)). Raw samples go
+to `LIVE_ACTIVITY_SOAK_SAMPLES` (default `.local/activity-soak-<UTC>.csv`); rerun the
+analysis offline with `LIVE_ACTIVITY_SOAK_ANALYZE=<csv> go test ./internal/persistence
+-run '^TestActivitySoakSampleAnalysis$' -v`. Allow `-timeout=110m` for a 40-minute soak. The
 latency fixture allows 600 starts per minute because every journey shares one
 loopback address; production keeps 60.
 
 ## Results and outstanding gates
+
+### P1.3 40-minute soak with interleaved gate — 2026-10-21
+
+**Result: the observed write gate fails (1.135× > 1.10); its 95% interval
+(1.076–1.193) crosses 1.10, so the evidence is inconclusive, not a pass.** Browse
+passes (1.031×; interval 0.962–1.057). Every other soak assertion passed. This is one
+predetermined run; it was not repeated.
+
+Image: built from the working tree at `556ad66` plus measurement-only test changes,
+index `sha256:e5d7204da1dddce29952211dece58cd700c2ae5e38ee6dea23c48f8ca13cc271`
+(linux/arm64 manifest `sha256:8b45a4d570b91ff21d25f1e2b88915cb90a37dda0283d3bd576b542d0c32f995`).
+Environment: Apple M1, Docker 29.1.4 arm64 VM (4 CPUs, 8.3 GB), MariaDB 12.3.3
+without cgroup limits; the fixture as described above.
+
+**Sustained soak (40 min, continuous).** 1,000 rich groups with natural ten-minute
+expiry; 4,015 publications and 1,204 membership writes. **704 SSE tabs** (256/256/192)
+and, separately, **64 fifteen-second fallback polling clients** (short requests, not
+SSE connections); 101/20-ID count subscriptions; 3,840 filter/account/ID rotations.
+Across the run, 8,390 SSE connections were established: 704 in each of 5 client
+epochs plus 4,870 reconnects (4,352 rotations; the rest, such as server-closed private
+streams, are not classified by cause). 23,566 fallback requests had no failures;
+no refused starts or `unavailable` frames.
+
+- Count cadence: 56,172 intervals, 14.95–16.11 s; none early or late.
+- No growth after warmup: goroutines about 532/532/404, live heap 12–15 MiB, container
+  memory 30–40 MiB, SQL connections 2 per replica, database sessions 7, proxy
+  connections about 698, cached cohorts ≤152 and owners 16. Resource bounds held.
+- In-soak loaded probes: browse p95 grew 14.9 → 36.1 ms with recommendation volume
+  (the known `/community` scaling finding below); write p95 stayed 6.0–7.7 ms.
+
+**Interleaved measurement (methodology).** After the soak, eight periods ran in the
+predetermined order loaded, no-live, no-live, loaded ×2 (ABBA ABBA). Before every
+period the harness stopped all live clients (SSE, fallback, rotation), closed idle
+keep-alives and verified teardown: every replica logged a metrics record with zero
+streams after the stop, the proxy had ≤8 active connections and no tab was open.
+Loaded periods then started a fresh client epoch and waited for all 704 tabs to
+reconnect. Readiness took 13–17 s (loaded) and 10–15 s (no-live), followed by an
+identical fixed 60 s settle. Publication, membership writes and resource sampling
+ran unchanged in both states. Each period ran the same in-network probe container
+(same route through nginx to r0, alternating `/community` GET and interest PUT/DELETE,
+50 ms between iterations, 5 discarded warmup iterations, 300 measured pairs, about
+28 s). At sampling start loaded periods had 704/704 tabs open and 689–694 proxy
+connections; no-live periods had 0 tabs, 2 proxy connections and zero fallback or
+rotation activity during the sample.
+
+| Period | State | Browse p95 | Write p95 |
+| --- | --- | --- | --- |
+| 1 | loaded | 34.18 ms | 6.214 ms |
+| 2 | no-live | 35.25 ms | 5.718 ms |
+| 3 | no-live | 36.35 ms | 5.866 ms |
+| 4 | loaded | 39.67 ms | 6.882 ms |
+| 5 | loaded | 39.13 ms | 6.561 ms |
+| 6 | no-live | 40.30 ms | 5.564 ms |
+| 7 | no-live | 41.37 ms | 5.713 ms |
+| 8 | loaded | 42.60 ms | 6.449 ms |
+
+Each period: 300 browse and 300 write samples, 0 errors (2,400 + 2,400, no errors in
+total). Adjacent-pair ratios (1/2, 4/3, 5/6, 8/7): browse 0.970, 1.091, 0.971,
+1.030; write 1.087, 1.173, 1.179, 1.129.
+
+| Pooled (1,200 samples per state) | Loaded p95 | No-live p95 | Ratio | Gate ≤1.10 | 95% CI (paired-period + block) | Block-only CI |
+| --- | --- | --- | --- | --- | --- | --- |
+| Browse | 41.57 ms | 40.33 ms | 1.031 | pass | 0.962–1.057 (below limit) | 1.021–1.040 |
+| Write | 6.485 ms | 5.713 ms | 1.135 | **fail** | 1.076–1.193 (**inconclusive**) | 1.101–1.175 |
+
+**Bootstrap.** Percentile intervals over 10,000 replicates with seed 20261021, so
+they are reproducible from the samples. The outer resampling unit is an adjacent
+loaded/no-live **pair** drawn with replacement; each replicate keeps equal loaded and
+no-live periods, and within-pair drift is left intact. Within each drawn period, the
+inner unit is a circular **block of 20 consecutive requests** of that operation
+(about 2 s). Individual requests are never resampled independently, because
+neighbouring requests share load, GC and cache state. The block-only interval keeps
+periods fixed, so it shows only within-period sampling noise. Limitations: four pairs
+give the outer stage only 35 distinct multisets, so the interval is coarse and its
+nominal 95% coverage is not assured. The block length was chosen in advance, not
+tuned. Percentile bootstraps of a p95 are biased at small sizes. One run on one
+local VM does not represent production. Loaded periods also put load-generator
+connection handling (Docker port forwarding and nginx) on the same 4-CPU VM.
+
+Interpretation: the write slowdown is consistent in direction (all four pairs >1.0;
+the interval excludes 1.0) and is about 0.5–1 ms at p95. The data cannot show whether
+it exceeds 10%. Ordering does not explain the previous 1.113×: interleaving moved
+the estimate to 1.135×. The probe's profile showed no CPU-quota throttling in either
+state (r0 0.05 → 0.08–0.09 cores; MariaDB 0.38–0.42 → 0.40–0.45 cores).
+
+Raw samples: `.local/activity-soak-20261021.csv` (7,000 rows: start baseline,
+in-soak and interleaved, with UTC start time, operation, period, state, latency and
+error; SHA-256 `7ba4d48c…7928b9`). The file is in the git-ignored local directory and
+is not committed. `TestActivitySoakSampleAnalysis` reproduces the table above from it.
+
+**Next step:** targeted profiling of the interest PUT/DELETE path during
+interleaved loaded versus no-live periods. Collect r0 Go CPU, block and mutex profiles
+and the opt-in statement timing, and separate the VM-level load-generator overhead.
+Application queries were not changed here.
 
 ### P1 rollout gates — 2026-10-21
 
@@ -259,9 +359,10 @@ about 5× Interested ones (17–20 vs 3.6 ms per 64 accounts × 256 events). An 
 would need a migration and was not added.
 
 The P1.3 soak and P1.4 browser runs below predate the 10,000-group accounting and
-membership changes.
+membership changes. The soak is superseded by the
+[interleaved rerun](#p13-40-minute-soak-with-interleaved-gate--2026-10-21).
 
-**P1.3 40-minute soak — passes except the write sub-gate.** 1,000 groups with natural
+**Earlier P1.3 40-minute soak — passes except the write sub-gate.** 1,000 groups with natural
 ten-minute expiry and continuous replacement (about 4,000 publications), 704 SSE tabs
 spread 256/256/192, 64 fifteen-second fallback clients, count subscriptions of 20 or
 101 IDs, 3,840 filter/account/ID rotations and 1,229 private membership writes:

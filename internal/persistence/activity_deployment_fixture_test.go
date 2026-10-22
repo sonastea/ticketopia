@@ -36,6 +36,16 @@ type loadProbeResult struct {
 	Samples       int             `json:"samples"`
 	BrowseSamples []time.Duration `json:"browse_samples"`
 	WriteSamples  []time.Duration `json:"write_samples"`
+	Errors        int             `json:"errors"`
+	BrowseTimed   []probeSample   `json:"browse_timed"`
+	WriteTimed    []probeSample   `json:"write_timed"`
+}
+
+// probeSample is one measured probe request; failures have Error set.
+type probeSample struct {
+	Started time.Time     `json:"started"`
+	Latency time.Duration `json:"latency"`
+	Error   string        `json:"error,omitempty"`
 }
 
 // startActivityDeployment starts the replicas and proxy. extraServer is added to
@@ -209,13 +219,25 @@ func (d *activityDeployment) request(ctx context.Context, method, path, ip, cred
 // ordinary measures browse/write p95 from the in-network probe container.
 func (d *activityDeployment) ordinary(label, token string) loadProbeResult {
 	d.t.Helper()
+	result := d.probeRun(label, token, 100)
+	if result.Errors > 0 || len(result.BrowseSamples) != 100 || len(result.WriteSamples) != 100 {
+		d.t.Fatalf("ordinary traffic failed: %d errors", result.Errors)
+	}
+	return result
+}
+
+// probeRun runs the in-network probe for iterations measured browse/write pairs
+// and returns its samples, including failed requests, without judging them.
+func (d *activityDeployment) probeRun(label, token string, iterations int) loadProbeResult {
+	d.t.Helper()
 	d.profile.begin()
 	phase := time.Now()
 	defer func() { d.profile.end(label, time.Since(phase)) }()
 	var result loadProbeResult
-	out := d.docker("run", "--rm", "--network", d.network, "--cpus", "1", "--memory", "128m", "-e", "LOAD_PROBE_TOKEN="+token, "-v", d.probe+":/loadprobe:ro", "gcr.io/distroless/static-debian12:nonroot", "/loadprobe", "http://"+d.proxy+":8080/r0")
+	out := d.docker("run", "--rm", "--network", d.network, "--cpus", "1", "--memory", "128m", "-e", "LOAD_PROBE_TOKEN="+token, "-e", "LOAD_PROBE_ITERATIONS="+strconv.Itoa(iterations),
+		"-v", d.probe+":/loadprobe:ro", "gcr.io/distroless/static-debian12:nonroot", "/loadprobe", "http://"+d.proxy+":8080/r0")
 	// The result is the final line; a first run may precede it with pull output.
-	if err := json.Unmarshal([]byte(out[strings.LastIndex(out, "\n")+1:]), &result); err != nil || result.Samples != 100 {
+	if err := json.Unmarshal([]byte(out[strings.LastIndex(out, "\n")+1:]), &result); err != nil || result.Samples != iterations {
 		d.t.Fatal("invalid load probe result", err)
 	}
 	return result

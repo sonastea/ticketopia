@@ -32,6 +32,8 @@ type soakStream struct {
 	credential  string
 	ip          string
 	cancel      context.CancelFunc
+	open        bool // a connection is currently streaming
+	epoch       int  // connections in the current live-client epoch
 	lastCounts  time.Time
 	frames      int // counts frames on the current connection
 	intervals   []time.Duration
@@ -70,7 +72,9 @@ func meanFloat(values []float64) float64 {
 // 704 SSE tabs unevenly spread 256/256/192 plus 64 fifteen-second fallback
 // clients, visible-ID count subscriptions up to 101 IDs, rotating filters and
 // accounts, continuous publication with natural ten-minute expiry, private
-// membership writes and periodic in-network ordinary browse/write probes.
+// membership writes and periodic in-network ordinary browse/write probes. After
+// the sustained soak, an interleaved ABBA×2 phase measures the ordinary-traffic
+// gate: live clients stop and restart per period while writers keep running.
 func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	image, raw := os.Getenv("LIVE_ACTIVITY_LOAD_IMAGE"), os.Getenv("LIVE_ACTIVITY_SOAK")
 	if image == "" || raw == "" {
@@ -136,9 +140,13 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 		}
 		return [2]time.Duration{durationPercentile(browse, 95), durationPercentile(write, 95)}
 	}
+	retained := []soakSample{}
 	baselineRuns := []loadProbeResult{}
 	for i := range 3 {
-		baselineRuns = append(baselineRuns, d.ordinary(fmt.Sprintf("baseline-%d", i), token))
+		label := fmt.Sprintf("baseline-%d", i)
+		result := d.ordinary(label, token)
+		baselineRuns = append(baselineRuns, result)
+		retained = append(retained, soakSamples("baseline", 0, label, soakNoLive, result)...)
 	}
 	baseline := pooled(baselineRuns)
 
@@ -168,11 +176,12 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 		return fmt.Sprintf("/r%d/api/v1/community/activity/stream%s", replica, join(publicFilterQuery(filters[k%len(filters)]), ids)), ""
 	}
 	ctx, stop := context.WithCancel(t.Context())
-	// Live clients (SSE, fallback, rotation) stop before ordinary writers, so the
-	// end baseline keeps the same write workload without live activity.
-	live, stopLive := context.WithCancel(ctx)
-	var running sync.WaitGroup
-	defer func() { stop(); running.Wait() }()
+	// Live clients (SSE, fallback, rotation) run in epochs that the interleaved
+	// phase stops and restarts; ordinary writers run on ctx throughout, so
+	// no-live periods keep the same write workload without live activity.
+	var running, liveRunning sync.WaitGroup
+	stopLive := func() {}
+	defer func() { stop(); liveRunning.Wait(); running.Wait() }()
 	streams := []*soakStream{}
 	for replica, count := range []int{256, 256, 192} {
 		for k := range count {
@@ -180,7 +189,7 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 			streams = append(streams, &soakStream{replica: replica, path: path, credential: credential, ip: nextIP(), refused: map[int]int{}})
 		}
 	}
-	run := func(s *soakStream) {
+	run := func(live context.Context, s *soakStream) {
 		for live.Err() == nil {
 			session, cancel := context.WithCancel(live)
 			s.mu.Lock()
@@ -193,7 +202,7 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 				if resp != nil {
 					s.refused[resp.StatusCode]++
 					resp.Body.Close()
-				} else {
+				} else if live.Err() == nil { // not an epoch shutdown
 					s.refused[0]++
 				}
 				s.mu.Unlock()
@@ -203,6 +212,8 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 			}
 			s.mu.Lock()
 			s.connections++
+			s.epoch++
+			s.open = true
 			s.mu.Unlock()
 			scanner := bufio.NewScanner(resp.Body)
 			scanner.Buffer(make([]byte, 4096), 2<<20)
@@ -241,80 +252,132 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 				s.mu.Unlock()
 			}
 			resp.Body.Close()
+			s.mu.Lock()
+			s.open = false
+			s.mu.Unlock()
 			cancel()
 			sleepContext(live, time.Second) // quiet reconnect
 		}
 	}
-	starts := make(chan struct{}, 24)
-	for _, s := range streams {
-		running.Go(func() {
-			starts <- struct{}{}
-			go func() {
-				deadline := time.Now().Add(30 * time.Second)
-				for time.Now().Before(deadline) {
-					s.mu.Lock()
-					connected := s.connections > 0
-					s.mu.Unlock()
-					if connected {
-						break
-					}
-					time.Sleep(10 * time.Millisecond)
-				}
-				<-starts
-			}()
-			run(s)
-		})
+	var fallbackRequests, fallbackFailures, rotations atomic.Int64
+	fallbackIPs := []string{}
+	for range 64 {
+		fallbackIPs = append(fallbackIPs, nextIP())
 	}
-	deadline := time.Now().Add(90 * time.Second)
-	for {
-		connected := 0
+	epochs := 0
+	var fallback func(live context.Context, k int, ip string)
+	// startLive starts one epoch of live clients: 704 SSE tabs (bounded to 24
+	// concurrent handshakes), 64 fallback clients and rotation. It returns once
+	// every tab has connected in this epoch.
+	startLive := func() {
+		live, cancelLive := context.WithCancel(ctx)
+		epochs++
 		for _, s := range streams {
 			s.mu.Lock()
-			if s.connections > 0 {
-				connected++
-			}
+			s.epoch = 0
 			s.mu.Unlock()
 		}
-		if connected == len(streams) {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("only %d/%d soak streams connected", connected, len(streams))
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Logf("704 SSE streams connected (256/256/192)")
-
-	// Fifteen-second fallback clients: snapshot plus 101-ID counts, balanced.
-	var fallbackRequests, fallbackFailures atomic.Int64
-	for k := range 64 {
-		ip := nextIP()
-		running.Go(func() {
-			sleepContext(live, time.Duration(k)*15*time.Second/64)
-			for live.Err() == nil {
-				path, credential := "/api/v1/community/activity?"+publicFilterQuery(filters[(k*5)%len(filters)]), ""
-				if k%4 == 3 {
-					path, credential = "/api/v1/me/community/activity", privateTokens[k%len(privateTokens)]
-				}
-				for _, target := range []string{path, "/api/v1/events/activity-counts?" + soakIDs((k*41)%n, min(101, n))} {
-					resp, err := d.request(live, "GET", target, ip, credential, "")
-					fallbackRequests.Add(1)
-					if err != nil {
-						if live.Err() == nil {
-							fallbackFailures.Add(1)
+		starts := make(chan struct{}, 24)
+		for _, s := range streams {
+			liveRunning.Go(func() {
+				starts <- struct{}{}
+				go func() {
+					deadline := time.Now().Add(30 * time.Second)
+					for time.Now().Before(deadline) {
+						s.mu.Lock()
+						connected := s.epoch > 0
+						s.mu.Unlock()
+						if connected {
+							break
 						}
-						continue
+						time.Sleep(10 * time.Millisecond)
 					}
-					io.Copy(io.Discard, resp.Body)
-					resp.Body.Close()
-					if resp.StatusCode != 200 {
-						fallbackFailures.Add(1)
+					<-starts
+				}()
+				run(live, s)
+			})
+		}
+		deadline := time.Now().Add(90 * time.Second)
+		for {
+			connected := 0
+			for _, s := range streams {
+				s.mu.Lock()
+				if s.epoch > 0 {
+					connected++
+				}
+				s.mu.Unlock()
+			}
+			if connected == len(streams) {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("epoch %d: only %d/%d soak streams connected", epochs, connected, len(streams))
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		// Fifteen-second fallback clients: snapshot plus 101-ID counts, balanced.
+		// These poll over short requests; they are not SSE connections.
+		for k, ip := range fallbackIPs {
+			liveRunning.Go(func() { fallback(live, k, ip) })
+		}
+		// Rotation: sixteen tabs change filter, account or visible IDs every 10s.
+		liveRunning.Go(func() {
+			ticker := time.NewTicker(10 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-live.Done():
+					return
+				case <-ticker.C:
+				}
+				for range 16 {
+					s := streams[rand.IntN(len(streams))]
+					path, credential := slot(s.replica, int(rotations.Add(1)-1)+7)
+					s.mu.Lock()
+					s.path, s.credential, s.ip = path, credential, nextIP()
+					cancel := s.cancel
+					s.mu.Unlock()
+					if cancel != nil {
+						cancel()
 					}
 				}
-				sleepContext(live, 15*time.Second)
 			}
 		})
+		stopLive = func() {
+			cancelLive()
+			liveRunning.Wait()
+			// Idle keep-alive connections would otherwise remain at the proxy.
+			d.client.CloseIdleConnections()
+			stopLive = func() {}
+		}
 	}
+	fallback = func(live context.Context, k int, ip string) {
+		sleepContext(live, time.Duration(k)*15*time.Second/64)
+		for live.Err() == nil {
+			path, credential := "/api/v1/community/activity?"+publicFilterQuery(filters[(k*5)%len(filters)]), ""
+			if k%4 == 3 {
+				path, credential = "/api/v1/me/community/activity", privateTokens[k%len(privateTokens)]
+			}
+			for _, target := range []string{path, "/api/v1/events/activity-counts?" + soakIDs((k*41)%n, min(101, n))} {
+				resp, err := d.request(live, "GET", target, ip, credential, "")
+				fallbackRequests.Add(1)
+				if err != nil {
+					if live.Err() == nil {
+						fallbackFailures.Add(1)
+					}
+					continue
+				}
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+				if resp.StatusCode != 200 {
+					fallbackFailures.Add(1)
+				}
+			}
+			sleepContext(live, 15*time.Second)
+		}
+	}
+	startLive()
+	t.Logf("704 SSE streams connected (256/256/192); 64 fallback polling clients started")
 	// Continuous writes: publication at the expiry rate and private membership.
 	every := func(scope context.Context, interval time.Duration, op func(int)) {
 		running.Go(func() {
@@ -352,22 +415,6 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
 			membershipWrites.Add(1)
-		}
-	})
-	// Rotation: sixteen tabs change filter, account or visible IDs every 10s.
-	var rotations atomic.Int64
-	every(live, 10*time.Second, func(i int) {
-		for j := range 16 {
-			s := streams[rand.IntN(len(streams))]
-			path, credential := slot(s.replica, i*16+j+7)
-			s.mu.Lock()
-			s.path, s.credential, s.ip = path, credential, nextIP()
-			cancel := s.cancel
-			s.mu.Unlock()
-			if cancel != nil {
-				cancel()
-			}
-			rotations.Add(1)
 		}
 	})
 	// Samples: proxy connections, database sessions and container memory.
@@ -420,48 +467,156 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	for time.Since(soakStart) < duration {
 		sleepContext(t.Context(), min(5*time.Minute, duration-time.Since(soakStart)))
 		if time.Since(soakStart) >= time.Minute {
-			result := d.ordinary(fmt.Sprintf("soak-%s", time.Since(soakStart).Round(time.Minute)), token)
+			label := fmt.Sprintf("soak-%s", time.Since(soakStart).Round(time.Minute))
+			result := d.ordinary(label, token)
 			loadedRuns = append(loadedRuns, result)
+			retained = append(retained, soakSamples("soak", 0, label, soakLoaded, result)...)
 			t.Logf("soak %s: probe browse p95=%s write p95=%s rotations=%d publications=%d membership_writes=%d", time.Since(soakStart).Round(time.Second),
 				result.Browse, result.Write, rotations.Load(), published.Load(), membershipWrites.Load())
 		}
 	}
-	// Same-volume baseline: live clients stop, ordinary writers continue.
-	stopLive()
 	liveStopped := time.Now()
-	time.Sleep(20 * time.Second)
-	afterRuns := []loadProbeResult{}
-	for i := range 3 {
-		afterRuns = append(afterRuns, d.ordinary(fmt.Sprintf("after-%d", i), token))
-	}
-	stop()
-	running.Wait()
-
-	// Ordinary traffic. Continuous writes grow the data that ordinary pages read,
-	// so the gate compares the final loaded runs with a no-live baseline at the
-	// same data volume and write workload. The start-of-soak ratio is context.
-	after := pooled(afterRuns)
-	final := pooled(loadedRuns[max(0, len(loadedRuns)-2):])
 	all := pooled(loadedRuns)
 	for i, label := range []string{"browse", "write"} {
-		t.Logf("ordinary %s p95: start no-live=%s, soak pooled=%s (%.3f×), final loaded=%s vs end no-live=%s ratio=%.3f", label,
-			baseline[i], all[i], float64(all[i])/float64(baseline[i]), final[i], after[i], float64(final[i])/float64(after[i]))
-		if final[i] > after[i]*11/10 {
-			t.Errorf("ordinary %s exceeds the 10%% soak gate against the same-volume no-live baseline", label)
+		t.Logf("sustained soak context, ordinary %s p95: start no-live=%s, soak pooled=%s (%.3f×; data volume differs, not the gate)", label,
+			baseline[i], all[i], float64(all[i])/float64(baseline[i]))
+	}
+
+	// Interleaved gate measurement. Continuous writes grow the data that ordinary
+	// pages read, so loaded and no-live periods alternate in a fixed ABBA×2
+	// order and drift cancels within each adjacent pair. Before every period live
+	// clients stop and teardown is verified; loaded periods then start a fresh
+	// client epoch and wait for every tab to reconnect. Every period then settles
+	// for the same fixed interval before the same probe samples it. Publication,
+	// membership writes and resource sampling run unchanged throughout.
+	const settle, periodIterations = 60 * time.Second, 300
+	proxyActive := func() int {
+		resp, err := d.request(ctx, "GET", "/nginx_status", "198.51.100.9", "", "")
+		if err != nil {
+			t.Fatal(err)
 		}
+		data, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		m := active.FindSubmatch(data)
+		if m == nil {
+			t.Fatal("no proxy status")
+		}
+		value, _ := strconv.Atoi(string(m[1]))
+		return value
+	}
+	openStreams := func() int {
+		open := 0
+		for _, s := range streams {
+			s.mu.Lock()
+			if s.open {
+				open++
+			}
+			s.mu.Unlock()
+		}
+		return open
+	}
+	// verifyNoLive waits for every replica to report zero subscriptions in a
+	// metrics record taken after shutdown, and for the proxy to drain.
+	verifyNoLive := func(since time.Time) {
+		deadline := time.Now().Add(60 * time.Second)
+		for {
+			drained := 0
+			for _, container := range d.containers[:3] {
+				for _, line := range strings.Split(d.docker("logs", "--since", since.UTC().Format(time.RFC3339), container), "\n") {
+					var record struct {
+						Activity activity.Stats `json:"activity"`
+					}
+					if strings.Contains(line, "Live activity metrics") && json.Unmarshal([]byte(line), &record) == nil &&
+						record.Activity.AsOf.After(since) && record.Activity.Streams == 0 {
+						drained++
+						break
+					}
+				}
+			}
+			proxy := proxyActive()
+			if drained == 3 && proxy <= 8 && openStreams() == 0 {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("live clients did not shut down: %d/3 replicas at zero streams, proxy active=%d, open=%d", drained, proxy, openStreams())
+			}
+			time.Sleep(2 * time.Second)
+		}
+	}
+	type periodRecord struct {
+		state                                    string
+		ready                                    time.Duration
+		open, proxy                              int
+		fallback, rotated, published, membership int64
+		start, end                               time.Time
+	}
+	interleavedErrors := 0
+	for i, state := range soakOrder {
+		transition := time.Now()
+		stopLive()
+		stopped := time.Now()
+		verifyNoLive(stopped)
+		if state == soakLoaded {
+			startLive()
+		}
+		record := periodRecord{state: state, ready: time.Since(transition)}
+		sleepContext(t.Context(), settle)
+		record.open, record.proxy = openStreams(), proxyActive()
+		fallbackBefore, rotatedBefore, publishedBefore, membershipBefore := fallbackRequests.Load(), rotations.Load(), published.Load(), membershipWrites.Load()
+		record.start = time.Now()
+		label := fmt.Sprintf("interleaved-%d-%s", i+1, state)
+		result := d.probeRun(label, token, periodIterations)
+		record.end = time.Now()
+		record.fallback, record.rotated = fallbackRequests.Load()-fallbackBefore, rotations.Load()-rotatedBefore
+		record.published, record.membership = published.Load()-publishedBefore, membershipWrites.Load()-membershipBefore
+		if state == soakNoLive && (record.open != 0 || record.fallback != 0 || record.rotated != 0) {
+			t.Fatalf("period %d: live clients active during a no-live period: %+v", i+1, record)
+		}
+		if state == soakLoaded && (record.open < len(streams)*9/10 || record.fallback == 0) {
+			t.Fatalf("period %d: live clients not running during a loaded period: %+v", i+1, record)
+		}
+		interleavedErrors += result.Errors
+		retained = append(retained, soakSamples("interleaved", i+1, label, state, result)...)
+		t.Logf("period %d %-7s ready=%s settle=%s sampled %s–%s open_sse=%d/%d proxy_active=%d fallback_requests=%d rotations=%d publications=%d membership_writes=%d probe_errors=%d",
+			i+1, state, record.ready.Round(time.Second), settle, record.start.UTC().Format("15:04:05"), record.end.UTC().Format("15:04:05"),
+			record.open, len(streams), record.proxy, record.fallback, record.rotated, record.published, record.membership, result.Errors)
+	}
+	stopLive()
+	stop()
+	liveRunning.Wait()
+	running.Wait()
+
+	// Retain raw samples for reanalysis (TestActivitySoakSampleAnalysis).
+	samplesPath := os.Getenv("LIVE_ACTIVITY_SOAK_SAMPLES")
+	if samplesPath == "" {
+		samplesPath = fmt.Sprintf("../../.local/activity-soak-%s.csv", soakStart.UTC().Format("20060102T150405Z"))
+	}
+	digest, err := writeSoakCSV(samplesPath, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("raw samples: %s (%d rows, sha256 %s)", samplesPath, len(retained), digest)
+	for _, r := range logSoakAnalysis(t, retained) {
+		if r.ratio > 1.10 {
+			t.Errorf("ordinary %s exceeds the 10%% gate: pooled loaded/no-live p95 ratio %.3f", r.operation, r.ratio)
+		}
+	}
+	if interleavedErrors > 0 {
+		t.Errorf("ordinary traffic had %d probe errors in the interleaved phase", interleavedErrors)
 	}
 	// Count cadence: established connections receive counts every fifteen
 	// seconds regardless of other tabs joining or rotating filters.
 	intervals := []time.Duration{}
 	refused := map[int]int{}
-	reconnects, unavailable := 0, 0
+	connections, reconnects, unavailable := 0, 0, 0
 	for _, s := range streams {
 		s.mu.Lock()
 		intervals = append(intervals, s.intervals...)
 		for status, count := range s.refused {
 			refused[status] += count
 		}
-		reconnects += s.connections - 1
+		connections += s.connections
+		reconnects += s.connections - epochs // beyond each epoch's first connection
 		unavailable += s.unavailable
 		s.mu.Unlock()
 	}
@@ -496,8 +651,10 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	}
 	t.Logf("count cadence: intervals=%d p1=%s p50=%s p99=%s max=%s early(<13.5s)=%d late(>16.5s)=%d", len(intervals),
 		durationPercentile(intervals, 1), durationPercentile(intervals, 50), durationPercentile(intervals, 99), durationPercentile(intervals, 100), early, late)
-	t.Logf("rotations=%d reconnects=%d unavailable_frames=%d refused_by_status=%v fallback_requests=%d fallback_failures=%d publications=%d membership_writes=%d",
-		rotations.Load(), reconnects, unavailable, refused, fallbackRequests.Load(), fallbackFailures.Load(), published.Load(), membershipWrites.Load())
+	t.Logf("SSE: %d tabs, %d client epochs, %d connections established (%d rotation/drop reconnects); fallback: %d polling clients (not SSE), %d requests, %d failures",
+		len(streams), epochs, connections, reconnects, len(fallbackIPs), fallbackRequests.Load(), fallbackFailures.Load())
+	t.Logf("rotations=%d unavailable_frames=%d refused_by_status=%v publications=%d membership_writes=%d",
+		rotations.Load(), unavailable, refused, published.Load(), membershipWrites.Load())
 	if len(intervals) < 1000 || early > 0 || late > len(intervals)/100 {
 		t.Error("count cadence was not independent of joins and filter changes")
 	}
