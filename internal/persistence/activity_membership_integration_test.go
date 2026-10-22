@@ -1,15 +1,22 @@
 package persistence
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
+	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/kv"
 )
 
 func TestMariaDBActivityMembership(t *testing.T) {
@@ -88,8 +95,8 @@ func TestMariaDBActivityMembership(t *testing.T) {
 	}
 	select {
 	case update := <-updates:
-		if !update.Unavailable {
-			t.Fatal("local mutation retained old membership")
+		if !update.Unavailable || !update.MembershipChanged {
+			t.Fatal("local mutation retained old membership or was not marked as a membership change")
 		}
 	case <-time.After(time.Second):
 		t.Fatal("local mutation did not invalidate subscription")
@@ -279,5 +286,64 @@ func TestMariaDBInterestMembershipRace(t *testing.T) {
 		if revision != before[owner.ID]+1+uint64(count) {
 			t.Fatal("unrevisioned concurrent transition", before[owner.ID], revision, count)
 		}
+	}
+}
+
+// A same-replica membership change closes the owner's private stream with the
+// distinct membership.changed event, so browsers reconnect quietly instead of
+// applying outage backoff; it never sends unavailable for this cause.
+func TestMariaDBLocalMembershipChangeEvent(t *testing.T) {
+	t.Setenv("IP_GEOLOCATION_ENABLED", "false")
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	auth := accounts.New(p.Accounts(), accountProviderFixture{})
+	owner, raw := loginAccount(t, auth, "membership-event")
+	seedLiveFilterWindow(t, p, owner.ID, 3)
+	filter := activity.DefaultPreferences().Filters
+	filter.Connections = activity.Connections{Mode: "any", Sources: []string{"saved"}}
+	if _, err := p.Accounts().ReplaceLivePreferences(t.Context(), owner.ID, 1, true, filter); err != nil {
+		t.Fatal(err)
+	}
+	service := activity.New(t.Context(), p.Activity(), 8)
+	defer service.Close()
+	server := httptest.NewUnstartedServer(nil)
+	config := accounts.Config{Enabled: true, BaseURL: "http://" + server.Listener.Addr().String(), ClientID: "fixture", ClientSecret: "fixture"}
+	app, err := api.NewAPI(t.Context(), zerolog.Nop(), kv.NewMemory(), api.WithAccounts(config, auth), api.WithLiveActivity(service, 60))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.Config.Handler = app.Routes()
+	server.Start()
+	defer server.Close()
+	req, _ := http.NewRequestWithContext(t.Context(), "GET", server.URL+"/api/v1/me/community/activity/stream", nil)
+	req.AddCookie(&http.Cookie{Name: "ticketopia_session", Value: raw})
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatal("private stream status", resp.Status)
+	}
+	defer resp.Body.Close()
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() && !strings.HasPrefix(scanner.Text(), "data:") {
+	}
+	d, err := p.Saved().Snapshot(t.Context(), "ticketmaster:LiveFilter_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := p.Saved().Save(t.Context(), owner.ID, d); err != nil {
+		t.Fatal(err)
+	}
+	rest := make(chan string, 1)
+	go func() { data, _ := io.ReadAll(resp.Body); rest <- string(data) }()
+	select {
+	case data := <-rest:
+		if !strings.Contains(data, "event: membership.changed") || strings.Contains(data, "event: unavailable") {
+			t.Fatal("local membership change frame", data)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("local membership change did not close the stream")
 	}
 }

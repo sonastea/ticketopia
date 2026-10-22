@@ -93,11 +93,14 @@ work. Joining count subscriptions read only their IDs without resetting the ordi
 scope resolves its database collation key once and reuses the bounded key cache.
 Bounds: 10,000 candidate groups (cap+1 detects overflow), 64 MiB conservative
 candidate/index/assembly/view accounting, two concurrent activity SQL jobs, 64
-pending projection readers, and at most 128 extra snapshot-only cohorts beyond
+pending external projection readers (the delivery worker reads outside that queue), and at most 128 extra snapshot-only cohorts beyond
 active stream cohorts, with 30-second idle expiry and earlier LRU eviction under
 pressure. A candidate's title/location/key facts are bounded to 64 KiB; exceeding
 that fails the projection rather than truncating an essential label. This is not
-an RSS cap. A failed, overflowing or over-budget generation is unavailable,
+an RSS cap. Repeated city keys and category/artist/venue IDs are interned within and
+across generations, and per-candidate, per-reference and per-key costs are calibrated
+against retained heap (a test keeps accounting at or above measured heap, at most
+3× it). A 10,000-group window with 1–12 artist lineups is charged about 11 MiB. A failed, overflowing or over-budget generation is unavailable,
 never truncated or silently widened;
 generation failures log bounded reasons without filter/actor values. Expiry is
 per view: one group's expiry never makes the generation (and every stream on the
@@ -122,6 +125,10 @@ visibility-only changes do not bump it. Event/catalog writes retain existing loc
 order and bounded deadlock retries; uncertain commits are never replayed internally.
 Committed local changes invalidate local subscriptions; other replicas batch-poll
 the active account union on the two-second cycle. New joins do not reset that clock.
+A local invalidation closes that account's private streams with the content-free
+`membership.changed` event, never stale membership. The browser clears the view and
+reconnects quietly after 250–750 ms instead of the 5-second-and-doubling backoff it
+uses after `unavailable`.
 
 Membership uses server-only source bitmaps over stable candidate slots, shared by
 an account's tabs. Only needed sources are allocated. Changed accounts rebuild;
@@ -132,12 +139,23 @@ snapshots and rechecking them after assembly. Followed-artist/venue joins also
 verify candidate metadata revisions, since they read event facets; Saved/Interested
 match by event ID alone, so metadata corrections cannot fail their assembly.
 They never load historical collections or run one query per account/event pair.
+Personal requests queued for the projection gate join the current assembly, so a
+cold start or reconnect burst of distinct accounts shares owner batches instead of
+repeating every candidate batch once per account; queued owners beyond the member
+cap are skipped and retry on their own turn rather than failing the current request.
 Private cache keys include owner, source selection and membership generation;
 public cohorts remain separate. Matching precedes the twenty-group limit and does
 not change public contribution counts or the first-name-only item DTO.
 
 Rebuilds run behind the shared projection gate, at most 64 work units per sweep
-with a two-second deadline and the shared two-SQL-job limit. The 64 MiB accounting
+with a two-second deadline, reading up to two candidate batches at once within the
+shared two-SQL-job limit. A rebuild larger than one sweep resumes: batches applied for
+the same account revision stay done, and only an account change restarts it.
+While a replica rebuilds an account that already had a complete view for a newer
+revision, and the rebuild is progressing without SQL errors, its open streams keep
+that last complete view for up to 10 seconds instead of closing — the same staleness
+as the revision poll. New snapshots and streams, cold accounts, SQL failures and
+longer rebuilds are unavailable as before; local changes use `membership.changed`. The 64 MiB accounting
 includes membership bitmaps, candidate revision maps and an 8 MiB assembly reserve;
 at most 384 owner scopes are retained, with 30-second unused expiry. Over-budget,
 failed or inconsistent private views are unavailable, never broadened or reported

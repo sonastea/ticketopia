@@ -140,6 +140,9 @@ paths:
         activity, reload owner settings and reconnect quietly. A disabled/paused view
         returns application/json with state paused before streaming. Stale expected
         revisions return 409 before headers. No credentials or account IDs in URLs.
+        membership.changed (an empty object) means this account's own Saved, Interested
+        or follow change was committed on this replica; the stream closes. Clear activity
+        and reconnect quietly after a short jitter, not with unavailable backoff.
         The public stream's 256 capacity, 60 starts/IP/minute and 32768 query-byte bound apply.
       security: [{sessionCookie: []}, {bearerToken: []}]
       parameters:
@@ -169,6 +172,7 @@ paths:
                   properties:
                     as_of: {type: string, format: date-time}
                 unavailable: {type: object, additionalProperties: false}
+                membership.changed: {type: object, additionalProperties: false}
                 settings.changed:
                   type: object
                   additionalProperties: false

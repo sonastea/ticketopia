@@ -79,21 +79,24 @@ func buildIndex(data Candidates, previous *candidateIndex) (*candidateIndex, err
 			used[next] = true
 		}
 	}
-	// New bitmaps clear every removed slot before it can be reused.
+	// New bitmaps clear every removed slot before it can be reused. A distinct
+	// key is charged once with its bitmap; repeated values are interned.
 	add := func(sets map[string]bitmap, key string, slot int) {
 		if sets[key] == nil {
 			sets[key] = make(bitmap, (MaxCandidates+63)/64)
-			x.bytes += 1600 + len(key)*2
+			x.bytes += bitmapBytes + keyOverhead + stringBytes(key)
 		}
 		sets[key].add(slot)
 	}
+	cities := map[string]bool{}
 	for _, c := range data.Items {
 		if len(c.Item.EventTitle)+len(c.Item.City)+len(c.CityKey) > MaxFactBytes {
 			return nil, ErrMemoryLimit
 		}
-		x.bytes += 1024 + 4*(len(c.Item.EventID)+len(c.Item.EventTitle)+len(c.Item.City)+len(c.CityKey))
-		if c.Item.ActorFirstName != nil {
-			x.bytes += 4 * len(*c.Item.ActorFirstName)
+		x.bytes += CandidateBytes(c)
+		if !cities[c.Item.City] {
+			cities[c.Item.City] = true
+			x.bytes += keyOverhead + stringBytes(c.Item.City)
 		}
 		slot := x.slots[c.Item.EventID]
 		if c.CityKey != "" {
@@ -105,7 +108,7 @@ func buildIndex(data Candidates, previous *candidateIndex) (*candidateIndex, err
 		}{{c.CategoryIDs, x.categories}, {c.ArtistIDs, x.artists}, {c.VenueIDs, x.venues}} {
 			for _, id := range dimension.ids {
 				add(dimension.sets, id, slot)
-				x.bytes += 128 + 4*len(id)
+				// One oversized lineup cannot allocate bitmaps past the budget.
 				if x.bytes > MemoryBudget/2-(2<<20) {
 					return nil, ErrMemoryLimit
 				}

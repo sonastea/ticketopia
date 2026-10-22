@@ -25,6 +25,9 @@ func (p *Pool) Activity() *ActivityRepository {
 // QueryCount counts attempted activity SELECT/DML statements, excluding
 // transaction control. No SQL text or parameters enter telemetry.
 func (r *ActivityRepository) QueryCount() uint64 { return r.statements.Load() }
+
+// OpenConnections reports the shared application pool, not only activity work.
+func (r *ActivityRepository) OpenConnections() int { return r.db.Stats().OpenConnections }
 func (r *ActivityRepository) Snapshot(ctx context.Context) (activity.Snapshot, error) {
 	data, err := r.Candidates(ctx)
 	result := activity.Snapshot{AsOf: data.AsOf, Items: []activity.Item{}}
@@ -92,6 +95,9 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 		return result, activity.ErrUnavailable
 	}
 	defer rows.Close()
+	// Repeated cities and facet IDs are shared within and across generations;
+	// costs are the same calibrated accounting the index build applies.
+	in := activity.NewInterner(previous)
 	bytes := 0
 	groups := 0
 	var actor sql.NullString
@@ -110,10 +116,7 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 		if candidate.CityKey == "" || len(item.EventTitle)+len(item.City)+len(candidate.CityKey) > activity.MaxFactBytes {
 			return activity.Candidates{}, activity.ErrMemoryLimit
 		}
-		bytes += 1024 + 4*(len(item.EventID)+len(item.EventTitle)+len(item.City)+len(candidate.CityKey))
-		if bytes > activity.MemoryBudget/4 {
-			return activity.Candidates{}, activity.ErrMemoryLimit
-		}
+		item.City, candidate.CityKey = in.String(item.City), in.String(candidate.CityKey)
 		if saved.ValidateID(item.EventID) != nil || strings.TrimSpace(item.EventTitle) == "" {
 			result.Items = result.Items[:len(result.Items)-1]
 			continue
@@ -124,21 +127,19 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 				item.ActorFirstName = &name
 			}
 		}
+		bytes += activity.CandidateBytes(*candidate)
 		if i, ok := prior[item.EventID]; ok && previous.Items[i].Revision.Equal(candidate.Revision) {
 			// Facets are projected only with a strictly newer accepted snapshot,
 			// atomically with data_as_of. Never reuse the name-bearing Item.
 			old := previous.Items[i]
 			candidate.CategoryIDs, candidate.ArtistIDs, candidate.VenueIDs = old.CategoryIDs, old.ArtistIDs, old.VenueIDs
-			for _, ids := range [][]string{candidate.CategoryIDs, candidate.ArtistIDs, candidate.VenueIDs} {
-				for _, id := range ids {
-					bytes += 128 + 4*len(id)
-				}
-			}
-			if bytes > activity.MemoryBudget/4 {
-				return activity.Candidates{}, activity.ErrMemoryLimit
-			}
+			in.Reuse(candidate.CategoryIDs, candidate.ArtistIDs, candidate.VenueIDs)
+			bytes += activity.ReferenceBytes * (len(old.CategoryIDs) + len(old.ArtistIDs) + len(old.VenueIDs))
 		} else {
 			changed = append(changed, len(result.Items)-1)
+		}
+		if bytes+in.Bytes() > activity.MemoryBudget/4 {
+			return activity.Candidates{}, activity.ErrMemoryLimit
 		}
 	}
 	if rows.Err() != nil {
@@ -164,8 +165,9 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 				facets.Close()
 				return activity.Candidates{}, activity.ErrUnavailable
 			}
-			bytes += 128 + 4*len(value)
-			if bytes > activity.MemoryBudget/4 {
+			value = in.String(value)
+			bytes += activity.ReferenceBytes
+			if bytes+in.Bytes() > activity.MemoryBudget/4 {
 				facets.Close()
 				return activity.Candidates{}, activity.ErrMemoryLimit
 			}

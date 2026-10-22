@@ -259,6 +259,13 @@
     listen('activity.snapshot', receive);
     listen('counts.snapshot', data => { ++countsGeneration; applyCounts(data); });
     listen('heartbeat', render); listen('unavailable', interrupted);
+    // This account's own Saved/Interested/follow change: the server closes the
+    // stream so stale membership is never shown. Clear it as before, then
+    // reconnect quietly after a short jitter instead of outage backoff.
+    listen('membership.changed', () => {
+      stop(); text('connection', 'Updating live activity…');
+      reconnectTimer = setTimeout(connect, 250 + Math.random() * 500);
+    });
     listen('settings.changed', () => { resume(); });
     stream.onerror = () => { if (turn === generation) { interrupted(); preferences(); } };
   };

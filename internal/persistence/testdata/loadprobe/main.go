@@ -61,11 +61,13 @@ func main() {
 		time.Sleep(50 * time.Millisecond)
 	}
 	var p95 [2]time.Duration
+	raw := [2][]time.Duration{slices.Clone(samples[0]), slices.Clone(samples[1])}
 	for i := range samples {
 		slices.Sort(samples[i])
 		p95[i] = samples[i][(len(samples[i])*95-1)/100]
 	}
-	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"browse_p95": p95[0], "write_p95": p95[1], "samples": len(samples[0])})
+	// Raw samples let long soaks pool several runs instead of averaging p95s.
+	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"browse_p95": p95[0], "write_p95": p95[1], "samples": len(samples[0]), "browse_samples": raw[0], "write_samples": raw[1]})
 }
 
 func fail(err error) {

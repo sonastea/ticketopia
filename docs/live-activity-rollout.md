@@ -4,13 +4,12 @@ Part 5 is **in progress**, not a production-readiness or deployment sign-off.
 Keep production's explicit `LIVE_ACTIVITY_ENABLED=false` until the outstanding
 gates below pass and the coordinated migration/deployment is authorized.
 
-**Latest result — 2026-10-20 (later):** the full 10,000-group scenario now passes,
-including the ordinary-traffic gate (browse 1.040×, write 1.053×). The earlier
-"37.4% write regression" was a probe-placement artifact, not database or app
-contention; see [regression-gate investigation](#regression-gate-investigation--2026-10-20).
-Resilience/privacy stress checks found and fixed three availability defects. The
-rich 1,000-group run has not been repeated on the new image. Physical-device,
-screen-reader and actual-ingress verification remain open.
+**Latest result — 2026-10-21:** the [P1 rollout gates](#p1-rollout-gates--2026-10-21)
+found and fixed calibration and latency defects. Distinct public filters,
+personalization and the production-image deployment scenario now pass at 10,000
+rich groups. Open: the 40-minute soak's write p95 was 1.113× its same-volume no-live
+baseline (before these changes), the actual-ingress check (P1.5) has tooling but
+has not been run, and the cold-start target needs agreement. Physical-device and screen-reader verification also remain open.
 
 ## Operational telemetry
 
@@ -36,6 +35,11 @@ counters and current/last-completed gauges:
   Each has cumulative `count`, `seconds` and seven **disjoint** duration buckets:
   ≤1 / ≤10 / ≤50 / ≤250 / ≤1000 / ≤5000 ms and >5000 ms.
 
+The same record carries a `process` object: `goroutines`, `heap_bytes` (live heap
+objects) and `sql_open_connections` (the shared application pool). These are
+identity-free growth signals for soaks and rollout observation, read without a
+debug endpoint.
+
 Use interval deltas, not cumulative averages, for alerting. Gauges update after
 assembly or eviction; telemetry never waits for SQL. Metric dimensions are compiled
 constants: no account IDs, names, cities, event IDs or filter hashes. There is no
@@ -54,8 +58,9 @@ count batches and recipient work, so a large union cannot renew its time budget
 once per query or connection.
 Invalidated inactive accounts retain their pending membership rebuild on re-entry,
 even when another account already consumed the coalesced invalidation notification.
-Failed attempts back off per account for two seconds after assembly; duplicate tabs
-cannot repeatedly retry a failed membership query.
+Attempts that hit an SQL error back off per account for two seconds after assembly;
+duplicate tabs cannot repeatedly retry a failed membership query. Work cut short by the
+per-sweep cap or deadline resumes on the next attempt without backoff.
 Obsolete private membership revisions count against the 128 unreferenced-cohort
 allowance, including when replacements belong to active streams. They cannot
 accumulate a fresh set of retired cohorts on every membership change.
@@ -130,7 +135,178 @@ failure/recovery in its isolated schema, and
 SIGTERM drain while another replica remains available. These are server/proxy
 observations, not browser paint timings or a physical-device claim.
 
+The P1 gates are separate opt-in tests on the same isolated local MariaDB service:
+
+```sh
+# P1.1 distinct public filters and P1.2 personalization (three in-process replicas)
+MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_CAPACITY_GROUPS=100,1000,4000,10000 \
+  LIVE_ACTIVITY_PERSONAL_GROUPS=1000,4000 go test ./internal/persistence \
+  -run '^TestMariaDBActivity(PublicFilter|Personalization)Capacity$' -count=1 -timeout=60m -v
+# P1.3 soak on the deployment fixture (at least 30m for a gate result)
+MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_LOAD_IMAGE=ticketopia:activity-load \
+  LIVE_ACTIVITY_SOAK=40m go test ./internal/persistence \
+  -run '^TestMariaDBActivityDeploymentSoak$' -count=1 -timeout=80m -v
+# P1.4 browser-visible latency (Chromium through Playwright)
+MARIADB_TEST_ADDR=127.0.0.1:3307 PLAYWRIGHT_MODULE=/path/to/node_modules/playwright \
+  LIVE_ACTIVITY_LATENCY_BROWSER_SCRIPT=../../scripts/live-activity-latency-browser.cjs \
+  go test ./internal/persistence -run '^TestMariaDBLiveActivityLatencyBrowser$' -count=1 -v
+# P1.5 actual ingress: sends real traffic; only an operated staging environment
+LIVE_ACTIVITY_INGRESS_URL=https://staging.example LIVE_ACTIVITY_INGRESS_REPLICAS=3 \
+  LIVE_ACTIVITY_INGRESS_DRAIN_WAIT=5m go test ./internal/persistence \
+  -run '^TestLiveActivityIngress$' -count=1 -v
+```
+
+`LIVE_ACTIVITY_CAPACITY_PROFILE=typical` selects 1–3 artist lineups, and
+`LIVE_ACTIVITY_PERSONAL_BURST` (default 64, at most 256) sets how many accounts change
+membership at once. The soak keeps
+1,000 groups (`LIVE_ACTIVITY_LOAD_GROUPS`, at most 9,000) under continuous replacement,
+excludes a five-minute warmup from growth checks, and compares ordinary traffic with
+a no-live baseline after live clients stop while ordinary writers continue. The
+latency fixture allows 600 starts per minute because every journey shares one
+loopback address; production keeps 60.
+
 ## Results and outstanding gates
+
+### P1 rollout gates — 2026-10-21
+
+Apple M1 / Docker arm64 VM (4 CPUs, 8.3 GB), local MariaDB 12.3.3 as below. P1.1/P1.2
+run three in-process replica services, each with its own pool, against real MariaDB;
+P1.3 uses the production-image deployment fixture; P1.4 drives Chromium against two
+in-process replicas. The default **rich** fixture has long multilingual titles on a
+quarter of groups, 1–12 artists, 1–2 venues, 16 cities and 8 categories; **typical**
+(`LIVE_ACTIVITY_CAPACITY_PROFILE=typical`) has 1–3 artists. Capacity seeds extend
+contribution expiry so the measured window is stable; the soak uses natural expiry.
+
+**P1.1 distinct public filters — passes at 100–10,000 rich groups.** 768 tabs (256
+per replica) with one identical filter versus 256 distinct city/category/artist/venue
+combinations per replica:
+
+| Rich groups | SQL per generation, identical / distinct | Warm uncached selection p95 | Max accounting |
+| --- | --- | --- | --- |
+| 100 | 2.00 / 2.00 | 0.36 ms | 11.1 MiB |
+| 1,000 | 2.00 / 2.00 | 0.29 ms | 19.6 MiB |
+| 4,000 | 2.00 / 2.00 | 0.38 ms | 42.1 MiB |
+| 10,000 (calibrated accounting) | 2.00 / 2.00 | 0.58 ms | 32.9 MiB |
+
+Warm cached reads stay in microseconds; active views were never reselected or
+evicted, and 512 extra snapshot-only filters kept cohorts at 256 active + 128 extra.
+Reordered, duplicated and irregularly spelled lists (city whitespace/case, country
+case) produced one cache miss per canonical filter; distinct views matched a
+complete-window reference. The first 10,000-group run **failed**: the old accounting
+charged about 3.7 KB per rich candidate (about 35 MiB for the index against about
+10 MiB of retained heap), so real-lineup windows failed closed above about 4,475 rich
+or 7,000 typical groups. City keys and facet IDs are now interned within and across
+generations, and costs are calibrated against retained heap: `TestAccountingCoversRetainedHeap`
+measures 1.15–1.48× retained heap for 10,000 rich, typical and one-artist windows.
+Rich 10,000 is charged 10.9 MiB; the 64 MiB budget and every cap are unchanged.
+The 1,000/4,000 rows predate the calibration.
+
+**P1.2 personalization — passes at 1,000, 4,000 and 10,000 rich groups after fixes.** Each of 257
+accounts has 2,000 saved, 1,000 interested, 500 followed-artist and 200 followed-venue
+rows, nearly all outside the window (20,000 historical events, 140,000 historical
+facets), plus zero/sparse/dense window matches by class. Defects found and fixed:
+
+- Each queued cold or invalidated account assembled alone (4,096 membership calls
+  per replica at 4,000 groups). Personal requests waiting for the projection gate now
+  join the current assembly.
+- A membership change rebuilds the account across the whole window. At 10,000
+  groups, sweeps could not finish inside the two-second deadline, discarded completed
+  batches and backed off (1,269–1,710 failed rebuilds per remote replica). Rebuilds now
+  resume, and up to two batches run together within the two-SQL-job limit.
+- While a remote replica was still rebuilding, it closed streams of accounts that had
+  a complete view. Those streams now keep their last complete view for up to 10 s
+  while the rebuild progresses without SQL errors (the revision poll's staleness).
+- The delivery worker read through the 64-request admission meant for external
+  requests, so a reconnect burst rejected the worker's own read and closed every
+  stream on the replica. Worker reads no longer compete for that admission.
+- Accounts left for the next sweep by the per-sweep cap were backed off like failures
+  and their streams closed. Only SQL errors back off now, and queued accounts are held.
+
+| Measurement (768 tabs, replicas started together) | 4,000 before fixes | 10,000 after |
+| --- | --- | --- |
+| 256 distinct accounts per replica, cold p95 | 6.58 s | 1.88 s |
+| 64 distinct accounts changing at once, p95 (add / remove) | 10.3 / 8.6 s | 3.53 / 2.92 s |
+| One account in 768 tabs, cold p95; mutation p95 | — | 0.52 s; ≤2.56 s |
+
+Every batch stayed within 128 owners × 256 window candidates (no historical IDs);
+duplicate tabs used one membership per replica, and all 768 views matched the
+reference (including expected-empty zero-match views) before and after mutations.
+Overload of 400 concurrent cold accounts on one replica served 64 correct views and
+answered 336 with explicit unavailability, never a wrong or broadened view.
+
+**Production image, 10,000 rich groups — passes.** The deployment fixture
+(three 2 GiB/one-CPU containers, nginx) with 256 distinct accounts and rich lineups
+passed every phase on image `sha256:926c1ec6…cdd`:
+
+| Observation | Result |
+| --- | --- |
+| Ordinary browse / write p95, 300 pooled samples each | 1.10 gate: 0.977× / 1.030× |
+| Initial public snapshot p95; publication p95 (3,840) | 159 ms; 3.12 s |
+| 256 accounts changing at once (768 tabs, all converged) | add p95 2.80 s; remove 1.79 s |
+| App container memory | 53–56 MiB |
+
+Shared-IP limits, skewed-replica rejection, SQL outage/recovery, drain and log
+privacy also passed. The fixture now pools three probe runs per phase: one
+100-sample run of this scenario measured write at 1.149× while five others measured
+0.86–1.09×. It also publishes a fresh membership target (a rich 10,000-group seed
+outlasts the ten-minute window) and retries explicit 503s on local reconnect, as
+browsers do. The single-process P1.2 harness, which also runs three replicas and
+the load generator in one process, took about 15 s for the same 256-account burst;
+production-image timing is the gate result.
+
+`saved_events` has no event-first index, so Saved lookups for many accounts cost
+about 5× Interested ones (17–20 vs 3.6 ms per 64 accounts × 256 events). An index
+would need a migration and was not added.
+
+The P1.3 soak and P1.4 browser runs below predate the 10,000-group accounting and
+membership changes.
+
+**P1.3 40-minute soak — passes except the write sub-gate.** 1,000 groups with natural
+ten-minute expiry and continuous replacement (about 4,000 publications), 704 SSE tabs
+spread 256/256/192, 64 fifteen-second fallback clients, count subscriptions of 20 or
+101 IDs, 3,840 filter/account/ID rotations and 1,229 private membership writes:
+
+- No growth: goroutines (about 531/531/404), live heap (12–16 MiB), container memory
+  (31–37 MiB), SQL connections (2 per replica), database sessions (7), proxy
+  connections (about 698), cached-cohort peaks (≤163) and owners (16). Bounds held.
+- Count cadence: 52,225 established intervals, all within 14.9–16.1 s, unaffected by
+  joins and rotations. 20,548 fallback requests had no failures.
+- Ordinary traffic against a no-live baseline at the **same data volume and write
+  workload**: browse 1.045× (pass), write 1.113× (6.17 vs 5.55 ms, **fail**), within
+  the known ±0.1 single-run variance but over 1.10. The write p95 was 0.80× the
+  start-of-soak baseline.
+- `/community` browse p95 doubled from 15.4 to 33.5 ms with or without live clients as
+  recommendations grew. Its `EXISTS` becomes a LooseScan of all active recommendations,
+  then a temporary table and filesort. This is an ordinary-feed scaling finding,
+  outside live activity, and is not changed here.
+
+The soak image predates the `membership.changed` protocol change below.
+
+**P1.4 browser-visible latency — passes after a fix.** Chromium, 1,000 rich groups,
+timing to the first rendered frame showing the confirmed server view:
+
+| Measurement | p95 |
+| --- | --- |
+| Warm public / warm personal / cold personal Apply | 29 / 44 / 63 ms |
+| Publication / removal commit to rendered | 2.95 / 2.96 s |
+| Membership change via another replica (add / remove) | 2.96 / 3.01 s |
+| Membership change via the same replica (add / remove) | 1.07 / 0.77 s (was 5.04–9.19 / 5.00 s) |
+| Restart cold start, public / personal (navigation to confirmed view) | 110 / 124 ms |
+| Idle-eviction cold start, public / personal (max of two) | 115 / 137 ms |
+
+Same-replica membership changes previously sent `unavailable`, so the browser waited
+4–5 s of outage backoff (doubling on repeats). The server now sends
+`membership.changed` and the client clears the view, then reconnects after
+250–750 ms. **Cold-start target, proposed but not yet agreed:** first confirmed view
+p95 ≤2 s after restart or idle eviction at the production window size, measured
+through the real ingress. These local timings exclude network and ingress.
+
+**P1.5 actual ingress — not run.** `TestLiveActivityIngress` checks flush timing and
+heartbeat cadence over HTTP/2 and HTTP/1.1, refused compression, idle timeouts,
+spoof-resistant client IPs (each replica limits separately, so expect the first 429
+between 61 and replicas × 60 + 1 starts) and drain/replacement routing. It needs an
+operator-owned staging URL and, for drain, a replica restart during its window.
+Also verify from a second network that a fresh client is not limited.
 
 ### Regression-gate investigation — 2026-10-20
 

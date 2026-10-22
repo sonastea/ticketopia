@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### 2026-10-21 — Part 5: P1 capacity, soak, latency and ingress gates
+
+- Add opt-in gates for distinct public filters, personalization with large histories,
+  a 40-minute mixed soak, browser-visible latency and actual-ingress verification.
+  Add process growth signals (goroutines, heap, SQL connections) to metrics logs.
+- Batch queued cold/invalidated accounts into shared membership assembly. At 4,000
+  rich groups, cold p95 drops from 6.58 to 1.25 s and mutation bursts from 10.3 to 3.3 s.
+- Send `membership.changed` for same-replica membership changes; browsers reconnect
+  quietly in 250–750 ms rather than with outage backoff (p95 1.07 s, was 5.0–9.2 s).
+- Intern city/facet strings and calibrate memory accounting to retained heap (rich
+  10,000 groups: 35 → 11 MiB charged), so real-lineup 10,000-group windows no longer
+  fail closed above about 4,475 groups; limits are unchanged.
+- Make long membership rebuilds resume and read two batches at once; hold the last
+  complete view (≤10 s) while a remote rebuild progresses; back off only on SQL
+  errors; keep worker reads out of request admission. The production-image
+  10,000-rich-group, 256-account scenario passes (membership p95 2.8 s).
+- Open: soak write p95 1.113× its same-volume baseline; ingress verification not run.
+  See the [rollout record](../live-activity-rollout.md#p1-rollout-gates--2026-10-21).
+
 ### 2026-10-20 — Part 5: operational measurement and deployment fixture
 
 - Add bounded, identity-free metrics for caches, work, SQL statements, timing,
@@ -60,37 +79,3 @@ Older entries: [archive](archive/live-community-activity/).
   to replace above-content activity with bounded top-right toast notifications.
 - Specify a **Happening Now** navigation page for recent public recommendations,
   with shared filters, native browsing, accessible dismissal and preserved pauses.
-
-### 2026-10-16 — Part 2: complete-window city and event-type filters
-
-- Add lightweight complete-window projection, stable bitmap slots, canonical shared
-  views, coalesced snapshots, immediate warm activity and bounded unavailable states.
-- Schema 18 persists city/category filters and projects titles without resetting
-  notification choices; reuse Community's literal MariaDB location collation.
-- Connect guest-local and conditional account-synced Apply/Reset, confirmed summaries,
-  explicit empty states, browser-filter reuse and native account controls.
-- Preserve independent counts, Overview/Back, draft/participation state and quiet
-  changes. Artist/venue, personal and radius filters remain explicitly unsupported.
-- See the [implemented guide](../live-community-activity.md#city-and-event-type-filters-part-2)
-  for bounds, local verification and populated-window baseline. Production stays off.
-- Pass 25 filter browser checks plus the existing 64-check live journey, real
-  MariaDB race regressions/full suite, vet, OpenAPI lint, generated builds and final
-  Docker validation. Record 100/1,000/10,000-group baselines and fail-closed overflow;
-  mark Part 2 complete locally, leaving Parts 3–6 unchecked.
-
-### 2026-10-16 — Part 1: default-on accounts and live preferences
-
-- Add dependency-aware availability and preserve explicit deployment kill switches.
-- Schema 17 enables notifications once for existing accounts and defaults new
-  accounts/live activity on, with revisioned preferences and pause provenance.
-  Channel permissions, subscriptions and delivery receipts remain independent.
-- Add owner-only conditional preference APIs and native enable/disable controls,
-  authenticated all-events snapshots/streams, batched credential/settings checks,
-  immediate local revocation, known-expiry closure and explicit paused states.
-- Preserve browser hiding, quiet reconnect, fallback and counts. Reject unfinished
-  filters. Production migration/rollout remains Part 5; see the [guide](../live-community-activity.md).
-- Verify real migration/rerun and credential-lifecycle tests plus 64 production-route
-  browser checks, including upgraded paused/unpaused accounts, native/JS-disabled
-  forms, conflict recovery, account switching, fallback and automated accessibility.
-- Pass the real-MariaDB race suite, vet, OpenAPI lint, generated build and Docker
-  validation; mark Part 1 complete locally. Later milestones remain unchecked.

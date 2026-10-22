@@ -84,8 +84,13 @@ type Update struct {
 	Snapshot    Snapshot
 	Counts      *Counts
 	Unavailable bool
+	// MembershipChanged marks an Unavailable update caused by the owner's own
+	// committed membership change: the view is cleared, then reconnected quietly
+	// rather than with outage backoff.
+	MembershipChanged bool
 }
 type subscriber struct {
+	held     time.Time // first skipped delivery while a rebuild is in progress
 	owner    string
 	ids      []string
 	ch       chan Update
@@ -105,6 +110,7 @@ type Service struct {
 	repo              Repository
 	mu                sync.Mutex
 	subs              map[*subscriber]struct{}
+	waiting           map[*waiter]struct{}
 	limit             int
 	cancel            context.CancelFunc
 	done              chan struct{}
@@ -129,7 +135,7 @@ type cachedView struct {
 
 func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Logger) *Service {
 	ctx, cancel := context.WithCancel(ctx)
-	s := &Service{repo: repo, subs: make(map[*subscriber]struct{}), limit: limit, cancel: cancel, done: make(chan struct{})}
+	s := &Service{repo: repo, subs: make(map[*subscriber]struct{}), waiting: map[*waiter]struct{}{}, limit: limit, cancel: cancel, done: make(chan struct{})}
 	s.projection = make(chan struct{}, 1)
 	s.jobs = make(chan struct{}, 2)
 	s.pending = make(chan struct{}, 64)
@@ -158,7 +164,7 @@ func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Log
 				case <-sub.ch:
 				default:
 				}
-				sub.ch <- Update{Unavailable: true}
+				sub.ch <- Update{Unavailable: true, MembershipChanged: true}
 			}
 		})
 	}
@@ -181,8 +187,6 @@ func (s *Service) FilteredSnapshot(ctx context.Context, filter Filters) (Snapsho
 // OwnerSnapshot accepts only a server-authenticated owner; public callers must
 // use FilteredSnapshot, which rejects personal connection predicates.
 func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filters) (Snapshot, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	select {
 	case s.pending <- struct{}{}:
 	default:
@@ -190,12 +194,31 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 		return Snapshot{}, ErrUnavailable
 	}
 	defer func() { <-s.pending }()
+	return s.ownerSnapshot(ctx, owner, filter)
+}
+
+// ownerSnapshot is the shared read without request admission. The delivery
+// worker uses it directly: pending admission bounds external requests, and a
+// reconnect burst filling it must not fail every stream's delivery.
+func (s *Service) ownerSnapshot(ctx context.Context, owner string, filter Filters) (Snapshot, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	f, err := NormalizeFilters(filter)
 	if err != nil {
 		return Snapshot{}, err
 	}
 	if f.Connections.Mode == "any" && owner == "" {
 		return Snapshot{}, ErrPreferences
+	}
+	if f.Connections.Mode == "any" {
+		// Register while waiting for the gate, so one assembly covers every
+		// queued cold or invalidated owner (bounded by pending admission and
+		// the worker's one in-flight read).
+		w := &waiter{owner, sourceMask(f)}
+		s.mu.Lock()
+		s.waiting[w] = struct{}{}
+		s.mu.Unlock()
+		defer func() { s.mu.Lock(); delete(s.waiting, w); s.mu.Unlock() }()
 	}
 	select {
 	case s.projection <- struct{}{}:
@@ -282,8 +305,11 @@ func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filter
 	}
 	if f.Connections.Mode == "any" {
 		if err := s.refreshMembership(ctx, owner, f); err != nil {
-			s.metrics.membershipFailed.Add(1)
-			return Snapshot{}, ErrUnavailable
+			if !errors.Is(err, errRebuilding) {
+				s.metrics.membershipFailed.Add(1)
+				err = ErrUnavailable
+			}
+			return Snapshot{}, err
 		}
 	}
 	return s.selectOwnerCached(ctx, f, owner)
@@ -563,7 +589,7 @@ func (s *Service) run(ctx context.Context) {
 		case now = <-tick.C:
 		}
 		if now.Sub(lastMetrics) >= 15*time.Second {
-			s.logger.Info().Interface("activity", s.Stats()).Msg("Live activity metrics")
+			s.logger.Info().Interface("activity", s.Stats()).Interface("process", s.ProcessStats()).Msg("Live activity metrics")
 			lastMetrics = now
 		}
 		select {
@@ -645,7 +671,7 @@ func (s *Service) run(ctx context.Context) {
 		// refresh and failure backoff. Caching a failed poll here kept broadcasting
 		// unavailable, closing every stream, after another reader had recovered.
 		started := time.Now()
-		snapshot, err := s.Snapshot(cycle)
+		snapshot, err := s.ownerSnapshot(cycle, "", DefaultPreferences().Filters)
 		if now.Sub(lastPoll) >= 2*time.Second {
 			lastPoll = now
 			if err != nil {
@@ -694,7 +720,7 @@ func (s *Service) run(ctx context.Context) {
 			view := snapshot
 			viewErr := err
 			if viewErr == nil {
-				view, viewErr = s.OwnerSnapshot(cycle, sub.owner, sub.filter)
+				view, viewErr = s.ownerSnapshot(cycle, sub.owner, sub.filter)
 			}
 			contentHash := view.ContentHash()
 			s.mu.Lock()
@@ -702,11 +728,27 @@ func (s *Service) run(ctx context.Context) {
 				s.mu.Unlock()
 				continue
 			}
+			membershipChanged := false
 			if sub.filter.Connections.Mode == "any" && (s.invalidAll || s.invalidMembers[sub.owner]) {
-				viewErr = ErrUnavailable
+				viewErr, membershipChanged = ErrUnavailable, true
 			}
+			// A newer revision is rebuilding for an account that had a complete
+			// view, or rebuild work consumed this cycle's deadline before this
+			// private view: keep the last view (as during the revision poll)
+			// for up to rebuildHold rather than closing the stream. Counts
+			// resume with the next delivery.
+			if !membershipChanged && sub.filter.Connections.Mode == "any" && viewErr != nil && (errors.Is(viewErr, errRebuilding) || (err == nil && cycle.Err() != nil)) {
+				if sub.held.IsZero() {
+					sub.held = now
+				}
+				if now.Sub(sub.held) < rebuildHold {
+					s.mu.Unlock()
+					continue
+				}
+			}
+			sub.held = time.Time{}
 			changed := contentHash != sub.previous
-			u := Update{Snapshot: view, Unavailable: viewErr != nil}
+			u := Update{Snapshot: view, Unavailable: viewErr != nil, MembershipChanged: membershipChanged}
 			if due && (regularCounts || sub.initial) {
 				c := Counts{AsOf: totals.AsOf, Items: []Count{}}
 				for _, id := range sub.ids {

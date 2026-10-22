@@ -1,6 +1,7 @@
 package activity
 
 import (
+	rtmetrics "runtime/metrics"
 	"sync/atomic"
 	"time"
 )
@@ -87,6 +88,25 @@ func (s *Service) Stats() Stats {
 		Failures:   map[string]uint64{"candidate_limit": m.candidateLimit.Load(), "memory_limit": m.memoryLimit.Load(), "queue_limit": m.queueLimit.Load(), "stream_limit": m.streamLimit.Load(), "projection_failed": m.projectionFailed.Load(), "membership_failed": m.membershipFailed.Load()},
 		Operations: map[string]TimingStats{"projection": m.projection.stats(), "selection": m.selection.stats(), "membership": m.membership.stats(), "counts": m.counts.stats(), "location": m.location.stats(), "cleanup": m.cleanup.stats(), "delivery": m.delivery.stats()},
 	}
+}
+
+// ProcessStats exposes process-wide growth signals for soak checks and rollout
+// observation without a debug endpoint: goroutines, live heap objects and the
+// shared SQL pool's open connections. Like Stats, it carries no identities.
+type ProcessStats struct {
+	Goroutines         uint64 `json:"goroutines"`
+	HeapBytes          uint64 `json:"heap_bytes"`
+	SQLOpenConnections int    `json:"sql_open_connections"`
+}
+
+func (s *Service) ProcessStats() ProcessStats {
+	samples := []rtmetrics.Sample{{Name: "/sched/goroutines:goroutines"}, {Name: "/memory/classes/heap/objects:bytes"}}
+	rtmetrics.Read(samples)
+	p := ProcessStats{Goroutines: samples[0].Value.Uint64(), HeapBytes: samples[1].Value.Uint64()}
+	if repo, ok := s.repo.(interface{ OpenConnections() int }); ok {
+		p.SQLOpenConnections = repo.OpenConnections()
+	}
+	return p
 }
 
 // Called under the projection gate, including on failed assembly and idle expiry.

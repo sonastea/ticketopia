@@ -286,6 +286,9 @@ func (a *api) liveStream(c echo.Context) error {
 	}
 	var previous [sha256.Size]byte
 	emit := func(u activity.Update) error {
+		if u.MembershipChanged {
+			return send("membership.changed", struct{}{})
+		}
 		if u.Unavailable {
 			return send("unavailable", struct{}{})
 		}

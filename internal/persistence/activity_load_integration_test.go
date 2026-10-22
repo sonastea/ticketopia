@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,8 +20,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/models"
 )
 
-// Opt-in deployment fixture: actual production image, three separate processes,
-// 2 GiB/one CPU each, a real nginx proxy and the isolated real-MariaDB schema.
+// Opt-in deployment load gate on the shared fixture (see activityDeployment).
 // No limiter bypass: nginx supplies controlled client IPs on its loopback-only
 // test listener. Never copy that header policy into a deployment proxy.
 func TestMariaDBActivityDeploymentLoad(t *testing.T) {
@@ -101,173 +98,19 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 		}
 	}
 
-	// Use the repository's Docker-shared local directory (macOS /var temporary
-	// paths need not be mounted into the Docker VM).
-	if err := os.MkdirAll("../../.local", 0755); err != nil {
-		t.Fatal(err)
-	}
-	dir, err := os.MkdirTemp("../../.local", "activity-load-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir, err = filepath.Abs(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Error(err)
-		}
-	})
-	docker := func(args ...string) string {
-		t.Helper()
-		cmd := exec.CommandContext(t.Context(), "docker", args...)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("docker %s: %v\n%s", args[0], err, out)
-		}
-		return strings.TrimSpace(string(out))
-	}
-	network := os.Getenv("LIVE_ACTIVITY_LOAD_NETWORK")
-	if network == "" {
-		network = "ticketopia-db_default"
-	}
-	dbhost := os.Getenv("LIVE_ACTIVITY_LOAD_DB_HOST")
-	if dbhost == "" {
-		dbhost = "mariadb"
-	}
-	ca, err := os.ReadFile(f.runtime.CAFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "ca.crt"), ca, 0644); err != nil {
-		t.Fatal(err)
-	}
-	env := fmt.Sprintf("PERSISTENCE_MODE=mariadb\nDB_HOST=%s\nDB_PORT=3306\nDB_NAME=%s\nDB_USER=%s\nDB_PASSWORD=%s\nDB_TLS_CA_FILE=/load/ca.crt\nAUTH_ENABLED=true\nAUTH_BASE_URL=http://localhost\nGOOGLE_CLIENT_ID=fixture\nGOOGLE_CLIENT_SECRET=fixture\nLIVE_ACTIVITY_ENABLED=true\nIP_GEOLOCATION_ENABLED=false\nTRUSTED_PROXY_CIDRS=172.16.0.0/12,192.168.0.0/16\n", dbhost, f.runtime.Database, f.runtime.User, f.runtime.Password)
-	if err := os.WriteFile(filepath.Join(dir, "app.env"), []byte(env), 0600); err != nil {
-		t.Fatal(err)
-	}
-	prefix := strings.ReplaceAll(f.runtime.Database, "_", "-")
-	profile := newLoadProfile(t, f, "ticketopia-db-mariadb-1")
-	containers := []string{}
-	t.Cleanup(func() {
-		for i := len(containers) - 1; i >= 0; i-- {
-			cmd := exec.Command("docker", "rm", "-f", containers[i])
-			if out, err := cmd.CombinedOutput(); err != nil {
-				t.Errorf("container cleanup: %v %s", err, out)
-			}
-		}
-	})
-	for i := range 3 {
-		id := prefix + "-" + strconv.Itoa(i)
-		containers = append(containers, id)
-		docker("run", "-d", "--name", id, "--network", network, "--memory", "2g", "--cpus", "1", "--env-file", filepath.Join(dir, "app.env"), "-v", filepath.Join(dir, "ca.crt")+":/load/ca.crt:ro", image)
-	}
-	config := "worker_rlimit_nofile 8192; events { worker_connections 4096; }\nhttp { access_log off; upstream apps {"
-	for i := range 3 {
-		config += fmt.Sprintf("server %s-%d:8080;", prefix, i)
-	}
-	config += "} server { listen 8080; proxy_http_version 1.1; proxy_set_header Connection ''; proxy_set_header X-Forwarded-For $http_x_load_ip; proxy_buffering off; proxy_read_timeout 40s;"
-	for i := range 3 {
-		config += fmt.Sprintf("location /r%d/ { proxy_pass http://%s-%d:8080/; }", i, prefix, i)
-	}
-	config += "location / { proxy_pass http://apps; } } }"
-	if err := os.WriteFile(filepath.Join(dir, "nginx.conf"), []byte(config), 0644); err != nil {
-		t.Fatal(err)
-	}
-	proxy := prefix + "-proxy"
-	containers = append(containers, proxy)
-	docker("run", "-d", "--name", proxy, "--network", network, "--memory", "128m", "--cpus", "0.5", "--ulimit", "nofile=8192:8192", "-p", "127.0.0.1::8080", "-v", filepath.Join(dir, "nginx.conf")+":/etc/nginx/nginx.conf:ro", "nginx:1.28-alpine")
-	base := "http://" + docker("port", proxy, "8080/tcp")
-	t.Cleanup(func() {
-		if !t.Failed() {
-			return
-		}
-		// Capture bounded, identity-free diagnostics before removing containers,
-		// including failures which abort before the final telemetry assertions.
-		for _, container := range containers[:3] {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			out, err := exec.CommandContext(ctx, "docker", "logs", container).CombinedOutput()
-			cancel()
-			if err != nil {
-				t.Log("load diagnostics unavailable", err)
-				continue
-			}
-			lines := []string{}
-			for _, line := range strings.Split(string(out), "\n") {
-				if strings.Contains(line, "Live activity metrics") || strings.Contains(line, "Live activity generation unavailable") {
-					lines = append(lines, line)
-				}
-			}
-			for _, line := range lines[max(0, len(lines)-3):] {
-				t.Logf("%s %s", container, line)
-			}
-		}
-	})
-	client := &http.Client{Transport: &http.Transport{MaxIdleConns: 1024, MaxIdleConnsPerHost: 1024, ResponseHeaderTimeout: 10 * time.Second}}
-	t.Cleanup(client.CloseIdleConnections)
-	request := func(ctx context.Context, method, path, ip, credential, body string) (*http.Response, error) {
-		req, err := http.NewRequestWithContext(ctx, method, base+path, strings.NewReader(body))
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("X-Load-IP", ip)
-		if credential != "" {
-			req.Header.Set("Authorization", "Bearer "+credential)
-		}
-		if body != "" {
-			req.Header.Set("Content-Type", "application/json")
-		}
-		return client.Do(req)
-	}
-	for i := range 3 {
-		deadline := time.Now().Add(30 * time.Second)
-		for {
-			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
-			resp, err := request(ctx, "GET", fmt.Sprintf("/r%d/readyz", i), "198.51.100.1", "", "")
-			cancel()
-			ready := err == nil && resp.StatusCode == 200
-			if resp != nil {
-				resp.Body.Close()
-			}
-			if ready {
-				break
-			}
-			if time.Now().After(deadline) {
-				t.Fatalf("replica not ready: %s", docker("logs", containers[i]))
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
-	t.Logf("image=%s groups=%d app_limits=3x2GiB/1CPU proxy=128MiB/0.5CPU docker=%s", image, n, docker("info", "--format", "{{.NCPU}} CPUs {{.MemTotal}} bytes"))
-	t.Logf("image_id=%s distinct_accounts=%t rich=%s", docker("image", "inspect", image, "--format", "{{.Id}}"), distinct, os.Getenv("LIVE_ACTIVITY_LOAD_RICH"))
-	t.Logf("database=%s", docker("inspect", "ticketopia-db-mariadb-1", "--format", "{{.Config.Image}} memory={{.HostConfig.Memory}} nanocpus={{.HostConfig.NanoCpus}}"))
-	profile.containers = []string{containers[0], proxy}
-	// Probe ordinary traffic from its own container on the deployment network,
-	// through the proxy. A host-side probe shares the test process and Docker's
-	// host port forwarding with the 768 load-generator streams; on 2026-10-20
-	// that path alone added ~2ms to write p95, even for an unmodified image.
-	probe := filepath.Join(dir, "loadprobe")
-	build := exec.CommandContext(t.Context(), "go", "build", "-o", probe, "./testdata/loadprobe")
-	build.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+docker("version", "--format", "{{.Server.Arch}}"), "CGO_ENABLED=0")
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("load probe build: %v\n%s", err, out)
-	}
+	d := startActivityDeployment(t, f, image, "")
+	docker, request, containers, proxy := d.docker, d.request, d.containers, d.proxy
+	t.Logf("groups=%d distinct_accounts=%t rich=%s", n, distinct, os.Getenv("LIVE_ACTIVITY_LOAD_RICH"))
+	// Pool three in-network probe runs (300 samples per operation): one run's
+	// p95 varies by about ±0.1 between runs, too coarse for a 10% gate.
 	ordinary := func(label string) [2]time.Duration {
-		profile.begin()
-		phase := time.Now()
-		defer func() { profile.end(label, time.Since(phase)) }()
-		var result struct {
-			Browse  time.Duration `json:"browse_p95"`
-			Write   time.Duration `json:"write_p95"`
-			Samples int           `json:"samples"`
+		var browse, write []time.Duration
+		for i := range 3 {
+			result := d.ordinary(fmt.Sprintf("%s-%d", label, i), token)
+			browse = append(browse, result.BrowseSamples...)
+			write = append(write, result.WriteSamples...)
 		}
-		out := docker("run", "--rm", "--network", network, "--cpus", "1", "--memory", "128m", "-e", "LOAD_PROBE_TOKEN="+token, "-v", probe+":/loadprobe:ro", "gcr.io/distroless/static-debian12:nonroot", "/loadprobe", "http://"+proxy+":8080/r0")
-		// The result is the final line; a first run may precede it with pull output.
-		if err := json.Unmarshal([]byte(out[strings.LastIndex(out, "\n")+1:]), &result); err != nil || result.Samples != 100 {
-			t.Fatal("invalid load probe result", err)
-		}
-		return [2]time.Duration{result.Browse, result.Write}
+		return [2]time.Duration{durationPercentile(browse, 95), durationPercentile(write, 95)}
 	}
 	baseline := ordinary("baseline")
 
@@ -402,7 +245,7 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 	}
 	loaded := ordinary("loaded")
 	for i, label := range []string{"browse", "write"} {
-		t.Logf("ordinary %s p95 baseline=%s loaded=%s ratio=%.3f samples=100 (in-network probe via proxy)", label, baseline[i], loaded[i], float64(loaded[i])/float64(baseline[i]))
+		t.Logf("ordinary %s p95 baseline=%s loaded=%s ratio=%.3f samples=300 pooled (in-network probe via proxy)", label, baseline[i], loaded[i], float64(loaded[i])/float64(baseline[i]))
 		if loaded[i] > baseline[i]*11/10 {
 			t.Errorf("ordinary %s exceeds 10%% regression gate", label)
 		}
@@ -541,6 +384,14 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 			wait(s, 5*time.Second, func(f frame) bool { return f.event == "activity.snapshot" && len(f.snapshot.Items) == 0 })
 		}
 	}
+	// Publish a fresh membership target: a rich 10,000-group seed takes longer
+	// than the ten-minute window, so the first seeded group has expired by now.
+	target := savedDetail("LoadMembership")
+	membershipWriter := p.Recommendations()
+	membershipWriter.EnableLiveActivity(true)
+	if _, _, err := membershipWriter.Set(t.Context(), owner.ID, target, ""); err != nil {
+		t.Fatal(err)
+	}
 	for _, method := range []string{"PUT", "DELETE"} {
 		body := ""
 		want := 0
@@ -557,7 +408,7 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 			starts <- struct{}{}
 			wg.Go(func() {
 				defer func() { <-starts }()
-				resp, err := request(t.Context(), method, "/r0/api/v1/me/event-interests/ticketmaster:LiveFilter_0", "203.0.113.20", privateTokens[tab], body)
+				resp, err := request(t.Context(), method, "/r0/api/v1/me/event-interests/"+target.Item.ID, "203.0.113.20", privateTokens[tab], body)
 				if err != nil {
 					t.Error(err)
 					return
@@ -571,25 +422,63 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 		}
 		wg.Wait()
 		// Local invalidation intentionally clears and closes the stream. Exercise
-		// the same quiet reconnect as the browser; remote replicas use revisions.
+		// the same quiet reconnect as the browser, which also retries an explicit
+		// 503 during a burst; remote replicas use revisions.
+		var refused atomic.Int64
 		for tab := range 256 {
 			starts <- struct{}{}
 			wg.Go(func() {
 				defer func() { <-starts }()
 				all[tab].cancel()
-				s, err := open("/r0/api/v1/me/community/activity/stream", fmt.Sprintf("198.19.0.%d", tab), privateTokens[tab])
-				if err != nil {
-					t.Error(err)
-					return
+				deadline := time.Now().Add(15 * time.Second)
+				for {
+					s, err := open("/r0/api/v1/me/community/activity/stream", fmt.Sprintf("198.19.0.%d", tab), privateTokens[tab])
+					if err == nil {
+						all[tab] = s
+						return
+					}
+					refused.Add(1)
+					if time.Now().After(deadline) {
+						t.Error(err)
+						return
+					}
+					time.Sleep(time.Second)
 				}
-				all[tab] = s
 			})
 		}
 		wg.Wait()
+		// Record every tab's outcome per replica; the gate below is p95 ≤5s and
+		// no tab may end or miss the change.
 		membershipLatencies := []time.Duration{}
-		for _, s := range all {
-			f := wait(s, 5*time.Second, func(f frame) bool { return f.event == "activity.snapshot" && len(f.snapshot.Items) == want })
-			membershipLatencies = append(membershipLatencies, f.at.Sub(started))
+		outcomes := [3]map[string]int{{}, {}, {}}
+		deadline := time.Now().Add(15 * time.Second)
+		for i, s := range all {
+			outcome := "timeout"
+		waiting:
+			for {
+				select {
+				case f, ok := <-s.frames:
+					if !ok {
+						outcome = "closed"
+						break waiting
+					}
+					if f.event == "unavailable" {
+						outcomes[i/256]["unavailable frame"]++
+					}
+					if f.event == "activity.snapshot" && len(f.snapshot.Items) == want {
+						outcome = "converged"
+						membershipLatencies = append(membershipLatencies, f.at.Sub(started))
+						break waiting
+					}
+				case <-time.After(time.Until(deadline)):
+					break waiting
+				}
+			}
+			outcomes[i/256][outcome]++
+		}
+		t.Logf("membership %s outcomes by replica: %v; refused local reconnects retried: %d", method, outcomes, refused.Load())
+		if len(membershipLatencies) != len(all) {
+			t.Fatalf("membership %s: %d/%d tabs observed the change", method, len(membershipLatencies), len(all))
 		}
 		slices.Sort(membershipLatencies)
 		p95 := membershipLatencies[(len(membershipLatencies)*95-1)/100]
