@@ -1,6 +1,7 @@
 package home
 
 import "fmt"
+import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/views/layouts"
 
 templ HappeningNow(p HappeningNowPage) {
@@ -12,25 +13,28 @@ templ HappeningNow(p HappeningNowPage) {
 			if !p.Enabled {
 				<p>Live activity is unavailable on this server.</p>
 			} else {
-				<p class="field-note" data-live-summary>{ p.summary() }</p>
-				<form id="live-filter-form" class="account-form" method={ happeningMethod(p.SignedIn) } action={ happeningAction(p.SignedIn) } data-live-filter-form>
-					if p.SignedIn {
-						<input type="hidden" name="csrf_token" value={ p.CSRF }/>
-						<input type="hidden" name="revision" value={ fmt.Sprint(p.Revision) }/>
-						<input type="hidden" name="return_to" value="/happening-now"/>
-						if p.LiveEnabled {
-							<input type="hidden" name="enabled" value="on"/>
+				<div class="filter-bar live-filter-bar">
+					<p class="field-note" data-live-summary>{ p.summary() }</p>
+					<form id="live-filter-form" class="account-form" method={ happeningMethod(p.SignedIn) } action={ happeningAction(p.SignedIn) } data-live-filter-form>
+						if p.SignedIn {
+							<input type="hidden" name="csrf_token" value={ p.CSRF }/>
+							<input type="hidden" name="revision" value={ fmt.Sprint(p.Revision) }/>
+							<input type="hidden" name="return_to" value="/happening-now"/>
+							if p.LiveEnabled {
+								<input type="hidden" name="enabled" value="on"/>
+							}
 						}
-					}
-					@layouts.LiveFilterFields(p.editingFilters(), p.Categories, p.Editor)
-				</form>
-				<div class="account-actions">
-					<button type="button" class="text-link" data-live-hide hidden>Hide activity toasts</button>
-					<button type="button" class="text-link" data-live-show hidden>Show activity toasts</button>
-					<a href={ templ.URL(p.ReturnURL) } class="text-link" data-live-refresh>Refresh</a>
+						@layouts.LiveFilterFields(p.editingFilters(), p.Categories, p.Editor)
+					</form>
+					<div class="account-actions">
+						<button type="button" class="text-link" data-live-hide hidden>Hide activity toasts</button>
+						<button type="button" class="text-link" data-live-show hidden>Show activity toasts</button>
+						<a href={ templ.URL(p.ReturnURL) } class="text-link" data-live-refresh>Refresh</a>
+					</div>
 				</div>
 				<p class="field-note" data-live-paused hidden?={ !p.Paused }>Live activity is paused or disabled. <a class="text-link" href="/me/preferences">Notification preferences</a></p>
 				<section data-live-details hidden?={ p.Paused } aria-label="Recent activity">
+					<p class="empty-display" data-live-empty-state hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 }>All quiet right now.</p>
 					<p class="field-note" data-live-connection>
 						if p.Error != "" {
 							{ p.Error }
@@ -44,19 +48,38 @@ templ HappeningNow(p HappeningNowPage) {
 							Recent public recommendations
 						}
 					</p>
-					<button type="submit" form="live-filter-form" name="filter_action" value="reset" formnovalidate class="text-link" data-live-empty-reset hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || p.Filters.Unrestricted() }>Reset filters</button>
-					<a href="/community" class="text-link" data-live-empty-community hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || !p.Filters.Unrestricted() }>Browse earlier recommendations</a>
+					<button type="submit" form="live-filter-form" name="filter_action" value="reset" formnovalidate class="action live-empty-action" data-live-empty-reset hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || p.Filters.Unrestricted() }>Reset filters</button>
+					<a href="/community" class="action live-empty-action" data-live-empty-community hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || !p.Filters.Unrestricted() }>Browse earlier recommendations</a>
 					if !p.Snapshot.AsOf.IsZero() {
 						<p class="field-note">Snapshot updated <time datetime={ p.Snapshot.AsOf.Format("2006-01-02T15:04:05Z07:00") }>{ p.Snapshot.AsOf.UTC().Format("15:04:05 UTC") }</time>. Refresh for the latest snapshot; live updates appear when connected.</p>
 					}
 					<button type="button" class="text-link" data-live-updates hidden></button>
 					<span data-live-badge class="sr-only"></span>
-					<ul data-live-list>
+					// Cards added live have no stored artwork yet; they reuse this fallback.
+					<template data-live-art>
+						<div class="event-art">@EventImage(models.Event{}, false)
+</div>
+					</template>
+					<ul class="live-cards" data-live-list>
 						for _, item := range p.Snapshot.Items {
-							<li data-id={ item.EventID }>
-								<span data-live-attribution>{ activityAttribution(item) }</span>
-								<a class="text-link" data-event-link data-live-event-link data-id={ item.EventID } href={ templ.URL(eventURL(item.EventID, "overview", p.ReturnURL)) }>{ item.EventTitle }</a>
-								<span class="field-note" data-live-meta> · { item.City } · { p.relativeTime(item) }</span>
+							<li class="live-card" data-id={ item.EventID }>
+								if event, ok := p.Events[item.EventID]; ok {
+									<div class="event-art">
+										@EventImage(event, false)
+										<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
+									</div>
+								} else {
+									<div class="event-art">@EventImage(models.Event{}, false)
+</div>
+								}
+								<div class="live-card-copy">
+									<p class="byline"><span class="avatar" aria-hidden="true" data-live-avatar>{ liveInitials(item) }</span><span data-live-attribution>{ activityAttribution(item) }</span></p>
+									<a class="text-link live-card-link" data-event-link data-live-event-link data-id={ item.EventID } href={ templ.URL(eventURL(item.EventID, "overview", p.ReturnURL)) }>{ item.EventTitle }</a>
+									if event, ok := p.Events[item.EventID]; ok {
+										<p class="event-date">{ startLabel(event.Start) }</p>
+									}
+									<p class="field-note" data-live-meta>{ p.meta(item) }</p>
+								</div>
 							</li>
 						}
 					</ul>

@@ -59,6 +59,7 @@ func Execute(ctx context.Context) int {
 		logger.Error().Err(err).Msg("Invalid Ticketmaster configuration")
 		return 1
 	}
+	providerConfig.Tints = discovery.NewTints(nil)
 	var historyRepository *persistence.HistoryRepository
 	var catalogRepository *persistence.DiscoveryRepository
 	authConfig, err := accounts.ConfigFromEnv()

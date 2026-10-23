@@ -22,6 +22,9 @@ type Event struct {
 	Classifications []Classification `json:"classifications"`
 	Info            string           `json:"info"`
 	PleaseNote      string           `json:"please_note"`
+	// Tint is an artwork-derived "#rrggbb" header colour, computed once when the
+	// event is cached or stored. Empty means no usable colour; use the brand.
+	Tint string `json:"tint,omitempty"`
 }
 
 type Source struct {

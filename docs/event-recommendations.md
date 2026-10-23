@@ -72,8 +72,12 @@ category filters. One active endorsement is sufficient. Each entry shows the act
 endorsement count, up to three named reasons, and a link to the full paginated list.
 Artwork and event title open Overview together, preserving the filtered collection
 or public-profile return page. Named **Recommendations** and full-list links remain
-direct entries. Event/date/venue lead attribution and reasons; rows do not repeat
-Tickets/Save for each author. The public audience sits beside the publish/save
+direct entries. Each event is a flat bordered card: artwork with the ticket-stub
+date chip, then event/date/venue, then each author's reason as a pull quote with an
+initials circle and linked name, then price/status/category facts. Cards do not
+repeat Tickets/Save for each author. Filters sit in one compact bar, and empty
+states lead with a large display line and a primary action. Conversations use the
+same cards, quoting the question or tip. The public audience sits beside the publish/save
 action in the single native composer.
 Previews sort by original publication time and binary account ID descending. Events
 sort by immutable **first-recommendation time**, then binary event ID descending,

@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/a-h/templ"
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -175,13 +177,34 @@ func recommendationCountLabel(count int) string {
 	}
 	return "recommendations"
 }
-func (p CommunityPage) hasCategory() bool {
-	for _, category := range p.Categories {
-		if category.ID == p.Filters.CategoryID {
+
+// CommunityFilterBar is the shared compact filter form for Community lists.
+type CommunityFilterBar struct {
+	Action, Prefix, Label     string
+	City, Country, CategoryID string
+	Categories                []models.Category
+}
+
+func (f CommunityFilterBar) hasCategory() bool {
+	for _, category := range f.Categories {
+		if category.ID == f.CategoryID {
 			return true
 		}
 	}
 	return false
+}
+
+// initials draws a profile's avatar letters from its first and last words.
+func initials(name string) string {
+	words := strings.Fields(name)
+	if len(words) == 0 {
+		return ""
+	}
+	letter := func(word string) string { r, _ := utf8.DecodeRuneInString(word); return string(unicode.ToUpper(r)) }
+	if len(words) == 1 {
+		return letter(words[0])
+	}
+	return letter(words[0]) + letter(words[len(words)-1])
 }
 func returnOrigin(raw string) string {
 	u, err := url.Parse(raw)
@@ -460,6 +483,21 @@ func transitionStyle(part, id string) templ.SafeCSS {
 	return templ.SafeCSS("view-transition-name:" + name.String())
 }
 
+// tintStyle carries the stored artwork colour into the event header. Only a
+// strict #rrggbb value is emitted; anything else keeps the brand fallback.
+func tintStyle(event models.Event) templ.SafeCSS {
+	t := event.Tint
+	if len(t) != 7 || t[0] != '#' {
+		return ""
+	}
+	for _, r := range t[1:] {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f') {
+			return ""
+		}
+	}
+	return templ.SafeCSS("--event-tint:" + t)
+}
+
 func datePart(start models.EventStart, format string) string {
 	if start.LocalDate != nil && !start.DateTBA && !start.DateTBD {
 		if date, err := time.Parse(time.DateOnly, *start.LocalDate); err == nil {
@@ -540,6 +578,53 @@ func categoryFilterLabel(page SearchPage) string {
 		return name + " · " + page.Filters.GenreID
 	}
 	return name
+}
+
+type dateChip struct {
+	Label, Href string
+	Current     bool
+}
+
+func dateChips(page SearchPage) []dateChip { return dateChipsAt(page, time.Now()) }
+
+// Chips are plain links to start_date/end_date URLs that keep the other
+// filters. Only the first matching range is marked current.
+func dateChipsAt(page SearchPage, now time.Time) []dateChip {
+	chips := []dateChip{}
+	matched := false
+	for _, p := range discovery.DatePresets(searchToday(page.Events.Items, now)) {
+		current := !matched && page.Filters.StartDate == p.StartDate && page.Filters.EndDate == p.EndDate
+		matched = matched || current
+		chips = append(chips, dateChip{Label: p.Label, Href: "/?" + page.Filters.WithDates(p.StartDate, p.EndDate).Values().Encode(), Current: current})
+	}
+	return chips
+}
+
+func chipCurrent(current bool) string {
+	if current {
+		return "true"
+	}
+	return "false"
+}
+
+// searchToday takes the calendar day in the browsed city's time zone, read
+// from its events, so "Tonight" in Los Angeles is not the server's UTC date.
+func searchToday(events []models.Event, now time.Time) time.Time {
+	for _, event := range events {
+		zone := ""
+		if event.Start.Timezone != nil {
+			zone = *event.Start.Timezone
+		} else if len(event.Venues) > 0 {
+			zone = event.Venues[0].Timezone
+		}
+		if zone == "" {
+			continue
+		}
+		if loc, err := time.LoadLocation(zone); err == nil {
+			return now.In(loc)
+		}
+	}
+	return now.UTC()
 }
 
 func cityLabel(page SearchPage) string {

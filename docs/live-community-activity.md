@@ -214,7 +214,15 @@ Happening Now is a tab in Community (after Recommendations and Conversations),
 not a main navigation destination: during the pilot its ten-minute window is
 usually empty. Main navigation marks Community current there; toasts and
 Preferences also link to it. It shows up to 20 event groups with real Overview
-links and browsing return context. An unfiltered empty view explains the window
+links and browsing return context. Groups are compact cards with an initials
+circle (the chosen first name's initial, the count for groups, or an empty
+circle for Someone). On the server render, artwork, the ticket-stub date chip
+and the date line come from one bounded, provider-free read of those events'
+stored snapshots (`discovery.Service.StoredEvents`, at most 50 IDs). The live
+DTO is unchanged, so cards added live use fallback art until the next render,
+and no recommendation reason is shown, because next to "Someone" it could
+identify the author. Scope summary, filters and Refresh share one compact bar.
+Empty views lead with a large display line. An unfiltered empty view explains the window
 and links to earlier Community recommendations. New rows wait behind **Show N new updates**;
 withdrawals, name clearing and expiry apply immediately. No duplicate toasts appear
 there. A filtered empty view offers Reset filters explicitly.

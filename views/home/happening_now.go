@@ -12,12 +12,15 @@ import (
 type HappeningNowPage struct {
 	Enabled, Paused, SignedIn, LiveEnabled bool
 	Snapshot                               activity.Snapshot
-	Filters                                activity.Filters
-	DraftFilters                           *activity.Filters
-	Editor                                 layouts.LiveFilterEditor
-	Categories                             []models.Category
-	Revision                               uint64
-	CSRF, ReturnURL, Error                 string
+	// Events holds stored snapshots for the rendered items' artwork and dates.
+	// Missing entries render fallback art; the live payload never carries them.
+	Events                 map[string]models.Event
+	Filters                activity.Filters
+	DraftFilters           *activity.Filters
+	Editor                 layouts.LiveFilterEditor
+	Categories             []models.Category
+	Revision               uint64
+	CSRF, ReturnURL, Error string
 }
 
 func (p HappeningNowPage) summary() string {
@@ -81,6 +84,25 @@ func activityAttribution(item activity.Item) string {
 		return *item.ActorFirstName + " recommended "
 	}
 	return "Someone recommended "
+}
+
+// liveInitials mirrors live-activity.js: a count for groups, the first
+// name's initial, or an empty (anonymous) circle for Someone.
+func liveInitials(item activity.Item) string {
+	if item.RecentRecommendations > 1 {
+		return fmt.Sprint(item.RecentRecommendations)
+	}
+	if item.ActorFirstName != nil {
+		return initials(*item.ActorFirstName)
+	}
+	return ""
+}
+
+func (p HappeningNowPage) meta(item activity.Item) string {
+	if item.City == "" {
+		return p.relativeTime(item)
+	}
+	return item.City + " · " + p.relativeTime(item)
 }
 
 func (p HappeningNowPage) relativeTime(item activity.Item) string {

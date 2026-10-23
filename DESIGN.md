@@ -15,6 +15,8 @@ colors:
   line: "#dfdae2"
   control-line: "#938b99"
   date-surface: "#e8d2db"
+  brand-tint: "oklch(0.66 0.080387 337.297)"
+  event-tint-surface: "color-mix(in oklch, var(--event-tint) 18%, var(--surface))"
   error: "#a22b39"
   error-bg: "color-mix(in oklch, var(--error) 6%, var(--surface))"
   warning: "#795318"
@@ -22,10 +24,16 @@ colors:
   success: "#286247"
 typography:
   display:
-    fontFamily: "Manrope, sans-serif"
+    fontFamily: "Bricolage Grotesque, Manrope, sans-serif"
     fontSize: "clamp(1.75rem, 1.5rem + .625vw, 2rem)"
     fontWeight: 800
     lineHeight: 1.25
+    letterSpacing: "-.02em"
+  empty-display:
+    fontFamily: "Manrope, sans-serif"
+    fontSize: "clamp(1.75rem, 1.25rem + 2.5vw, 3rem)"
+    fontWeight: 800
+    lineHeight: 1.1
     letterSpacing: "-.035em"
   headline:
     fontFamily: "Manrope, sans-serif"
@@ -112,7 +120,7 @@ typography:
     lineHeight: 1.6
     letterSpacing: "normal"
   date-number:
-    fontFamily: "Manrope, sans-serif"
+    fontFamily: "Bricolage Grotesque, Manrope, sans-serif"
     fontSize: "1.375rem"
     fontWeight: 800
     lineHeight: 1.2
@@ -263,18 +271,18 @@ gets quieter. A selected preview has one outer boundary and a labeled return
 action, rather than nested cards or an unexplained close icon.
 
 Modernity comes from precise alignment, readable type, and fewer competing
-surfaces. Retain the plum identity, Manrope, provider photography, and dusty-rose
-date indexes; avoid ornamental shadows, gradients, or motion as substitutes for
+surfaces. Retain the plum identity, Manrope with its one display face, provider
+photography, and dusty-rose date indexes; avoid ornamental shadows, gradients, or motion as substitutes for
 structure. Apply this hierarchy to future features before adding new controls.
 
 Local frequency makes event discovery feel personally assembled: the presence of a record shop, the intimacy of a mixtape, and the clarity of an everyday planning tool. Deep plum actions and pale-plum selection sit within light-stone navigation and near-white reading surfaces; compact dusty-rose date indexes give the collection a warm, human rhythm.
 
-Bold, readable Manrope and real provider photography carry the personality. Familiar labeled controls keep everyday planning practical: useful dates, venues, prices, and clear availability matter more than promotional decoration. Density changes with the available space while the event identity stays recognizable.
+Bold, readable Manrope, a Bricolage Grotesque display voice for titles and dates, and real provider photography carry the personality. Familiar labeled controls keep everyday planning practical: useful dates, venues, prices, and clear availability matter more than promotional decoration. Density changes with the available space while the event identity stays recognizable.
 
 **Key Characteristics:**
 - Deep plum actions and pale-plum selection against light-stone navigation, near-white paper, and white surfaces.
 - Dusty-rose date indexing and neutral, honest availability labels.
-- One expressive, readable Manrope family with substantial heading weights.
+- Readable Manrope for everything except page titles, the event title and date numbers, which use Bricolage Grotesque.
 - Record-sleeve provider imagery and compact, aligned event facts.
 - Border-only depth, restrained state transitions, and visible keyboard focus.
 
@@ -331,18 +339,20 @@ text rather than white.
 
 ## Typography
 
-**Display and body font:** Manrope, with a sans-serif fallback. The variable font is self-hosted at `views/assets/fonts/manrope.ttf`, supports the shipped weights (400–800), uses `font-display: swap`, and is distributed with its SIL OFL license. There is no separate mono or display family.
+**Body font:** Manrope, with a sans-serif fallback. The variable font is self-hosted at `views/assets/fonts/manrope.ttf`, supports the shipped weights (400–800), uses `font-display: swap`, and is distributed with its SIL OFL license.
+
+**Display font:** Bricolage Grotesque (SIL OFL), exposed as `--font-display` with a Manrope fallback. It is self-hosted and preloaded as a 65 KB Latin subset (`views/assets/fonts/bricolage-grotesque-latin.woff2`): width pinned to 100, weights 600–800, the optical-size axis kept, and tabular/lining figures retained. Its ink-trap grotesque shapes give titles a record-sleeve voice next to Manrope's rounded text. Use it **only** for page titles (`h1`), the event title (the event page heading and the preview heading) and date numbers on ticket-stub markers. Row titles, empty-state lines, navigation, controls and prose stay Manrope. Display sizes keep the existing fluid tokens; `--text-display` spans 1.75–2rem (1.14×), within the 2.5× maximum. Display headings use −.02em tracking, which suits the face's tighter display optical size. Sourcing and subsetting commands are in [`views/assets/fonts/README.md`](views/assets/fonts/README.md). There is no mono family.
 
 **Character:** rounded, direct, and substantial. Tight heading tracking gives short titles confidence; ordinary casing and generous body leading keep long event information readable. The hierarchy is role-based, not a manufactured modular scale.
 
 ### Hierarchy
-- **Display:** `typography.display` for page headings, fluid from 1.75rem to 2rem. Event-page headings use the separate `--text-event-heading` token, fluid from 1.5rem to 1.75rem. Both use rem bounds and rem + viewport interpolation rather than font-size breakpoint overrides.
+- **Display:** `typography.display` (Bricolage Grotesque) for page headings, fluid from 1.75rem to 2rem. Event-page headings use the separate `--text-event-heading` token, fluid from 1.5rem to 1.75rem. Both use rem bounds and rem + viewport interpolation rather than font-size breakpoint overrides.
 - **Headline:** `typography.headline` for section and preview headings. Event-content section headings use 1.125rem; destination-state headings use 1.5rem.
 - **Title:** `typography.title` for supporting headings; `typography.event-title` for result titles, with the more open leading needed by long names.
 - **Body:** `typography.body` for the base reading size; `typography.body-small` for event descriptions. Observed reading measures are 65ch for introductions, 70ch for event prose, and 75ch for source notes.
 - **Label / action:** `typography.label` for field labels and `typography.action` for primary/secondary controls. Labeled filter inputs remain at the body size with weight 500; search uses ordinary body weight.
 - **Navigation:** `typography.navigation` for full navigation (weight 550), with `typography.navigation-current` for the current destination (weight 700). Group labels use `typography.navigation-group`; rail/bottom-nav labels use .6875rem and the same normal/current weights. Collapsed desktop labels remain accessible and appear as .75rem tooltips (weight 650). Event-section links use quiet-action sizing and weight 650, rising to 750 when current, with body leading.
-- **Metadata:** `typography.metadata` for supporting facts and freshness; `typography.small-label` for date lines. Quiet participation uses `typography.quiet-action`, and neutral availability labels use `typography.availability`. Date numbers use `typography.date-number`; month labels use weight 750. Date markers and event-date lines use tabular numerals.
+- **Metadata:** `typography.metadata` for supporting facts and freshness; `typography.small-label` for date lines. Quiet participation uses `typography.quiet-action`, and neutral availability labels use `typography.availability`. Date numbers use `typography.date-number` in the display face; month labels stay Manrope at weight 750. Community empty states lead with `typography.empty-display`, a Manrope line fluid from 1.75rem to 3rem (1.71×). Date markers and event-date lines use tabular numerals.
 
 Themed library primitives retain their own utility leading where the app has not overridden it: button-based navigation and quiet buttons use the `text-sm` ratio (`calc(1.25 / .875)`); availability and sale-status badges use the `text-xs` ratio (`calc(1 / .75)`); search/filter input text uses 1.5. These are observed inherited roles, not a universal 1.6 line-height applied to every control. Event-section links, plain date lines and sidebar customization labels retain the body leading.
 
@@ -353,7 +363,7 @@ min-content-sized boxes to a single letter. Flex/grid items can shrink with
 bold/italic; font smoothing is explicit. Smaller metadata supports the event title
 and essential facts rather than replacing them.
 
-**The One Family, Clear Roles Rule.** Use Manrope's size, weight, leading, and spacing to distinguish headings, facts, and controls; keep dates tabular and long event names able to wrap.
+**The One Voice, Clear Roles Rule.** Bricolage Grotesque is a voice for titles and dates, not a second text family. Use Manrope's size, weight, leading, and spacing to distinguish everything else; keep dates tabular and long event names able to wrap.
 
 **Provider-brand exception:** only the Google sign-in CTA uses self-hosted Google
 Sans Medium (500) at .875rem/1.25rem, following Google's branding requirements.
@@ -387,7 +397,12 @@ use the shared Overview, Questions & tips, and Recommendations navigation. Overv
 prose and practical notices remain visible. In panels Tickets/Save precede artwork; secondary
 participation follows content, with source/history in one disclosure. Standalone
 identity is a wide 2:1 artwork band (22rem cap; a 6rem strip without artwork) with
-facts on a tinted surface overlapping its lower edge by 2.5rem. Default context columns
+facts on a tinted surface overlapping its lower edge by 2.5rem. The tint is the
+event's stored artwork colour (`--event-tint`, set inline from `Event.tint`) or
+`brand-tint` without one, mixed 18% into white in OKLCH. Every stored tint has
+OKLCH lightness .66 and chroma of at most .12, so all header text, including muted
+venue text, stays at WCAG AA on any hue; the raw brand colour would leave muted
+text at 4.35:1, so the fallback is the brand hue at tint lightness. Default context columns
 cap at their 20rem/21rem roles or 45% of available content width, whichever is
 smaller, so enlarged text does not consume the results column.
 
@@ -395,7 +410,7 @@ The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100d
 
 ## Elevation & Depth
 
-The normal interface has one cast shadow: `shadow-raised`, a soft ink-tinted shadow under the selected result row, which also turns white and gains a 3px plum leading edge (Highlight in forced colors). Otherwise depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected row stays in the list's geometry. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not floating or glass surfaces.
+The normal interface has one cast shadow: `shadow-raised`, a soft ink-tinted shadow under the selected result row, which also turns white and gains a 3px plum leading edge (Highlight in forced colors). Otherwise depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected row stays in the list's geometry. Community and Happening Now cards are white and bordered but flat, with no shadow. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not floating or glass surfaces.
 
 Focus is an outline, not a shadow: a solid plum ring (3px) offset from the target (4px), including navigation and sidebar controls. Themed library focus rings and card shadows are explicitly suppressed.
 
@@ -474,7 +489,7 @@ feedback changes fill/color without movement. No loading shimmer ships.
 
 ### Inputs / Fields
 
-White, clearly bounded, ordinary fields. Search combines an SVG icon, labeled search input, and submit action inside one control-line surround. The text input can shrink without displacing the action. Labeled filters use a minimum height of 2.875rem, body-sized text, and visible control borders; disabled genre selects use paper and muted ink. Native `details`/`summary` discloses filters and extra event metadata. The shared focus outline remains visible; field errors use explanatory text and the error-state container rather than an invented field-specific color system.
+White, clearly bounded, ordinary fields. Discover's command bar joins **Events in {city}** (a link that opens the city filter) and the search segment (SVG icon, labeled keyword input, submit action) inside one control-line surround. It is one row once the results container reaches 34rem and stacks below that. Beneath it, **Tonight / This weekend / Next 7 days** chips are plain links that scroll sideways. They set only `start_date`/`end_date` for the browsed city's calendar day, and the current one has pale-plum selection with `aria-current="true"`. Community filters are a single compact bar: sr-only labels, placeholder/option names, paper-filled fields and one Apply action. The text input can shrink without displacing the action. Labeled filters use a minimum height of 2.875rem, body-sized text, and visible control borders; disabled genre selects use paper and muted ink. Native `details`/`summary` discloses filters and extra event metadata. The shared focus outline remains visible; field errors use explanatory text and the error-state container rather than an invented field-specific color system.
 
 Category and genre use the same native select treatment. All categories disables genre; changing category clears the previous genre and offers compatible options. The ordinary GET form supports the same workflow without JavaScript by applying category before selecting a genre. Result rows, previews, and event pages show supplied category/genre metadata with an explicit unknown fallback.
 
@@ -532,7 +547,7 @@ Photos are live external Ticketmaster assets retained in normalized `Event.Image
 
 The composer inherits a bordered, plum-text native disclosure and the white account-form textarea, with the public audience explained before the optional reason. Publish/save use secondary actions; withdrawal is an underlined utility action. Ordinary POST forms remain usable without JavaScript. Enhancement dims pending forms, preserves drafts and confirmed content on failure, and closes the editor with focus restored to its summary after confirmation.
 
-Event, profile, and Community lists share flat, rule-separated attribution and reasons rather than raised social cards. Collection entries retain image/date indexing and essential event facts ahead of the linked author; event-local lists omit duplicate event artwork. Reasons preserve line breaks, wrap long text, and use the existing event-prose measure (70ch); publication and edit metadata stay secondary. See [public recommendations](docs/event-recommendations.md) and the [recommendation surface contract](.impeccable/surfaces/views-home-recommendations-templ.md) for audience, ordering, and browsing behavior.
+Event and profile lists share flat, rule-separated attribution and reasons. Community recommendations and conversations are bordered flat cards in an intrinsic grid (18rem minimum). Each has 16:9 artwork with the ticket-stub date chip, then event identity, then each person's words as a pull quote: a plum opening mark and 1.0625rem text, with a byline of a pale-plum initials circle (first and last word) and the linked name. Event facts follow. Event-local lists omit duplicate event artwork. Reasons preserve line breaks, wrap long text, and use the existing event-prose measure (70ch); publication and edit metadata stay secondary. See [public recommendations](docs/event-recommendations.md) and the [recommendation surface contract](.impeccable/surfaces/views-home-recommendations-templ.md) for audience, ordering, and browsing behavior.
 
 ### Live Activity
 
@@ -543,7 +558,7 @@ scope labels wrap in ordinary text; an empty match explicitly offers Reset witho
 widening automatically. Guest settings stay browser-local, while account settings
 have equivalent native controls in Preferences. Applying filters replaces only the
 live region, preserving event composers, drafts, focus and participation controls.
-No new visual tokens, imagery or motion are introduced. See [live filtering](docs/live-community-activity.md#city-and-event-type-filters-part-2).
+Happening Now puts its scope summary, the filter disclosure and Refresh in one compact bar. Activity renders as compact cards (20rem grid minimum): a square thumbnail with the date chip, drawn from stored snapshots on the server render. Each card shows an initials circle with the first name's initial, the group count, or an empty dashed circle for Someone, plus attribution, the title link (stretched to cover the card) and city/time. Live-pushed cards use fallback art until the next render, and no reason is shown beside anonymous attribution. Empty Community and Happening Now states lead with a large `empty-display` line and the main action as a primary button. See [live filtering](docs/live-community-activity.md#city-and-event-type-filters-part-2).
 
 ### Event Discussions
 
@@ -657,7 +672,7 @@ native links. No design tokens, motion or shipping raster assets change; see the
 ## Do's and Don'ts
 
 ### Do:
-- Do use plum for actions, focus, and selection; light stone for navigation; near-white surfaces for reading; and dusty rose only for date indexes.
+- Do use plum for actions, focus, and selection; light stone for navigation; near-white surfaces for reading; and dusty rose only for date indexes. Date shortcut chips are filters, so they take plum selection, not rose.
 - Do keep real provider imagery, full readable dates, venue, price availability, and sale status connected to the event title.
 - Do preserve the 62rem context/rail threshold and 72rem full-sidebar threshold when extending the shared shell.
 - Do keep visible focus, wrapping titles, labeled controls, reduced motion, and ordinary link/form behavior.

@@ -82,3 +82,20 @@ func TestTransitionStyleEscapesProviderIDs(t *testing.T) {
 		}
 	}
 }
+
+// Stored tints bypass the style sanitizer too; only #rrggbb reaches CSS.
+func TestTintStyleAcceptsOnlyHexColours(t *testing.T) {
+	for tint, want := range map[string]string{
+		"#3a7bd5":           "--event-tint:#3a7bd5",
+		"":                  "",
+		"#3A7BD5":           "",
+		"red":               "",
+		"#3a7bd5;color:red": "",
+		"#12345g":           "",
+		"url(x)":            "",
+	} {
+		if got := string(tintStyle(models.Event{Tint: tint})); got != want {
+			t.Errorf("tintStyle(%q) = %q, want %q", tint, got, want)
+		}
+	}
+}

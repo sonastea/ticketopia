@@ -99,6 +99,7 @@
     text('badge', ''); if (updates) updates.hidden = true; text('status', '');
     if (node('empty-reset')) node('empty-reset').hidden = true;
     if (node('empty-community')) node('empty-community').hidden = true;
+    if (node('empty-state')) node('empty-state').hidden = true;
     clearTimeout(expiryTimer);
     clearTimeout(announceTimer);
   };
@@ -114,19 +115,35 @@
     url.searchParams.set('return_to', location.pathname + location.search);
     return url.pathname + url.search;
   };
+  // Cards match the server markup. Live payloads carry no artwork or date, so
+  // new cards use the page's fallback art until the next snapshot render.
   const makeRow = id => {
-    const row = document.createElement('li'); row.dataset.id = id;
+    const row = document.createElement('li'); row.className = 'live-card'; row.dataset.id = id;
+    const art = node('art')?.content.firstElementChild?.cloneNode(true);
+    const copy = document.createElement('div'); copy.className = 'live-card-copy';
+    const byline = document.createElement('p'); byline.className = 'byline';
+    const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true'); avatar.dataset.liveAvatar = '';
     const attribution = document.createElement('span'); attribution.dataset.liveAttribution = '';
-    const link = document.createElement('a'); link.className = 'text-link'; link.dataset.eventLink = ''; link.dataset.liveEventLink = ''; link.dataset.id = id; link.href = linkURL(id);
-    const meta = document.createElement('span'); meta.className = 'field-note'; meta.dataset.liveMeta = '';
-    row.append(attribution, link, meta); return row;
+    byline.append(avatar, attribution);
+    const link = document.createElement('a'); link.className = 'text-link live-card-link'; link.dataset.eventLink = ''; link.dataset.liveEventLink = ''; link.dataset.id = id; link.href = linkURL(id);
+    const meta = document.createElement('p'); meta.className = 'field-note'; meta.dataset.liveMeta = '';
+    copy.append(byline, link, meta);
+    if (art) row.append(art);
+    row.append(copy); return row;
   };
   const fillRow = (row, item) => {
-    row.querySelector('[data-live-attribution]').textContent = item.recent_recommendations > 1 ? `${item.recent_recommendations} people recommended ` : `${item.actor_first_name || 'Someone'} recommended `;
-    row.querySelector('a').textContent = item.event_title;
-    row.querySelector('a').href = linkURL(item.event_id);
+    const name = item.actor_first_name || '';
+    const avatar = row.querySelector('[data-live-avatar]');
+    // Same letters as the server's initials(): first and last words.
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    const initials = words.length ? [words[0], ...(words.length > 1 ? [words.at(-1)] : [])].map(word => [...word][0].toUpperCase()).join('') : '';
+    if (avatar) avatar.textContent = item.recent_recommendations > 1 ? String(item.recent_recommendations) : initials;
+    row.querySelector('[data-live-attribution]').textContent = item.recent_recommendations > 1 ? `${item.recent_recommendations} people recommended ` : `${name || 'Someone'} recommended `;
+    const link = row.querySelector('[data-live-event-link]');
+    link.textContent = item.event_title;
+    link.href = linkURL(item.event_id);
     const minutes = Math.max(0, Math.floor((now() - Date.parse(item.latest_recommended_at)) / 60000));
-    row.querySelector('[data-live-meta]').textContent = ` · ${item.city ? item.city + ' · ' : ''}${minutes ? minutes + (minutes === 1 ? ' minute ago' : ' minutes ago') : 'just now'}`;
+    row.querySelector('[data-live-meta]').textContent = `${item.city ? item.city + ' · ' : ''}${minutes ? minutes + (minutes === 1 ? ' minute ago' : ' minutes ago') : 'just now'}`;
   };
   const render = () => {
     reconcileToasts();
@@ -153,6 +170,7 @@
     node('connection').textContent = current.length ? 'Recent public recommendations' : (restricted() ? 'No recent recommendations match these filters. Use Reset filters to see all events.' : 'Nothing in the last 10 minutes. New public recommendations appear here as people share them.');
     node('empty-reset').hidden = !!current.length || !restricted();
     node('empty-community').hidden = !!current.length || restricted();
+    node('empty-state').hidden = !!current.length;
   };
   const receive = data => {
     if (!Array.isArray(data.items) || !Number.isFinite(Date.parse(data.as_of))) throw new Error();

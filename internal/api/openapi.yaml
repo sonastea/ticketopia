@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.18.0
+  version: 1.19.0
   license:
     name: MIT
     identifier: MIT
@@ -3061,6 +3061,7 @@ components:
         classifications: {type: array, items: {$ref: '#/components/schemas/Classification'}}
         info: {type: string}
         please_note: {type: string}
+        tint: {type: string, pattern: '^#[0-9a-f]{6}$', description: 'Optional artwork-derived header colour, normalized to a fixed OKLCH lightness and capped chroma. Computed once when the event is cached or stored; omitted when the artwork has no usable colour or was not analysed.'}
     Problem:
       type: object
       required: [type, title, status, code, detail]

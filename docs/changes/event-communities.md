@@ -4,6 +4,21 @@
 
 ## Unreleased
 
+### 2026-10-23 — Community cards and typographic empty states
+
+- Community recommendations and conversations are flat bordered cards in an
+  intrinsic grid. Each has artwork with the ticket-stub date chip, event identity,
+  each person's words as a pull quote with an initials circle, then event facts.
+  City, country and category share one compact filter bar.
+- Happening Now groups are compact cards. Artwork and dates come from one bounded,
+  provider-free read of stored snapshots on the server render (live-pushed cards
+  use fallback art; the live DTO is unchanged and no reason is shown beside
+  "Someone"). Scope, filters and Refresh share one bar.
+- Empty Community and Happening Now states lead with a large display line and the
+  main action as a primary button. See
+  [recommendations](../event-recommendations.md#public-browsing) and
+  [live activity](../live-community-activity.md#attribution-and-controls).
+
 ### 2026-10-22 — Pilot empty states and Community tabs
 
 - Empty states now depend on where they render. Event sections invite the first
@@ -70,28 +85,3 @@
   attribution, canonical conversation links, empty rows, and local failure handling.
   See [discovery](../discovery.md); the JSON event API is unchanged.
   See [responsive UX](../design-guidelines.md) and [discussions](../event-discussions.md).
-
-### 2026-10-07 — Responsive discovery-to-discussion flow
-
-- Select event/threads beside results or in a compact view; disclose actions and expand details.
-- Preserve filters, thread/target/pages, scoped drafts and return state through
-  resize/Back/reload; reuse permission-filtered, provider-free thread reads.
-- Verify 134 Chromium outcomes/five clean axe scans and real-MariaDB race/vet/build.
-  See [responsive UX](../design-guidelines.md) and [discussions](../event-discussions.md).
-  Manual screen-reader/physical-device/cross-browser checks remain; no pilot approval.
-
-### 2026-10-07 — Private reporting, review, and durable moderator roles
-
-- Deliver private report receipts/status, moderator queue/context, shared reasons
-  with private notes, reversible hiding/restoration, and author second reviews.
-  Preserve replies and prevent hidden-text editing or stale/unseen-context decisions.
-- Store moderator membership by stable account ID, with audited operator grant/revoke
-  commands; deny role-table writes to runtime and make revocation effective without
-  restart. No default admin, email authorization, admin web UI, or notifications.
-- Add schema 8, OpenAPI 1.8.0, native forms/draft recovery, and bounded independent
-  histories. See [moderation](../moderation.md) for bootstrap, retention and upgrade.
-- Verify the full race suite against MariaDB, vet/build/lint, schema-7 preservation,
-  races/rollback/privacy, and 51 Chromium outcomes with 13 clean axe captures.
-  This completes basic reporting/review, not public-pilot or production certification.
-- Finish review scores all three fixes resolved: protect case evidence from
-  moderator-authors, identify personal records/direct targets, and document delivery.

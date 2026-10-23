@@ -4,9 +4,6 @@ import "fmt"
 import "github.com/sonastea/ticketopia/internal/discussions"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
-import "github.com/sonastea/ticketopia/views/components/input"
-import "github.com/sonastea/ticketopia/views/components/label"
-import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 
 templ DiscussionPanel(event string,v DiscussionView,returnURL string) {
 	if !v.Enabled {
@@ -65,7 +62,7 @@ templ DiscussionRoots(list discussions.List,c listContext,returnURL string) {
 			<p class="field-note">No questions or tips yet. Ask what you'd like to know before you go, or share something that would help others.</p>
 		}
 	} else {
-		<ul class="discussion-list recommendation-list">
+		<ul class={ "discussion-list recommendation-list", templ.KV("community-cards",c.Place==inCommunity) }>
 			for _,post:=range list.Items {
 				<li class={ templ.KV("recommendation-event",c.showsEvent()) }>
 					if c.showsEvent() {
@@ -79,9 +76,22 @@ templ DiscussionRoots(list discussions.List,c listContext,returnURL string) {
 							<p class="field-note">This contribution was removed. Replies are still available.</p>
 						} else if post.Hidden {
 							<p class="field-note">This contribution was hidden by a moderator. Replies are still available.</p>
+						} else if c.Place==inCommunity {
+							<figure class="pull-quote">
+								<blockquote class="discussion-body">{ post.Body }</blockquote>
+								<figcaption class="byline">
+									if post.Profile!=nil {
+										@Avatar(initials(post.Profile.DisplayName))
+									}
+									@PostAttribution(post)
+								</figcaption>
+							</figure>
 						} else {
 							@PostAttribution(post)
 							<p class="discussion-body">{ post.Body }</p>
+						}
+						if c.Place==inCommunity {
+							@EventFacts(post.Event)
 						}
 						<div class="account-actions">
 							<a href={ templ.URL(ThreadURL(post.EventID,post.ID,DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>Open conversation · { fmt.Sprint(post.ReplyCount) } replies</a>
@@ -284,31 +294,7 @@ templ DiscussionCommunity(p DiscussionCommunityPage) {
 			if !p.Enabled {
 				<p>Discussions require accounts to be enabled on this server.</p><a href="/" class="text-link">Discover events</a>
 			} else {
-				<form action="/community/discussions" method="get" class="community-filters">
-					@label.Label(label.Props{For:"discussion-city",Class:"field"}) {
-						City <span>(optional)</span>
-						@input.Input(input.Props{ID:"discussion-city",Name:"city",Value:p.Filters.City,Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
-					}
-					@label.Label(label.Props{For:"discussion-country",Class:"field"}) {
-						Country <span>(optional, 2-letter code)</span>
-						@input.Input(input.Props{ID:"discussion-country",Name:"country",Value:p.Filters.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}"}})
-					}
-					@label.Label(label.Props{For:"discussion-category",Class:"field"}) {
-						Category
-						@selectcomp.Native(selectcomp.NativeProps{ID:"discussion-category",Name:"category_id"}) {
-							<option value="all">All categories</option>
-							if p.Filters.CategoryID!="" && !p.hasCategory() {
-								<option value={ p.Filters.CategoryID } selected>{ p.Filters.CategoryID }</option>
-							}
-							for _,category:=range p.Categories {
-								<option value={ category.ID } selected?={ category.ID==p.Filters.CategoryID }>{ category.Name }</option>
-							}
-						}
-					}
-					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
-						Apply filters
-					}
-				</form>
+				@CommunityFilters(CommunityFilterBar{Action:"/community/discussions",Prefix:"discussion",Label:"Filter conversations",City:p.Filters.City,Country:p.Filters.Country,CategoryID:p.Filters.CategoryID,Categories:p.Categories})
 				if p.CategoriesUnavailable {
 					<p class="field-note">Category options couldn't refresh. Conversations and your selected filter are still available.</p>
 				}

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2026-10-23 — Artwork tint on events, contract v1.19.0
+
+- Add optional `Event.tint` (`#rrggbb`), an artwork-derived header colour
+  normalized to a fixed OKLCH lightness and computed once when the event is cached
+  or stored. Clients may ignore it. See [discovery](../discovery.md#responsive-navigation-and-event-details).
+
 ### 2026-10-07 — Private reporting and moderation contract v1.8.0
 
 - Document owner-only receipts/outcomes, private author review requests, authorized

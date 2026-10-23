@@ -38,7 +38,7 @@ templ Event(page EventPage) {
 				}
 			} else {
 				<article class="event-main" data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF }>
-					<header class="event-identity">
+					<header class="event-identity" style={ tintStyle(page.Detail.Item) }>
 						@EventImage(page.Detail.Item, true)
 						@EventHeading(page, false)
 					</header>

@@ -140,31 +140,7 @@ templ Community(p CommunityPage) {
 				<p>Community recommendations require accounts to be enabled on this server. You can still discover events.</p>
 				<a href="/" class="text-link">Discover events</a>
 			} else {
-				<form action="/community" method="get" class="community-filters">
-					@label.Label(label.Props{For:"community-city",Class:"field"}) {
-						City <span>(optional)</span>
-						@input.Input(input.Props{ID:"community-city",Name:"city",Value:p.Filters.City,Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
-					}
-					@label.Label(label.Props{For:"community-country",Class:"field"}) {
-						Country <span>(optional, 2-letter code)</span>
-						@input.Input(input.Props{ID:"community-country",Name:"country",Value:p.Filters.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}"}})
-					}
-					@label.Label(label.Props{For:"community-category",Class:"field"}) {
-						Category
-						@selectcomp.Native(selectcomp.NativeProps{ID:"community-category",Name:"category_id"}) {
-							<option value="all">All categories</option>
-							if p.Filters.CategoryID!="" && !p.hasCategory() {
-								<option value={ p.Filters.CategoryID } selected>{ p.Filters.CategoryID }</option>
-							}
-							for _,category := range p.Categories {
-								<option value={ category.ID } selected?={ category.ID==p.Filters.CategoryID }>{ category.Name }</option>
-							}
-						}
-					}
-					@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
-						Apply filters
-					}
-				</form>
+				@CommunityFilters(CommunityFilterBar{Action:"/community",Prefix:"community",Label:"Filter recommendations",City:p.Filters.City,Country:p.Filters.Country,CategoryID:p.Filters.CategoryID,Categories:p.Categories})
 				if p.CategoriesUnavailable {
 					<p class="field-note">Category options couldn't refresh. Recommendations and your selected filter are still available.</p>
 				}
@@ -188,17 +164,51 @@ templ Community(p CommunityPage) {
 }
 
 // Community collections are mostly empty during the pilot, so each empty
-// state leads to the next useful action instead of ending the page.
+// state is a large display line leading straight to the next useful action.
 templ CommunityEmpty(title, body, href, action string) {
-	@empty.Empty(empty.Props{Class:"feedback empty-state"}) {
-		<h3>{ title }</h3>
+	@empty.Empty(empty.Props{Class:"feedback empty-state empty-moment"}) {
+		<h3 class="empty-display">{ title }</h3>
 		if body!="" {
 			<p>{ body }</p>
 		}
-		@button.Button(button.Props{Href:href,Variant:button.VariantOutline,Class:"action action-secondary"}) {
+		@button.Button(button.Props{Href:href,Class:"action"}) {
 			{ action }
 		}
 	}
+}
+
+// One compact bar of filters; labels stay available to assistive technology
+// while placeholders and the select's own option name each field visually.
+templ CommunityFilters(f CommunityFilterBar) {
+	<form action={ templ.SafeURL(f.Action) } method="get" class="filter-bar community-filters" aria-label={ f.Label }>
+		@label.Label(label.Props{For:f.Prefix+"-city",Class:"sr-only"}) {
+			City (optional)
+		}
+		@input.Input(input.Props{ID:f.Prefix+"-city",Name:"city",Value:f.City,Placeholder:"Any city",Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
+		@label.Label(label.Props{For:f.Prefix+"-country",Class:"sr-only"}) {
+			Country (optional, 2-letter code)
+		}
+		@input.Input(input.Props{ID:f.Prefix+"-country",Name:"country",Value:f.Country,Placeholder:"Country",Class:"filter-bar-country",Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","title":"Two-letter country code, such as US"}})
+		@label.Label(label.Props{For:f.Prefix+"-category",Class:"sr-only"}) {
+			Category
+		}
+		@selectcomp.Native(selectcomp.NativeProps{ID:f.Prefix+"-category",Name:"category_id"}) {
+			<option value="all">All categories</option>
+			if f.CategoryID!="" && !f.hasCategory() {
+				<option value={ f.CategoryID } selected>{ f.CategoryID }</option>
+			}
+			for _,category := range f.Categories {
+				<option value={ category.ID } selected?={ category.ID==f.CategoryID }>{ category.Name }</option>
+			}
+		}
+		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+			Apply
+		}
+	</form>
+}
+
+templ Avatar(text string) {
+	<span class="avatar" aria-hidden="true">{ text }</span>
 }
 
 templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c listContext) {
@@ -211,25 +221,30 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 			@CommunityEmpty("No recommendations yet.","When someone recommends an event, it appears here with their reasons. Found something worth going to? Open it and choose Recommend.","/","Find an event to recommend")
 		}
 	} else {
-		<ul class="recommendation-list">
+		<ul class="recommendation-list community-cards">
 			for _,group:=range feed.Items {
 				<li class="recommendation-event">
 					@CollectionEventArt(group.Event,returnURL)
 					<div class="recommendation-copy">
 						@CollectionEventHeading(group.Event,returnURL)
 						@CollectionEventFreshness(group.Meta)
-						@EventFacts(group.Event)
-						<p class="field-note"><span data-live-total={ group.Event.ID }><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) }</span> · <time datetime={ group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>First recommended { group.FirstRecommendedAt.UTC().Format("Jan 2, 2006") }</time></p>
 						<ul class="community-recommenders">
 							for _,item:=range group.Recommendations {
 								<li>
-									<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event</p>
-									if item.Reason!="" {
-										<p class="recommendation-reason">{ item.Reason }</p>
-									}
+									<figure class="pull-quote">
+										if item.Reason!="" {
+											<blockquote class="recommendation-reason">{ item.Reason }</blockquote>
+										}
+										<figcaption class="byline">
+											@Avatar(initials(item.Profile.DisplayName))
+											<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event</p>
+										</figcaption>
+									</figure>
 								</li>
 							}
 						</ul>
+						@EventFacts(group.Event)
+						<p class="field-note"><span data-live-total={ group.Event.ID }><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) }</span> · <time datetime={ group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>First recommended { group.FirstRecommendedAt.UTC().Format("Jan 2, 2006") }</time></p>
 						<div class="account-actions">
 							<a href={ templ.URL(eventURL(group.Event.ID,"community",returnURL)) } class="text-link">Recommendations</a>
 							<a href={ templ.URL(recommendationListURL(group.Event.ID,returnURL)) } class="text-link">See all recommendations for this event</a>

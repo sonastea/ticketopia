@@ -1,5 +1,13 @@
 # MariaDB foundation
 
+Event snapshots may carry an optional artwork-derived `tint` (`#rrggbb`) inside
+the existing `event_snapshots.snapshot` JSON and observation DTOs. It needs no
+schema version, column, index, grant or backfill: older binaries ignore the field,
+snapshots without it use the brand fallback, and history change detection does
+not compare it. A bounded `Snapshots` batch read (at most 50 IDs, one SELECT on
+`event_snapshots`) supplies display-only artwork to Happening Now. See
+[discovery](discovery.md#responsive-navigation-and-event-details).
+
 Schema 19 adds transactional live-activity membership revisions on accounts;
 save/interest/artist-follow/venue-follow changes increment them without resetting
 notification preferences. See [private live filters](live-community-activity.md#private-connections-part-4).

@@ -18,31 +18,6 @@ templ Index(page SearchPage) {
 		<main id="main" class={ "discovery-workspace", templ.KV("has-selection", page.SelectedID != "") } data-results-url={ page.ReturnURL }>
 			<div class="discovery-content">
 				<header class="discovery-header">
-					<div class="location-bar">
-						<div>
-							@layouts.Icon("location")
-							<strong>{ cityLabel(page) }</strong>
-							if page.Filters.City == "" {
-								<strong>Choose your city</strong>
-							}
-						</div>
-						if page.Filters.City == "" {
-							@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"data-open-filters": true}}) {
-								Enter a city
-							}
-						} else {
-							@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"data-open-filters": true}}) {
-								Change city
-							}
-						}
-					</div>
-					if page.LocationSource == "ip" {
-						<p class="location-source">Estimated from your IP address</p>
-					} else if page.LocationSource == "saved" {
-						<p class="location-source">Your remembered city</p>
-					} else if page.LocationSource == "account" {
-						<p class="location-source">Your account's default city</p>
-					}
 					<h1>Find your next event</h1>
 					<p class="intro">Explore music, sports, arts, and more in your city.</p>
 					if page.NeedsLocation && page.Error == "" {
@@ -115,18 +90,43 @@ templ Index(page SearchPage) {
 	}
 }
 
+// One command bar joins where (opening the city filter) and what (keyword).
 templ SearchControls(page SearchPage) {
 	<form action="/" method="get" class="search-form" aria-label="Search events">
-		<div class="search-bar">
-			@label.Label(label.Props{For: "keyword", Class: "sr-only"}) {
-				Event, performer, team, or venue
+		<div class="command-bar">
+			@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "command-location", Attributes: templ.Attributes{"data-open-filters": true}}) {
+				@layouts.Icon("location")
+				if page.Filters.City == "" {
+					<span>Choose your city</span>
+				} else {
+					<span>Events in <strong>{ cityLabel(page) }</strong><span class="sr-only">, change city</span></span>
+				}
 			}
-			@layouts.Icon("search")
-			@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Events, artists, venues", Attributes: templ.Attributes{"maxlength": "120"}})
-			@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
-				Find events
-			}
+			<div class="search-bar">
+				@label.Label(label.Props{For: "keyword", Class: "sr-only"}) {
+					Event, performer, team, or venue
+				}
+				@layouts.Icon("search")
+				@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Search events, artists, venues", Attributes: templ.Attributes{"maxlength": "120"}})
+				@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
+					Find events
+				}
+			</div>
 		</div>
+		if page.LocationSource == "ip" {
+			<p class="location-source">Estimated from your IP address</p>
+		} else if page.LocationSource == "saved" {
+			<p class="location-source">Your remembered city</p>
+		} else if page.LocationSource == "account" {
+			<p class="location-source">Your account's default city</p>
+		}
+		if !page.NeedsLocation && page.Error == "" {
+			<nav class="date-chips" aria-label="Date shortcuts">
+				for _, chip := range dateChips(page) {
+					<a href={ templ.URL(chip.Href) } aria-current={ chipCurrent(chip.Current) }>{ chip.Label }</a>
+				}
+			</nav>
+		}
 		@collapsible.Native(collapsible.Props{ID: "filters", Class: "filter-disclosure", DefaultOpen: page.NeedsLocation || page.Error != ""}) {
 			@collapsible.Summary() {
 				@layouts.Icon("filters")

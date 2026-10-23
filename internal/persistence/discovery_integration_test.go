@@ -151,6 +151,25 @@ func TestMariaDBDiscoverSQLFiltersAndPagination(t *testing.T) {
 	}
 }
 
+// The artwork tint travels inside the snapshot JSON; no column holds it.
+func TestMariaDBSnapshotsKeepArtworkTint(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	r := f.open(t).Discovery()
+	e := sampleEvent("tinted")
+	e.Tint = "#3a7bd5"
+	if err := r.Observe(t.Context(), models.EventDetail{Item: e, Meta: models.Freshness{DataAsOf: time.Now()}}); err != nil {
+		t.Fatal(err)
+	}
+	events, err := r.Snapshots(t.Context(), []string{e.ID, "ticketmaster:missing"})
+	if err != nil || len(events) != 1 || events[e.ID].Tint != "#3a7bd5" || events[e.ID].Name != e.Name {
+		t.Fatalf("snapshots = %+v, %v", events, err)
+	}
+	if detail, err := r.Snapshot(t.Context(), e.ID); err != nil || detail.Item.Tint != "#3a7bd5" {
+		t.Fatalf("snapshot tint = %q, %v", detail.Item.Tint, err)
+	}
+}
+
 func TestMariaDBDiscoverOnDemandOutageQuotaRestartAndAPI(t *testing.T) {
 	f := newMaria(t)
 	f.migrate(t)

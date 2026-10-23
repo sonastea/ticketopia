@@ -123,12 +123,33 @@ A new form submission starts at the first page.
   48rem an intrinsic grid shows two or three cards. A ticket-stub date chip sits
   on every row's artwork. The selected row keeps its geometry, with a 3px leading
   brand edge on a raised surface.
-- Location stays visible above search. **Change city** (**Enter a city** before
-  one is chosen) opens the native Filters disclosure and focuses City. Keyword
-  search is labeled for event, performer, team, or venue names, matching its
-  semantics. The same GET form exposes country, dates, category,
+- One command bar joins location and search: **Events in {city}** (**Choose your
+  city** before one is chosen) is a link that opens the native Filters disclosure
+  and focuses City (with an accessible "change city" suffix), and the keyword
+  segment is labeled for event, performer, team, or venue names, matching its
+  semantics. The bar is one row when the results container reaches 34rem and
+  stacks below that. The same GET form exposes country, dates, category,
   genre, and date-ascending/date-descending/name-ascending sorting. Inputs and
   disclosure remain usable without JavaScript.
+- Date chips (**Tonight**, **This weekend**, **Next 7 days**) scroll sideways
+  under the bar once a city is chosen. They are plain links. Each keeps every
+  current filter, drops any cursor, and sets only `start_date`/`end_date` from
+  `discovery.DatePresets`: the day itself; Friday–Sunday, starting today from
+  Friday; and today plus six days. "Today" is the calendar day in the browsed
+  city's zone, read from the results' event or venue time zone (UTC if none is
+  known), so late evening in Los Angeles is not tomorrow's UTC date. The first
+  matching chip carries `aria-current="true"`. Unit tests parse every preset URL
+  through `ParseQuery`, and render tests parse the chip hrefs from Discover HTML.
+- Event headers take their tint from artwork. When an event is cached or stored
+  (`fetchPage`, detail reads and targeted refreshes), the provider adapter fetches
+  each event's smallest supplied image once. Only HTTPS `*.ticketm.net` images are
+  fetched, with no redirects, under a shared 1.5s batch deadline, four in parallel,
+  512 KiB, 4 MP and a 4,096-entry URL memo. The adapter grid-samples about 4,096
+  pixels, takes the most chroma-weighted hue family, and stores it in the event
+  snapshot as `tint` (`#rrggbb` at OKLCH lightness .66, chroma ≤ .12). Grey
+  artwork, timeouts and other hosts leave it empty and the page uses the brand
+  hue. Rendering never fetches images; only strict lowercase `#rrggbb` reaches
+  the inline `--event-tint`.
 - The results heading shares its line with a short sort label. A single results
   line combines update time, any stale-fallback warning and incomplete coverage
   (`data-coverage`). It isn't a live region, so it isn't re-announced on each load.

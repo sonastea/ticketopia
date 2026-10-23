@@ -160,6 +160,30 @@ func (s *Service) storedEvent(ctx context.Context, id string) (models.EventDetai
 	return detail, nil
 }
 
+// MaxSnapshotBatch bounds StoredEvents reads.
+const MaxSnapshotBatch = 50
+
+// SnapshotReader is an optional Catalog capability for bounded batch reads.
+type SnapshotReader interface {
+	Snapshots(context.Context, []string) (map[string]models.Event, error)
+}
+
+// StoredEvents returns last-known snapshots for display enrichment only. It
+// never calls the provider; missing events are simply absent, and a failed
+// read degrades to fallback presentation rather than failing the page.
+func (s *Service) StoredEvents(ctx context.Context, ids []string) map[string]models.Event {
+	reader, ok := s.catalog.(SnapshotReader)
+	if !ok || len(ids) == 0 {
+		return nil
+	}
+	events, err := reader.Snapshots(ctx, ids[:min(len(ids), MaxSnapshotBatch)])
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("Could not read event snapshots for display")
+		return nil
+	}
+	return events
+}
+
 func (s *Service) History(ctx context.Context, id string, before time.Time, limit int) (*models.EventHistory, error) {
 	if _, err := sourceID(id); err != nil {
 		return nil, err

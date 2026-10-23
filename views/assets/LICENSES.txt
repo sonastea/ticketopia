@@ -66,6 +66,12 @@ Source: https://github.com/google/fonts/tree/main/ofl/manrope
 
 ---
 
+Bricolage Grotesque (instanced and Latin-subset derivative) is distributed under
+the SIL Open Font License in fonts/bricolage-grotesque-OFL.txt.
+Source: https://github.com/google/fonts/tree/main/ofl/bricolagegrotesque
+
+---
+
 Google Sans Medium is distributed under the SIL Open Font License in fonts/google-sans-OFL.txt.
 Source: https://github.com/google/fonts/tree/main/ofl/googlesans
 

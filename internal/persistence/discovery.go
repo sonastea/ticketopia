@@ -108,6 +108,7 @@ func storeDiscoverCount(key string, total int, writeGen uint64, coverage coverag
 }
 
 var _ discovery.Catalog = (*DiscoveryRepository)(nil)
+var _ discovery.SnapshotReader = (*DiscoveryRepository)(nil)
 
 // Projections are replaced only with the winning public snapshot, in the same
 // transaction. Activity tables are deliberately absent from discovery queries.
@@ -608,6 +609,44 @@ func (r *DiscoveryRepository) Snapshot(ctx context.Context, id string) (models.E
 	}
 	return detail, nil
 }
+
+// Snapshots reads last-known public snapshots for display enrichment, such as
+// Happening Now artwork. It is one bounded read with no provider work and no
+// private joins; unknown or undecodable events are omitted.
+func (r *DiscoveryRepository) Snapshots(ctx context.Context, ids []string) (map[string]models.Event, error) {
+	events := map[string]models.Event{}
+	ids = ids[:min(len(ids), discovery.MaxSnapshotBatch)]
+	if len(ids) == 0 {
+		return events, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT event_id,snapshot FROM event_snapshots WHERE event_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+`)`, args...)
+	if err != nil {
+		return events, safeError("event snapshots", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var data []byte
+		if err := rows.Scan(&id, &data); err != nil {
+			return events, safeError("event snapshots", err)
+		}
+		var event models.Event
+		if json.Unmarshal(data, &event) == nil {
+			events[id] = event
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return events, safeError("event snapshots", err)
+	}
+	return events, nil
+}
+
 func (r *DiscoveryRepository) Observe(ctx context.Context, d models.EventDetail) error {
 	if d.Meta.Stale {
 		return nil

@@ -152,6 +152,15 @@
   font-display: swap;
 }
 
+/* The one display face: page titles, the event title and date numbers only. */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('/assets/fonts/bricolage-grotesque-latin.woff2') format('woff2');
+  font-weight: 600 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Provider branding is intentionally scoped to the Google sign-in CTA. */
 @font-face {
   font-family: 'Google Sans';
@@ -182,6 +191,9 @@
   --warning: oklch(0.472777 0.088443 73.757);
   --warning-bg: color-mix(in oklch, var(--warning) 6%, var(--surface));
   --success: oklch(0.449361 0.075890 160.799);
+  /* Brand hue at the artwork tints' fixed lightness (internal/discovery/tint.go):
+     the raw brand mixed 18% into white leaves muted text below AA. */
+  --brand-tint: oklch(0.66 0.080387 337.297);
   /* Google's specified colors remain a scoped provider-brand exception. */
   --google-brand: oklch(0.494884 0.199163 260.601);
   --google-hover: color-mix(in oklch, var(--google-brand), black 18%);
@@ -194,7 +206,9 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
   --space-7: 3rem;
+  --font-display: 'Bricolage Grotesque', Manrope, sans-serif;
   --text-display: clamp(1.75rem, 1.5rem + .625vw, 2rem);
+  --text-empty-display: clamp(1.75rem, 1.25rem + 2.5vw, 3rem);
   --text-event-heading: clamp(1.5rem, 1.125rem + 1.63vw, 1.75rem);
   --space-reply-indent: clamp(.5rem, .125rem + 1.875vw, 1.25rem);
   --space-hero-inset: clamp(.5rem, .125rem + 1.875vw, 2rem);
@@ -343,6 +357,14 @@ h1 {
   font-size: var(--text-display);
   font-weight: 800;
   letter-spacing: -.035em;
+}
+
+h1, .context-heading h2, .date-marker strong {
+  font-family: var(--font-display);
+}
+
+h1, .context-heading h2 {
+  letter-spacing: -.02em;
 }
 
 h2 {
@@ -530,30 +552,6 @@ h3 {
   margin-block-end: 1.5rem;
 }
 
-.location-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: .75rem;
-  margin-block-end: 1.75rem;
-  font-size: .9375rem;
-}
-
-.location-bar > div {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  min-inline-size: 0;
-}
-
-.location-bar strong {
-  overflow-wrap: break-word;
-}
-
-.location-bar .icon {
-  color: var(--brand);
-}
-
 .text-link {
   display: inline-flex;
   align-items: center;
@@ -572,13 +570,8 @@ h3 {
   }
 }
 
-.location-bar .text-link {
-  flex-shrink: 0;
-}
-
 .location-source {
-  margin-block-start: -1.6rem;
-  margin-block-end: 1.5rem;
+  margin-block-start: .4rem;
   color: var(--muted);
   font-size: .75rem;
 }
@@ -1564,10 +1557,11 @@ summary::-webkit-details-marker {
 .event-primary-actions .ticket-link { inline-size: auto; flex: 1 1 16rem; margin-block-start: 0; }
 .event-primary-actions .field-note { margin-block-start: .5rem; }
 .event-primary-actions .sale-date { margin-block-end: .75rem; }
-/* A wide artwork band leads; identity facts sit on a tinted surface overlapping
-   its lower edge. The tint is a brand token until artwork-derived color lands. */
+/* A wide artwork band leads; identity facts sit on a surface tinted by the
+   artwork's stored colour (inline --event-tint), or the brand hue without one.
+   Tints share a fixed lightness, so the 18% mix keeps every fact at AA. */
 .event-identity {
-  --event-tint: color-mix(in oklch, var(--brand-soft) 65%, var(--surface));
+  --event-tint: var(--brand-tint);
   display: grid;
 }
 .event-identity > .event-image { aspect-ratio: 2 / 1; max-block-size: 22rem; }
@@ -1579,7 +1573,7 @@ summary::-webkit-details-marker {
   margin-inline: var(--space-hero-inset);
   padding: 1.25rem;
   border-radius: var(--radius);
-  background: var(--event-tint);
+  background: color-mix(in oklch, var(--event-tint) 18%, var(--surface));
 }
 .context-inner [data-section-body] > .event-image { max-block-size: 16rem; margin-block-start: 1rem; }
 .event-participation { border-block-start: 1px solid var(--line); padding-block: 1.5rem; }
@@ -2447,13 +2441,6 @@ summary::-webkit-details-marker {
   .discovery-header .intro {
     display: none;
   }
-  .location-bar {
-    margin-block-end: 1rem;
-  }
-  .location-source {
-    margin-block-start: -.75rem;
-    margin-block-end: 1rem;
-  }
   .search-form {
     margin-block-end: 1.25rem;
   }
@@ -2641,8 +2628,6 @@ summary::-webkit-details-marker {
 }
 
 .community-page { max-inline-size: 75rem; }
-.community-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin-block: 2rem; margin-inline: 0; }
-.community-filters .field { flex: 1 1 12rem; min-inline-size: 0; }
 .recommendation-editor { margin-block: 1rem 1.5rem; margin-inline: 0; }
 .recommendation-editor > summary { display: flex; align-items: center; gap: .5rem; inline-size: fit-content; max-inline-size: 100%; min-block-size: 2.75rem; padding-block: .5rem; padding-inline: .75rem; border: 1px solid var(--control-line); border-radius: .5rem; color: var(--brand); cursor: pointer; font-size: .875rem; font-weight: 700; }
 @media (hover: hover) and (pointer: fine) {
@@ -2759,3 +2744,242 @@ summary::-webkit-details-marker {
 @media (min-width: 62rem) {
   .bottom-nav [data-slot="button"]:focus-visible { outline-color: var(--brand); }
 }
+
+/* Discover command bar: where (opens the city filter) · what (keyword). It
+   stacks in a narrow results container and becomes one row from 34rem. */
+.command-bar {
+  display: grid;
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+[data-slot="button"].command-location {
+  justify-content: start;
+  gap: .5rem;
+  min-block-size: 2.75rem;
+  padding-block: .5rem;
+  padding-inline: .9rem;
+  color: var(--ink);
+  font-size: .9375rem;
+  font-weight: 600;
+  text-align: start;
+  text-decoration: none;
+}
+.command-location .icon { flex: none; color: var(--brand); }
+.command-location strong {
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--brand) 45%, transparent);
+  text-underline-offset: .2em;
+}
+@media (hover: hover) and (pointer: fine) {
+  .command-location:hover strong { color: var(--brand); text-decoration-color: currentColor; }
+}
+.command-location:active strong { color: var(--brand-active); }
+.command-bar > .search-bar {
+  border: 0;
+  border-block-start: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+@container results (min-width: 34rem) {
+  .command-bar { display: flex; align-items: center; }
+  [data-slot="button"].command-location { flex: 0 1 auto; max-inline-size: 45%; }
+  .command-bar > .search-bar {
+    flex: 1 1 0;
+    border-block-start: 0;
+    border-inline-start: 1px solid var(--line);
+  }
+}
+
+/* Date shortcuts are plain links that scroll sideways rather than wrap. The
+   padding keeps focus outlines inside the scroll container. */
+.date-chips {
+  display: flex;
+  gap: .5rem;
+  margin-block: .25rem 0;
+  margin-inline: -.5rem;
+  padding: .5rem;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+.date-chips a {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  padding-inline: 1rem;
+  border: 1px solid var(--control-line);
+  border-radius: .5rem;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: .875rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition-property: background-color, color, border-color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .date-chips a:hover { background: var(--brand-soft); color: var(--brand-dark); }
+}
+.date-chips a:active { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-active); }
+.date-chips a[aria-current="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); font-weight: 750; }
+@media (forced-colors: active) {
+  .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }
+}
+
+/* Community filters: one compact bar. Fields sit on a paper fill inside it. */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-block: 1.5rem;
+  padding: .375rem;
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.filter-bar > :is([data-slot="input"], [data-slot="native-select"]) {
+  flex: 1 1 10rem;
+  inline-size: auto;
+  min-block-size: 2.75rem;
+  border-color: transparent;
+  background: var(--paper);
+}
+.filter-bar > .filter-bar-country { flex: 0 1 7rem; }
+.filter-bar > .action { flex: none; }
+.live-filter-bar { gap: .25rem 1rem; padding-block: .25rem; padding-inline: 1rem .5rem; }
+.live-filter-bar > * { margin-block: 0; }
+.live-filter-bar > [data-live-summary] { flex: 1 1 14rem; }
+.live-filter-bar > form { flex: none; }
+.live-filter-bar > form:has(> details[open]) { flex-basis: 100%; order: 1; padding-block-end: 1rem; }
+.live-filter-bar > .account-actions { flex: none; margin: 0; gap: 1rem; }
+
+/* Community cards: artwork with the date stub, the people and their words as
+   pull quotes, then the event facts. Flat, bordered, never raised. */
+.community-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  align-items: start;
+  gap: 1.5rem;
+}
+.community-cards > li.recommendation-event {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.community-cards > li > .event-art { margin: 0; }
+.community-cards .recommendation-event .event-image {
+  aspect-ratio: 16 / 9;
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+  border-start-start-radius: calc(var(--radius) - 1px);
+  border-start-end-radius: calc(var(--radius) - 1px);
+}
+.community-cards .recommendation-copy { padding: 1.25rem; }
+.community-cards .recommendation-copy > .account-actions { gap: 0 1rem; }
+.pull-quote { display: grid; gap: .75rem; margin-block: 1rem; margin-inline: 0; }
+.community-recommenders .pull-quote { margin: 0; }
+.pull-quote blockquote {
+  position: relative;
+  margin: 0;
+  padding-inline-start: 1.75rem;
+  color: var(--ink);
+  font-size: 1.0625rem;
+  font-weight: 550;
+  line-height: 1.5;
+}
+.pull-quote blockquote::before {
+  content: "\201C";
+  content: "\201C" / "";
+  position: absolute;
+  inset-block-start: -.4rem;
+  inset-inline-start: 0;
+  color: var(--brand);
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.byline { display: flex; align-items: center; gap: .625rem; }
+/* Name link (a 44px target) and the rest of the sentence wrap as units. */
+.byline > p { display: flex; flex-wrap: wrap; align-items: center; column-gap: .3em; margin: 0; }
+.avatar {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: .8125rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.avatar:empty { border: 1px dashed var(--control-line); background: transparent; }
+@media (forced-colors: active) {
+  .avatar { border: 1px solid CanvasText; }
+}
+
+/* Happening Now cards: compact rows; the title link covers the card. */
+.live-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+  padding: 0;
+  list-style: none;
+}
+.live-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+  padding: .75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition-property: background-color, border-color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+.live-card .event-art { margin: 0; }
+.live-card .event-image { aspect-ratio: 1; }
+.live-card .image-fallback .icon { inline-size: 1.75rem; block-size: 1.75rem; }
+.live-card .event-art .date-marker { inset-block-end: .3rem; inset-inline-start: .3rem; max-inline-size: calc(100% - .6rem); padding-inline: .45rem; }
+.live-card-copy { display: grid; justify-items: start; gap: .25rem; }
+.live-card-copy > p { margin: 0; }
+.live-card .byline { font-size: .875rem; }
+.live-card .avatar { inline-size: 2rem; block-size: 2rem; font-size: .75rem; }
+.live-card-link { color: var(--ink); font-size: 1rem; font-weight: 750; line-height: 1.35; text-decoration: none; }
+.live-card-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+@media (hover: hover) and (pointer: fine) {
+  .live-card:has(.live-card-link:hover) { border-color: var(--control-line); }
+  .live-card-link:hover { color: var(--brand); text-decoration: underline; }
+}
+.live-card:has(.live-card-link:active) { background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface)); }
+
+/* Empty Community states are a typographic moment, not a grey sentence. */
+.empty-moment { display: grid; justify-content: start; justify-items: start; gap: 1rem; padding-block: 2.5rem 3rem; padding-inline: 0; }
+.empty-moment > p { color: var(--muted); max-inline-size: 50ch; }
+.empty-display {
+  color: var(--ink);
+  font-size: var(--text-empty-display);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -.035em;
+  max-inline-size: 18ch;
+  text-wrap: balance;
+}
+[data-live-details] > .empty-display { margin-block: 2rem .75rem; }
+[data-live-details] > .live-empty-action { margin-block: 1rem; }

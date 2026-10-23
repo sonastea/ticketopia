@@ -99,6 +99,12 @@ func (a *api) renderHappeningNow(c echo.Context, status int, p home.HappeningNow
 			p.Snapshot, err = a.liveActivity.OwnerSnapshot(c.Request().Context(), owner, p.Filters)
 			if err != nil {
 				status, p.Error = 503, "Live activity is unavailable. Refresh to try again."
+			} else if a.events != nil && len(p.Snapshot.Items) > 0 {
+				ids := make([]string, 0, len(p.Snapshot.Items))
+				for _, item := range p.Snapshot.Items {
+					ids = append(ids, item.EventID)
+				}
+				p.Events = a.events.StoredEvents(c.Request().Context(), ids)
 			}
 		}
 	}

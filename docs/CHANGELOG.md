@@ -6,8 +6,9 @@ one entry per feature. Related changes stay in the same feature document. Browse
 
 - 2026-10-23 — [Event discovery](changes/discovery.md)
 - 2026-10-23 — [Authentication and accounts](changes/accounts.md)
+- 2026-10-23 — [Positive event communities](changes/event-communities.md)
+- 2026-10-23 — [OpenAPI contract](changes/openapi.md)
 - 2026-10-22 — [Live community activity](changes/live-community-activity.md)
-- 2026-10-22 — [Positive event communities](changes/event-communities.md)
 - 2026-10-15 — [Public HTTP and KV caching](changes/cache.md)
 - 2026-10-14 — [Reliable event history](changes/event-history.md)
 - 2026-10-14 — [Database and persistence](changes/database.md)
@@ -19,5 +20,4 @@ one entry per feature. Related changes stay in the same feature document. Browse
 - 2026-10-12 — [Followed discussions](changes/followed-discussions.md)
 - 2026-10-10 — [Local development services](changes/local-development.md)
 - 2026-10-08 — [Container deployment](changes/deployment.md)
-- 2026-10-07 — [OpenAPI contract](changes/openapi.md)
 - 2026-10-04 — [Documentation](changes/documentation.md)

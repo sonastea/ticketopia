@@ -24,6 +24,9 @@ type Config struct {
 	Coordinator Coordinator
 	Catalog     Catalog
 	FreshFor    time.Duration
+	// Tints derives header colours from artwork before caching or storing
+	// events. Nil disables artwork requests.
+	Tints *Tints
 }
 
 type Service struct {
@@ -40,6 +43,7 @@ type Service struct {
 	coordinator Coordinator
 	catalog     Catalog
 	freshFor    time.Duration
+	tints       *Tints
 }
 
 func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Config) *Service {
@@ -62,7 +66,7 @@ func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Conf
 		ctx: ctx, cache: cache, logger: logger, key: strings.TrimSpace(config.APIKey),
 		baseURL: strings.TrimRight(config.BaseURL, "/"), client: config.HTTPClient,
 		gate: requestGate{budget: config.DailyBudget, interval: 250 * time.Millisecond}, now: time.Now, coordinator: config.Coordinator,
-		catalog: config.Catalog, freshFor: config.FreshFor,
+		catalog: config.Catalog, freshFor: config.FreshFor, tints: config.Tints,
 	}
 }
 
@@ -144,6 +148,7 @@ func (s *Service) fetchPage(ctx context.Context, q Query) (eventPage, error) {
 		}
 		page.Items = append(page.Items, normalizeEvent(event))
 	}
+	s.tints.apply(ctx, page.Items)
 	now := s.now()
 	for _, event := range page.Items {
 		writeRecord(ctx, s, detailKey(event.ID), cacheRecord[models.Event]{
@@ -196,7 +201,7 @@ func (s *Service) providerEvent(ctx context.Context, id string) (models.EventDet
 		if raw.ID != rawID || raw.Name == "" {
 			return models.Event{}, s.unavailable(30 * time.Second)
 		}
-		return normalizeEvent(raw), nil
+		return s.normalizedDetail(ctx, raw), nil
 	})
 	return models.EventDetail{Item: event, Meta: meta}, err
 }
@@ -214,9 +219,15 @@ func (s *Service) RefreshEvent(ctx context.Context, id string) (models.EventDeta
 	if raw.ID != rawID || raw.Name == "" {
 		return models.EventDetail{}, s.unavailable(30 * time.Second)
 	}
-	detail := models.EventDetail{Item: normalizeEvent(raw), Meta: models.Freshness{DataAsOf: s.now()}}
+	detail := models.EventDetail{Item: s.normalizedDetail(ctx, raw), Meta: models.Freshness{DataAsOf: s.now()}}
 	writeRecord(ctx, s, detailKey(id), cacheRecord[models.Event]{Data: detail.Item, FetchedAt: detail.Meta.DataAsOf, FreshUntil: s.now().Add(eventPolicy.fresh), StaleUntil: s.now().Add(eventPolicy.retain)})
 	return detail, nil
+}
+
+func (s *Service) normalizedDetail(ctx context.Context, raw providerEvent) models.Event {
+	events := []models.Event{normalizeEvent(raw)}
+	s.tints.apply(ctx, events)
+	return events[0]
 }
 
 func (s *Service) Genres(ctx context.Context) (models.GenreList, error) {

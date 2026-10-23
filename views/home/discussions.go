@@ -47,14 +47,6 @@ func contextThreadID(p EventPage) string {
 	return ""
 }
 
-func (p DiscussionCommunityPage) hasCategory() bool {
-	for _, c := range p.Categories {
-		if c.ID == p.Filters.CategoryID {
-			return true
-		}
-	}
-	return false
-}
 // discussionLaterPage recognizes only an event's own conversation list: a
 // Discover return URL can carry an unrelated results cursor.
 func discussionLaterPage(raw string) string {
