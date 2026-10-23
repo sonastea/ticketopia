@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-10-18 — Part 3: specific artists and venues
+
+- Add exact full-lineup/venue predicates, canonical shared views and bounded facets.
+- Connect authenticated name pickers, labels, native drafts and independent clears
+  on Happening Now/Preferences; preserve guest public IDs, revisions and quiet updates.
+- Pass 29 entity, 30 filter and 65 presentation browser checks, real-MariaDB race
+  regressions/full suite, vet, OpenAPI lint, generated build and Docker validation. See the
+  [guide](../live-community-activity.md#verification); production rollout remains Part 5.
+
 ### 2026-10-18 — Toasts and Happening Now presentation checkpoint
 
 - Implement the native `/happening-now` snapshot/Refresh/filter page, all navigation

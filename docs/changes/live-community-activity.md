@@ -27,6 +27,10 @@
 - Add a diagnostic ablation phase (`LIVE_ACTIVITY_ABLATION`, tagged builds only) that
   replays projection and/or count SQL under full load, plus a
   [representative Linux runbook](../live-activity-rollout.md#representative-linux-run).
+- On a Linux (WSL2) host, the unchanged soak gate passes: write 1.016× (CI 1.003–1.026),
+  browse 1.030×. Accepted as representative (assuming production is similar or better):
+  P1.3 met. Ablation finds no measurable effect from projection or count SQL. See the
+  [Linux results](../live-activity-rollout.md#linux-wsl2-gate-and-ablation--2026-10-23).
 
 ### 2026-10-21 — Part 5: P1 capacity, soak, latency and ingress gates
 
@@ -78,12 +82,3 @@
   regressions, vet, OpenAPI lint, generated build and Docker `make check`.
 
 Older entries: [archive](archive/live-community-activity/).
-
-### 2026-10-18 — Part 3: specific artists and venues
-
-- Add exact full-lineup/venue predicates, canonical shared views and bounded facets.
-- Connect authenticated name pickers, labels, native drafts and independent clears
-  on Happening Now/Preferences; preserve guest public IDs, revisions and quiet updates.
-- Pass 29 entity, 30 filter and 65 presentation browser checks, real-MariaDB race
-  regressions/full suite, vet, OpenAPI lint, generated build and Docker validation. See the
-  [guide](../live-community-activity.md#verification); production rollout remains Part 5.

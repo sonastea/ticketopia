@@ -323,9 +323,11 @@ resilience/privacy stress test found and fixed expiry-driven stream interruption
 stale worker failures after recovery and private rebuild livelock under metadata
 corrections. Race, vet and Docker checks pass; retain the explicit production kill
 switch while the remaining workload/manual rollout gates are open.
-On 2026-10-22, the 40-minute ABBA×4 soak's write gate is still failing (1.108×; 95% CI
-1.076–1.139, inconclusive), after encoding and projection reductions. HTTP count
-reads stay uncached so a read after a committed write is always fresh.
+On 2026-10-23 the 40-minute soak (P1.3) passed on a Linux (WSL2) host: write 1.016×
+(95% CI 1.003–1.026), browse 1.030×. It was accepted as representative on the
+stated assumption that production is similar or better. The Mac/Colima VM still
+fails (1.108×). HTTP count reads stay uncached so a read after a committed write is
+always fresh.
 
 **Part 4 — 2026-10-19:** real MariaDB tests cover concurrent/idempotent saves,
 all four source mutations, visibility-only no-ops, actual writer failure/rollback,

@@ -4,23 +4,18 @@ Part 5 is **in progress**, not a production-readiness or deployment sign-off.
 Keep production's explicit `LIVE_ACTIVITY_ENABLED=false` until the outstanding
 gates below pass and the coordinated migration/deployment is authorized.
 
-**Latest result — 2026-10-22:** the [P1 rollout gates](#p1-rollout-gates--2026-10-21)
+**Latest result — 2026-10-23:** the [P1 rollout gates](#p1-rollout-gates--2026-10-21)
 found and fixed calibration and latency defects. Distinct public filters,
-personalization and the production-image deployment scenario now pass at 10,000
-rich groups. Open: the [latest gate-of-record soak](#p13-encoding-projection-and-gate-rerun--2026-10-22)
-still fails the write gate (pooled p95 1.108×; 95% CI 1.076–1.139 crosses 1.10, so
-inconclusive, not a pass); browse passes (1.031×). The previous run failed with
-statistical support (1.160×; CI 1.105–1.226). Two runs, one per build, do not
-show that the change caused the difference. The
-[request-level diagnosis](#p13-write-gate-request-level-diagnosis--2026-10-22)
-fixed the synchronous membership-notification cost. The remaining shift is mostly
-SQL time under concurrent read load on the local VM; it needs validation on
-representative Linux infrastructure, and the gate stays failed until then. A local
-[ablation smoke run](#ablation-smoke-run-local--2026-10-23) is weak evidence
-against projection and count reads as the main cause. The
-[Linux runbook](#representative-linux-run) is ready but has not run. The
-actual-ingress check (P1.5) has tooling but has not been run, and the cold-start
-target needs agreement. Physical-device and screen-reader verification also remain open.
+personalization and the production-image deployment scenario pass at 10,000 rich
+groups. **P1.3 (soak) is met.** On a [Linux (WSL2) host](#linux-wsl2-gate-and-ablation--2026-10-23),
+the unchanged gate passes: write 1.016× (95% CI 1.003–1.026) and browse 1.030×. The
+owner accepted that run as representative, assuming production is similar or
+better. That assumption is not measured. On the Mac/Colima VM the same gate still
+fails ([1.108×, CI 1.076–1.139](#p13-encoding-projection-and-gate-rerun--2026-10-22)),
+which is recorded as environment-specific. Ablation on both hosts found no
+measurable write effect from projection or count SQL. Still open: the
+actual-ingress check (P1.5, with tooling ready but not yet run), agreement on the
+cold-start target, and physical-device and screen-reader verification.
 
 ## Operational telemetry
 
@@ -271,6 +266,61 @@ latency fixture allows 600 starts per minute because every journey shares one
 loopback address; production keeps 60.
 
 ## Results and outstanding gates
+
+### Linux (WSL2) gate and ablation — 2026-10-23
+
+**Result: on this host, the gate-of-record soak passes both gates with statistical
+support.** Write is 1.016× (95% CI 1.003–1.026, below 1.10) and browse 1.030×
+(0.982–1.060). Every other soak assertion passed, including growth. The measurements
+apply to this host; see the decision below for how they are used.
+
+Environment: Ubuntu 24.04 under WSL2 (kernel 6.6.87.2-microsoft-standard-WSL2), a
+Hyper-V virtual machine on a Windows host. It is not bare-metal Linux. 16 vCPUs, 31
+GiB, Docker 29.6.2, ext4 on virtual disks, MariaDB 12.3.3 in the same VM. Image
+`sha256:c963cbd9…`, built on that host from the runbook commit. The runbook
+was followed: the ablation diagnostic first, then one uninstrumented gate run.
+
+**Absolute latency.** Write latency is bimodal by method, in both states: PUT about
+9 ms and DELETE about 3.2 ms. The pooled p95 falls in the PUT mode, so each method
+was also checked separately against the 2026-10-22 Mac gate run:
+
+| Gate run | PUT p95 loaded/no-live | PUT Δp95, Δmean | DELETE p95 loaded/no-live | DELETE Δp95, Δmean |
+| --- | --- | --- | --- | --- |
+| WSL2 | 9.69 / 9.49 ms (1.021) | +0.20, +0.07 ms | 3.58 / 3.51 ms (1.019) | +0.07, +0.03 ms |
+| Mac (Colima) | 6.77 / 5.86 ms (1.156) | +0.91, +0.28 ms | 3.34 / 2.71 ms (1.232) | +0.63, +0.20 ms |
+
+The added latency is also smaller in absolute terms, not only relative to a slower
+baseline. PUT is slower on WSL2 regardless of live load. The cause was not
+investigated.
+
+**Gate soak details.** 704 SSE tabs and 64 fallback clients; 11,809 SSE connections;
+26,484 fallback requests with no failures; no `unavailable` frames or refused
+starts. Count cadence: 61,618 intervals of 14.98–16.04 s, none early or late. No
+growth: goroutines 404–532, heap 12–15 MiB, two SQL connections per replica.
+
+**Ablation (diagnostic, with trace and statement log).** Write loaded/no-live is
+1.035 (CI 0.985–1.094) across four pairs. Removing projection SQL gives 0.996
+(0.970–1.011), counts 0.999 (0.974–1.025), and both 0.988 (0.974–1.012). Little
+shift exists to attribute here, and removing these reads changes nothing
+measurable, which matches the local smoke run. Traced write handler means
+(loaded − no-live) are +0.17 ms network wait (of which commit +0.19 ms, with p95
+2.05 vs 1.00 ms) and +0.04 ms overlap with GC mark. Go CPU is about 0.06 cores per
+period, at 0.8–0.9 GC cycles/s, in every arm.
+
+**Interpretation.** The same build and workload add about 0.6 ms to write p95 on
+the Mac/Colima VM and about 0.15–0.2 ms on this WSL2 host. This is evidence that the
+local failure depends strongly on the environment. It does not identify which
+property of the Mac VM is responsible, and WSL2 is a different VM, not production.
+**Decision (2026-10-23):** the owner accepted this run as P1.3's representative
+result, so **P1.3 is met**. This rests on an assumption, not a measurement:
+production will perform similarly or better than this host. The assumption is noted
+here; P1.5 ingress on the real deployment path is the first production-like check of
+it. The Mac/Colima failure stays recorded as an environment-specific result. Production
+readiness still needs actual ingress (P1.5), the cold-start target, and
+physical-device and screen-reader verification.
+
+Raw data (git-ignored): `.local/tests-on-linux/` (logs, CSVs, events, requests,
+traces, `linux-env.txt`).
 
 ### Ablation smoke run, local — 2026-10-23
 
