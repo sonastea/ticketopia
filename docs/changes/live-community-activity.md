@@ -17,6 +17,16 @@
   The diagnostics are evidence against CPU saturation and delivery-aligned bursts;
   they do not eliminate CPU, database or platform effects. Ingress has not been run.
   See the [rollout record](../live-activity-rollout.md#p13-write-gate-request-level-diagnosis--2026-10-22).
+- Splice cached view encodings and write them directly to SSE frames
+  (benchmarks: 28 µs → 1.1 µs per generation re-encode, 28 µs → 0 per frame). Drop the
+  projection's redundant per-contribution `accounts` join (EXPLAIN: identical rows,
+  −9–15% with past-recommendation history). Count GETs stay uncached for
+  post-write freshness. Gate-of-record rerun: write 1.108× (CI 1.076–1.139,
+  inconclusive), still failed; browse 1.031×. See the
+  [rerun](../live-activity-rollout.md#p13-encoding-projection-and-gate-rerun--2026-10-22).
+- Add a diagnostic ablation phase (`LIVE_ACTIVITY_ABLATION`, tagged builds only) that
+  replays projection and/or count SQL under full load, plus a
+  [representative Linux runbook](../live-activity-rollout.md#representative-linux-run).
 
 ### 2026-10-21 — Part 5: P1 capacity, soak, latency and ingress gates
 
@@ -77,22 +87,3 @@ Older entries: [archive](archive/live-community-activity/).
 - Pass 29 entity, 30 filter and 65 presentation browser checks, real-MariaDB race
   regressions/full suite, vet, OpenAPI lint, generated build and Docker validation. See the
   [guide](../live-community-activity.md#verification); production rollout remains Part 5.
-
-### 2026-10-18 — Toasts and Happening Now presentation checkpoint
-
-- Implement the native `/happening-now` snapshot/Refresh/filter page, all navigation
-  layouts and bounded eight-second toasts with shared preferences and one stream.
-- Preserve hide/pause/disable, quiet baselines, first-name-only attribution,
-  immediate redaction/expiry, explicit updates, independent counts and Overview/Back.
-- Pass 65 presentation and 30 filter/draft/count browser checks against isolated
-  MariaDB, whole-page axe, responsive/enlarged-text/focus checks, race suite, vet
-  and Docker `make check`.
-  See the [current guide](../live-community-activity.md#verification). No new migration
-  or production configuration change; rollout/manual-device gates remain Part 5.
-
-### 2026-10-17 — Toasts and Happening Now specification
-
-- Revise the [interface contract](../design/live-community-activity.md#interface-and-notification-controls)
-  to replace above-content activity with bounded top-right toast notifications.
-- Specify a **Happening Now** navigation page for recent public recommendations,
-  with shared filters, native browsing, accessible dismissal and preserved pauses.

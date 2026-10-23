@@ -229,9 +229,20 @@ func writeSoakRequests(path string, rows []soakRequest) error {
 }
 
 // logSoakRequestDiagnostics reports each component's mean, p50 and p95 per
-// state and the loaded−no-live difference. Means add along the request path;
-// percentiles do not.
+// state and the difference between loaded and each other state present
+// (no-live, or an ablation arm). Means add along the request path; percentiles
+// do not.
 func logSoakRequestDiagnostics(t *testing.T, rows []soakRequest) {
+	for _, against := range soakArms {
+		logSoakRequestDiagnosticsAgainst(t, rows, against)
+	}
+}
+
+func logSoakRequestDiagnosticsAgainst(t *testing.T, rows []soakRequest, against string) {
+	label := ""
+	if against != soakNoLive {
+		label = " vs " + against
+	}
 	for _, op := range []string{"write", "browse"} {
 		for _, subset := range []struct {
 			label string
@@ -243,7 +254,7 @@ func logSoakRequestDiagnostics(t *testing.T, rows []soakRequest) {
 					byState[r.State] = append(byState[r.State], r)
 				}
 			}
-			if len(byState[soakLoaded]) == 0 || len(byState[soakNoLive]) == 0 {
+			if len(byState[soakLoaded]) == 0 || len(byState[against]) == 0 {
 				continue
 			}
 			p95 := func(state string) time.Duration {
@@ -253,15 +264,15 @@ func logSoakRequestDiagnostics(t *testing.T, rows []soakRequest) {
 				}
 				return durationPercentile(values, 95)
 			}
-			t.Logf("diagnostic %s %s: client p95 loaded=%s no-live=%s ratio=%.3f (n=%d/%d)", op, subset.label, p95(soakLoaded), p95(soakNoLive),
-				float64(p95(soakLoaded))/float64(p95(soakNoLive)), len(byState[soakLoaded]), len(byState[soakNoLive]))
+			t.Logf("diagnostic %s %s%s: client p95 loaded=%s %s=%s ratio=%.3f (n=%d/%d)", op, subset.label, label, p95(soakLoaded), against, p95(against),
+				float64(p95(soakLoaded))/float64(p95(against)), len(byState[soakLoaded]), len(byState[against]))
 			if subset.label == "untraced periods" {
 				continue
 			}
 			for _, c := range soakRequestComponents {
 				stats := map[string][3]float64{}
 				n := map[string]int{}
-				for _, state := range []string{soakLoaded, soakNoLive} {
+				for _, state := range []string{soakLoaded, against} {
 					values := []float64{}
 					for _, r := range byState[state] {
 						if v, ok := c.value(r); ok {
@@ -274,12 +285,12 @@ func logSoakRequestDiagnostics(t *testing.T, rows []soakRequest) {
 					stats[state] = [3]float64{meanFloat(values), percentile(values, 50), percentile(values, 95)}
 					n[state] = len(values)
 				}
-				if n[soakLoaded] == 0 || n[soakNoLive] == 0 {
+				if n[soakLoaded] == 0 || n[against] == 0 {
 					continue
 				}
-				l, b := stats[soakLoaded], stats[soakNoLive]
-				t.Logf("diagnostic %s %s %-28s loaded mean=%.3f p50=%.3f p95=%.3f | no-live mean=%.3f p50=%.3f p95=%.3f | Δmean=%+.3f Δp50=%+.3f ms (n=%d/%d)",
-					op, subset.label, c.name, l[0], l[1], l[2], b[0], b[1], b[2], l[0]-b[0], l[1]-b[1], n[soakLoaded], n[soakNoLive])
+				l, b := stats[soakLoaded], stats[against]
+				t.Logf("diagnostic %s %s%s %-28s loaded mean=%.3f p50=%.3f p95=%.3f | %s mean=%.3f p50=%.3f p95=%.3f | Δmean=%+.3f Δp50=%+.3f ms (n=%d/%d)",
+					op, subset.label, label, c.name, l[0], l[1], l[2], against, b[0], b[1], b[2], l[0]-b[0], l[1]-b[1], n[soakLoaded], n[against])
 			}
 		}
 	}

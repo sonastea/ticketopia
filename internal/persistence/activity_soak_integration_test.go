@@ -133,6 +133,14 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	}
 	filters := distinctCapacityFilters(t, 0, 256, map[string]bool{})
 	d := startActivityDeployment(t, f, image, "location = /nginx_status { stub_status; }")
+	// LIVE_ACTIVITY_ABLATION=true replaces the gate's ABBA×4 phase with the
+	// fixed ablation order (soakAblationOrder): a diagnostic, never a gate result.
+	ablation := d.ablationDir != ""
+	order := soakOrder
+	if ablation {
+		order = soakAblationOrder
+		d.setAblation("full") // fail fast if the mode file is not reaching replicas
+	}
 	t.Logf("soak duration=%s groups=%d", duration, n)
 	pooled := func(results []loadProbeResult) [2]time.Duration {
 		var browse, write []time.Duration
@@ -705,12 +713,15 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	}
 	tracedPeriods := []tracedPeriod{}
 	tracing := d.traceDir != ""
-	for i, state := range soakOrder {
+	for i, state := range order {
 		transition := time.Now()
 		stopLive()
 		stopped := time.Now()
 		verifyNoLive(stopped)
-		if state == soakLoaded {
+		if ablation {
+			d.setAblation(soakAblationMode(state))
+		}
+		if state != soakNoLive {
 			startLive()
 		}
 		record := periodRecord{state: state, ready: time.Since(transition)}
@@ -740,12 +751,12 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 		if state == soakNoLive && (record.open != 0 || record.fallback != 0 || record.rotated != 0) {
 			t.Fatalf("period %d: live clients active during a no-live period: %+v", i+1, record)
 		}
-		if state == soakLoaded && (record.open < len(streams)*9/10 || record.fallback == 0) {
+		if state != soakNoLive && (record.open < len(streams)*9/10 || record.fallback == 0) {
 			t.Fatalf("period %d: live clients not running during a loaded period: %+v", i+1, record)
 		}
 		interleavedErrors += result.Errors
 		retained = append(retained, soakSamples("interleaved", i+1, label, state, result)...)
-		t.Logf("period %d %-7s ready=%s settle=%s sampled %s–%s open_sse=%d/%d proxy_active=%d fallback_requests=%d rotations=%d publications=%d membership_writes=%d probe_errors=%d",
+		t.Logf("period %d %-13s ready=%s settle=%s sampled %s–%s open_sse=%d/%d proxy_active=%d fallback_requests=%d rotations=%d publications=%d membership_writes=%d probe_errors=%d",
 			i+1, state, record.ready.Round(time.Second), settle, record.start.UTC().Format("15:04:05"), record.end.UTC().Format("15:04:05"),
 			record.open, len(streams), record.proxy, record.fallback, record.rotated, record.published, record.membership, result.Errors)
 	}
@@ -787,12 +798,19 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	for _, kind := range kinds {
 		t.Logf("cpu %-22s loaded mean=%.2f cores (n=%d) no-live mean=%.2f cores (n=%d)", kind,
 			meanFloat(cpu[kind][soakLoaded]), len(cpu[kind][soakLoaded]), meanFloat(cpu[kind][soakNoLive]), len(cpu[kind][soakNoLive]))
+		for _, arm := range soakArms[1:] {
+			if values := cpu[kind][arm]; len(values) > 0 {
+				t.Logf("cpu %-22s %s mean=%.2f cores (n=%d)", kind, arm, meanFloat(values), len(values))
+			}
+		}
 	}
-	if tracing || d.profile.logFile != "" {
-		t.Log("instrumented run (trace build on r0 and/or statement log): a diagnostic result, not a P1.3 gate result")
+	if tracing || d.profile.logFile != "" || ablation {
+		t.Log("instrumented run (trace build on r0, statement log and/or ablation build): a diagnostic result, not a P1.3 gate result")
 	}
 	for _, r := range logSoakAnalysis(t, retained) {
-		if r.ratio > 1.10 {
+		// The ablation phase still contains loaded/no-live pairs, but fewer and
+		// in a different order: report them, never judge the gate from them.
+		if r.against == soakNoLive && !ablation && r.ratio > 1.10 {
 			t.Errorf("ordinary %s exceeds the 10%% gate: pooled loaded/no-live p95 ratio %.3f", r.operation, r.ratio)
 		}
 	}

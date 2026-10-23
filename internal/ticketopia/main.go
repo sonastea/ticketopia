@@ -21,6 +21,10 @@ import (
 	"github.com/sonastea/ticketopia/internal/reminders"
 )
 
+// activityRepository is the live activity repository. Only diagnostic builds
+// (-tags activityablation) replace it; release builds use the pool's directly.
+var activityRepository = func(_ context.Context, r *persistence.ActivityRepository) activity.Repository { return r }
+
 func Execute(ctx context.Context) int {
 	logger := logger.NewLogger(ctx, "component", "api")
 
@@ -110,7 +114,7 @@ func Execute(ctx context.Context) int {
 			recommendations.EnableLiveActivity(liveConfig.Enabled)
 			options = append(options, api.WithEventRecommendations(recommendations))
 			if liveConfig.Enabled {
-				service := activity.New(ctx, pool.Activity(), liveConfig.MaxStreams, logger)
+				service := activity.New(ctx, activityRepository(ctx, pool.Activity()), liveConfig.MaxStreams, logger)
 				defer service.Close()
 				options = append(options, api.WithLiveActivity(service, liveConfig.StartsPerMinute))
 			}

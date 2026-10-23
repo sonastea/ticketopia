@@ -57,13 +57,23 @@ func (s Snapshot) MarshalJSON() ([]byte, error) {
 		Items json.RawMessage `json:"items"`
 	}{s.AsOf, s.ContentJSON()})
 }
+
+// encode runs for every warm view on each generation. Splice the already
+// encoded items rather than marshalling a RawMessage, which re-validates and
+// copies the whole payload.
 func (s *Snapshot) encode() {
 	s.encoded = nil
 	if s.encodedItems == nil {
 		s.encodedItems = s.ContentJSON()
 		s.contentHash = sha256.Sum256(s.encodedItems)
 	}
-	s.encoded, _ = s.MarshalJSON()
+	asOf, err := s.AsOf.MarshalJSON()
+	if err != nil {
+		return
+	}
+	encoded := make([]byte, 0, len(`{"as_of":,"items":}`)+len(asOf)+len(s.encodedItems))
+	encoded = append(append(append(encoded, `{"as_of":`...), asOf...), `,"items":`...)
+	s.encoded = append(append(encoded, s.encodedItems...), '}')
 }
 
 type Count struct {

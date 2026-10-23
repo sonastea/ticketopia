@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"os"
 	"slices"
@@ -30,6 +31,45 @@ const (
 
 // soakOrder is ABBA×4: eight pairs for the bootstrap's outer stage.
 var soakOrder = slices.Repeat([]string{soakLoaded, soakNoLive, soakNoLive, soakLoaded}, 4)
+
+// Ablation arms (LIVE_ACTIVITY_ABLATION, a diagnostic): live clients run at full
+// load while replicas replay recorded projection generations, counts, or both
+// instead of reading MariaDB. Each arm is paired with full load (soakLoaded).
+const (
+	soakNoProjection = "no-projection"
+	soakNoCounts     = "no-counts"
+	soakReplayed     = "replayed"
+)
+
+var soakArms = []string{soakNoLive, soakNoProjection, soakNoCounts, soakReplayed}
+
+// soakAblationOrder is fixed before any run: four rounds, each pairing full
+// load with every arm once. Arm order rotates by round so no arm always runs
+// first or last; within each arm, pair order alternates (AB, BA, AB, BA). 32
+// periods, 16 pairs (four per arm).
+var soakAblationOrder = func() []string {
+	order := []string{}
+	for round := range 4 {
+		for j := range soakArms {
+			arm := soakArms[(j+round)%len(soakArms)]
+			if round%2 == 0 {
+				order = append(order, soakLoaded, arm)
+			} else {
+				order = append(order, arm, soakLoaded)
+			}
+		}
+	}
+	return order
+}()
+
+// soakAblationMode is the replica repository mode for a period's state.
+func soakAblationMode(state string) string {
+	switch state {
+	case soakNoProjection, soakNoCounts, soakReplayed:
+		return state
+	}
+	return "full"
+}
 
 // soakSample is one retained probe observation.
 type soakSample struct {
@@ -176,8 +216,8 @@ func soakPeriods(samples []soakSample) ([]soakPeriod, error) {
 		return nil, fmt.Errorf("%d interleaved periods; need complete pairs", len(periods))
 	}
 	for k := 0; k < len(periods); k += 2 {
-		if periods[k].state == periods[k+1].state {
-			return nil, fmt.Errorf("periods %d and %d do not pair loaded with no-live", k+1, k+2)
+		if (periods[k].state == soakLoaded) == (periods[k+1].state == soakLoaded) {
+			return nil, fmt.Errorf("periods %d and %d do not pair loaded with another state", k+1, k+2)
 		}
 	}
 	return periods, nil
@@ -185,9 +225,10 @@ func soakPeriods(samples []soakSample) ([]soakPeriod, error) {
 
 // soakRatio is the pooled loaded/no-live p95 ratio for one operation with two
 // percentile-bootstrap intervals: paired periods plus blocks (primary), and
-// blocks within fixed periods (the within-period sampling floor).
+// blocks within fixed periods (the within-period sampling floor). In an
+// ablation run, against names the arm in place of no-live.
 type soakRatio struct {
-	operation             string
+	operation, against    string
 	loaded, noLive        time.Duration
 	loadedN, noLiveN      int
 	ratio                 float64
@@ -214,12 +255,30 @@ func blockResample(r *rand.Rand, dst, values []time.Duration) []time.Duration {
 	return dst
 }
 
-// analyzeSoak computes each operation's ratio and seeded bootstrap intervals.
-// Outer unit: an adjacent loaded/no-live pair, drawn with replacement (so each
-// replicate keeps equal loaded and no-live periods). Inner unit: a block of
+// analyzeSoak computes each operation's loaded/no-live ratio.
+func analyzeSoak(periods []soakPeriod, operation string) soakRatio {
+	return analyzeSoakAgainst(periods, operation, soakNoLive)
+}
+
+// soakPairsAgainst keeps the pairs that compare loaded with against, in order.
+func soakPairsAgainst(periods []soakPeriod, against string) []soakPeriod {
+	kept := []soakPeriod{}
+	for k := 0; k+1 < len(periods); k += 2 {
+		if periods[k].state == against || periods[k+1].state == against {
+			kept = append(kept, periods[k], periods[k+1])
+		}
+	}
+	return kept
+}
+
+// analyzeSoakAgainst computes each operation's loaded/against ratio and seeded
+// bootstrap intervals over the pairs holding against.
+// Outer unit: an adjacent loaded/against pair, drawn with replacement (so each
+// replicate keeps equal loaded and against periods). Inner unit: a block of
 // consecutive requests within each drawn period. Requests are never resampled
 // individually, because neighbouring requests share load and GC state.
-func analyzeSoak(periods []soakPeriod, operation string) soakRatio {
+func analyzeSoakAgainst(periods []soakPeriod, operation, against string) soakRatio {
+	periods = soakPairsAgainst(periods, against)
 	pooled := func(state string, pick func(p soakPeriod) []time.Duration, chosen []int) []time.Duration {
 		out := []time.Duration{}
 		for _, k := range chosen {
@@ -237,8 +296,8 @@ func analyzeSoak(periods []soakPeriod, operation string) soakRatio {
 		all[k] = k
 	}
 	raw := func(p soakPeriod) []time.Duration { return p.op[operation] }
-	loaded, noLive := pooled(soakLoaded, raw, all), pooled(soakNoLive, raw, all)
-	result := soakRatio{operation: operation, loadedN: len(loaded), noLiveN: len(noLive)}
+	loaded, noLive := pooled(soakLoaded, raw, all), pooled(against, raw, all)
+	result := soakRatio{operation: operation, against: against, loadedN: len(loaded), noLiveN: len(noLive)}
 	if len(loaded) == 0 || len(noLive) == 0 {
 		return result
 	}
@@ -258,7 +317,7 @@ func analyzeSoak(periods []soakPeriod, operation string) soakRatio {
 					chosen[k] = r.IntN(pairs)
 				}
 			}
-			a, b := pooled(soakLoaded, draw, chosen), pooled(soakNoLive, draw, chosen)
+			a, b := pooled(soakLoaded, draw, chosen), pooled(against, draw, chosen)
 			ratios = append(ratios, float64(p95Of(a, buffer))/float64(p95Of(b, buffer)))
 		}
 		slices.Sort(ratios)
@@ -290,6 +349,8 @@ func soakVerdict(r soakRatio, limit float64) (gate, evidence string) {
 	return gate, evidence
 }
 
+// logSoakAnalysis logs periods, pairs and pooled ratios of loaded against every
+// other state present (only no-live in a gate run), in soakArms order.
 func logSoakAnalysis(t *testing.T, samples []soakSample) []soakRatio {
 	t.Helper()
 	periods, err := soakPeriods(samples)
@@ -298,24 +359,38 @@ func logSoakAnalysis(t *testing.T, samples []soakSample) []soakRatio {
 	}
 	var buffer []time.Duration
 	for _, p := range periods {
-		t.Logf("interleaved period %d %-7s browse n=%d errors=%d p95=%s | write n=%d errors=%d p95=%s", p.index, p.state,
+		t.Logf("interleaved period %d %-13s browse n=%d errors=%d p95=%s | write n=%d errors=%d p95=%s", p.index, p.state,
 			len(p.op["browse"]), p.errors["browse"], p95Of(p.op["browse"], buffer), len(p.op["write"]), p.errors["write"], p95Of(p.op["write"], buffer))
 	}
+	present := map[string]bool{}
 	for k := 0; k < len(periods); k += 2 {
 		a, b := periods[k], periods[k+1]
 		if a.state != soakLoaded {
 			a, b = b, a
 		}
-		t.Logf("pair %d (periods %d/%d): browse ratio=%.3f write ratio=%.3f", k/2+1, periods[k].index, periods[k+1].index,
+		present[b.state] = true
+		t.Logf("pair %d (periods %d/%d) loaded/%s: browse ratio=%.3f write ratio=%.3f", k/2+1, periods[k].index, periods[k+1].index, b.state,
 			float64(p95Of(a.op["browse"], buffer))/float64(p95Of(b.op["browse"], buffer)), float64(p95Of(a.op["write"], buffer))/float64(p95Of(b.op["write"], buffer)))
 	}
 	results := []soakRatio{}
-	for _, operation := range []string{"browse", "write"} {
-		r := analyzeSoak(periods, operation)
-		gate, evidence := soakVerdict(r, 1.10)
-		t.Logf("pooled %s p95: loaded=%s (n=%d) no-live=%s (n=%d) ratio=%.3f gate(≤1.10)=%s; 95%% CI paired-period+block [%.3f, %.3f] (%s); block-only [%.3f, %.3f]",
-			operation, r.loaded, r.loadedN, r.noLive, r.noLiveN, r.ratio, gate, r.pairedLow, r.pairedHigh, evidence, r.blockLow, r.blockHigh)
-		results = append(results, r)
+	for _, against := range soakArms {
+		if !present[against] {
+			continue
+		}
+		for _, operation := range []string{"browse", "write"} {
+			r := analyzeSoakAgainst(periods, operation, against)
+			if against == soakNoLive {
+				gate, evidence := soakVerdict(r, 1.10)
+				t.Logf("pooled %s p95: loaded=%s (n=%d) no-live=%s (n=%d) ratio=%.3f gate(≤1.10)=%s; 95%% CI paired-period+block [%.3f, %.3f] (%s); block-only [%.3f, %.3f]",
+					operation, r.loaded, r.loadedN, r.noLive, r.noLiveN, r.ratio, gate, r.pairedLow, r.pairedHigh, evidence, r.blockLow, r.blockHigh)
+			} else {
+				// Diagnostic: how much slower full load is than full load without
+				// this SQL. Near 1.0 means removing it changes little.
+				t.Logf("ablation %s p95: loaded=%s (n=%d) %s=%s (n=%d) loaded/%s=%.3f Δp95=%+.3fms; 95%% CI paired-period+block [%.3f, %.3f]; block-only [%.3f, %.3f]",
+					operation, r.loaded, r.loadedN, against, r.noLive, r.noLiveN, against, r.ratio, float64(r.loaded-r.noLive)/1e6, r.pairedLow, r.pairedHigh, r.blockLow, r.blockHigh)
+			}
+			results = append(results, r)
+		}
 	}
 	t.Logf("bootstrap: %d replicates, seed %d, block %d requests, %d pairs", soakBootstrap, soakSeed, soakBlock, len(periods)/2)
 	return results
@@ -332,6 +407,54 @@ func TestActivitySoakSampleAnalysis(t *testing.T) {
 		t.Fatal(err)
 	}
 	logSoakAnalysis(t, samples)
+}
+
+// The ablation order pairs full load with every arm four times, alternating
+// pair order within each arm, and each arm's ratio uses only its own pairs.
+func TestActivitySoakAblationAnalysis(t *testing.T) {
+	if len(soakAblationOrder) != 32 {
+		t.Fatalf("%d ablation periods", len(soakAblationOrder))
+	}
+	firsts := map[string][]bool{}
+	for k := 0; k < len(soakAblationOrder); k += 2 {
+		a, b := soakAblationOrder[k], soakAblationOrder[k+1]
+		if (a == soakLoaded) == (b == soakLoaded) {
+			t.Fatalf("pair %d is %s/%s", k/2+1, a, b)
+		}
+		arm := a
+		if arm == soakLoaded {
+			arm = b
+		}
+		firsts[arm] = append(firsts[arm], a == soakLoaded)
+	}
+	for _, arm := range soakArms {
+		if !slices.Equal(firsts[arm], []bool{true, false, true, false}) {
+			t.Fatalf("%s pair order %v, want AB BA AB BA", arm, firsts[arm])
+		}
+	}
+	if soakAblationMode(soakLoaded) != "full" || soakAblationMode(soakNoLive) != "full" || soakAblationMode(soakReplayed) != soakReplayed {
+		t.Fatal("ablation modes")
+	}
+	// Loaded periods run at 6 ms; each arm runs at its own level.
+	level := map[string]time.Duration{soakLoaded: 6000, soakNoLive: 5000, soakNoProjection: 5500, soakNoCounts: 6000, soakReplayed: 5200}
+	samples := []soakSample{}
+	for i, state := range soakAblationOrder {
+		for j := range 100 {
+			latency := (level[state] + time.Duration(j%10)) * time.Microsecond
+			samples = append(samples, soakSample{Phase: "interleaved", Period: i + 1, State: state, Operation: "write", Latency: latency})
+		}
+	}
+	periods, err := soakPeriods(samples)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, arm := range soakArms {
+		r := analyzeSoakAgainst(periods, "write", arm)
+		want := float64(level[soakLoaded]+9) / float64(level[arm]+9)
+		if r.against != arm || r.loadedN != 400 || r.noLiveN != 400 || math.Abs(r.ratio-want) > 1e-9 {
+			t.Fatalf("%s: %+v, want ratio %.4f over four pairs", arm, r, want)
+		}
+	}
 }
 
 func TestActivitySoakBootstrap(t *testing.T) {

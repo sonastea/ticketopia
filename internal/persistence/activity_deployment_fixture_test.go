@@ -30,7 +30,10 @@ type activityDeployment struct {
 	probe      string
 	traceDir   string // set when r0 runs the trace-capable build
 	traces     int
-	probeLines int // probe log lines already returned by probeLog
+	// ablationDir is mounted into every replica (LIVE_ACTIVITY_ABLATION only).
+	ablationDir string
+	ablationSeq int
+	probeLines  int // probe log lines already returned by probeLog
 }
 
 // loadProbeIP is testdata/loadprobe's X-Load-IP; nginx logs only its requests.
@@ -99,6 +102,47 @@ func (d *activityDeployment) traceStop(dest string) {
 			d.t.Fatalf("trace copy: %v %s", err, out)
 		}
 		time.Sleep(250 * time.Millisecond)
+	}
+}
+
+// setAblation switches every replica's live-activity repository mode and waits
+// until each has logged applying it (LIVE_ACTIVITY_ABLATION only).
+func (d *activityDeployment) setAblation(mode string) {
+	d.t.Helper()
+	d.ablationSeq++
+	since := time.Now().Add(-time.Second).UTC().Format(time.RFC3339)
+	path := filepath.Join(d.ablationDir, "mode")
+	if err := os.WriteFile(path+".tmp", []byte(fmt.Sprintf("%d %s\n", d.ablationSeq, mode)), 0644); err != nil {
+		d.t.Fatal(err)
+	}
+	if err := os.Rename(path+".tmp", path); err != nil {
+		d.t.Fatal(err)
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for _, container := range d.containers[:3] {
+		for {
+			applied := false
+			for _, line := range strings.Split(d.docker("logs", "--since", since, container), "\n") {
+				var record struct {
+					Seq     int    `json:"seq"`
+					Mode    string `json:"mode"`
+					Applied bool   `json:"applied"`
+				}
+				if strings.Contains(line, "Activity ablation mode") && json.Unmarshal([]byte(line), &record) == nil && record.Seq == d.ablationSeq {
+					if !record.Applied || record.Mode != mode {
+						d.t.Fatalf("%s rejected ablation mode %q: %s", container, mode, line)
+					}
+					applied = true
+				}
+			}
+			if applied {
+				break
+			}
+			if time.Now().After(deadline) {
+				d.t.Fatalf("%s did not apply ablation mode %q (seq %d)", container, mode, d.ablationSeq)
+			}
+			time.Sleep(250 * time.Millisecond)
+		}
 	}
 }
 
@@ -175,23 +219,45 @@ func startActivityDeployment(t *testing.T, f mariaFixture, image, extraServer st
 	// LIVE_ACTIVITY_LOAD_TRACE=true runs r0 (the probed replica) as the same
 	// source built with -tags activitytrace, whose execution trace the caller
 	// starts and stops per period (traceStart/traceStop). Not for gate results.
-	var traced []string
+	// LIVE_ACTIVITY_ABLATION=true runs all three replicas as the same source
+	// built with -tags activityablation, switched per period through a mounted
+	// mode file (setAblation). Not for gate results.
+	tags := []string{}
 	if os.Getenv("LIVE_ACTIVITY_LOAD_TRACE") == "true" {
-		binary := filepath.Join(dir, "ticketopia-trace")
-		build := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-tags", "activitytrace", "-o", binary, "../../cmd/ticketopia")
+		tags = append(tags, "activitytrace")
+		d.traceDir = dir
+	}
+	if os.Getenv("LIVE_ACTIVITY_ABLATION") == "true" {
+		tags = append(tags, "activityablation")
+		d.ablationDir = filepath.Join(dir, "ablation")
+		if err := os.Mkdir(d.ablationDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var diagnostic []string
+	if len(tags) > 0 {
+		binary := filepath.Join(dir, "ticketopia-diagnostic")
+		build := exec.CommandContext(t.Context(), "go", "build", "-trimpath", "-tags", strings.Join(tags, ","), "-o", binary, "../../cmd/ticketopia")
 		build.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+d.docker("version", "--format", "{{.Server.Arch}}"), "CGO_ENABLED=0")
 		if out, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("trace build: %v\n%s", err, out)
+			t.Fatalf("diagnostic build (%s): %v\n%s", strings.Join(tags, ","), err, out)
 		}
-		traced = []string{"-e", "TICKETOPIA_TRACE_DIR=/tmp", "-v", binary + ":/trace/ticketopia:ro", "--entrypoint", "/trace/ticketopia"}
-		d.traceDir = dir
+		diagnostic = []string{"-v", binary + ":/diagnostic/ticketopia:ro", "--entrypoint", "/diagnostic/ticketopia"}
 	}
 	for i := range 3 {
 		id := prefix + "-" + strconv.Itoa(i)
 		d.containers = append(d.containers, id)
 		args := []string{"run", "-d", "--name", id, "--network", d.network, "--memory", "2g", "--cpus", "1", "--env-file", filepath.Join(dir, "app.env"), "-v", filepath.Join(dir, "ca.crt") + ":/load/ca.crt:ro"}
-		if i == 0 {
-			args = append(args, traced...)
+		// The trace build traces only r0; ablation applies to every replica,
+		// since they share the database whose contention is being measured.
+		if d.ablationDir != "" || (i == 0 && d.traceDir != "") {
+			args = append(args, diagnostic...)
+		}
+		if i == 0 && d.traceDir != "" {
+			args = append(args, "-e", "TICKETOPIA_TRACE_DIR=/tmp")
+		}
+		if d.ablationDir != "" {
+			args = append(args, "-e", "TICKETOPIA_ACTIVITY_ABLATION_FILE=/ablation/mode", "-v", d.ablationDir+":/ablation:ro")
 		}
 		d.docker(append(args, image)...)
 	}

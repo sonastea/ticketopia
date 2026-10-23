@@ -269,10 +269,18 @@ func (a *api) liveStream(c echo.Context) error {
 	response.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	response.Header().Set("X-Accel-Buffering", "no")
 	controller := http.NewResponseController(response.Writer)
+	// A snapshot frame writes the view's shared encoding directly; json.Marshal
+	// would re-validate and copy the whole payload for every stream.
 	send := func(event string, value any) (sendErr error) {
 		started := time.Now()
 		defer func() { a.liveActivity.RecordDelivery(started, sendErr) }()
-		data, err := json.Marshal(value)
+		var data []byte
+		var err error
+		if snapshot, ok := value.(activity.Snapshot); ok {
+			data, err = snapshot.MarshalJSON()
+		} else {
+			data, err = json.Marshal(value)
+		}
 		if err != nil {
 			return err
 		}

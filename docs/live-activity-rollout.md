@@ -7,13 +7,18 @@ gates below pass and the coordinated migration/deployment is authorized.
 **Latest result — 2026-10-22:** the [P1 rollout gates](#p1-rollout-gates--2026-10-21)
 found and fixed calibration and latency defects. Distinct public filters,
 personalization and the production-image deployment scenario now pass at 10,000
-rich groups. Open: the [ABBA×4 soak rerun](#p13-soak-rerun-abba4-with-cpu-diagnostics--2026-10-22)
-fails the write gate with statistical support (pooled p95 1.160×; 95% CI
-1.105–1.226, entirely above 1.10), while browse passes (1.048×). The
+rich groups. Open: the [latest gate-of-record soak](#p13-encoding-projection-and-gate-rerun--2026-10-22)
+still fails the write gate (pooled p95 1.108×; 95% CI 1.076–1.139 crosses 1.10, so
+inconclusive, not a pass); browse passes (1.031×). The previous run failed with
+statistical support (1.160×; CI 1.105–1.226). Two runs, one per build, do not
+show that the change caused the difference. The
 [request-level diagnosis](#p13-write-gate-request-level-diagnosis--2026-10-22)
 fixed the synchronous membership-notification cost. The remaining shift is mostly
 SQL time under concurrent read load on the local VM; it needs validation on
-representative Linux infrastructure, and the gate stays failed until then. The
+representative Linux infrastructure, and the gate stays failed until then. A local
+[ablation smoke run](#ablation-smoke-run-local--2026-10-23) is weak evidence
+against projection and count reads as the main cause. The
+[Linux runbook](#representative-linux-run) is ready but has not run. The
 actual-ingress check (P1.5) has tooling but has not been run, and the cold-start
 target needs agreement. Physical-device and screen-reader verification also remain open.
 
@@ -160,7 +165,78 @@ MARIADB_TEST_ADDR=127.0.0.1:3307 PLAYWRIGHT_MODULE=/path/to/node_modules/playwri
 LIVE_ACTIVITY_INGRESS_URL=https://staging.example LIVE_ACTIVITY_INGRESS_REPLICAS=3 \
   LIVE_ACTIVITY_INGRESS_DRAIN_WAIT=5m go test ./internal/persistence \
   -run '^TestLiveActivityIngress$' -count=1 -v
+# Projection plans (ANALYZE FORMAT=JSON), current form vs diagnostic alternatives
+MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_PLAN_GROUPS=1000,10000 \
+  LIVE_ACTIVITY_PLAN_DIR=.local/plans go test ./internal/persistence \
+  -run '^TestMariaDBActivityProjectionPlans$' -count=1 -timeout=40m -v
 ```
+
+The plans test checks that each alternative returns identical rows, then records
+five warm samples per form. `LIVE_ACTIVITY_PLAN_SHAPES` selects `history` (16
+contributors, two contributions per group, plus 4,096 other accounts with 32,768
+past recommendations) and/or `soak` (8 contributors and one contribution per
+group; past recommendations are four times the window). Plans depend on shape.
+Without the history, the optimizer chose different join orders.
+
+**Ablation diagnostic.** `LIVE_ACTIVITY_ABLATION=true` measures which live-activity
+SQL causes the write shift. It removes one source at a time from full load, rather
+than running each source alone. All three replicas then run the same source built
+with `-tags activityablation` (combinable with `LIVE_ACTIVITY_LOAD_TRACE`). Release
+images contain none of it. Before each period, the harness writes a mounted mode
+file and waits for every replica to log the new mode:
+
+- `full`: all reads reach MariaDB, and the latest ~30 candidate generations and
+  counts are recorded.
+- `no-projection`: candidate reads replay recorded generations in order. Each is
+  shifted so its age and remaining lifetime match the recording, with revisions
+  unchanged. Generation turnover, selection, encoding and frames continue.
+- `no-counts`: count reads, including fallback count GETs, return the last
+  recorded counts.
+- `replayed`: both.
+
+Membership reads, cleanup, location keys and request-path SQL (credentials,
+preferences) still reach MariaDB in every mode. Replayed content does not show new
+publications, while the writer keeps writing them.
+
+The ordinary phase becomes a fixed 32-period order (`soakAblationOrder`): four
+rounds that pair full load with each arm (no-live, no-projection, no-counts,
+replayed). Arm order rotates by round, and each arm's pairs alternate AB, BA, AB,
+BA. Each arm reports loaded/arm p95 with the same paired bootstrap, plus
+per-request component differences. A run is a diagnostic, never a gate result.
+With four pairs per arm, an effect smaller than about 0.15 ms at p95 cannot be
+told apart from noise, so read the means and p50 differences alongside. Allow
+about one hour for the ablation phase after the sustained soak.
+
+#### Representative Linux run
+
+Run these on one Linux host (amd64 or arm64) with Docker Engine, Docker Compose,
+Go 1.27+, Make and OpenSSL. The fixture expects the repository's local MariaDB:
+Compose project `ticketopia-db`, container `ticketopia-db-mariadb-1`, network
+`ticketopia-db_default`, address `127.0.0.1:3307`. The database shares the host
+with the replicas but not a VM. Separate database hardware is a different
+environment, and the statement profile only supports the local container. Run one
+test at a time and keep the host otherwise idle. Report results, absolute
+latencies, host CPU/storage and kernel alongside the ratios. A Linux pass shows
+performance on that host, not the cause of the local failure.
+
+```sh
+make db-setup
+docker build -t ticketopia:activity-load .
+export MARIADB_TEST_ADDR=127.0.0.1:3307 LIVE_ACTIVITY_LOAD_IMAGE=ticketopia:activity-load
+# 1. Attribution (diagnostic): ablation with trace and statement log, ~1h40m.
+LIVE_ACTIVITY_SOAK=15m LIVE_ACTIVITY_ABLATION=true LIVE_ACTIVITY_LOAD_TRACE=true \
+  LIVE_ACTIVITY_LOAD_PROFILE=true LIVE_ACTIVITY_SOAK_SAMPLES=$PWD/.local/linux-ablation.csv \
+  go test ./internal/persistence -run '^TestMariaDBActivityDeploymentSoak$' \
+  -count=1 -timeout=180m -v 2>&1 | tee .local/linux-ablation.log
+# 2. Gate of record: unchanged and uninstrumented, run once, ~70m.
+LIVE_ACTIVITY_SOAK=40m LIVE_ACTIVITY_SOAK_SAMPLES=$PWD/.local/linux-gate.csv \
+  go test ./internal/persistence -run '^TestMariaDBActivityDeploymentSoak$' \
+  -count=1 -timeout=150m -v 2>&1 | tee .local/linux-gate.log
+```
+
+Return both logs, the CSVs and their `-events.csv`/`-requests.csv` companions, plus
+`uname -a`, `nproc`, `free -g`, `docker info` and the storage type. Traces are large
+and optional.
 
 `LIVE_ACTIVITY_CAPACITY_PROFILE=typical` selects 1–3 artist lineups, and
 `LIVE_ACTIVITY_PERSONAL_BURST` (default 64, at most 256) sets how many accounts change
@@ -195,6 +271,114 @@ latency fixture allows 600 starts per minute because every journey shares one
 loopback address; production keeps 60.
 
 ## Results and outstanding gates
+
+### Ablation smoke run, local — 2026-10-23
+
+**Purpose: check the [ablation harness](#reproducible-local-deployment-fixture), not
+a result to act on alone.** This was a 5-minute sustained phase followed by all 32
+ablation periods, on the same M1/Colima environment. Every mode switch was
+confirmed by all three replicas. All periods held 700–704 open streams (none in
+no-live periods) and had zero probe errors. Count cadence and fallback assertions
+passed. The run failed only the growth checks: a 5-minute soak leaves no samples
+after their 5-minute warm-up. The 15-minute Linux run avoids this.
+
+| Write p95, four pairs each | loaded/arm | 95% CI (pairs + block) |
+| --- | --- | --- |
+| no-live | 1.102 | 1.036–1.168 |
+| no-projection | 0.980 | 0.898–1.041 |
+| no-counts | 0.980 | 0.910–1.046 |
+| replayed (both) | 0.953 | 0.896–1.025 |
+
+Removing projection and count SQL did not reduce write p95, while stopping live
+clients did. This is weak evidence against those reads causing most of the write
+shift: one short local run, four pairs per arm, wide intervals. Replay itself may
+add work (for example, a changed generation every two seconds). What remains with
+live clients connected includes membership SQL, request-path SQL from stream
+starts and rotations, connection and proxy load, and delivery CPU/GC. The
+[Linux runbook](#representative-linux-run) repeats this with tracing and a
+15-minute sustained phase. Raw data (git-ignored):
+`.local/activity-soak-20261022-ablation-smoke*`.
+
+### P1.3 encoding, projection and gate rerun — 2026-10-22
+
+**Result: the write gate remains failed (pooled p95 1.108×; 95% CI 1.076–1.139
+crosses 1.10, so inconclusive, not a pass).** Browse passes at 1.031× (0.979–1.042,
+below the limit). Every other soak assertion passed. This is the single gate-of-record
+run for this build. Its method, seed, threshold and order are unchanged.
+
+**HTTP count caching: deferred.** A count GET that starts after a committed write
+must reflect it on any replica. A shared TTL cache cannot guarantee that. A
+cross-replica check would need a committed per-event count revision, which means a
+schema and write-path change. The check would also cost a SQL round trip, about as
+much as the index-only counts it replaces (0.4–0.6 ms server time per 101-ID batch
+in the profile). `/api/v1/events/activity-counts` therefore reads MariaDB on every
+request. SSE joining-count reuse, the 15-second cadence, failure behavior and
+membership revision checks are unchanged.
+
+**Changes:**
+
+- *Encoding (benchmark-supported).* Every two-second generation re-encoded each
+  warm view, and every SSE snapshot frame called `json.Marshal` on a view that
+  already had cached `MarshalJSON` bytes. `encoding/json` re-validates and copies
+  those bytes. The view encoding is now spliced from its cached items, and frames
+  write the shared bytes directly. The output is byte-identical (tested with HTML
+  escaping and non-ASCII). On Apple M1 with a rich 20-item view
+  (`BenchmarkViewGenerationEncode`, `BenchmarkStreamPayloads`): per-generation
+  re-encode fell from 28.1 µs, 12.4 KB and 3 allocations to 1.1 µs, 12.3 KB and 2
+  allocations. A snapshot frame fell from 28.2 µs, 12.6 KB and 3 allocations to
+  zero. Count payloads (12.6 µs and 9.5 KB per stream every 15 s) were left alone.
+- *Projection (EXPLAIN-supported).* The grouped candidate read joined `accounts`
+  for each contribution. That only re-proved existence: contributions reference
+  `event_recommendations`, which references `accounts`, and accounts are never
+  deleted. Removing the join returns identical rows in every shape. Each plan
+  keeps the same join order and drops one `eq_ref` per contribution. Median
+  `r_total_time_ms` with the history shape: 6.63 → 5.64 ms at 1,000 groups and
+  88.1 → 80.2 ms at 10,000. With the soak shape at 1,000 groups: 5.05 → 5.05 ms,
+  no measurable difference. No index or migration was added.
+
+**Fresh-image diagnostic** (instrumented, not a gate result). Image
+`sha256:8bf9273a…`, run with `LIVE_ACTIVITY_LOAD_TRACE=true` and
+`LIVE_ACTIVITY_LOAD_PROFILE=true`, a 15-minute sustained phase, then ABBA×4. Write
+1.105× (CI 1.069–1.153); browse 1.033×. Loaded-minus-no-live write means, compared
+with the previous after-fix diagnostic: client +0.25 ms (+0.34), traced handler
+network wait +0.10 (+0.19), runnable +0.02 (+0.03), and overlap with GC mark +0.06
+(+0.08). r0 runtime per loaded period: Go CPU
+0.056–0.058 cores (0.058–0.063 before), GC 1.47–1.64/s (1.46–1.66/s before),
+scheduling-latency p99 178–218 µs (171–319 µs before). One unexplained result: the
+statement log showed the projection's loaded-period p50 at 5.6–7.1 ms, against
+4.4–4.7 ms in the previous diagnostic, with the same rows examined. The isolated
+plans do not explain it. It may be run-to-run VM variation or a plan chosen under
+in-soak statistics; this evidence cannot separate the two.
+
+**Gate-of-record soak (40 min).** Image `sha256:d5b71d42…`, built from the working tree;
+environment unchanged. 704 SSE tabs and 64 fallback clients. 11,902 SSE connections
+(5,566 rotation/drop reconnects). 26,690 fallback requests with no failures, no
+`unavailable` frames and no refused starts. Count cadence: 62,464 intervals of
+14.97–16.08 s; none early or late. No growth: goroutines 404–532, heap 12–15 MiB,
+memory 30–36 MiB, two SQL connections per replica, seven database sessions,
+cohorts ≤160.
+
+| Pair | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Write ratio | 1.090 | 1.159 | 1.064 | 1.090 | 1.102 | 1.117 | 1.126 | 1.104 |
+| Browse ratio | 0.971 | 1.074 | 1.004 | 1.027 | 0.995 | 1.050 | 0.995 | 1.044 |
+
+| Pooled (2,400 per state) | Loaded p95 | No-live p95 | Ratio | Gate ≤1.10 | 95% CI (8 pairs + block) |
+| --- | --- | --- | --- | --- | --- |
+| Browse | 51.00 ms | 49.49 ms | 1.031 | pass | 0.979–1.042 (below limit) |
+| Write | 6.288 ms | 5.674 ms | 1.108 | **fail** | 1.076–1.139 (crosses limit) |
+
+Write p50 is 4.29 ms loaded and 3.79 ms no-live (+0.50 ms). Mean CPU: VM busy 0.92
+vs 0.61 cores, host QEMU 1.00 vs 0.68.
+
+**Interpretation.** Two runs, one per build, cannot attribute the change from 1.160
+to 1.108 to this work. The remaining write shift is still mostly SQL round-trip
+time on the shared local VM. Next step unchanged: the instrumented soak on
+representative Linux infrastructure, which is not run without authorization.
+
+Raw data (git-ignored): `.local/activity-soak-20261022-diag2*` (diagnostic, with
+traces) and `.local/activity-soak-20261022-gate2*` (gate; samples SHA-256
+`3cf915b7…7bddd70`). Plans: `.local/plans-20261022/`.
 
 ### P1.3 write-gate request-level diagnosis — 2026-10-22
 

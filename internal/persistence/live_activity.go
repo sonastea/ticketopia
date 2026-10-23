@@ -56,6 +56,17 @@ func (r *ActivityRepository) LocationKey(ctx context.Context, l activity.Locatio
 	return key, nil
 }
 
+// activityProjectionSQL reads the complete candidate window (cap+1 detects
+// overflow). Parameters: the transaction's server time, twice. Contributions
+// reference event_recommendations, which references accounts (never deleted),
+// so the grouped read needs no per-contribution accounts lookup.
+const activityProjectionSQL = `SELECT g.event_id,g.n,g.latest,g.expiry,IF(g.n=1,a.activity_first_name,NULL),LEFT(e.activity_title,65537),LEFT(e.community_city,65537),IF(OCTET_LENGTH(e.activity_title)+OCTET_LENGTH(e.community_city)+OCTET_LENGTH(e.community_country)>65536,'',` + activityLocationKey + `),e.data_as_of
+ FROM (SELECT l.event_id,COUNT(*) n,MAX(l.published_at) latest,MIN(l.expires_at) expiry,MIN(l.account_id) actor
+ FROM live_recommendation_activity l JOIN event_recommendations r ON r.account_id=l.account_id AND r.event_id=l.event_id AND r.withdrawn_at IS NULL
+ WHERE l.expires_at>? AND l.published_at<=? GROUP BY l.event_id) g
+ JOIN accounts a ON a.account_id=g.actor JOIN event_snapshots e ON e.event_id=g.event_id
+	 ORDER BY g.latest DESC,g.event_id DESC LIMIT 10001`
+
 func (r *ActivityRepository) Candidates(ctx context.Context) (activity.Candidates, error) {
 	return r.RefreshCandidates(ctx, activity.Candidates{})
 }
@@ -84,13 +95,7 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 		return result, activity.ErrUnavailable
 	}
 	r.statements.Add(1)
-	rows, err := tx.QueryContext(ctx, `SELECT g.event_id,g.n,g.latest,g.expiry,IF(g.n=1,a.activity_first_name,NULL),LEFT(e.activity_title,65537),LEFT(e.community_city,65537),IF(OCTET_LENGTH(e.activity_title)+OCTET_LENGTH(e.community_city)+OCTET_LENGTH(e.community_country)>65536,'',`+activityLocationKey+`),e.data_as_of
- FROM (SELECT l.event_id,COUNT(*) n,MAX(l.published_at) latest,MIN(l.expires_at) expiry,MIN(l.account_id) actor
- FROM live_recommendation_activity l JOIN event_recommendations r ON r.account_id=l.account_id AND r.event_id=l.event_id AND r.withdrawn_at IS NULL
- JOIN accounts a ON a.account_id=l.account_id
- WHERE l.expires_at>? AND l.published_at<=? GROUP BY l.event_id) g
- JOIN accounts a ON a.account_id=g.actor JOIN event_snapshots e ON e.event_id=g.event_id
-	 ORDER BY g.latest DESC,g.event_id DESC LIMIT 10001`, result.AsOf, result.AsOf)
+	rows, err := tx.QueryContext(ctx, activityProjectionSQL, result.AsOf, result.AsOf)
 	if err != nil {
 		return result, activity.ErrUnavailable
 	}
