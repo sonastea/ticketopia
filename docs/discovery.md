@@ -116,8 +116,13 @@ A new form submission starts at the first page.
   cap at 100rem. At 64rem of actual workspace, selected results/context divide 2:3,
   and discussion/community can sit side by side. The selected desktop preview fills
   the usable viewport height, scrolling internally for longer activity. At enlarged
-  text sizes, the default preview takes at most 45% of the content width, and narrow
-  results stack image/facts rather than squeezing prose beside the image.
+  text sizes, the default preview takes at most 45% of the content width.
+- Result lists respond to their own container (Discover results and the Saved,
+  Interests and Radar pages), not the viewport: below 26rem artwork stacks above
+  facts, from 26rem rows place square artwork (7.5–11rem) beside them, and from
+  48rem an intrinsic grid shows two or three cards. A ticket-stub date chip sits
+  on every row's artwork. The selected row keeps its geometry, with a 3px leading
+  brand edge on a raised surface.
 - Location stays visible above search. **Change city** (**Enter a city** before
   one is chosen) opens the native Filters disclosure and focuses City. Keyword
   search is labeled for event, performer, team, or venue names, matching its
@@ -146,12 +151,23 @@ A new form submission starts at the first page.
   questions and a public composer. Threads/replies load in context, with canonical
   dedicated routes for expansion/sharing. Overview, Questions & tips, and
   Recommendations use one shared set of real section links in panels and pages.
-  Tickets and Save precede artwork and prose; description and practical notices
-  are visible without disclosure. Interested/Recommend/reminders are grouped
+  Event pages open with a wide artwork band (2:1, capped at 22rem; a short strip
+  when artwork is missing) and the title, date, venue and facts on a tinted
+  surface overlapping it; panels keep Tickets and Save before artwork. Below 62rem,
+  on viewports at least 32rem tall, Tickets and Save form a sticky bar above the
+  bottom navigation. It stays in normal flow, ordered last so it settles at the
+  end of the event, and JavaScript only measures the navigation's actual height.
+  Description and practical notices are visible without disclosure. Interested/Recommend/reminders are grouped
   separately below content. **Event source & history** discloses only secondary
   provenance; stale warnings remain adjacent to essential facts.
   HTML-only `recommend=true` opens
   the composer in Community; it is not a discovery/API filter.
+- Same-origin navigations opt into cross-document view transitions only when
+  reduced motion isn't requested. Rows, the preview and event pages give artwork
+  and titles per-event `view-transition-name`s (escaped provider IDs), so they
+  move into place over 250ms; while the preview is open it owns the selected
+  event's names. Browsers without support navigate normally. In-page preview
+  loads aren't animated.
 - Back restores previous selection; loaded result pages, focus, and scroll are
   retained in browser history across the event's in-place section links. A
   one-use, same-tab session-storage handoff carries the originating history entry;

@@ -197,6 +197,10 @@
   --text-display: clamp(1.75rem, 1.5rem + .625vw, 2rem);
   --text-event-heading: clamp(1.5rem, 1.125rem + 1.63vw, 1.75rem);
   --space-reply-indent: clamp(.5rem, .125rem + 1.875vw, 1.25rem);
+  --space-hero-inset: clamp(.5rem, .125rem + 1.875vw, 2rem);
+  /* Resolved against the results container where rows place artwork beside facts. */
+  --size-row-art: clamp(7.5rem, 2rem + 18cqi, 11rem);
+  --shadow-raised: 0 1px 2px color-mix(in oklch, var(--ink) 8%, transparent), 0 .75rem 1.5rem -1rem color-mix(in oklch, var(--ink) 35%, transparent);
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   color-scheme: light;
   --background: light-dark(var(--paper), oklch(0.145 0 none));
@@ -517,7 +521,7 @@ h3 {
   padding-inline: 1.25rem;
 }
 
-.discovery-content {
+.discovery-content, .destination-page:has(#event-list) {
   container: results / inline-size;
   min-inline-size: 0;
 }
@@ -693,8 +697,6 @@ input::placeholder {
 .saved-page { max-inline-size: 70rem; }
 .saved-page > .sort-label { margin-block: 1.5rem .75rem; margin-inline: 0; }
 .saved-page .pagination [data-slot="button"] { white-space: normal; max-inline-size: 100%; block-size: auto; }
-.saved-page .event-row { grid-template-columns: none; }
-@media (min-width: 40rem) { .saved-page .event-row { grid-template-columns: 8rem minmax(0, 1fr); } }
 
 /* Google's filled-blue treatment; retain the app's 44px target/focus. */
 .google-sign-in {
@@ -902,23 +904,68 @@ summary::-webkit-details-marker {
 }
 
 .event-list {
+  display: grid;
   padding: 0;
   margin: 0;
   list-style: none;
 }
 
+/* Narrow results stack artwork above facts; the results container widens them
+   into artwork-beside-facts rows, then a card grid. */
 .event-row {
   position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  column-gap: 1.25rem;
   padding-block: 1.5rem;
   padding-inline: .75rem;
   border-block-start: 1px solid var(--line);
-  transition: background-color 180ms var(--ease-out);
+  transition-property: background-color, box-shadow;
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-out);
   scroll-margin-block: 2rem 6rem;
 }
 
+/* Selection raises the row in place and marks its leading edge instead of filling it. */
 .event-row[data-selected="true"] {
-  background: var(--brand-soft);
+  padding-inline-start: calc(.75rem - 3px);
+  border-inline-start: 3px solid var(--brand);
   border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+}
+
+@container results (min-width: 26rem) {
+  .event-row { grid-template-columns: var(--size-row-art) minmax(0, 1fr); }
+  .event-row .event-art { align-self: start; margin-block-end: 0; }
+  .event-row .event-art .event-image { aspect-ratio: 1; }
+}
+
+@container results (min-width: 48rem) {
+  /* Intrinsic columns, capped at three however wide the results become. */
+  .event-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, max(16rem, (100% - 3rem) / 3)), 1fr));
+    gap: 1.5rem;
+  }
+  .event-row {
+    grid-template-columns: minmax(0, 1fr);
+    padding: .75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .event-row[data-selected="true"] {
+    padding-inline-start: calc(.75rem - 2px);
+    border-inline-start: 3px solid var(--brand);
+  }
+  .event-row .event-art { margin-block-end: 1rem; }
+  .event-row .event-art .event-image { aspect-ratio: 16 / 9; }
+}
+
+/* The open preview owns the selected event's shared transition names. */
+.has-selection .event-row[data-selected="true"] :is(.event-image, h3) {
+  view-transition-name: none !important;
 }
 
 .event-art {
@@ -963,19 +1010,26 @@ summary::-webkit-details-marker {
   block-size: 2.5rem;
 }
 
+/* A ticket stub: radial-gradient masks punch perforations into both inline edges. */
 .date-marker {
+  --stub-hole: .2rem;
+  --stub-pitch: .55rem;
   display: flex;
+  flex: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-inline-size: 3.2rem;
   inline-size: max-content;
   padding-block: .4rem;
-  padding-inline: .65rem;
+  padding-inline: .8rem;
   background: var(--date-surface);
   color: var(--ink);
   border-radius: .45rem;
   font-variant-numeric: tabular-nums;
+  mask:
+    radial-gradient(circle var(--stub-hole) at 0 50%, transparent 95%, black) 0 50% / 51% var(--stub-pitch) repeat-y,
+    radial-gradient(circle var(--stub-hole) at 100% 50%, transparent 95%, black) 100% 50% / 51% var(--stub-pitch) repeat-y;
 }
 
 .date-marker span {
@@ -989,11 +1043,31 @@ summary::-webkit-details-marker {
   line-height: 1.2;
 }
 
+/* On artwork the stub is a single-line chip, clear of the centered fallback icon. */
 .event-art .date-marker {
   pointer-events: none;
   position: absolute;
-  inset-block-end: .6rem;
-  inset-inline-start: .6rem;
+  inset-block-end: .5rem;
+  inset-inline-start: .5rem;
+  flex-flow: row wrap;
+  align-items: baseline;
+  gap: 0 .3rem;
+  min-inline-size: 0;
+  max-inline-size: calc(100% - 1rem);
+  padding-block: .2rem;
+  padding-inline: .75rem;
+  border-radius: .3rem;
+}
+
+.event-art .date-marker span {
+  font-size: .6875rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.event-art .date-marker strong {
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .event-date {
@@ -1490,9 +1564,23 @@ summary::-webkit-details-marker {
 .event-primary-actions .ticket-link { inline-size: auto; flex: 1 1 16rem; margin-block-start: 0; }
 .event-primary-actions .field-note { margin-block-start: .5rem; }
 .event-primary-actions .sale-date { margin-block-end: .75rem; }
-.event-identity { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1.5rem 2rem; align-items: start; }
-.event-identity .event-heading { margin-block-start: 0; }
-.event-identity > .event-image { max-block-size: 22rem; }
+/* A wide artwork band leads; identity facts sit on a tinted surface overlapping
+   its lower edge. The tint is a brand token until artwork-derived color lands. */
+.event-identity {
+  --event-tint: color-mix(in oklch, var(--brand-soft) 65%, var(--surface));
+  display: grid;
+}
+.event-identity > .event-image { aspect-ratio: 2 / 1; max-block-size: 22rem; }
+.event-identity > .event-image:not(:has(> img:not([hidden]))) { aspect-ratio: auto; block-size: 6rem; }
+.event-identity > .event-image .image-fallback { padding-block-end: 2.5rem; }
+.event-identity > .event-heading {
+  position: relative;
+  margin-block: -2.5rem 0;
+  margin-inline: var(--space-hero-inset);
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  background: var(--event-tint);
+}
 .context-inner [data-section-body] > .event-image { max-block-size: 16rem; margin-block-start: 1rem; }
 .event-participation { border-block-start: 1px solid var(--line); padding-block: 1.5rem; }
 .event-participation h2 { font-size: 1.125rem; margin-block-end: .75rem; }
@@ -1608,6 +1696,9 @@ summary::-webkit-details-marker {
   .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
     border-color: Highlight;
   }
+  .event-row[data-selected="true"] {
+    border-inline-start-color: Highlight;
+  }
 }
 
 .event-section {
@@ -1679,6 +1770,8 @@ summary::-webkit-details-marker {
   padding-block: 1.5rem;
   padding-inline: 1.25rem;
 }
+
+.event-page { --page-gutter: 1.25rem; }
 
 .back-link {
   margin-block-end: 1rem;
@@ -1905,34 +1998,7 @@ summary::-webkit-details-marker {
   .discovery-workspace, .event-page, .destination-page {
     padding: 2rem;
   }
-  .event-row {
-    display: grid;
-    grid-template-columns: 8rem minmax(0, 1fr);
-    gap: 1.25rem;
-  }
-  .event-art {
-    margin: 0;
-  }
-  .event-art .event-image {
-    aspect-ratio: 1;
-  }
-  .event-art .date-marker {
-    position: static;
-    flex-direction: row;
-    gap: .35rem;
-    inline-size: 100%;
-    margin-block-start: .5rem;
-    padding: .4rem;
-  }
-  .event-art .date-marker strong {
-    font-size: .9375rem;
-  }
-  .event-art .date-marker span {
-    font-size: .8125rem;
-  }
-  .event-copy h3 {
-    margin-block-start: .25rem;
-  }
+  .event-page { --page-gutter: 2rem; }
 }
 
 @media (min-width: 62rem) {
@@ -1978,10 +2044,6 @@ summary::-webkit-details-marker {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-  }
-  .event-row {
-    grid-template-columns: 6.5rem minmax(0, 1fr);
-    gap: 1rem;
   }
   .event-row[data-selected="true"] .context-jump {
     display: inline-flex;
@@ -2360,10 +2422,6 @@ summary::-webkit-details-marker {
 }
 
 @media (min-width: 86rem) {
-  .event-row {
-    grid-template-columns: 8rem minmax(0, 1fr);
-    gap: 1.25rem;
-  }
   .field-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2379,14 +2437,6 @@ summary::-webkit-details-marker {
 @container workspace (min-width: 64rem) {
   .discovery-workspace.has-selection {
     grid-template-columns: minmax(24rem, 2fr) minmax(0, 3fr);
-  }
-}
-
-/* Preserve a readable copy column when enlarged text consumes the workspace. */
-@media (min-width: 40rem) {
-  @container results (max-width: 22rem) {
-    .event-row { grid-template-columns: minmax(0, 1fr); }
-    .event-art { max-inline-size: 8rem; margin-block-end: 1rem; }
   }
 }
 
@@ -2417,6 +2467,31 @@ summary::-webkit-details-marker {
   .has-selection .event-context .event-image {
     max-block-size: 16rem;
   }
+  /* Tickets and Save become a sticky bar above the bottom navigation. It stays
+     in normal flow: ordered last in the article, it sticks while the event
+     scrolls and settles at the end. JavaScript only refines the nav offset.
+     Short or text-enlarged viewports keep the actions in place instead. */
+  @media (min-height: 32rem) {
+    .event-page .event-main { display: flex; flex-direction: column; }
+    .event-page .event-primary-actions { display: contents; }
+    .event-page .event-primary-actions > .event-action-group {
+      order: 1;
+      position: sticky;
+      z-index: 15;
+      inset-block-end: var(--bottom-nav-block-size, calc(4.25rem + env(safe-area-inset-bottom, 0px)));
+      margin-block: 1rem 0;
+      margin-inline: calc(-1 * var(--page-gutter));
+      padding-block: .75rem;
+      padding-inline: var(--page-gutter);
+      border-block-start: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .event-page .event-primary-actions .event-actions { align-items: center; }
+    .event-page .event-primary-actions .ticket-link { flex: 1 1 12rem; }
+    html:has(.event-page .event-action-group) {
+      scroll-padding-block-end: calc(var(--bottom-nav-block-size, 4.5rem) + 6rem);
+    }
+  }
 }
 
 @media (max-width: 23rem) {
@@ -2446,6 +2521,7 @@ summary::-webkit-details-marker {
   .context-inner {
     padding: 1rem;
   }
+  .event-page { --page-gutter: 1rem; }
   .section-nav {
     gap: .65rem;
   }
@@ -2460,6 +2536,19 @@ summary::-webkit-details-marker {
   }
   @media (min-width: 72rem) {
     .app-shell { transition: grid-template-columns 160ms var(--ease-out); }
+  }
+  /* Same-origin navigations carry named artwork and titles into place; browsers
+     without cross-document view transitions navigate normally. */
+  @view-transition { navigation: auto; }
+  .event-image { view-transition-class: event-art; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation-duration: 250ms;
+    animation-timing-function: var(--ease-out);
+  }
+  /* Cropped artwork keeps covering its frame as square rows become wide bands. */
+  ::view-transition-old(.event-art), ::view-transition-new(.event-art) {
+    block-size: 100%;
+    object-fit: cover;
   }
 }
 
@@ -2624,6 +2713,7 @@ summary::-webkit-details-marker {
 .moderation-empty { margin-block-start: 1.5rem; }
 @media (min-width: 40rem) {
   .recommendation-event { grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; }
+  .recommendation-event .event-art { margin: 0; }
   .recommendation-event .event-image { aspect-ratio: 1; }
 }
 

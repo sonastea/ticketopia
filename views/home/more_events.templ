@@ -37,7 +37,7 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 			</div>
 			<div class="event-copy">
 				<p class="event-date">{ startLabel(event.Start) }</p>
-				<h3><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
+				<h3 style={ transitionStyle("title", event.ID) }><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
 				<p class="event-venue">{ venueLabel(event) }</p>
 				<div class="event-metadata">@EventStatus(event.Status)
 <span>{ priceLabel(event.PriceRanges) }</span></div>
@@ -114,7 +114,7 @@ templ EventRowActivity(id string, preview eventactivity.Preview, returnURL strin
 }
 
 templ EventImage(event models.Event, large bool) {
-	<div class="event-image">
+	<div class="event-image" style={ transitionStyle("art", event.ID) }>
 		<div class="image-fallback" aria-hidden="true">@layouts.Icon(eventIcon(event))
 </div>
 		if imageURL(event.Images) != "" {

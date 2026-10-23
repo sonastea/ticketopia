@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
@@ -438,6 +439,25 @@ func recommendURL(page EventPage) string {
 	values.Set("recommend", "true")
 	u.RawQuery = values.Encode()
 	return u.String()
+}
+
+// transitionStyle names an event's artwork or title so cross-document view
+// transitions can carry it between rows, the context panel and the event page.
+// Provider IDs are escaped into a valid CSS identifier.
+func transitionStyle(part, id string) templ.SafeCSS {
+	if id == "" {
+		return ""
+	}
+	var name strings.Builder
+	name.WriteString("event-" + part + "-")
+	for _, r := range id {
+		if r == '-' || r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' {
+			name.WriteRune(r)
+		} else {
+			fmt.Fprintf(&name, "_%x", r)
+		}
+	}
+	return templ.SafeCSS("view-transition-name:" + name.String())
 }
 
 func datePart(start models.EventStart, format string) string {

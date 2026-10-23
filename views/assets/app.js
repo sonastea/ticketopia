@@ -86,6 +86,12 @@
   for (const image of document.querySelectorAll('.event-image img')) {
     if (image.complete && !image.naturalWidth) image.hidden = true;
   }
+  // Enlarged labels and the bottom safe area change the navigation's height;
+  // the compact event action bar sticks just above its actual edge.
+  const bottomNav = document.querySelector('.bottom-nav');
+  if (bottomNav && window.ResizeObserver) {
+    new ResizeObserver(() => document.documentElement.style.setProperty('--bottom-nav-block-size', bottomNav.offsetHeight + 'px')).observe(bottomNav);
+  }
 
   // Ordinary forms remain the fallback. Enhanced saves preserve selection,
   // filters, focus and loaded results while synchronizing every visible control.

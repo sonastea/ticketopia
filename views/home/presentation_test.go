@@ -67,3 +67,18 @@ func TestRenderedEventFactsShowPricesAndUnknownDetails(t *testing.T) {
 		})
 	}
 }
+
+// Transition names bypass templ's style sanitizer, so provider IDs must never
+// add declarations or produce an invalid identifier.
+func TestTransitionStyleEscapesProviderIDs(t *testing.T) {
+	for id, want := range map[string]string{
+		"vvG1zZ9ZK0Nr-3_X":     "view-transition-name:event-art-vvG1zZ9ZK0Nr-3_X",
+		"a;color:red\"></div>": "view-transition-name:event-art-a_3bcolor_3ared_22_3e_3c_2fdiv_3e",
+		"é":                    "view-transition-name:event-art-_e9",
+		"":                     "",
+	} {
+		if got := string(transitionStyle("art", id)); got != want {
+			t.Errorf("transitionStyle(%q) = %q, want %q", id, got, want)
+		}
+	}
+}

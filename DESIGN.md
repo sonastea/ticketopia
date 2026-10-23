@@ -296,10 +296,10 @@ enable automatic or whole-application dark mode. See the
 - **Deep plum** (`brand`): primary actions, actionable text, selected navigation text/icons, brand icon/stop, caret, and focus outlines.
 - **Dark plum** (`brand-dark`): primary-action hover, secondary-action hover text, and readable event-date text.
 - **Pressed plum** (`brand-active`): primary-action pressed fill.
-- **Pale plum** (`brand-soft`): selected event rows, current navigation on every device class, secondary-action hover, image/preview fallbacks, static loading artwork, and browser text selection.
+- **Pale plum** (`brand-soft`): current navigation on every device class, secondary-action hover, image/preview fallbacks, static loading artwork, and browser text selection.
 
 ### Secondary
-- **Dusty-rose date paper** (`date-surface`): compact date markers only, paired with ordinary ink. Its low-chroma rose tint harmonizes with plum selection and stone surfaces without competing with event imagery. It is not a selection, action, availability, or focus color.
+- **Dusty-rose date paper** (`date-surface`): compact ticket-stub date markers only, paired with ordinary ink. Its low-chroma rose tint harmonizes with plum selection and stone surfaces without competing with event imagery. It is not a selection, action, availability, or focus color.
 
 ### Neutral
 - **Ink** (`ink`): headings, body content, default navigation text, and the collapsed-rail tooltip background.
@@ -369,14 +369,14 @@ component-specific insets remain explicit rather than becoming another scale.
 
 | Threshold | Shipped behavior |
 | --- | --- |
-| Base, below 40rem | Single-column image-led rows; content padding 1.5rem 1.25rem. Light compact header and four-item fixed bottom navigation. Workspace reserves `calc(5.5rem + env(safe-area-inset-bottom))`. |
+| Base, below 40rem | Content padding 1.5rem 1.25rem. Light compact header and four-item fixed bottom navigation. Workspace reserves `calc(5.5rem + env(safe-area-inset-bottom))`. |
 | At most 23rem | Content padding becomes 1.25rem 1rem; fields form one column. Search loses its decorative icon and tightens its inset; event headings and section links reduce to fit. |
-| At least 40rem | General page padding becomes 2rem. Result rows use an 8rem image column and 1.25rem gap; images become square and date markers become horizontal strips below them. |
-| At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding; result images use a 6.5rem column and 1rem gap. Dedicated event identity adapts intrinsically rather than introducing a separate ticket sidebar. |
+| At least 40rem | General page padding becomes 2rem. |
+| At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding. Below this threshold, event pages at least 32rem tall pin Tickets/Save above the bottom navigation. |
 | At least 72rem | A sticky labeled sidebar replaces the fixed rail/header, occupying 14rem expanded or 4.5rem collapsed. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |
-| At least 86rem | Result image columns return to 8rem with 1.25rem gaps. The filter grid becomes three columns, with the city field spanning two. |
+| At least 86rem | The filter grid becomes three columns, with the city field spanning two. |
 
-The CSS and JavaScript share the 62rem context and 72rem desktop-navigation thresholds. Selection, direct-entry, return-state, and resize strategy belong to the [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state) and [surface contract](.impeccable/surfaces/views-home-index-templ.md), not additional global design rules.
+Result lists respond to their `results` container rather than these thresholds: artwork stacks above facts below 26rem, rows use a square 7.5–11rem image column with a 1.25rem gap from 26rem, and from 48rem an intrinsic grid (16rem minimum, at most three columns, 1.5rem gap) shows cards. The CSS and JavaScript share the 62rem context and 72rem desktop-navigation thresholds. Selection, direct-entry, return-state, and resize strategy belong to the [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state) and [surface contract](.impeccable/surfaces/views-home-index-templ.md), not additional global design rules.
 
 Once the actual workspace reaches 64rem, a selected discovery event uses a 2:3
 results/context split, retaining a 24rem minimum results column. Collapsing
@@ -384,33 +384,32 @@ navigation can also unlock this layout. Inside selected thread previews, discuss
 community use an intrinsic two-column grid with 18rem shrink-safe column minima
 and a 1.5rem gap; narrower previews stack in reading order. Other event selections
 use the shared Overview, Questions & tips, and Recommendations navigation. Overview
-prose and practical notices remain visible. Tickets/Save precede artwork; secondary
+prose and practical notices remain visible. In panels Tickets/Save precede artwork; secondary
 participation follows content, with source/history in one disclosure. Standalone
-identity uses an intrinsic grid with shrink-safe 20rem minima, a 1.5rem/2rem gap,
-and facts/actions before artwork when stacked. Default context columns
+identity is a wide 2:1 artwork band (22rem cap; a 6rem strip without artwork) with
+facts on a tinted surface overlapping its lower edge by 2.5rem. Default context columns
 cap at their 20rem/21rem roles or 45% of available content width, whichever is
-smaller, so enlarged text does not consume the results column. Discovery results
-are also a container: below 22rem of available space their image/facts stack.
+smaller, so enlarged text does not consume the results column.
 
 The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100dvh - 3rem)`, vertical overflow, and a stable scrollbar gutter; it is keyboard focusable. From 72rem, selected context has the same minimum height, avoiding a short, wide panel when activity is sparse. The full sidebar is one dynamic viewport tall, with grouped navigation and a footer pushed to the bottom. During customization its navigation region scrolls independently, keeps a stable scrollbar gutter, and becomes keyboard focusable so tools remain reachable at small viewport heights. Ticket panels remain in the page layout. Filters use two equal columns and a 1rem gap until the small-phone or wide-screen adjustments apply.
 
 ## Elevation & Depth
 
-The normal interface has no cast shadows. Depth comes from white against near-white paper and light stone, one-pixel quiet borders, stronger control borders, and pale-plum selection. The selected row stays in the list's geometry. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not floating or glass surfaces.
+The normal interface has one cast shadow: `shadow-raised`, a soft ink-tinted shadow under the selected result row, which also turns white and gains a 3px plum leading edge (Highlight in forced colors). Otherwise depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected row stays in the list's geometry. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not floating or glass surfaces.
 
 Focus is an outline, not a shadow: a solid plum ring (3px) offset from the target (4px), including navigation and sidebar controls. Themed library focus rings and card shadows are explicitly suppressed.
 
 The source does use `box-shadow` for drag insertion markers: `inset 0 2px 0 var(--brand)` before a target and `inset 0 -2px 0 var(--brand)` after it. These are functional two-pixel rules inside a reorder target, not elevation or cast depth; the dragged item/section also dims to opacity .55.
 
-**The Border-Only Depth Rule.** Separate surfaces with tone, spacing, and borders; selection changes the fill without lifting the component or adding a cast shadow.
+**The Border-Only Depth Rule.** Separate surfaces with tone, spacing, and borders. The selected result row is the single raised exception; do not spread cast shadows to other components.
 
 ## Shapes
 
-Use modest, role-specific corner treatments: the shared `radius` for context/ticket containers, selected rows, and the search surround; `control` and `navigation` for buttons, fields, and links; `image` for photographs; and the smaller `date-marker` and `availability` corners for indexing and state. Sidebar move/drag tools use `sidebar-move`, while collapse, commit controls, and tooltips use `sidebar-utility`. These are rounded rectangles, not a universal pill vocabulary. Unselected result rows are separated by a top rule rather than enclosed in individual cards.
+Use modest, role-specific corner treatments: the shared `radius` for context/ticket containers, selected rows, and the search surround; `control` and `navigation` for buttons, fields, and links; `image` for photographs; and the smaller `date-marker` and `availability` corners for indexing and state. Sidebar move/drag tools use `sidebar-move`, while collapse, commit controls, and tooltips use `sidebar-utility`. These are rounded rectangles, not a universal pill vocabulary. Narrow result rows are separated by a top rule; only the wide results grid encloses events in white, bordered cards.
 
 Some observed component-local corners are intentionally outside the reusable scale: the search input is .2rem, filter summary .3rem, preview artwork .6rem, and the library's inner empty-context Card uses its derived `radius-xl` (1.05rem) within the outer .75rem context boundary. They are real roles, not a mandate to homogenize radii or invent new primitives for every measurement.
 
-Event imagery fills a clipped frame with `object-fit: cover`. The default frame is 16:9; list images become square at the row-image threshold. Full-event images cap their height at 22rem, and a compact selected preview caps it at 16rem. Preserve provider color and content; the reviewed monochrome photographs are source material, not a prescribed grayscale filter.
+Event imagery fills a clipped frame with `object-fit: cover`. The default frame is 16:9; list images become square in container rows and return to 16:9 in cards. The full-event band is 2:1 capped at 22rem, and a compact selected preview caps artwork at 16rem. Preserve provider color and content; the reviewed monochrome photographs are source material, not a prescribed grayscale filter.
 
 Icons are outline SVGs with a 24-unit viewBox, rounded caps/joins, and stroke width
 1.7. Label-adjacent icons use font-relative em sizing and cannot shrink; larger
@@ -466,7 +465,7 @@ the Save it names. Expired participation writes expose a
 contextual sign-in link. See [task continuity](docs/accounts.md#sign-in-task-continuity).
 
 Action background changes, sidebar width changes, and disclosure-chevron rotation
-use 160ms; result selection uses 180ms. Buttons and badges share the source's
+use 160ms; result selection uses 180ms. Cross-document view transitions run 250ms with the shared ease-out curve, moving per-event artwork/titles between rows, preview and event page; they are enabled only under `prefers-reduced-motion: no-preference`. Buttons and badges share the source's
 `cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms for color/fill
 changes only. Geometry transitions opt into motion only when no reduction is
 requested. The reduced-motion safeguard also disables vendored animations and
@@ -523,7 +522,7 @@ collection context and Radar reasons. Only Interests retains interest management
 in its rows; reminders remain in event views. Missing URLs and disabled accounts
 have concise explanations rather than inert list toolbars.
 
-The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is pale plum; the title and image remain real Overview links. The dusty-rose date marker overlays the lower-left image corner on compact rows, then becomes a horizontal index beneath square artwork. Its short date is decorative beside the full readable date; unknown dates say TBA.
+The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with artwork, then local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is a raised white surface with a 3px plum leading edge; the title and image remain real Overview links. The date marker is a ticket stub: radial-gradient masks perforate both inline edges, and on artwork it is a one-line chip (uppercase month, tabular day) in the image's lower start corner, wrapping between month and day only when space runs out. Its short date is decorative beside the full readable date; unknown dates say TBA.
 
 The private Saved collection reuses these rows, ordered newest saved first, with ordinary pagination and event links that retain the return page. Its privacy statement and last-known-details guidance distinguish durable saves from public interest and current ticket availability. Save remains independent of Interested, whose list control appears only in the own Interests collection. That collection uses the same rows, newest interest first, above private category preferences on `/me/interests`. Its event links and participant pagination preserve the originating collection page. Empty collections lead back to Discover. See [saved events](docs/saved-events.md), [event interest](docs/event-interest.md), and the [Saved surface contract](.impeccable/surfaces/views-home-saved-templ.md) for feature behavior.
 

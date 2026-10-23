@@ -38,13 +38,11 @@ templ Event(page EventPage) {
 				}
 			} else {
 				<article class="event-main" data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF }>
-					<div class="event-identity">
-						<div>
-							@EventHeading(page, false)
-							@EventPrimaryActions(page)
-						</div>
+					<header class="event-identity">
 						@EventImage(page.Detail.Item, true)
-					</div>
+						@EventHeading(page, false)
+					</header>
+					@EventPrimaryActions(page)
 					@EventSections(page)
 					@EventSectionRegion(page, false)
 					@EventParticipation(page, "event-participation-note")
@@ -103,14 +101,14 @@ templ EventSectionResponse(page EventPage, panel bool) {
 templ EventHeading(page EventPage, panel bool) {
 	if panel {
 		<div class="context-heading" data-shell-facts>
-			<h2>{ page.Detail.Item.Name }</h2>
+			<h2 style={ transitionStyle("title", page.Detail.Item.ID) }>{ page.Detail.Item.Name }</h2>
 			@EventHeadingFacts(page)
 		</div>
 	} else {
 		<div class="event-heading" data-shell-facts>
 			<div class="date-marker" aria-hidden="true"><span>{ datePart(page.Detail.Item.Start, "Jan") }</span><strong>{ datePart(page.Detail.Item.Start, "2") }</strong></div>
 			<div>
-				<h1>{ page.Detail.Item.Name }</h1>
+				<h1 style={ transitionStyle("title", page.Detail.Item.ID) }>{ page.Detail.Item.Name }</h1>
 				@EventHeadingFacts(page)
 			</div>
 		</div>
