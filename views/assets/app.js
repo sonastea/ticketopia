@@ -160,6 +160,19 @@
     }
   };
   const saving = new Set();
+  // Save privacy is explained on the first Save in this browser rather than
+  // above every result list. Storage failure falls back to page memory.
+  const savePrivacyKey = 'ticketopia-save-privacy-seen';
+  let savePrivacySeen = false;
+  const savedMessage = () => {
+    let seen = savePrivacySeen;
+    savePrivacySeen = true;
+    try {
+      seen = seen || localStorage.getItem(savePrivacyKey) === 'true';
+      localStorage.setItem(savePrivacyKey, 'true');
+    } catch { /* Page memory still prevents repeating it on this page. */ }
+    return seen ? 'Event saved privately.' : 'Event saved privately. Only you can see your Saved events; saving doesn\'t publish interest or reserve tickets.';
+  };
   const focusCollectionControl = target => {
     if (!target) return;
     target.focus({ preventScroll: true });
@@ -248,7 +261,7 @@
       if (!response.ok) throw new Error(data.detail || 'Your save could not be updated. Try again.');
       if (!saveForms(id).some(item => item.elements.csrf_token.value === csrf)) return;
       updateSave(data.event_id, data.saved);
-      saveFeedback(data.saved ? 'Event saved privately.' : 'Event removed from Saved.', id, form);
+      saveFeedback(data.saved ? savedMessage() : 'Event removed from Saved.', id, form);
       if (location.pathname === '/saved') {
         document.dispatchEvent(new CustomEvent('ticketopia:collection-action', { detail: {
           form, selected: data.saved,

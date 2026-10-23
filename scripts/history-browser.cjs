@@ -57,7 +57,7 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     await capture('detail',390);
     const h = await (await context.request.get(base + '/api/v1/events/ticketmaster:browser-Berlin-0/history?limit=1')).json();
     check('API and HTML share changes', h.changes.length === 2 && h.changes.some(c => c.kind === 'venue'));
-    for (const [city,status,title] of [['Partial','partial','Partial coverage.'],['Older','stale','Showing older results'],['Unknown','not_collected',"Events haven't been collected yet"],['Empty','complete','No events found for these filters']]) {
+    for (const [city,status,title] of [['Partial','partial','Partial coverage'],['Older','stale',/Showing last-known results|Older results while collection catches up/],['Unknown','not_collected',"Events haven't been collected yet"],['Empty','complete','No events found for these filters']]) {
       const response = await page.goto(base + query(city));
       check(city + ': usable response', response.status() === 200);
       check(city + ': coverage state', await page.locator('[data-coverage="' + status + '"]').first().isVisible());

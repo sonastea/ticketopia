@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-10-22 — Pilot empty states and Community tabs
+
+- Empty states now depend on where they render. Event sections invite the first
+  question or recommendation through the action already there. Community offers
+  Find an event, or Reset filters when filters matched nothing. "On this page" plus a
+  newest-page link appears only on later cursor pages. Zero counts are hidden; live
+  counts that rise above zero hide the empty copy.
+- Community gains a **Happening Now** tab; see
+  [live activity](live-community-activity.md). Browser checks were updated, not rerun.
+
 ### 2026-10-12 — Drill-down return hierarchy
 
 - Share a quieter collection return and grouped event-section/Overview links across
@@ -85,16 +95,3 @@
   This completes basic reporting/review, not public-pilot or production certification.
 - Finish review scores all three fixes resolved: protect case evidence from
   moderator-authors, identify personal records/direct targets, and document delivery.
-
-### 2026-10-07 — Grouped recommendations and observe-only protection
-
-- Show one Community entry per event, active counts, up to three named reasons,
-  and a full-list link. Keep event/profile individual attribution and APIs compatible.
-- Preserve immutable event and account/event publication positions through edits,
-  additional authors and all-withdrawn republication; clear withdrawn reason text.
-- Record committed first-publication/reactivation counts in bounded ten-minute
-  windows and lifetime totals. Exclude edits/retries; add no quotas, cooldowns,
-  IP grouping or automatic sanctions. See [recommendations](../event-recommendations.md).
-- Add the grouped API in OpenAPI 1.7.0. Reporting/moderation still gates a pilot.
-- Verify real-MariaDB races, vet/build/lint and 82 Chromium outcomes with 11
-  zero-violation axe captures; the scoped grouped-feed review disposition is ship.

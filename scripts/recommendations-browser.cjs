@@ -129,7 +129,7 @@ fs.mkdirSync(out, { recursive: true });
     await page.getByRole('link', { name: 'Back to Recommendations' }).click();
     check('Event endorsement Back retains community context', new URL(page.url()).searchParams.get('return_to') === origin);
     await page.goto(base + '/community?city=Chicago');
-    check('Empty filtered recommendations provide guidance', !await page.locator('.recommendation-event').count() && await page.getByText('No recommendations on this page.', { exact: false }).count() === 1);
+    check('Empty filtered recommendations provide guidance', !await page.locator('.recommendation-event').count() && await page.getByText('No recommended events match these filters.', { exact: false }).count() === 1 && await page.getByRole('link', { name: 'Reset filters' }).getAttribute('href') === '/community');
     // Native forms: explicit publication, editing, optional reason, and withdrawal.
     const native = await browser.newContext({ javaScriptEnabled: false });
     await native.addCookies([{ name: 'ticketopia_session', value: process.env.SAVED_FIXTURE_TOKEN, url: base }]);

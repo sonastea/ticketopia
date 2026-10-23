@@ -10,14 +10,34 @@ func historyLabel(at time.Time) string { return at.UTC().Format("Jan 2, 2006, 15
 
 func sortLabel(sort string) string {
 	switch sort {
+	// Short enough to share the results heading line on compact screens.
 	case "date_desc":
-		return "Date, latest first"
+		return "Latest first"
 	case "name_asc":
-		return "Name, A–Z"
+		return "Name A–Z"
 	default:
-		return "Date, soonest first"
+		return "Soonest first"
 	}
 }
+// coverageNote is the coverage clause of the merged results line. Complete
+// coverage needs none, and stale coverage would repeat the stale notice.
+func coverageNote(meta models.Freshness) string {
+	if meta.Coverage == nil {
+		return ""
+	}
+	switch meta.Coverage.Status {
+	case "not_collected":
+		return "Not collected yet: Ticketmaster couldn't be refreshed, so this isn't a confirmed empty search."
+	case "partial":
+		return "Partial coverage: more events may exist. Try a shorter date range."
+	case "stale":
+		if !meta.Stale {
+			return "Older results while collection catches up."
+		}
+	}
+	return ""
+}
+
 func emptySearchTitle(meta models.Freshness) string {
 	if meta.Coverage != nil {
 		switch meta.Coverage.Status {

@@ -3,7 +3,7 @@
 Live activity is a sitewide view of public recommendations from the last
 ten minutes. Guests and enabled signed-in visitors receive new recommendations as
 top-right toasts and browse the current filtered view on **Happening Now** at
-`/happening-now`. Ordinary pages have no above-content activity section. Community
+`/happening-now`, a Community tab. Ordinary pages have no above-content activity section. Community
 and other collections keep their existing order.
 
 Parts 1–4 of the [default-on filtering extension](design/live-activity-filters.md)
@@ -210,9 +210,12 @@ name, contribution count and publication/expiry times. It contains no account ID
 profile link, display name, email, avatar, biography or recommendation reason.
 Multiple contributions to an event show a count, never a list of names.
 
-Happening Now is reachable from desktop Browse (after Community), the intermediate
-rail and compact navigation. It shows up to 20 event groups with real Overview
-links and browsing return context. New rows wait behind **Show N new updates**;
+Happening Now is a tab in Community (after Recommendations and Conversations),
+not a main navigation destination: during the pilot its ten-minute window is
+usually empty. Main navigation marks Community current there; toasts and
+Preferences also link to it. It shows up to 20 event groups with real Overview
+links and browsing return context. An unfiltered empty view explains the window
+and links to earlier Community recommendations. New rows wait behind **Show N new updates**;
 withdrawals, name clearing and expiry apply immediately. No duplicate toasts appear
 there. A filtered empty view offers Reset filters explicitly.
 

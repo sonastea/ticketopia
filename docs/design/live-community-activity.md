@@ -314,6 +314,10 @@ shell from [DESIGN.md](../../DESIGN.md); retain existing navigation thresholds.
 
 ### Happening Now navigation and page
 
+> **Changed 2026-10-22:** for the pilot, Happening Now is a Community tab rather
+> than a main navigation destination (its window is usually empty), restoring the
+> four-item compact bar. See the [current guide](../live-community-activity.md#attribution-and-controls).
+
 - Add a real **Happening Now** navigation link to **`/happening-now`**, available
   to guests and signed-in visitors when the feature is available. In the default
   desktop Browse group, place it after Community. Add the labeled destination to

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-10-22 — Happening Now moves into Community
+
+- For the pilot, remove Happening Now from the desktop sidebar, intermediate rail
+  and bottom bar: its 10-minute window is usually empty. It becomes a Community
+  tab, keeps Community current in main navigation, and remains linked from toasts
+  and Preferences. The bottom bar returns to Discover/Saved/Community/Profile.
+- The empty feed explains the window and links to earlier Community
+  recommendations; the duplicate Explore Community link is gone.
+  See [navigation](../live-community-activity.md#attribution-and-controls).
+
 ### 2026-10-22 — Part 5: soak write-gate diagnosis
 
 - Extend the interleaved soak phase to ABBA×4, save samples on failure, and record

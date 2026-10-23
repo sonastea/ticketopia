@@ -77,9 +77,9 @@ func TestPublicCollectionIdentityOpensOverview(t *testing.T) {
 	origin := "/users/owner?limit=1"
 	profile := accounts.PublicProfile{ID: "owner", DisplayName: "Public author"}
 	for name, component := range map[string]templ.Component{
-		"recommendations": RecommendationList(recommendations.List{Items: []recommendations.Item{{Event: event, Profile: profile, Reason: "A public reason"}}}, true, origin),
-		"community":       CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: event, Count: 1}}}, origin),
-		"conversations":   DiscussionRoots(discussions.List{Items: []discussions.Post{{ID: "root", EventID: event.ID, Event: event, Body: "A practical question", Profile: &profile}}}, true, origin),
+		"recommendations": RecommendationList(recommendations.List{Items: []recommendations.Item{{Event: event, Profile: profile, Reason: "A public reason"}}}, listContext{Place: onProfile}, origin),
+		"community":       CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: event, Count: 1}}}, origin, listContext{Place: inCommunity}),
+		"conversations":   DiscussionRoots(discussions.List{Items: []discussions.Post{{ID: "root", EventID: event.ID, Event: event, Body: "A practical question", Profile: &profile}}}, listContext{Place: inCommunity}, origin),
 		"public interest": PublicInterestEvents(interests.List{Items: []interests.Item{{Event: event}}}, origin),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestCollectionPrivacyAndFreshnessRemainVisible(t *testing.T) {
 		}
 	}
 	meta := models.Freshness{DataAsOf: time.Now().UTC(), Stale: true}
-	markup := renderNeighbor(t, CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: models.Event{ID: "e", Status: "onsale"}, Meta: meta, Count: 1}}}, "/community"))
+	markup := renderNeighbor(t, CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: models.Event{ID: "e", Status: "onsale"}, Meta: meta, Count: 1}}}, "/community", listContext{Place: inCommunity}))
 	warning, facts := strings.Index(markup, "Showing last-known details"), strings.Index(markup, "Price and sale status")
 	if warning < 0 || warning > facts || !strings.Contains(markup, "is-stale") {
 		t.Fatal("stale warning must precede sale facts", markup)
@@ -147,6 +147,61 @@ func assertNeighborURL(t *testing.T, raw, path, section, origin string) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "" || u.Host != "" || u.Path != path || u.Query().Get("section") != section || u.Query().Get("return_to") != origin {
 		t.Fatalf("destination %q: want local %s, section=%q, return_to=%q", raw, path, section, origin)
+	}
+}
+
+// Pilot collections are mostly empty: copy must fit where it renders, offer
+// the action available there, and say "on this page" only after the first page.
+func TestEmptyStatesMatchTheirContext(t *testing.T) {
+	zero := 0
+	none := recommendations.List{Count: &zero}
+	for _, tc := range []struct {
+		name      string
+		component templ.Component
+		want      []string
+		link      string
+	}{
+		{"event questions, signed out", DiscussionPanel("e", DiscussionView{Enabled: true}, "/events/e?section=discussion"), []string{"No questions or tips yet", "Sign in to ask the first question"}, ""},
+		// Discover's own results cursor is not a conversation page.
+		{"preview questions, signed in", DiscussionPanel("e", DiscussionView{Enabled: true, ViewerID: "v"}, "/?city=Berlin&cursor=results&selected_event=e"), []string{"No questions or tips yet", "Ask the first question or share a tip"}, ""},
+		{"later event questions", DiscussionPanel("e", DiscussionView{Enabled: true}, "/events/e/discussions?cursor=next&return_to=%2F"), []string{"No more conversations on this page"}, "/events/e/discussions?return_to=%2F"},
+		{"event recommendations", RecommendationPanel("e", RecommendationView{Enabled: true, List: none}, "/events/e?section=community"), []string{"No one has recommended this event yet", `data-live-empty="e"`, "data-live-total"}, ""},
+		{"community recommendations", CommunityRecommendationList(recommendations.Feed{}, "/community", communityContext("/community", "", "", "")), []string{"No recommendations yet", "Find an event to recommend"}, "/"},
+		{"filtered recommendations", CommunityRecommendationList(recommendations.Feed{}, "/community?city=Berlin", communityContext("/community?city=Berlin", "Berlin", "", "")), []string{"No recommended events match these filters", "Reset filters"}, "/community"},
+		{"later recommendations", CommunityRecommendationList(recommendations.Feed{}, "/community?city=Berlin&cursor=next", communityContext("/community?city=Berlin&cursor=next", "Berlin", "", "")), []string{"No more recommendations on this page"}, "/community?city=Berlin"},
+		{"community conversations", DiscussionRoots(discussions.List{}, communityContext("/community/discussions", "", "", ""), "/community/discussions"), []string{"No conversations yet", "Find an event to ask about"}, "/"},
+		{"profile recommendations", PublicRecommendationEvents(recommendations.List{}, "/users/owner", ""), []string{"No public recommendations yet"}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := renderNeighbor(t, tc.component)
+			for _, want := range tc.want {
+				if !strings.Contains(body, want) {
+					t.Fatalf("missing %q: %s", want, body)
+				}
+			}
+			for _, p := range neighborElements(neighborDocument(t, body), "p") {
+				if _, total := neighborAttributes(p)["data-live-total"]; total {
+					if _, hidden := neighborAttributes(p)["hidden"]; !hidden {
+						t.Fatal("a zero count repeats its empty state")
+					}
+				}
+			}
+			later := strings.Contains(tc.name, "later")
+			if strings.Contains(body, "Open an event") || strings.Contains(body, "0 visible") || strings.Contains(body, "on this page") != later {
+				t.Fatal("empty state is generic or misstates pagination", body)
+			}
+			if tc.link != "" && !slices.ContainsFunc(neighborElements(neighborDocument(t, body), "a"), func(n *html.Node) bool { return neighborAttributes(n)["href"] == tc.link }) {
+				t.Fatalf("empty state lost its %s action: %s", tc.link, body)
+			}
+		})
+	}
+}
+
+func TestResultsFreshnessIsOneQuietLine(t *testing.T) {
+	meta := models.Freshness{DataAsOf: time.Now().UTC(), Stale: true, Coverage: &models.Coverage{Status: "partial"}}
+	body := renderNeighbor(t, ResultsFreshness(meta))
+	if strings.Count(body, "<p") != 1 || !strings.Contains(body, `data-coverage="partial"`) || strings.Contains(body, "role=") || !strings.Contains(body, "Showing last-known results") || !strings.Contains(body, "Partial coverage") || !strings.Contains(body, "Updated ") {
+		t.Fatal("freshness and coverage must share one non-live line", body)
 	}
 }
 

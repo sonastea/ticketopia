@@ -2,13 +2,24 @@ package api
 
 import (
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/kv"
+	"golang.org/x/net/html"
 )
+
+func attribute(n *html.Node, key string) string {
+	for _, a := range n.Attr {
+		if a.Key == key {
+			return a.Val
+		}
+	}
+	return ""
+}
 
 func TestHappeningNowNativeAndReturn(t *testing.T) {
 	t.Setenv("IP_GEOLOCATION_ENABLED", "false")
@@ -38,6 +49,33 @@ func TestHappeningNowNativeAndReturn(t *testing.T) {
 		if response.Header().Get("Cache-Control") != "private, no-store" {
 			t.Fatal(response.Header())
 		}
+	}
+	// Happening Now is a Community tab, not a main navigation destination.
+	response := httptest.NewRecorder()
+	app.Routes().ServeHTTP(response, httptest.NewRequest("GET", "/happening-now", nil))
+	doc, err := html.Parse(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, links := map[string][]string{}, map[string][]string{}
+	var visit func(*html.Node, string)
+	visit = func(n *html.Node, nav string) {
+		if n.Type == html.ElementNode && n.Data == "nav" {
+			nav = attribute(n, "aria-label")
+		}
+		if n.Type == html.ElementNode && n.Data == "a" {
+			links[nav] = append(links[nav], attribute(n, "href"))
+			if attribute(n, "aria-current") == "page" {
+				current[nav] = append(current[nav], attribute(n, "href"))
+			}
+		}
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			visit(child, nav)
+		}
+	}
+	visit(doc, "")
+	if !slices.Equal(current["Main navigation"], []string{"/community", "/community"}) || !slices.Equal(current["Community collections"], []string{"/happening-now"}) || slices.Contains(links["Main navigation"], "/happening-now") {
+		t.Fatal("Happening Now must be the current Community tab only", current)
 	}
 	for _, raw := range []string{"/happening-now", "/happening-now?location_mode=city&live_city=Berlin&live_country=DE"} {
 		if safeReturnURL(raw) != raw {

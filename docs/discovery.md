@@ -122,6 +122,11 @@ A new form submission starts at the first page.
   disclosure and focuses City. The same GET form exposes country, dates, category,
   genre, and date-ascending/date-descending/name-ascending sorting. Inputs and
   disclosure remain usable without JavaScript.
+- The results heading shares its line with a short sort label. A single results
+  line combines update time, any stale-fallback warning and incomplete coverage
+  (`data-coverage`). It isn't a live region, so it isn't re-announced on each load.
+  Save privacy is explained in the first enhanced Save confirmation per browser
+  rather than above every list; event pages keep their own Save note.
 - Event titles and images are real Overview links; activity counts select the
   named community section directly.
   Enhancement loads only selected context and keeps results alongside it from

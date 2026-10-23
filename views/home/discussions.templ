@@ -15,18 +15,32 @@ templ DiscussionPanel(event string,v DiscussionView,returnURL string) {
 		<p class="field-note">Ask a question or share a practical tip. Contributions are public; this is an asynchronous conversation, not live chat.</p>
 		if v.ViewerID!="" {
 			<details class="recommendation-editor discussion-editor">
-				<summary>Ask a question or share a tip</summary>
+				<summary>
+					if v.first(returnURL) {
+						Ask the first question or share a tip
+					} else {
+						Ask a question or share a tip
+					}
+				</summary>
 				@DiscussionComposer(DiscussionForm{EventID:event,Action:"create",Key:v.Key,ReturnURL:returnURL,CSRF:v.CSRF,ViewerID:v.ViewerID},"Your question or tip","Post question or tip")
 			</details>
 		} else {
-			<a href={ templ.URL(signInURL(returnURL)) } class="text-link">Sign in to join the discussion</a>
+			<a href={ templ.URL(signInURL(returnURL)) } class="text-link">
+				if v.first(returnURL) {
+					Sign in to ask the first question
+				} else {
+					Sign in to join the discussion
+				}
+			</a>
 		}
 		if v.Error!="" {
 			<p role="status" class="field-note">{ v.Error }</p>
 			<a href={ templ.URL(ThreadURL(event,"",DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>Retry conversations</a>
 		} else {
-			<p class="field-note">{ fmt.Sprint(v.List.Count) } visible questions and tips</p>
-			@DiscussionRoots(v.List,false,returnURL)
+			if v.List.Count>0 {
+				<p class="field-note">{ fmt.Sprint(v.List.Count) } visible questions and tips</p>
+			}
+			@DiscussionRoots(v.List,listContext{Place:inEvent,EventID:event,FirstPage:discussionLaterPage(returnURL)},returnURL)
 			if v.List.NextCursor!=nil {
 				<a href={ templ.URL(ThreadURL(event,"",DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>See all conversations</a>
 			}
@@ -34,18 +48,31 @@ templ DiscussionPanel(event string,v DiscussionView,returnURL string) {
 	}
 }
 
-templ DiscussionRoots(list discussions.List,showEvent bool,returnURL string) {
+templ DiscussionRoots(list discussions.List,c listContext,returnURL string) {
 	if len(list.Items)==0 {
-		<p class="field-note">No conversations on this page. Open an event to ask the first question.</p>
+		if c.Place==inCommunity {
+			if c.FirstPage!="" {
+				@CommunityEmpty("No more conversations on this page.","",c.FirstPage,"Back to the newest conversations")
+			} else if c.Filtered {
+				@CommunityEmpty("No conversations match these filters.","Try another city or category, or clear the filters.","/community/discussions","Reset filters")
+			} else {
+				@CommunityEmpty("No conversations yet.","Questions and practical tips people post on events collect here. Wondering about entry, timing or getting there? Open the event and ask.","/","Find an event to ask about")
+			}
+		} else if c.FirstPage!="" {
+			<p class="field-note">No more conversations on this page.</p>
+			<a href={ templ.URL(c.FirstPage) } class="text-link" data-thread-link>Back to the newest conversations</a>
+		} else {
+			<p class="field-note">No questions or tips yet. Ask what you'd like to know before you go, or share something that would help others.</p>
+		}
 	} else {
 		<ul class="discussion-list recommendation-list">
 			for _,post:=range list.Items {
-				<li class={ templ.KV("recommendation-event",showEvent) }>
-					if showEvent {
+				<li class={ templ.KV("recommendation-event",c.showsEvent()) }>
+					if c.showsEvent() {
 						@CollectionEventArt(post.Event,returnURL)
 					}
 					<div class="recommendation-copy">
-						if showEvent {
+						if c.showsEvent() {
 							@CollectionEventHeading(post.Event,returnURL)
 						}
 						if post.Removed {
@@ -58,7 +85,7 @@ templ DiscussionRoots(list discussions.List,showEvent bool,returnURL string) {
 						}
 						<div class="account-actions">
 							<a href={ templ.URL(ThreadURL(post.EventID,post.ID,DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>Open conversation · { fmt.Sprint(post.ReplyCount) } replies</a>
-							if showEvent {
+							if c.showsEvent() {
 								<a href={ templ.URL(eventURL(post.EventID,"discussion",returnURL)) } class="text-link">Questions &amp; tips</a>
 							}
 						</div>
@@ -212,7 +239,12 @@ templ DiscussionContent(p DiscussionPage) {
 							@DiscussionPost(post,p.View,p.URL)
 						}
 						if len(p.View.List.Items)==0 {
-							<p class="field-note">No replies on this page. Share what you know or ask a follow-up.</p>
+							if first:=laterPage(p.URL,"cursor"); first!="" {
+								<p class="field-note">No more replies on this page.</p>
+								<a href={ templ.URL(first) } class="text-link" data-thread-link>Back to the first replies</a>
+							} else {
+								<p class="field-note">No replies yet. Share what you know or ask a follow-up below.</p>
+							}
 						}
 					</div>
 					if p.View.List.NextCursor!=nil {
@@ -248,7 +280,7 @@ templ DiscussionCommunity(p DiscussionCommunityPage) {
 	@layouts.App("community","Community conversations") {
 		<main id="main" class="destination-page community-page">
 			<header><h1>Questions & tips from the community</h1><p class="intro">Find practical advice and join conversations around local events.</p></header>
-			<nav class="section-nav" aria-label="Community collections"><a href="/community" class="text-link">Recommendations</a><a href="/community/discussions" aria-current="page" class="text-link">Conversations</a></nav>
+			@CommunityNav("conversations")
 			if !p.Enabled {
 				<p>Discussions require accounts to be enabled on this server.</p><a href="/" class="text-link">Discover events</a>
 			} else {
@@ -284,7 +316,7 @@ templ DiscussionCommunity(p DiscussionCommunityPage) {
 					<p role="alert">{ p.Error }</p><a href="/community/discussions" class="text-link">Reset filters and retry</a>
 				} else {
 					<div class="results-heading"><h2>Recent conversations</h2><span class="sort-label">Newest started first</span></div>
-					@DiscussionRoots(p.List,true,p.URL)
+					@DiscussionRoots(p.List,communityContext(p.URL,p.Filters.City,p.Filters.Country,p.Filters.CategoryID),p.URL)
 					if p.List.NextCursor!=nil {
 						<a href={ templ.URL(CollectionNextURL(p.URL,p.List.NextCursor)) } class="text-link">More conversations</a>
 					}

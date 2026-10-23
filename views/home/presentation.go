@@ -93,6 +93,49 @@ type CommunityPage struct {
 	ReturnURL, Error      string
 }
 
+// listContext tells a shared list where it renders, so its empty state can name
+// the action available there instead of sending people somewhere else.
+type listContext struct {
+	Place   listPlace
+	EventID string // the single event, when Place is inEvent
+	// FirstPage links back to the newest items from a later cursor page; it is
+	// empty on the first page, which reserves "on this page" copy for later ones.
+	FirstPage string
+	Filtered  bool // collection filters narrowed the results
+}
+
+type listPlace int
+
+const (
+	inEvent listPlace = iota
+	inCommunity
+	onProfile
+)
+
+func (c listContext) showsEvent() bool { return c.Place != inEvent }
+
+func eventContext(id string) listContext { return listContext{Place: inEvent, EventID: id} }
+
+func communityContext(pageURL, city, country, category string) listContext {
+	return listContext{Place: inCommunity, FirstPage: laterPage(pageURL, "cursor"), Filtered: city != "" || country != "" || category != ""}
+}
+
+// laterPage returns the first-page URL when raw is a later cursor page,
+// keeping filters and return context, and "" otherwise.
+func laterPage(raw, key string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	values := u.Query()
+	if values.Get(key) == "" {
+		return ""
+	}
+	values.Del(key)
+	u.RawQuery = values.Encode()
+	return u.String()
+}
+
 func recommendationAction(id string) string { return "/recommendations/" + url.PathEscape(id) }
 func recommendationListURL(id, origin string) string {
 	path := "/events/" + url.PathEscape(id) + "/recommendations"

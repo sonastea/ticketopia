@@ -53,9 +53,6 @@ templ App(active string, title string) {
 					@NavGroup("browse", "Browse") {
 						@NavItem("/", "Discover", "discover", active == "discover")
 						@NavItem("/community", "Community", "community", active == "community")
-						if LiveActivityEnabled(ctx) {
-							@NavItem("/happening-now", "Happening Now", "activity", active == "happening-now")
-						}
 					}
 					@NavGroup("your-space", "Your space") {
 						@NavItem("/radar", "Radar", "radar", active == "radar")
@@ -93,9 +90,6 @@ templ App(active string, title string) {
 				@NavLink("/", "Discover", "discover", active == "discover")
 				@NavLink("/saved", "Saved", "saved", active == "saved")
 				@NavLink("/community", "Community", "community", active == "community")
-				if LiveActivityEnabled(ctx) {
-					@NavLink("/happening-now", "Happening Now", "activity", active == "happening-now")
-				}
 				@NavLink("/me", "Profile", "profile", active == "profile" || active == "interests" || active == "follows" || active == "radar")
 			</nav>
 			if LiveActivityEnabled(ctx) {

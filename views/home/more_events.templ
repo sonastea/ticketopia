@@ -134,9 +134,33 @@ templ Freshness(meta models.Freshness) {
 	if !meta.DataAsOf.IsZero() {
 		<p class={ "freshness", templ.KV("is-stale", meta.Stale) }>
 			if meta.Stale {
-					<strong>Showing last-known details. Showing older results, not live availability.</strong><span></span>
+					<strong>Showing last-known details, not live availability.</strong><span></span>
 			}
 			Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
+		</p>
+	}
+}
+
+// ResultsFreshness merges result freshness and collection coverage into one
+// line so compact screens reach the first event sooner. It renders once on
+// load, so it isn't a live region that would re-announce every visit.
+templ ResultsFreshness(meta models.Freshness) {
+	if !meta.DataAsOf.IsZero() || meta.Coverage != nil {
+		<p
+			class={ "freshness", templ.KV("is-stale", meta.Stale) }
+			if meta.Coverage != nil {
+				data-coverage={ meta.Coverage.Status }
+			}
+		>
+			if meta.Stale {
+				<strong>Showing last-known results, not live availability.</strong>{ " " }
+			}
+			if note := coverageNote(meta); note != "" {
+				{ note }{ " " }
+			}
+			if !meta.DataAsOf.IsZero() {
+				Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
+			}
 		</p>
 	}
 }
@@ -177,8 +201,7 @@ templ Pagination(page SearchPage) {
 			<p>You've reached the end of these results.</p>
 		}
 		if page.Filters.Page > 0 {
-			@Freshness(page.Events.Meta)
-			@CollectionCoverage(page.Events.Meta)
+			@ResultsFreshness(page.Events.Meta)
 		}
 		<p id="load-error" class="load-error" role="alert"></p>
 	</div>

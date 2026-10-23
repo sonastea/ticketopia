@@ -46,7 +46,7 @@ fs.mkdirSync(out, { recursive: true });
           const feedback = group.querySelector('[data-save-feedback]');
           if (!feedback) continue;
           const original = { hidden: feedback.hidden, text: feedback.textContent, error: feedback.getAttribute('data-error') };
-          for (const message of ['', 'Updating your private save…', 'Event saved privately.', 'Event removed from Saved.', 'Your save could not be confirmed. Try again; repeating it is safe. ' + 'long-retry-guidance-'.repeat(12)]) {
+          for (const message of ['', 'Updating your private save…', 'Event saved privately.', 'Event saved privately. Only you can see your Saved events; saving doesn\'t publish interest or reserve tickets.', 'Event removed from Saved.', 'Your save could not be confirmed. Try again; repeating it is safe. ' + 'long-retry-guidance-'.repeat(12)]) {
             feedback.hidden = !message;
             feedback.textContent = message;
             feedback.dataset.error = String(message.startsWith('Your save'));

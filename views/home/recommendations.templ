@@ -9,6 +9,7 @@ import "github.com/sonastea/ticketopia/views/components/input"
 import "github.com/sonastea/ticketopia/views/components/label"
 import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 import "github.com/sonastea/ticketopia/views/components/alert"
+import "github.com/sonastea/ticketopia/views/components/empty"
 
 templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 	<div data-event-recommendations={ id } data-recommendation-viewer={ v.ViewerID }>
@@ -62,12 +63,12 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 			}
 			<h3>Public recommendations</h3>
 			if v.List.Count != nil {
-				<p class="field-note" data-live-total={ id }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
+				<p class="field-note" data-live-total={ id } data-live-hide-zero hidden?={ *v.List.Count == 0 }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
 			}
 			if v.ListError != "" {
 				<p class="field-note" role="status">{ v.ListError }</p>
 			} else {
-				@RecommendationList(v.List,false,returnURL)
+				@RecommendationList(v.List,eventContext(id),returnURL)
 				if v.List.NextCursor != nil {
 					<a href={ templ.URL(recommendationListURL(id,returnOrigin(returnURL))) } class="text-link">See all recommendations</a>
 				}
@@ -76,18 +77,25 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 	</div>
 }
 
-templ RecommendationList(list recommendations.List,showEvent bool,returnURL string) {
+templ RecommendationList(list recommendations.List,c listContext,returnURL string) {
 	if len(list.Items)==0 {
-		<p class="field-note">No recommendations on this page. Open an event to share one you recommend.</p>
+		if c.FirstPage!="" {
+			<p class="field-note">No more recommendations on this page.</p>
+			<a href={ templ.URL(c.FirstPage) } class="text-link">Back to the newest recommendations</a>
+		} else if c.Place==onProfile {
+			<p class="field-note">No public recommendations yet.</p>
+		} else {
+			<p class="field-note" data-live-empty={ c.EventID }>No one has recommended this event yet. If it's worth going to, be the first to say why.</p>
+		}
 	} else {
 		<ul class="recommendation-list">
 			for _,item := range list.Items {
-				<li class={ templ.KV("recommendation-event",showEvent) }>
-					if showEvent {
+				<li class={ templ.KV("recommendation-event",c.showsEvent()) }>
+					if c.showsEvent() {
 						@CollectionEventArt(item.Event,returnURL)
 					}
 					<div class="recommendation-copy">
-						if showEvent {
+						if c.showsEvent() {
 							@CollectionEventHeading(item.Event,returnURL)
 							@CollectionEventFreshness(item.Meta)
 							@EventFacts(item.Event)
@@ -101,7 +109,7 @@ templ RecommendationList(list recommendations.List,showEvent bool,returnURL stri
 								<span> · Edited</span>
 							}
 						</p>
-						if showEvent {
+						if c.showsEvent() {
 							<a href={ templ.URL(eventURL(item.Event.ID,"community",returnURL)) } class="text-link">Recommendations</a>
 						}
 					</div>
@@ -111,11 +119,23 @@ templ RecommendationList(list recommendations.List,showEvent bool,returnURL stri
 	}
 }
 
+// Happening Now lives inside Community rather than in main navigation: during
+// the pilot its 10-minute window is usually empty.
+templ CommunityNav(current string) {
+	<nav class="section-nav" aria-label="Community collections">
+		<a href="/community" aria-current={ layouts.CurrentPage(current == "recommendations") } class="text-link">Recommendations</a>
+		<a href="/community/discussions" aria-current={ layouts.CurrentPage(current == "conversations") } class="text-link">Conversations</a>
+		if layouts.LiveActivityEnabled(ctx) {
+			<a href="/happening-now" aria-current={ layouts.CurrentPage(current == "happening-now") } class="text-link">Happening Now</a>
+		}
+	</nav>
+}
+
 templ Community(p CommunityPage) {
 	@layouts.App("community","Community recommendations") {
 		<main id="main" class="destination-page community-page">
 			<header><h1>Recommended by the community</h1><p class="intro">Each event appears once, with the people and reasons behind its public recommendations.</p></header>
-			<nav class="section-nav" aria-label="Community collections"><a href="/community" aria-current="page" class="text-link">Recommendations</a><a href="/community/discussions" class="text-link">Conversations</a></nav>
+			@CommunityNav("recommendations")
 			if !p.Enabled {
 				<p>Community recommendations require accounts to be enabled on this server. You can still discover events.</p>
 				<a href="/" class="text-link">Discover events</a>
@@ -154,7 +174,7 @@ templ Community(p CommunityPage) {
 					}
 				} else {
 					<div class="results-heading"><h2>Recommended events</h2><span class="sort-label">First recommended, newest first</span></div>
-					@CommunityRecommendationList(p.List,p.ReturnURL)
+					@CommunityRecommendationList(p.List,p.ReturnURL,communityContext(p.ReturnURL,p.Filters.City,p.Filters.Country,p.Filters.CategoryID))
 					if p.List.NextCursor != nil {
 						@button.Button(button.Props{Href:CollectionNextURL(p.ReturnURL,p.List.NextCursor),Variant:button.VariantOutline,Class:"action action-secondary"}) {
 							More recommendations
@@ -167,9 +187,29 @@ templ Community(p CommunityPage) {
 	}
 }
 
-templ CommunityRecommendationList(feed recommendations.Feed,returnURL string) {
+// Community collections are mostly empty during the pilot, so each empty
+// state leads to the next useful action instead of ending the page.
+templ CommunityEmpty(title, body, href, action string) {
+	@empty.Empty(empty.Props{Class:"feedback empty-state"}) {
+		<h3>{ title }</h3>
+		if body!="" {
+			<p>{ body }</p>
+		}
+		@button.Button(button.Props{Href:href,Variant:button.VariantOutline,Class:"action action-secondary"}) {
+			{ action }
+		}
+	}
+}
+
+templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c listContext) {
 	if len(feed.Items)==0 {
-		<p class="field-note">No recommendations on this page. Open an event to share one you recommend.</p>
+		if c.FirstPage!="" {
+			@CommunityEmpty("No more recommendations on this page.","",c.FirstPage,"Back to the newest recommendations")
+		} else if c.Filtered {
+			@CommunityEmpty("No recommended events match these filters.","Try another city or category, or clear the filters.","/community","Reset filters")
+		} else {
+			@CommunityEmpty("No recommendations yet.","When someone recommends an event, it appears here with their reasons. Found something worth going to? Open it and choose Recommend.","/","Find an event to recommend")
+		}
 	} else {
 		<ul class="recommendation-list">
 			for _,group:=range feed.Items {
@@ -207,7 +247,7 @@ templ PublicRecommendationEvents(list recommendations.List,returnURL string,mess
 		if message!="" {
 			<p class="field-note" role="status">{ message }</p>
 		} else {
-			@RecommendationList(list,true,returnURL)
+			@RecommendationList(list,listContext{Place:onProfile,FirstPage:laterPage(returnURL,"recommendation_cursor")},returnURL)
 			if list.NextCursor!=nil {
 				<a href={ templ.URL(profileRecommendationNextURL(returnURL,list.NextCursor)) } class="text-link">More public recommendations</a>
 			}
@@ -249,7 +289,7 @@ templ EventRecommendations(event models.Event,list recommendations.List,paginati
 		<main id="main" class="destination-page account-page">
 			@DrilldownReturn(event.ID,"community",origin)
 			<h1>Recommendations for { event.Name }</h1><p class="event-date">{ startLabel(event.Start) }</p><p class="event-venue">{ venueLabel(event) }</p>
-			@RecommendationList(list,false,origin)
+			@RecommendationList(list,listContext{Place:inEvent,EventID:event.ID,FirstPage:laterPage(paginationURL,"cursor")},origin)
 			if list.NextCursor!=nil {
 				<a href={ templ.URL(CollectionNextURL(paginationURL,list.NextCursor)) } class="text-link">More recommendations</a>
 			}

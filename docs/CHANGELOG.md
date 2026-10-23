@@ -6,11 +6,11 @@ one entry per feature. Related changes stay in the same feature document. Browse
 
 - 2026-10-22 — [Event discovery](changes/discovery.md)
 - 2026-10-22 — [Live community activity](changes/live-community-activity.md)
+- 2026-10-22 — [Positive event communities](changes/event-communities.md)
 - 2026-10-15 — [Public HTTP and KV caching](changes/cache.md)
 - 2026-10-14 — [Reliable event history](changes/event-history.md)
 - 2026-10-14 — [Database and persistence](changes/database.md)
 - 2026-10-14 — [Personal radar and reminders](changes/personal-radar.md)
-- 2026-10-12 — [Positive event communities](changes/event-communities.md)
 - 2026-10-12 — [Private saved events](changes/saved-events.md)
 - 2026-10-12 — [Release verification and scope](changes/release-verification.md)
 - 2026-10-12 — [UI components](changes/ui-components.md)

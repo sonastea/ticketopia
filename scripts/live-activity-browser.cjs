@@ -39,11 +39,12 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     const dom = await toast.innerHTML();
     check('Toast DTO excludes identities/reason', !/Forbidden|\/users\//.test(dom) && !dom.includes(me.item.id));
     await page.screenshot({ path: path.join(output, 'desktop.png'), fullPage: true });
-    const prior = page.locator('.desktop-nav a[href="/happening-now"]'); await prior.focus();
+    const prior = page.locator('.desktop-nav a[href="/community"]'); await prior.focus();
     await toast.getByRole('button', { name: /Dismiss/ }).focus(); await page.keyboard.press('Enter');
     check('Dismiss restores prior keyboard control', await prior.evaluate(el => el === document.activeElement));
     check('Dismiss only removes toast', await toast.count() === 0);
-    await prior.click(); await page.waitForURL('**/happening-now'); await connected(page);
+    await prior.click(); await page.waitForURL('**/community');
+    await page.locator('nav[aria-label="Community collections"] a[href="/happening-now"]').click(); await page.waitForURL('**/happening-now'); await connected(page);
     const rows = page.locator('[data-live-list] li'); await rows.waitFor();
     check('Dismissed event remains browsable', await rows.count() === 1);
     await write('put', '/api/v1/me/event-recommendations/ticketmaster:Browser_1', { reason: '' });
@@ -73,7 +74,7 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     check('Withdrawal restores page heading focus', await page.locator('h1').evaluate(el => el === document.activeElement));
     for (const width of [1440, 1050, 390, 320]) {
       await page.setViewportSize({ width, height: 1000 });
-      check('Navigation reachable at ' + width, await page.locator('nav a[href="/happening-now"]:visible').count() === 1);
+      check('Community tab reachable at ' + width, await page.locator('nav[aria-label="Community collections"] a[href="/happening-now"]:visible').count() === 1 && await page.locator('nav[aria-label="Main navigation"] a[href="/happening-now"]').count() === 0);
       check('No overflow at ' + width, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       if (width === 320) await page.screenshot({ path: path.join(output, 'mobile.png'), fullPage: true });
     }
@@ -155,7 +156,7 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     check('Burst capped at three', await st.count() === 3);
     await st.first().getByRole('button').focus(); await sp.clock.runFor(8100);
     check('Focused toast pauses; other toasts expire without backlog', await st.count() === 1);
-    await sp.locator('.desktop-nav a[href="/happening-now"]').focus(); await sp.clock.runFor(8100);
+    await sp.locator('.desktop-nav a[href="/community"]').focus(); await sp.clock.runFor(8100);
     check('Eight non-interacting seconds dismiss', await st.count() === 0);
     check('Dismiss clears announcement for the next batch', await sp.locator('[data-live-status]').textContent() === '');
     await emit([item('hover', 2)], 2); await st.hover(); await sp.clock.runFor(8100);

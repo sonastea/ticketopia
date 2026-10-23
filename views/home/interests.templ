@@ -103,7 +103,12 @@ templ PublicInterestEvents(list interests.List, returnURL string) {
 		<h2 id="public-interests-heading">Public event interest</h2>
 		<p class="field-note">Only explicitly public choices appear here. Interest doesn't establish attendance or ticket ownership.</p>
 		if len(list.Items) == 0 {
-			<p>No public event interest on this page.</p>
+			if first := laterPage(returnURL, "cursor"); first != "" {
+				<p>No more public event interest on this page.</p>
+				<a class="text-link" href={ templ.URL(first) }>Back to the newest interest</a>
+			} else {
+				<p>No public event interest yet.</p>
+			}
 		}
 		<ul class="public-interest-list recommendation-list">
 			for _, item := range list.Items {

@@ -4,10 +4,11 @@ import "fmt"
 import "github.com/sonastea/ticketopia/views/layouts"
 
 templ HappeningNow(p HappeningNowPage) {
-	@layouts.App("happening-now", "Happening Now") {
+	@layouts.App("community", "Happening Now") {
 		<main id="main" class="destination-page live-activity" data-live-page data-live-guest?={ !p.SignedIn && p.Error == "" }>
 			<h1 tabindex="-1" data-live-heading>Happening Now</h1>
 			<p>Public recommendations from the last 10 minutes</p>
+			@CommunityNav("happening-now")
 			if !p.Enabled {
 				<p>Live activity is unavailable on this server.</p>
 			} else {
@@ -35,7 +36,7 @@ templ HappeningNow(p HappeningNowPage) {
 							{ p.Error }
 						} else if len(p.Snapshot.Items) == 0 {
 							if p.Filters.Unrestricted() {
-								No recent recommendations. Explore Community.
+								Nothing in the last 10 minutes. New public recommendations appear here as people share them.
 							} else {
 								No recent recommendations match these filters. Use Reset filters to see all events.
 							}
@@ -44,6 +45,7 @@ templ HappeningNow(p HappeningNowPage) {
 						}
 					</p>
 					<button type="submit" form="live-filter-form" name="filter_action" value="reset" formnovalidate class="text-link" data-live-empty-reset hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || p.Filters.Unrestricted() }>Reset filters</button>
+					<a href="/community" class="text-link" data-live-empty-community hidden?={ p.Error != "" || len(p.Snapshot.Items) > 0 || !p.Filters.Unrestricted() }>Browse earlier recommendations</a>
 					if !p.Snapshot.AsOf.IsZero() {
 						<p class="field-note">Snapshot updated <time datetime={ p.Snapshot.AsOf.Format("2006-01-02T15:04:05Z07:00") }>{ p.Snapshot.AsOf.UTC().Format("15:04:05 UTC") }</time>. Refresh for the latest snapshot; live updates appear when connected.</p>
 					}
@@ -60,7 +62,6 @@ templ HappeningNow(p HappeningNowPage) {
 					</ul>
 				</section>
 			}
-			<a href="/community" class="text-link">Explore Community</a>
 		</main>
 	}
 }

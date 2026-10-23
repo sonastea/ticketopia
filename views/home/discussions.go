@@ -55,6 +55,22 @@ func (p DiscussionCommunityPage) hasCategory() bool {
 	}
 	return false
 }
+// discussionLaterPage recognizes only an event's own conversation list: a
+// Discover return URL can carry an unrelated results cursor.
+func discussionLaterPage(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || !strings.HasPrefix(u.Path, "/events/") || !strings.HasSuffix(u.Path, "/discussions") {
+		return ""
+	}
+	return laterPage(raw, "cursor")
+}
+
+// first reports an event without conversations yet, so its actions invite
+// the first question rather than joining an existing discussion.
+func (v DiscussionView) first(returnURL string) bool {
+	return v.Error == "" && len(v.List.Items) == 0 && discussionLaterPage(returnURL) == ""
+}
+
 func ThreadURL(event, thread, origin string) string {
 	path := "/events/" + url.PathEscape(event) + "/discussions"
 	if thread != "" {

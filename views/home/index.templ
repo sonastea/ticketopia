@@ -56,10 +56,9 @@ templ Index(page SearchPage) {
 					<section aria-labelledby="results-heading">
 						<div class="results-heading">
 							<h2 id="results-heading">Upcoming events <span>{ resultsTitle(page.Events.Total) }</span></h2>
-							<span class="sort-label">{ sortLabel(page.Filters.Sort) }</span>
+							<span class="sort-label"><span class="sr-only">Sorted by </span>{ sortLabel(page.Filters.Sort) }</span>
 						</div>
-						@Freshness(page.Events.Meta)
-						@CollectionCoverage(page.Events.Meta)
+						@ResultsFreshness(page.Events.Meta)
 						if len(page.Events.Items) == 0 {
 							@empty.Empty(empty.Props{Class: "feedback empty-state"}) {
 								<h3>{ emptySearchTitle(page.Events.Meta) }</h3>
@@ -68,13 +67,9 @@ templ Index(page SearchPage) {
 }
 							}
 						} else {
-							<p id="participation-note" class="participation-note">
-								if page.Saves.Enabled {
-									Saves are private. Interest counts include private choices; only public choices show your profile.
-								} else {
-									Saving and Interested require accounts to be enabled.
-								}
-							</p>
+							if !page.Saves.Enabled {
+								<p id="participation-note" class="participation-note">Saving and Interested require accounts to be enabled.</p>
+							}
 							if page.Saves.Error != "" {
 								<p class="field-note" role="status">{ page.Saves.Error }</p>
 							}

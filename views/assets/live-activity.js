@@ -18,7 +18,8 @@
     }
     if (focused) {
       if (priorFocus?.isConnected && priorFocus.getClientRects().length && !priorFocus.disabled) priorFocus.focus({ preventScroll: true });
-      else [...document.querySelectorAll('a[href="/happening-now"]')].find(link => link.getClientRects().length)?.focus({ preventScroll: true });
+      // Happening Now is a Community tab, so fall back to Community navigation.
+      else [...document.querySelectorAll('a[href="/happening-now"], nav a[href="/community"]')].find(link => link.getClientRects().length)?.focus({ preventScroll: true });
     }
   };
   const compact = matchMedia('(max-width: 61.999rem)');
@@ -97,6 +98,7 @@
     [...toasts.children].forEach(removeToast);
     text('badge', ''); if (updates) updates.hidden = true; text('status', '');
     if (node('empty-reset')) node('empty-reset').hidden = true;
+    if (node('empty-community')) node('empty-community').hidden = true;
     clearTimeout(expiryTimer);
     clearTimeout(announceTimer);
   };
@@ -148,8 +150,9 @@
     node('badge').textContent = pending.size ? `${pending.size} new` : '';
     updates.hidden = !pending.size;
     updates.textContent = `Show ${pending.size} new updates`;
-    node('connection').textContent = current.length ? 'Recent public recommendations' : (restricted() ? 'No recent recommendations match these filters. Use Reset filters to see all events.' : 'No recent recommendations. Explore Community.');
+    node('connection').textContent = current.length ? 'Recent public recommendations' : (restricted() ? 'No recent recommendations match these filters. Use Reset filters to see all events.' : 'Nothing in the last 10 minutes. New public recommendations appear here as people share them.');
     node('empty-reset').hidden = !!current.length || !restricted();
+    node('empty-community').hidden = !!current.length || restricted();
   };
   const receive = data => {
     if (!Array.isArray(data.items) || !Number.isFinite(Date.parse(data.as_of))) throw new Error();
@@ -198,7 +201,12 @@
         if (element.dataset.liveTotal !== item.event_id) continue;
         const number = document.createElement('strong'); number.textContent = item.recommendation_count;
         element.replaceChildren(number, document.createTextNode(item.recommendation_count === 1 ? ' recommendation' : ' recommendations'));
+        // An event's own count stays hidden at zero; its empty state says so instead.
+        if (element.hasAttribute('data-live-hide-zero')) element.hidden = item.recommendation_count === 0;
         delete element.dataset.countsStale;
+      }
+      for (const element of document.querySelectorAll('[data-live-empty]')) {
+        if (element.dataset.liveEmpty === item.event_id) element.hidden = item.recommendation_count > 0;
       }
       for (const element of document.querySelectorAll('[data-interest-count]')) {
         if (element.dataset.interestCount !== item.event_id) continue;

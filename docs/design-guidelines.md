@@ -27,7 +27,7 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Discover | `/` | City, keyword, dates, category/genre filters, event results, pagination |
 | Event | `/events/{event_id}` | Details, Save/Interested and per-event privacy; Community shows public recommendations and public-opt-in participants; Discussion shows recent questions/tips and a public composer |
 | Saved | `/saved` | Owner-only newest-saved-first collection, last-known details, and pagination; sign-in or configuration explanation when unavailable |
-| Community | `/community` | One entry per recommended event, active counts and named reasons; separate `/community/discussions` collection; both have city/country/category filters and pagination |
+| Community | `/community` | One entry per recommended event, active counts and named reasons; separate `/community/discussions` collection; both have city/country/category filters and pagination. A **Happening Now** tab (`/happening-now`) holds recent live activity. Empty states name the next action (find an event, reset filters) and say "on this page" only on later pages |
 | Thread | `/events/{event_id}/discussions/{discussion_id}` | Shareable root/replies, public attribution, owner edit/remove, positive Helpful and native composing |
 | Interests | `/me/interests` | Paginated own event interest and per-event visibility, followed by separate private category preferences |
 | Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-10-22 — Compact Discover first screen
+
+- Merge freshness, stale fallback and coverage into one non-live results line,
+  keeping `data-coverage`; fix the repeated "Showing … Showing" stale copy.
+- Put a shorter sort label ("Soonest first") on the results heading line and
+  move Save privacy from above every result list into the first enhanced Save's
+  confirmation in each browser (page memory if storage is blocked).
+- At 390×844 the first event starts at 475px with a stale, partial-coverage
+  fixture; the four-item bottom bar stays on one row at 320px.
+  See [discovery](../discovery.md#responsive-navigation-and-event-details).
+
 ### 2026-10-22 — Shared links with tracking parameters
 
 - Discover, Community and event pages redirect (`302`) away from unsupported query
@@ -62,36 +73,6 @@
 - Production assets/binaries, targeted view/API race tests, and Docker `make check`
   (full race suite and vet) pass. Final validation also passes the full race suite
   against isolated local-MariaDB databases and host vet.
-
-### 2026-10-03 — All-category discovery, responsive event views, and city detection
-
-- Deliver all-category discovery in three independently verifiable slices:
-  category-aware shared discovery/API, web filters/non-music display, and regression
-  checks. See [verification commands](../discovery.md#verification-by-slice).
-- Add a cached category/genre catalog and `/api/v1/categories`; keep legacy
-  genre-only links scoped to Music, preserve resource IDs, and isolate category
-  cache/cursor scopes. Pre-expansion cursors require a new search.
-- Add category-compatible genre options with JavaScript and ordinary GET forms,
-  clear genres on category changes, and show neutral event/performer/team metadata.
-- Verify provider fixtures, catalog outages, empty/sparse events, race/vet/OpenAPI,
-  live Chicago categories, pagination, previews/return context, and six responsive
-  accessibility views with no violations or horizontal overflow.
-
-- Initialize the confirmed web product record and refactor discovery into the
-  chosen cobalt/record-shop/mixtape direction, with shared components, local assets,
-  responsive sidebar/rail/bottom navigation, and image-led event rows.
-- Add real event pages and contextual previews using cached metadata, shareable
-  selection/section URLs, Back/resize continuity, isolated errors, and retry.
-- Expose truthful planned-feature destinations and participation states; retain
-  regular GET search, no-JavaScript navigation, and load-more pagination.
-- Verify race/vet checks, cached detail reuse, URL and return-context handling,
-  responsive browser journeys, focus, reflow, and automated accessibility.
-  See the [UI guide](../discovery.md#responsive-navigation-and-event-details),
-  [visual system](../../DESIGN.md), and [broader UX scope](../design-guidelines.md).
-
-- Add an explicit browser-side **Detect my city** action, using the browser's
-  public IP with a 24-hour local cache, editable results, and a manual fallback.
-  See [localhost location detection](../location.md#detecting-a-city-on-localhost).
 
 Older entries: [discovery archive](archive/discovery/).
 
