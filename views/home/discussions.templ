@@ -290,7 +290,7 @@ templ DiscussionCommunity(p DiscussionCommunityPage) {
 						@input.Input(input.Props{ID:"discussion-city",Name:"city",Value:p.Filters.City,Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
 					}
 					@label.Label(label.Props{For:"discussion-country",Class:"field"}) {
-						Country code <span>(optional)</span>
+						Country <span>(optional, 2-letter code)</span>
 						@input.Input(input.Props{ID:"discussion-country",Name:"country",Value:p.Filters.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}"}})
 					}
 					@label.Label(label.Props{For:"discussion-category",Class:"field"}) {

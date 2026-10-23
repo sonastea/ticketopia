@@ -118,8 +118,10 @@ A new form submission starts at the first page.
   the usable viewport height, scrolling internally for longer activity. At enlarged
   text sizes, the default preview takes at most 45% of the content width, and narrow
   results stack image/facts rather than squeezing prose beside the image.
-- Location stays visible above search. **Change city** opens the native Filters
-  disclosure and focuses City. The same GET form exposes country, dates, category,
+- Location stays visible above search. **Change city** (**Enter a city** before
+  one is chosen) opens the native Filters disclosure and focuses City. Keyword
+  search is labeled for event, performer, team, or venue names, matching its
+  semantics. The same GET form exposes country, dates, category,
   genre, and date-ascending/date-descending/name-ascending sorting. Inputs and
   disclosure remain usable without JavaScript.
 - The results heading shares its line with a short sort label. A single results
@@ -127,8 +129,11 @@ A new form submission starts at the first page.
   (`data-coverage`). It isn't a live region, so it isn't re-announced on each load.
   Save privacy is explained in the first enhanced Save confirmation per browser
   rather than above every list; event pages keep their own Save note.
-- Event titles and images are real Overview links; activity counts select the
-  named community section directly.
+- Event titles and images are real Overview links; the title is the row's only
+  tab stop (the image link is `tabindex="-1"`/`aria-hidden`). Activity counts
+  select the named community section directly. Rows omit the provider description
+  (mostly policy boilerplate; Overview shows it in full), and Featuring omits
+  performers already named in the title.
   Enhancement loads only selected context and keeps results alongside it from
   62rem, or hides results behind the primary view below that threshold.
   `selected_event`, `section`, `selected_thread`, `reply_to`, and independent
@@ -155,7 +160,8 @@ A new form submission starts at the first page.
    Resizing retains the selected event/thread and drafts without adding history.
 - Preview loads cancel obsolete requests, have bounded timeouts, and offer Retry
   and Open event on failure. A failed preview leaves the discovery list usable.
-  Compact selection focuses the event heading; closing restores the result title.
+  Choosing an event focuses its preview heading on every layout; closing restores
+  the result title. History restores keep focus where the browser left it.
   Successful compact context omits standalone expansion; desktop offers one
   **Open event page** link. Saved, Interests, and Radar return across event sections
   to the original collection cursor, position, and focused event.

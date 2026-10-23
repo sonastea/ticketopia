@@ -33,7 +33,8 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
       check(name + ': list ticket is direct', await row.getByRole('link', {name: /Tickets on Ticketmaster/}).isVisible());
       check(name + ': compact activity, no secondary participation', await row.locator('.row-activity a').count() === 2 && !await row.locator('.row-activity p, .interest-form, .reminder-button, details').count());
       check(name + ': empty activity is omitted', !await page.locator('.event-row').nth(1).locator('.row-activity').count());
-      await row.locator('.event-art a').focus(); await page.keyboard.press('Enter'); await settled();
+      check(name + ': artwork is not a second tab stop', await row.locator('.event-art a').getAttribute('tabindex') === '-1');
+      await row.locator('.event-link').focus(); await page.keyboard.press('Enter'); await settled();
       check(name + ': default is useful Overview', await panel.getByRole('heading', {name: 'About the event'}).isVisible() && await panel.getByText('Bring photo ID.', {exact: false}).isVisible());
       check(name + ': one section navigation', await panel.locator('.event-section-nav').count() === 1);
       check(name + ': tickets precede artwork', await panel.locator('.ticket-link').evaluate(n => n.getBoundingClientRect().top < document.querySelector('[data-section-body] > .event-image').getBoundingClientRect().top));

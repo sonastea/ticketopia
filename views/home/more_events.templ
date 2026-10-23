@@ -30,7 +30,7 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 	for _, event := range events {
 		<li class="event-row" data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
 			<div class="event-art">
-				<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } aria-label={ "Open " + event.Name }>
+				<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } tabindex="-1" aria-hidden="true">
 					@EventImage(event, false)
 				</a>
 				<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
@@ -60,14 +60,11 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 			if extended {
 				<div class="event-row-extension">
 					<div class="row-details">
-						if artistsLabel(event.Artists) != "" {
-							<p><strong>Featuring</strong> { artistsLabel(event.Artists) }</p>
+						if featuringLabel(event) != "" {
+							<p><strong>Featuring</strong> { featuringLabel(event) }</p>
 						}
 						if saleLabel(event) != "" {
 							<p class="sale-date">{ saleLabel(event) }</p>
-						}
-						if event.Info != "" {
-							<p class="row-description">{ previewText(event.Info) }</p>
 						}
 					</div>
 					@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
@@ -80,8 +77,8 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 
 templ EventRowTools(event models.Event, returnURL string, saves SaveView, actionReturnURL string, interests InterestView, extended bool) {
 	if !extended {
-		if artistsLabel(event.Artists) != "" {
-			<p>{ artistsLabel(event.Artists) }</p>
+		if featuringLabel(event) != "" {
+			<p>{ featuringLabel(event) }</p>
 		}
 		if saleLabel(event) != "" {
 			<p>{ saleLabel(event) }</p>
@@ -167,7 +164,7 @@ templ ResultsFreshness(meta models.Freshness) {
 
 templ CollectionCoverage(meta models.Freshness) {
 	if meta.Coverage != nil {
-		<p class="field-note" role="status" data-coverage={meta.Coverage.Status}>
+		<p class="field-note" data-coverage={meta.Coverage.Status}>
 			switch meta.Coverage.Status {
 				case "not_collected":
 					Not collected yet. Ticketmaster could not be refreshed; this is not a confirmed empty search.

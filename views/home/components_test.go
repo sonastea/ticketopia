@@ -290,13 +290,18 @@ func TestDiscoveryRowsExposeDetailsAndOnlyRealPublicActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	markup := out.String()
-	for _, want := range []string{"The Local Band", "Useful description.", "1 question or tip", "2 public recommendations", "section=discussion", "section=community", "Ticket link unavailable."} {
+	for _, want := range []string{"The Local Band", "1 question or tip", "2 public recommendations", "section=discussion", "section=community", "Ticket link unavailable."} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing useful row information %q", want)
 		}
 	}
-	if strings.Count(markup, "The Local Band") != 1 || strings.Contains(markup, event.Info) || strings.Contains(markup, "<details") {
-		t.Fatal("facts duplicated, description not previewed, or preview hidden in disclosure")
+	// Provider descriptions are mostly policy boilerplate; Overview shows them in full.
+	if strings.Count(markup, "The Local Band") != 1 || strings.Contains(markup, "Useful description.") || strings.Contains(markup, "<details") {
+		t.Fatal("facts duplicated, row repeats the provider description, or details hidden in disclosure")
+	}
+	// The artwork duplicates the title link, so only the title is a tab stop.
+	if strings.Count(markup, "data-event-link") != 4 || strings.Count(markup, `tabindex="-1" aria-hidden="true"`) != 1 {
+		t.Fatal("row artwork adds a second tab stop for the same event")
 	}
 	for _, unwanted := range []string{"Where is the entrance?", "Public reason", "Public author", "Read conversation", "data-thread-link"} {
 		if strings.Contains(markup, unwanted) {
@@ -310,8 +315,23 @@ func TestDiscoveryRowsExposeDetailsAndOnlyRealPublicActivity(t *testing.T) {
 	if strings.Contains(out.String(), "row-activity") || strings.Contains(out.String(), "0 questions") {
 		t.Fatal("event with no known activity fabricated engagement")
 	}
-	if got := previewText(strings.Repeat("界", 201)); got != strings.Repeat("界", 200)+"…" {
-		t.Fatal("preview split a Unicode character", got)
+	for _, tc := range []struct {
+		name    string
+		artists []string
+		want    string
+	}{
+		{"Taylor Swift | The Eras Tour", []string{"Taylor Swift"}, ""},
+		{"Bulls vs. Lakers", []string{"Chicago Bulls", "Los Angeles Lakers"}, "Chicago Bulls, Los Angeles Lakers"},
+		{"Bulls vs. Lakers", []string{"Bulls", "Lakers"}, ""},
+		{"Summer Fest", []string{"Opening Act", "summer fest"}, "Opening Act"},
+	} {
+		event := models.Event{Name: tc.name}
+		for _, name := range tc.artists {
+			event.Artists = append(event.Artists, models.Artist{Name: name})
+		}
+		if got := featuringLabel(event); got != tc.want {
+			t.Errorf("featuringLabel(%q) = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }
 

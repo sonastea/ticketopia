@@ -36,6 +36,14 @@ func signInBackLabel(returnTo string) string {
 	return "Discover without signing in"
 }
 
+func googleStartURL(returnTo, intent string) string {
+	values := url.Values{"return_to": {returnTo}}
+	if intent != "" {
+		values.Set("intent", intent)
+	}
+	return "/auth/google/start?" + values.Encode()
+}
+
 func signInSection(returnTo string) string {
 	u, _ := url.Parse(returnTo)
 	if u == nil || (u.Query().Get("selected_event") == "" && !strings.HasPrefix(u.Path, "/events/")) {

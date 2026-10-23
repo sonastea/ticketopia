@@ -40,8 +40,10 @@ For Kubernetes, reconcile the corresponding grants in the operator manifests.
 ## Web behavior
 
 - **Save** and **Remove from Saved** work as ordinary CSRF-protected POST forms
-  without JavaScript. Sign-in resumes the local event/discovery/Saved task; users
-  choose Save after signing in rather than triggering a write through a GET.
+  without JavaScript. Signed-out **Sign in to save** completes that Save once
+  Google sign-in succeeds and resumes the event; other sign-in returns resume
+  the local event/discovery/Saved task without writing. See
+  [task continuity](accounts.md#sign-in-task-continuity).
 - Enhancement keeps discovery filters, event selection, focus and loaded results
   intact and synchronizes visible row/preview controls after a successful write.
   A failed or timed-out save retains the prior state with retry guidance.

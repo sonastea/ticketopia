@@ -94,7 +94,7 @@ templ SaveControlContent(eventID string, name string, view SaveView, returnURL s
 	} else if view.Error != "" {
 		@button.Button(button.Props{Variant: button.VariantOutline, Class: "button-quiet", Disabled: true, Attributes: templ.Attributes{"aria-label": "Saved state unavailable for " + name}}) { Saved unavailable }
 	} else if !view.SignedIn {
-		@button.Button(button.Props{Href: signInURL(EventSignInReturn(eventID, returnURL)), Variant: button.VariantOutline, Class: "button-quiet save-button", Attributes: templ.Attributes{"aria-label": "Sign in to save " + name}}) {
+		@button.Button(button.Props{Href: saveSignInURL(EventSignInReturn(eventID, returnURL)), Variant: button.VariantOutline, Class: "button-quiet save-button", Attributes: templ.Attributes{"aria-label": "Sign in to save " + name}}) {
 			@layouts.Icon("saved")<span>Sign in to save</span>
 		}
 	} else {

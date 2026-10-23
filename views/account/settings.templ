@@ -14,10 +14,11 @@ import "github.com/sonastea/ticketopia/views/components/alert"
 import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 
 templ SignIn(enabled bool, returnTo string, message string) {
-	@SignInContext(enabled, returnTo, message, "")
+	@SignInContext(enabled, returnTo, message, "", "")
 }
 
-templ SignInContext(enabled bool, returnTo string, message string, eventName string) {
+// intent is "save" when sign-in will complete a Save the visitor already chose.
+templ SignInContext(enabled bool, returnTo string, message string, eventName string, intent string) {
 	@layouts.App("profile", "Sign in") {
 		<main id="main" class="destination-page account-page">
 			<div class="account-sign-in">
@@ -29,12 +30,17 @@ templ SignInContext(enabled bool, returnTo string, message string, eventName str
 					if eventName != "" {
 						<h2>{ eventName }</h2>
 					}
-					<p>After sign-in, you'll return to this event's { section } section. Choose your action there.</p>
-					<p class="field-note">Signing in doesn't save an event, mark interest, publish a recommendation, change visibility, or set up reminders.</p>
+					if intent == "save" {
+						<p>After sign-in, we'll save this event to your private Saved list and return you to its { section } section.</p>
+						<p class="field-note">Signing in doesn't mark interest, publish a recommendation, change visibility, or set up reminders.</p>
+					} else {
+						<p>After sign-in, you'll return to this event's { section } section. Choose your action there.</p>
+						<p class="field-note">Signing in doesn't save an event, mark interest, publish a recommendation, change visibility, or set up reminders.</p>
+					}
 				}
 				if enabled {
 					<p>Sign in to create your Ticketopia profile and keep your preferences across visits and devices.</p>
-					@button.Button(button.Props{Href: "/auth/google/start?return_to=" + url.QueryEscape(returnTo), Class: "google-sign-in"}) {
+					@button.Button(button.Props{Href: googleStartURL(returnTo, intent), Class: "google-sign-in"}) {
 						<span class="google-sign-in-logo" aria-hidden="true">
 							<img src="/assets/google-g.png" width="20" height="20" alt="" aria-hidden="true"/>
 						</span>
@@ -227,7 +233,7 @@ templ Preferences(p Page) {
 				@input.Input(input.Props{ID:"preferred-city",Name:"city",Value:p.Account.Preferences.City,Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
 			}
 			@label.Label(label.Props{For:"preferred-country",Class:"field"}) {
-				Country code <span>(optional)</span>
+				Country <span>(optional, 2-letter code)</span>
 				@input.Input(input.Props{ID:"preferred-country",Name:"country",Value:p.Account.Preferences.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","autocomplete":"country"}})
 			}
 		</div>

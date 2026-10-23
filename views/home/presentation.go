@@ -232,6 +232,9 @@ func signInURL(returnURL string) string {
 	return "/auth/sign-in?return_to=" + url.QueryEscape(returnURL)
 }
 
+// saveSignInURL asks sign-in to complete the Save for the event it returns to.
+func saveSignInURL(returnURL string) string { return signInURL(returnURL) + "&intent=save" }
+
 // Signing in resumes the event, not just the collection containing its control.
 // Preserve an already selected section/thread; a different row starts at Overview.
 func EventSignInReturn(id, returnURL string) string {
@@ -397,25 +400,6 @@ func eventPageTitle(page EventPage) string {
 		return "Event unavailable"
 	}
 	return page.Detail.Item.Name
-}
-
-// These are explicitly linked reading previews, not replacements for the full
-// provider description or contribution. Keep Unicode intact and avoid clipping
-// essential event names, dates, venues, or prices.
-func previewText(value string) string {
-	value = strings.Join(strings.Fields(value), " ")
-	runes := []rune(value)
-	if len(runes) <= 200 {
-		return value
-	}
-	cut := 200
-	for i := 200; i >= 150; i-- {
-		if runes[i] == ' ' {
-			cut = i
-			break
-		}
-	}
-	return string(runes[:cut]) + "…"
 }
 
 func activityCount(count int, singular, plural string) string {
@@ -608,6 +592,19 @@ func artistsLabel(artists []models.Artist) string {
 		}
 	}
 	return strings.Join(names, ", ")
+}
+
+// featuringLabel omits performers already named by the event title, so rows and
+// Overview don't repeat "Featuring X" beneath "X: The Tour".
+func featuringLabel(event models.Event) string {
+	title := strings.ToLower(event.Name)
+	var rest []models.Artist
+	for _, artist := range event.Artists {
+		if name := strings.TrimSpace(artist.Name); name != "" && !strings.Contains(title, strings.ToLower(name)) {
+			rest = append(rest, artist)
+		}
+	}
+	return artistsLabel(rest)
 }
 
 func statusLabel(status string) string {

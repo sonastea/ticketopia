@@ -107,8 +107,14 @@ cancelled sign-ins preserve it for retry. It never resumes an external/auth URL.
   link. Leaving/canceling sign-in keeps the public journey; private destinations
   still require authentication. Start failures retain context and retry guidance.
 - Recommend resumes the open composer, not just the recommendations list.
-  Signing in never saves, marks interest, publishes, changes visibility, or
-  configures reminders; each action still needs an explicit form submission.
+- **Sign in to save** completes the Save it names. The sign-in page says the event
+  will be saved; `/auth/google/start?intent=save` records the intent in a
+  flow-lifetime HttpOnly cookie that every start replaces, and the callback saves
+  the event its validated destination selects before redirecting there. Intent is
+  accepted only for an event destination; cancellation keeps it for retry. A
+  failed save never blocks sign-in—the resumed Save control shows the real state.
+  Signing in never marks interest, publishes, changes visibility, or configures
+  reminders; those still need an explicit form submission.
 - Expired-session writes retain confirmed state and provide a contextual sign-in
   link in both enhanced and native recovery. Enhanced recommendation drafts retain
   the existing same-account, tab-scoped storage; native recovery keeps escaped

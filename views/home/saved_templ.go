@@ -509,7 +509,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = button.Button(button.Props{Href: signInURL(EventSignInReturn(eventID, returnURL)), Variant: button.VariantOutline, Class: "button-quiet save-button", Attributes: templ.Attributes{"aria-label": "Sign in to save " + name}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = button.Button(button.Props{Href: saveSignInURL(EventSignInReturn(eventID, returnURL)), Variant: button.VariantOutline, Class: "button-quiet save-button", Attributes: templ.Attributes{"aria-label": "Sign in to save " + name}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

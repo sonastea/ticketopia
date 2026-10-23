@@ -26,8 +26,14 @@ templ Index(page SearchPage) {
 								<strong>Choose your city</strong>
 							}
 						</div>
-						@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"data-open-filters": true}}) {
-							Change city
+						if page.Filters.City == "" {
+							@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"data-open-filters": true}}) {
+								Enter a city
+							}
+						} else {
+							@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"data-open-filters": true}}) {
+								Change city
+							}
 						}
 					</div>
 					if page.LocationSource == "ip" {
@@ -113,10 +119,10 @@ templ SearchControls(page SearchPage) {
 	<form action="/" method="get" class="search-form" aria-label="Search events">
 		<div class="search-bar">
 			@label.Label(label.Props{For: "keyword", Class: "sr-only"}) {
-				Event, performer, team, or keyword
+				Event, performer, team, or venue
 			}
 			@layouts.Icon("search")
-			@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Event, performer, team, or venue", Attributes: templ.Attributes{"maxlength": "120"}})
+			@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Events, artists, venues", Attributes: templ.Attributes{"maxlength": "120"}})
 			@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
 				Find events
 			}
@@ -133,7 +139,7 @@ templ SearchControls(page SearchPage) {
 						@input.Input(input.Props{ID: "city", Name: "city", Value: page.Filters.City, Placeholder: "e.g. Chicago", Required: page.Filters.VenueID == "", Attributes: templ.Attributes{"maxlength": "120", "autocomplete": "address-level2"}})
 					}
 					@label.Label(label.Props{For: "country", Class: "field"}) {
-						Country code <span>(optional)</span>
+						Country <span>(optional, 2-letter code)</span>
 						@input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country"}})
 					}
 					@label.Label(label.Props{For: "start-date", Class: "field"}) {

@@ -1011,7 +1011,6 @@ summary::-webkit-details-marker {
 .row-details { display: grid; gap: .5rem; margin-block-end: .75rem; }
 .row-details:empty { display: none; }
 .row-details p, .row-activity p { font-size: .875rem; color: var(--muted); max-inline-size: 70ch; }
-.row-details .row-description { color: var(--ink); }
 .row-activity { display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding-block: .5rem; }
 .row-activity h4 { font-size: .875rem; margin-block-end: .25rem; font-variant-numeric: tabular-nums; }
 .row-activity h4 a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }

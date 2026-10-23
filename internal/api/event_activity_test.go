@@ -52,12 +52,12 @@ func TestDiscoveryActivityBatchesRowsAndPartialPagination(t *testing.T) {
 		w := httptest.NewRecorder()
 		a.Routes().ServeHTTP(w, r)
 		body := w.Body.String()
-		for _, want := range []string{"Useful event description", "2 questions &amp; tips", "1 public recommendation", "section=discussion", "section=community"} {
+		for _, want := range []string{"2 questions &amp; tips", "1 public recommendation", "section=discussion", "section=community"} {
 			if w.Code != 200 || !strings.Contains(body, want) {
 				t.Fatal("initial/partial discovery lost row detail or public activity", partial, w.Code, want)
 			}
 		}
-		if strings.Contains(body, "A public question") || strings.Contains(body, "A public recommendation") || !reflect.DeepEqual(repo.batches[len(repo.batches)-1], []string{"ticketmaster:One", "ticketmaster:Two"}) {
+		if strings.Contains(body, "Useful event description") || strings.Contains(body, "A public question") || strings.Contains(body, "A public recommendation") || !reflect.DeepEqual(repo.batches[len(repo.batches)-1], []string{"ticketmaster:One", "ticketmaster:Two"}) {
 			t.Fatal("row includes excerpts or activity was not one page-sized batch", repo.batches)
 		}
 	}

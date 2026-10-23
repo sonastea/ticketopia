@@ -238,9 +238,9 @@ templ EventSectionContent(page EventPage) {
 				} else {
 					<p>Ticketmaster hasn't supplied a description for this event. Check the ticket page for the latest details.</p>
 				}
-				if artistsLabel(page.Detail.Item.Artists) != "" {
+				if featuringLabel(page.Detail.Item) != "" {
 					<h3>Featuring</h3>
-					<p>{ artistsLabel(page.Detail.Item.Artists) }</p>
+					<p>{ featuringLabel(page.Detail.Item) }</p>
 				}
 				if eventPlace(page.Detail.Item).Address != "" {
 					<h3>Venue</h3>

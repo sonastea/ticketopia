@@ -42,7 +42,7 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     await page.getByLabel('Sort events').selectOption('name_asc');
     await page.getByRole('button', { name: 'Apply filters' }).click();
     check('Native sort survives submission', await page.getByLabel('Sort events').inputValue() === 'name_asc');
-    await page.getByLabel('Event, performer, team, or keyword', { exact: true }).fill('Band');
+    await page.getByLabel('Event, performer, team, or venue', { exact: true }).fill('Band');
     await page.getByRole('button', { name: 'Find events' }).click();
     check('SQL keyword finds catalog without provider', await page.locator('#event-list > li').count() === 3);
     await page.locator('#filters > summary').click();

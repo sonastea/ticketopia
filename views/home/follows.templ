@@ -46,7 +46,7 @@ templ Follows(page FollowsPage) {
 									@input.Input(input.Props{ID: "follow-city", Name: "city", Value: page.City, Attributes: templ.Attributes{"maxlength": "120"}})
 								}
 								@label.Label(label.Props{For: "follow-country", Class: "field"}) {
-									Country code (optional)
+									Country (optional, 2-letter code)
 									@input.Input(input.Props{ID: "follow-country", Name: "country", Value: page.Country, Attributes: templ.Attributes{"maxlength": "2", "placeholder": "US"}})
 								}
 							</div>

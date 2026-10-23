@@ -828,9 +828,10 @@
         if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         const link = event.target.closest('[data-event-link]');
         if (!link) return;
+        // Artwork links leave the tab order, so they restore focus to the title.
         history.replaceState({ ...history.state, ticketopiaCollection: {
           url: location.href, scroll: scrollY, focus: link.dataset.id,
-          linkIndex: [...document.querySelectorAll('[data-event-link]')].filter(item => item.dataset.id === link.dataset.id).indexOf(link),
+          linkIndex: [...document.querySelectorAll('[data-event-link]:not([tabindex="-1"])')].filter(item => item.dataset.id === link.dataset.id).indexOf(link),
         } }, '', location.href);
         stageReturn(new URL(link.href), { origin: location.href, steps: 1 });
       });
@@ -839,7 +840,7 @@
         if (saved?.url !== location.href) return;
         requestAnimationFrame(() => {
           scrollTo(0, saved.scroll);
-          const links = [...document.querySelectorAll('[data-event-link]')].filter(link => link.dataset.id === saved.focus);
+          const links = [...document.querySelectorAll('[data-event-link]:not([tabindex="-1"])')].filter(link => link.dataset.id === saved.focus);
           (links[saved.linkIndex] || links.find(link => link.matches('.event-link')) || links[0])?.focus({ preventScroll: true });
         });
       });
@@ -1075,7 +1076,9 @@
           || heading;
         composer.focus();
       } else if (recommend) openRecommendation(context);
-      else if (panelHadFocus || !desktop.matches) {
+      // A chosen event takes focus on every layout so screen readers land on what
+      // was selected; history restores keep focus where the browser left it.
+      else if (push || panelHadFocus || !desktop.matches) {
         if (!desktop.matches) scrollTo(0, 0);
         heading.focus({ preventScroll: true });
       }

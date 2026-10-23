@@ -1393,15 +1393,15 @@ func EventSectionContent(page EventPage) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if artistsLabel(page.Detail.Item.Artists) != "" {
+			if featuringLabel(page.Detail.Item) != "" {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<h3>Featuring</h3><p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var55 string
-				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(artistsLabel(page.Detail.Item.Artists))
+				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(featuringLabel(page.Detail.Item))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/event.templ`, Line: 243, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/event.templ`, Line: 243, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 				if templ_7745c5c3_Err != nil {

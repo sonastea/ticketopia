@@ -145,14 +145,31 @@ func (a *api) signInPage(c echo.Context) error {
 	return a.signInResponse(c, http.StatusOK, message)
 }
 
+// returnEventID names the event a validated sign-in destination resumes.
+func returnEventID(target string) string {
+	u, err := url.Parse(target)
+	if err != nil {
+		return ""
+	}
+	if strings.HasPrefix(u.Path, "/events/") {
+		return strings.SplitN(strings.TrimPrefix(u.Path, "/events/"), "/", 2)[0]
+	}
+	return u.Query().Get("selected_event")
+}
+
+// signInIntent accepts only a Save of the event the visitor returns to, so the
+// completed action is always visible on the resumed page.
+func (a *api) signInIntent(intent, target string) string {
+	if intent != "save" || !a.savesEnabled() || saved.ValidateID(returnEventID(target)) != nil {
+		return ""
+	}
+	return intent
+}
+
 func (a *api) signInResponse(c echo.Context, status int, message string) error {
 	privateAccountResponse(c)
 	target := safeAuthReturn(c.QueryParam("return_to"))
-	u, _ := url.Parse(target)
-	id := u.Query().Get("selected_event")
-	if strings.HasPrefix(u.Path, "/events/") {
-		id = strings.SplitN(strings.TrimPrefix(u.Path, "/events/"), "/", 2)[0]
-	}
+	id := returnEventID(target)
 	name := ""
 	if id != "" && (a.saved != nil || a.events != nil) {
 		// Optional event context must never block sign-in or erase its destination.
@@ -160,7 +177,7 @@ func (a *api) signInResponse(c echo.Context, status int, message string) error {
 			name = detail.Item.Name
 		}
 	}
-	return render(c, status, account.SignInContext(a.enabled(), target, message, name))
+	return render(c, status, account.SignInContext(a.enabled(), target, message, name, a.signInIntent(c.QueryParam("intent"), target)))
 }
 func (a *api) googleStart(c echo.Context) error {
 	privateAccountResponse(c)
@@ -170,12 +187,33 @@ func (a *api) googleStart(c echo.Context) error {
 	if err := a.accounts.Allow(c.Request().Context(), "login", c.RealIP()); err != nil {
 		return a.signInStartError(c, err)
 	}
-	l, target, err := a.accounts.Begin(c.Request().Context(), safeAuthReturn(c.QueryParam("return_to")))
+	returnTo := safeAuthReturn(c.QueryParam("return_to"))
+	l, target, err := a.accounts.Begin(c.Request().Context(), returnTo)
 	if err != nil {
 		return a.signInStartError(c, err)
 	}
 	a.cookie(c, "flow", l.Browser, accounts.FlowLifetime)
+	// The intent shares the flow cookie's lifetime and is replaced by every start,
+	// so it can only apply to the flow this browser most recently began.
+	if intent := a.signInIntent(c.QueryParam("intent"), returnTo); intent != "" {
+		a.cookie(c, "intent", intent, accounts.FlowLifetime)
+	} else {
+		a.cookie(c, "intent", "", 0)
+	}
 	return c.Redirect(http.StatusSeeOther, target)
+}
+
+// completeSignInIntent saves the event the stored destination resumes. Sign-in
+// already succeeded, so a failed save leaves the resumed page's Save control
+// showing the true state rather than blocking the session.
+func (a *api) completeSignInIntent(c echo.Context, intent, owner, returnTo string) {
+	if a.signInIntent(intent, returnTo) == "" {
+		return
+	}
+	id := returnEventID(returnTo)
+	if _, _, err := a.saved.Save(c.Request().Context(), owner, id); err != nil {
+		a.logger.Warn().Err(err).Str("event_id", id).Msg("sign-in save intent failed")
+	}
 }
 
 func (a *api) signInStartError(c echo.Context, err error) error {
@@ -198,6 +236,11 @@ func (a *api) googleCallback(c echo.Context) error {
 		return a.accountPageError(c, accounts.ErrFlow)
 	}
 	a.cookie(c, "flow", "", 0)
+	intent := ""
+	if cookie, err := c.Cookie(a.authConfig.CookieName("intent")); err == nil {
+		intent = cookie.Value
+		a.cookie(c, "intent", "", 0)
+	}
 	for _, key := range []string{"state", "code", "error"} {
 		if len(c.QueryParams()[key]) > 1 {
 			return a.accountPageError(c, accounts.ErrFlow)
@@ -208,9 +251,14 @@ func (a *api) googleCallback(c echo.Context) error {
 		if err != nil {
 			return a.accountPageError(c, err)
 		}
-		return c.Redirect(http.StatusSeeOther, "/auth/sign-in?cancelled=true&return_to="+url.QueryEscape(safeAuthReturn(returnTo)))
+		returnTo = safeAuthReturn(returnTo)
+		retry := "/auth/sign-in?cancelled=true&return_to=" + url.QueryEscape(returnTo)
+		if a.signInIntent(intent, returnTo) != "" {
+			retry += "&intent=" + intent
+		}
+		return c.Redirect(http.StatusSeeOther, retry)
 	}
-	_, raw, returnTo, err := a.accounts.Complete(c.Request().Context(), c.QueryParam("state"), cookie.Value, c.QueryParam("code"))
+	signedIn, raw, returnTo, err := a.accounts.Complete(c.Request().Context(), c.QueryParam("state"), cookie.Value, c.QueryParam("code"))
 	if err != nil {
 		return a.accountPageError(c, err)
 	}
@@ -219,7 +267,9 @@ func (a *api) googleCallback(c echo.Context) error {
 		_ = a.accounts.Revoke(c.Request().Context(), old.Account.ID, old.Credential.ID)
 	}
 	a.cookie(c, "session", raw, accounts.CredentialLifetime)
-	return c.Redirect(http.StatusSeeOther, safeAuthReturn(returnTo))
+	returnTo = safeAuthReturn(returnTo)
+	a.completeSignInIntent(c, intent, signedIn.ID, returnTo)
+	return c.Redirect(http.StatusSeeOther, returnTo)
 }
 
 type requestAuthentication struct {
