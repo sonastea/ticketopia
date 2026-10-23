@@ -131,17 +131,26 @@ Actual sidebar/preview scroll areas retain `overflow-y: auto`, stable gutters,
 and contained overscroll. Textareas grow from 8rem to 24rem with `field-sizing`
 where supported, retaining native scrolling and manual resizing otherwise.
 
-Compact navigation uses an intrinsic grid, with constrained labels and 44px
-targets. It reflows to two rows at 320px/390px with 200% text. Its sticky shell row
-reserves actual height, including the bottom safe area, so page content remains
-reachable without a guessed spacer or JavaScript measurement. The intermediate
-rail remains fixed and desktop navigation is unchanged.
+Compact navigation is a floating pill with an intrinsic grid, .75rem labels and
+44px targets. It reflows to two rows at 320px/390px with 200% text, keeping each
+label on one unbroken line. Its sticky shell row and margins reserve its actual
+height plus the `--nav-float-gap` above the bottom safe area, so page content remains
+reachable without a guessed spacer; JavaScript only reports the height to the
+event page's sticky action bar. Side insets use physical safe-area margins. The
+intermediate rail remains fixed and desktop navigation is unchanged.
+
+Secondary text uses `--muted-warm`, derived from `--muted` and `--brand`; use it
+rather than `--muted` for any new muted text. The compact header's scroll-linked
+shrink is written with animation longhands and `animation-duration: auto`: the
+minifier expands a shorthand list with a `0s` duration, which collapses a
+scroll-driven range. Scroll-driven and shimmer motion both sit under
+`prefers-reduced-motion: no-preference`.
 
 Modern features follow the existing Tailwind v4 browser baseline (Chrome 111+,
 Safari 16.4+, Firefox 128+). `light-dark()` requires Chrome 123+/Safari 17.5+;
 older browsers retain explicit light-token fallbacks, without library dark-mode
-opt-in. Pretty wrapping, intrinsic-size animation, and textarea auto-sizing
-progressively enhance browsers that support them.
+opt-in. Pretty wrapping, intrinsic-size animation, scroll-driven header shrinking,
+and textarea auto-sizing progressively enhance browsers that support them.
 
 ## Local adaptations
 
@@ -185,7 +194,9 @@ It needs no provider, database, account session, or credentials. Playwright is a
 optional external test tool, not a shipping dependency. Set `CSS_SCREENSHOT_DIR`
 to capture the batched desktop/rail/mobile/320px/enlarged-text layouts. Checks also
 cover input floors, clipping/sticky scrolling, hover/press, reduced motion,
-forced-colors focus, selectable links, bounded textareas, RTL, and native filters.
+forced-colors focus, selectable links, bounded textareas, RTL, and native filters,
+plus the floating navigation, the scroll-shrinking header, warm muted-text contrast,
+and pagination placeholders (`/?more=true` renders a Load more action).
 Set `CSS_BROWSER=webkit` and, if needed, `CSS_BROWSER_EXECUTABLE` to run the same
 checks in WebKit; the default is Chromium.
 

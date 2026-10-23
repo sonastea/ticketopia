@@ -84,7 +84,9 @@ enrichment does not change the JSON event API, discovery sorting, or cache keys.
 
 Load-more keeps all filters and starts at page zero. MariaDB paginates all matching
 stored results; database-free mode stops at Ticketmaster's paging cap.
-With JavaScript it appends rows; without JavaScript
+With JavaScript it appends rows; while the request runs, three `aria-hidden`
+placeholder rows in the result list's layout stand in for the next page, and
+shimmer only without a reduced-motion preference. Without JavaScript
 the link navigates to the next page. Search is a regular GET form. The page
 includes loading, empty, error, and stale-result messages. Event results are read
 before optional metadata so a catalog failure cannot replace successful results.

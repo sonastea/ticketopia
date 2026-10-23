@@ -174,7 +174,7 @@ fs.mkdirSync(out, { recursive: true });
     check('Return across event sections restores collection focus', true);
     await page.goto(fallback + '/events/ticketmaster:Browser_0?return_to=%2Fsaved');
     check('Event remains readable without cache or provider', await page.getByRole('heading', { name: 'A good night in the city', exact: true }).count() === 1);
-    check('Fallback has honest freshness notice', await page.getByText('Showing last-known details.', { exact: false }).first().isVisible());
+    check('Fallback has honest freshness notice', await page.getByText('Showing last-known details', { exact: false }).first().isVisible());
     check('Last-known provenance precedes sale status', await page.locator('.event-heading').evaluate(heading => heading.querySelector('.freshness').compareDocumentPosition(heading.querySelector('.event-status')) & Node.DOCUMENT_POSITION_FOLLOWING));
     await capture('saved-fallback-mobile', 390);
     // Bearer client sees the same bookmarks and can remove independently.

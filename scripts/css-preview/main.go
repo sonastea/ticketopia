@@ -71,6 +71,10 @@ func main() {
 				page.SelectedID, page.Selected = longEvent.ID, &selected
 			}
 		}
+		if r.URL.Query().Get("more") == "true" {
+			cursor := "css-next"
+			page.Events.NextCursor = &cursor
+		}
 		if section := r.URL.Query().Get("section"); section != "" {
 			page.Section = section
 		}
@@ -92,6 +96,9 @@ func main() {
 		render(w, r, home.Index(page))
 	})
 	mux.HandleFunc("GET /events/{id}", func(w http.ResponseWriter, r *http.Request) {
+		// Match eventPageHandler: WebKit otherwise reuses cached section fragments.
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Set("Vary", "X-Ticketopia-Panel, X-Ticketopia-Section")
 		section := r.URL.Query().Get("section")
 		if section == "" {
 			section = "overview"

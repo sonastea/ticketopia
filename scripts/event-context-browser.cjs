@@ -187,7 +187,7 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
 
     for (const status of ['canceled', 'postponed', 'offsale', 'unknown']) {
       await page.goto(base + '/events/ticketmaster:CSS_0?status=' + status + '&stale=true');
-      check(status + ': honest status and adjacent stale warning', await page.locator('[data-status="' + status + '"]').isVisible() && await page.getByText('Showing last-known details.', {exact: false}).first().isVisible());
+      check(status + ': honest status and adjacent stale warning', await page.locator('[data-status="' + status + '"]').isVisible() && await page.getByText('Showing last-known details', {exact: false}).first().isVisible());
       check(status + ': supplied ticket link remains named', await page.locator('.ticket-link').innerText().then(text => text.includes('Tickets on Ticketmaster')));
     }
     await page.goto(base + '/events/ticketmaster:CSS_0?ticket=missing&account=disabled');
@@ -207,6 +207,9 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
     check('Touch artwork opens the same complete Overview', await touch.getByRole('heading', {name: 'About the event'}).isVisible());
     const native = await browser.newPage({javaScriptEnabled: false, viewport: {width: 390, height: 844}});
     await native.goto(base + '/'); await native.locator('.event-art a').first().click();
+    // A cross-document view transition briefly covers the new page. Without
+    // page JavaScript, Playwright's click retry stalls, so let it finish first.
+    for (let i = 0; i < 50 && await native.evaluate(() => document.getAnimations().some(a => /view-transition/.test(a.animationName))); i++) await native.waitForTimeout(20);
     check('Native event access exposes details and tickets', await native.locator('.ticket-link').isVisible() && await native.getByText('Bring photo ID.', {exact: false}).isVisible());
     await native.getByRole('link', {name: 'Questions & tips', exact: true}).click();
     check('Native section links remain useful', await native.getByRole('heading', {name: 'Questions & tips'}).isVisible());

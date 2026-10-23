@@ -1,6 +1,13 @@
 (() => {
   'use strict';
 
+  // WebKit throws once a page makes more than 100 history writes in 10 seconds.
+  // A refused write only loses restoration state; it must never abort a
+  // navigation or section change.
+  const writeHistory = (method, state, title, url) => {
+    try { history[method](state, title, url); return true; } catch { return false; }
+  };
+
   // Native timing forms are authoritative. Enhancement only reveals Custom and
   // previews the target; it never changes consent or promises a scheduled send.
   for (const form of document.querySelectorAll('[data-reminder-timing]')) {
@@ -150,7 +157,7 @@
         if (response.status === 401) {
           const state = { ...history.state };
           delete state.ticketopiaResults;
-          history.replaceState(state, '', location.href);
+          writeHistory('replaceState', state, '', location.href);
           location.reload();
           return;
         }
@@ -213,7 +220,7 @@
     }
     // The server owns empty/error guidance and pagination. Only reload when no
     // rows survive (or a stale collection row is explicitly saved again).
-    history.replaceState({ ...history.state, ticketopiaCollectionAction: {
+    writeHistory('replaceState', { ...history.state, ticketopiaCollectionAction: {
       path: location.pathname, notice, focus: selected ? row?.dataset.eventId : '',
       shouldFocus, scrollY,
     } }, '', location.href);
@@ -223,7 +230,7 @@
   if (collectionAction?.path === location.pathname) {
     const state = { ...history.state };
     delete state.ticketopiaCollectionAction;
-    history.replaceState(state, '', location.href);
+    writeHistory('replaceState', state, '', location.href);
     const isSaved = location.pathname === '/saved';
     const notice = document.querySelector(isSaved ? '#saved-notice' : '[data-interest-notice]');
     if (notice) notice.textContent = collectionAction.notice;
@@ -609,7 +616,7 @@
     const region = sectionRegion();
     if (!region || renderedURL !== location.href) return;
     const active = document.activeElement;
-    history.replaceState({ ...history.state, ticketopiaSection: {
+    writeHistory('replaceState', { ...history.state, ticketopiaSection: {
       url: location.href, documentScroll: scrollY,
       scroll: document.getElementById('event-context')?.scrollTop || 0,
       section: active?.dataset.eventSection || '',
@@ -618,10 +625,13 @@
       focus: sectionHost().contains(active) ? active.id : '',
     } }, '', location.href);
   };
-  let scrollFrame;
+  // Record once reading settles, not every frame: continuous scrolling would
+  // otherwise exhaust WebKit's history-write budget. Navigation, section
+  // changes and pagehide still record immediately.
+  let settleTimer;
   const recordSectionPosition = () => {
-    if (scrollFrame) return;
-    scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; rememberSection(); });
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(rememberSection, 200);
   };
   addEventListener('scroll', recordSectionPosition, true);
   document.addEventListener('focusin', recordSectionPosition);
@@ -691,12 +701,17 @@
       }
     }
   };
+  // WebKit does not focus links on mouse click, so remember the clicked section
+  // link rather than trusting document.activeElement.
+  let clickedSection = null;
+  document.addEventListener('click', event => { clickedSection = event.target.closest?.('[data-event-section]') || null; }, true);
   const switchSection = async (url, next, push = true, recommend = false, confirmation = null, force = false) => {
     const host = sectionHost();
     const region = sectionRegion();
     const section = url.pathname.includes('/discussions') ? 'discussion' : url.searchParams.get('section') || 'overview';
     const panel = region.dataset.presentation === 'context';
-    const activated = document.activeElement;
+    const activated = clickedSection?.isConnected ? clickedSection : document.activeElement;
+    clickedSection = null;
     const saved = !push && !confirmation && history.state?.ticketopiaSection?.url === location.href ? history.state.ticketopiaSection : null;
     request?.abort();
     const turn = ++generation;
@@ -759,7 +774,7 @@
           group.replaceChildren(reload);
         }
         const state = { ...history.state }; delete state.ticketopiaResults;
-        history.replaceState(state, '', location.href);
+        writeHistory('replaceState', state, '', location.href);
       }
       host.dataset.viewerKey = shell.dataset.viewerKey;
       for (const selector of ['[data-shell-facts]', '.event-primary-actions', '.event-section-nav', '.event-participation', '.event-provenance']) reconcile(host.querySelector(selector), shell.querySelector(selector));
@@ -774,7 +789,7 @@
         const state = { ...history.state };
         delete state.ticketopiaSection; delete state.ticketopiaPanel;
         if (validJourney(state.ticketopiaReturn)) state.ticketopiaReturn = { ...state.ticketopiaReturn, steps: state.ticketopiaReturn.steps + 1 };
-        history.pushState(state, '', next);
+        writeHistory('pushState', state, '', next);
       }
       renderedURL = location.href;
       window.htmx?.process(host);
@@ -809,9 +824,12 @@
           }
         } else if (url.hash === '#discussion-composer') (region.querySelector('#discussion-composer textarea') || region.querySelector('#discussion-composer a[href^="/auth/sign-in"]'))?.focus();
         else {
-          // Persistent links usually keep focus themselves. Do not reclaim it
-          // after the reader has already moved to a newly loaded control.
-          if (activated.isConnected && host.contains(activated) && document.activeElement === document.body) activated.focus({ preventScroll: true });
+          // Persistent links usually keep focus themselves, but WebKit leaves
+          // focus on the nearest focusable container (the scrollable panel) or
+          // the body. Do not reclaim it after the reader has already moved to
+          // a newly loaded control.
+          const unclaimed = document.activeElement === document.body || (document.activeElement !== activated && document.activeElement?.contains(activated));
+          if (activated.isConnected && host.contains(activated) && unclaimed) activated.focus({ preventScroll: true });
           const nav = host.querySelector('.event-section-nav');
           const rect = nav.getBoundingClientRect();
           const bounds = panel && matchMedia('(min-width: 62rem)').matches ? document.getElementById('event-context').getBoundingClientRect() : { top: 0, bottom: innerHeight };
@@ -835,7 +853,7 @@
         const link = event.target.closest('[data-event-link]');
         if (!link) return;
         // Artwork links leave the tab order, so they restore focus to the title.
-        history.replaceState({ ...history.state, ticketopiaCollection: {
+        writeHistory('replaceState', { ...history.state, ticketopiaCollection: {
           url: location.href, scroll: scrollY, focus: link.dataset.id,
           linkIndex: [...document.querySelectorAll('[data-event-link]:not([tabindex="-1"])')].filter(item => item.dataset.id === link.dataset.id).indexOf(link),
         } }, '', location.href);
@@ -857,12 +875,12 @@
       const pending = JSON.parse(sessionStorage.getItem(returnKey));
       sessionStorage.removeItem(returnKey);
       if (pending?.from === document.referrer && pending.to === location.href && validJourney(pending.journey)) {
-        history.replaceState({ ...history.state, ticketopiaReturn: pending.journey }, '', location.href);
+        writeHistory('replaceState', { ...history.state, ticketopiaReturn: pending.journey }, '', location.href);
       }
     } catch { /* Direct links and unavailable storage use the server return URL. */ }
     if (!validJourney(history.state?.ticketopiaReturn) && document.referrer) {
       const immediate = { origin: document.referrer, steps: 1 };
-      if (validJourney(immediate)) history.replaceState({ ...history.state, ticketopiaReturn: immediate }, '', location.href);
+      if (validJourney(immediate)) writeHistory('replaceState', { ...history.state, ticketopiaReturn: immediate }, '', location.href);
     }
     back.addEventListener('click', event => {
       const journey = history.state?.ticketopiaReturn;
@@ -919,7 +937,7 @@
 
   const rememberPanel = () => {
     const active = document.activeElement;
-    history.replaceState({ ...history.state, ticketopiaPanel: {
+    writeHistory('replaceState', { ...history.state, ticketopiaPanel: {
       url: location.href, scroll: context.scrollTop, documentScroll: scrollY,
       draft: active?.closest('[data-discussion-draft]')?.dataset.discussionDraft || '',
     } }, '', location.href);
@@ -956,7 +974,7 @@
     const list = document.getElementById('event-list');
     const pagination = document.getElementById('pagination');
     if (!list || !pagination || list.innerHTML.length > 2000000) return;
-    history.replaceState({ ...history.state, ticketopiaResults: {
+    writeHistory('replaceState', { ...history.state, ticketopiaResults: {
       url: workspace.dataset.resultsUrl,
       list: list.innerHTML,
       pagination: pagination.outerHTML,
@@ -1054,7 +1072,7 @@
       if (push) {
         const state = { ...history.state };
         delete state.ticketopiaPanel; delete state.ticketopiaSection;
-        history.pushState(state, '', next);
+        writeHistory('pushState', state, '', next);
       }
       renderedURL = location.href;
       markSelection(id);
@@ -1112,7 +1130,7 @@
       url.searchParams.delete('section');
       url.searchParams.delete('recommend');
       for (const key of ['selected_thread', 'reply_to', 'discussion_cursor']) url.searchParams.delete(key);
-      history.pushState({ ...history.state }, '', url);
+      writeHistory('pushState', { ...history.state }, '', url);
     }
     renderedURL = location.href;
     markSelection('');

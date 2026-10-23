@@ -60,7 +60,11 @@ Ticketmaster data; see the [delivery checklist](docs/goals/delivery.md) for scop
 and implementation status.
 
 The current phase is using the app and addressing small nuisances, unclear copy,
-and flow problems—not another broad UI redesign or feature sprint. Neighboring-screen
+and flow problems, not a feature sprint. A bounded visual refresh within the existing
+design system is complete: artwork-led discovery, Community cards, and finishing
+touches (a floating phone navigation, warmer secondary text, a header that shrinks
+on scroll, and loading placeholders). Further visual work should stay incremental
+rather than become another broad redesign. Neighboring-screen
 cohesion with event discovery is complete. Manual device/accessibility checks and
 small-pilot feedback remain; cluster upgrades/migrations, shared-replica state,
 publishing and backup/restore will be verified after Kubernetes deployment.

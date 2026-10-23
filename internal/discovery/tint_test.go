@@ -65,11 +65,13 @@ func TestDominantTint(t *testing.T) {
 // The event header mixes the tint 18% into white in OKLCH. Every hue, and the
 // --brand-tint fallback (brand hue/chroma at tint lightness), must keep header
 // text at WCAG AA. The raw brand colour would not: muted text falls to 4.35:1.
+// muted-warm is --muted mixed 12% toward --brand in OKLCH.
 func TestTintMixKeepsHeaderTextAA(t *testing.T) {
 	deg := math.Pi / 180
 	texts := map[string][3]float64{
 		"ink":        {0.272162, 0.015629, 307.825 * deg},
 		"muted":      {0.504217, 0.021128, 314.624 * deg},
+		"muted-warm": {.88*0.504217 + .12*0.427958, .88*0.021128 + .12*0.080387, (.88*314.624 + .12*337.297) * deg},
 		"brand-dark": {0.82 * 0.427958, 0.82 * 0.080387, 337.297 * deg},
 		"success":    {0.449361, 0.075890, 160.799 * deg},
 		"warning":    {0.472777, 0.088443, 73.757 * deg},

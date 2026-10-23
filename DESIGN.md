@@ -4,6 +4,7 @@ description: "Local frequency: record-shop imagery, mixtape intimacy, and clear 
 colors:
   ink: "#29252d"
   muted: "#69616d"
+  muted-warm: "color-mix(in oklch, var(--muted), var(--brand) 12%)"
   brand: "#6b3d5f"
   brand-dark: "color-mix(in oklch, var(--brand), black 18%)"
   brand-active: "color-mix(in oklch, var(--brand), black 28%)"
@@ -211,9 +212,14 @@ components:
     textColor: "{colors.muted}"
     rounded: "{rounded.sidebar-move}"
     width: "2.75rem"
+  bottom-nav:
+    backgroundColor: "color-mix(in oklch, var(--surface), var(--brand-soft) 30%)"
+    rounded: "1.9375rem"
+    padding: ".3125rem"
   bottom-nav-current:
     backgroundColor: "{colors.brand-soft}"
     textColor: "{colors.brand}"
+    rounded: "1.625rem"
   availability-label:
     backgroundColor: "{colors.nav-surface}"
     textColor: "{colors.muted}"
@@ -311,11 +317,12 @@ enable automatic or whole-application dark mode. See the
 
 ### Neutral
 - **Ink** (`ink`): headings, body content, default navigation text, and the collapsed-rail tooltip background.
-- **Muted ink** (`muted`): venues, explanatory copy, source freshness, and unavailable controls.
+- **Muted ink** (`muted`): the pinned base for secondary text. It is not applied directly.
+- **Warm muted ink** (`muted-warm`): muted ink mixed 12% toward deep plum in OKLCH, so secondary text reads warm rather than neutral grey. It colors venues, explanatory copy, metadata, source freshness, quiet icons, unavailable controls, and the library's `muted-foreground`.
 - **Light stone** (`nav-surface`): desktop sidebar, intermediate rail, and neutral availability labels.
 - **Hover stone** (`nav-hover`): default navigation and sidebar utility hover.
 - **Near-white paper** (`paper`): page background, disabled selects, and light tooltip text.
-- **White surface** (`surface`): compact header, bottom navigation, search/field surfaces, event context, tickets, and navigation links during customization; also light text on filled plum actions.
+- **White surface** (`surface`): compact header, search/field surfaces, event context, tickets, and navigation links during customization; also light text on filled plum actions.
 - **Quiet line** (`line`): result separators and container boundaries.
 - **Control line** (`control-line`): stronger field and secondary-action boundaries.
 
@@ -334,6 +341,9 @@ through current-navigation weight and `aria-current`, with a distinct plum focus
 outline; do not rely on pale fills alone. Ink on date paper is 10.50:1, plum on
 selection is 6.53:1, and muted ink on selection is 4.54:1. The selection wash is
 one RGB step lighter than `#eadce7`, whose muted-text contrast falls below 4.5:1.
+Warm muted ink is slightly darker than its base: 6.20:1 on white, 5.91:1 on paper,
+5.47:1 on light stone, 5.74:1 on the phone navigation surface, and 4.74:1 on
+selection. It also stays AA on every tinted event header (`internal/discovery/tint_test.go`).
 Date markers use ink, not muted text. Loading actions pair pale plum with plum
 text rather than white.
 
@@ -347,11 +357,11 @@ text rather than white.
 
 ### Hierarchy
 - **Display:** `typography.display` (Bricolage Grotesque) for page headings, fluid from 1.75rem to 2rem. Event-page headings use the separate `--text-event-heading` token, fluid from 1.5rem to 1.75rem. Both use rem bounds and rem + viewport interpolation rather than font-size breakpoint overrides.
-- **Headline:** `typography.headline` for section and preview headings. Event-content section headings use 1.125rem; destination-state headings use 1.5rem.
+- **Headline:** `typography.headline` for section and preview headings, including the lead line of destination empty states. Event-content section headings use 1.125rem.
 - **Title:** `typography.title` for supporting headings; `typography.event-title` for result titles, with the more open leading needed by long names.
 - **Body:** `typography.body` for the base reading size; `typography.body-small` for event descriptions. Observed reading measures are 65ch for introductions, 70ch for event prose, and 75ch for source notes.
 - **Label / action:** `typography.label` for field labels and `typography.action` for primary/secondary controls. Labeled filter inputs remain at the body size with weight 500; search uses ordinary body weight.
-- **Navigation:** `typography.navigation` for full navigation (weight 550), with `typography.navigation-current` for the current destination (weight 700). Group labels use `typography.navigation-group`; rail/bottom-nav labels use .6875rem and the same normal/current weights. Collapsed desktop labels remain accessible and appear as .75rem tooltips (weight 650). Event-section links use quiet-action sizing and weight 650, rising to 750 when current, with body leading.
+- **Navigation:** `typography.navigation` for full navigation (weight 550), with `typography.navigation-current` for the current destination (weight 700). Group labels use `typography.navigation-group`; rail/bottom-nav labels use .75rem (`typography.navigation-group` size) and the same normal/current weights. Collapsed desktop labels remain accessible and appear as .75rem tooltips (weight 650). Event-section links use quiet-action sizing and weight 650, rising to 750 when current, with body leading.
 - **Metadata:** `typography.metadata` for supporting facts and freshness; `typography.small-label` for date lines. Quiet participation uses `typography.quiet-action`, and neutral availability labels use `typography.availability`. Date numbers use `typography.date-number` in the display face; month labels stay Manrope at weight 750. Community empty states lead with `typography.empty-display`, a Manrope line fluid from 1.75rem to 3rem (1.71×). Date markers and event-date lines use tabular numerals.
 
 Themed library primitives retain their own utility leading where the app has not overridden it: button-based navigation and quiet buttons use the `text-sm` ratio (`calc(1.25 / .875)`); availability and sale-status badges use the `text-xs` ratio (`calc(1 / .75)`); search/filter input text uses 1.5. These are observed inherited roles, not a universal 1.6 line-height applied to every control. Event-section links, plain date lines and sidebar customization labels retain the body leading.
@@ -364,6 +374,8 @@ bold/italic; font smoothing is explicit. Smaller metadata supports the event tit
 and essential facts rather than replacing them.
 
 **The One Voice, Clear Roles Rule.** Bricolage Grotesque is a voice for titles and dates, not a second text family. Use Manrope's size, weight, leading, and spacing to distinguish everything else; keep dates tabular and long event names able to wrap.
+
+**Wordmark exception:** the `ticketopia.` wordmark in the compact header is a logo, not a text role. It stays at 1.6rem (weight 800, −.04em tracking) and shrinks to the 1.25rem headline size while the compact header sticks; the desktop sidebar sizes it separately.
 
 **Provider-brand exception:** only the Google sign-in CTA uses self-hosted Google
 Sans Medium (500) at .875rem/1.25rem, following Google's branding requirements.
@@ -379,8 +391,8 @@ component-specific insets remain explicit rather than becoming another scale.
 
 | Threshold | Shipped behavior |
 | --- | --- |
-| Base, below 40rem | Content padding 1.5rem 1.25rem. Light compact header and four-item fixed bottom navigation. Workspace reserves `calc(5.5rem + env(safe-area-inset-bottom))`. |
-| At most 23rem | Content padding becomes 1.25rem 1rem; fields form one column. Search loses its decorative icon and tightens its inset; event headings and section links reduce to fit. |
+| Base, below 40rem | Content padding 1.5rem 1.25rem. Light compact header and a four-item floating pill navigation, inset .75rem from the sides and `max(.75rem, .25rem + env(safe-area-inset-bottom))` from the bottom; its normal-flow row and margins reserve that space. Below 62rem and at least 32rem tall, the header sticks and shrinks with scroll where supported. |
+| At most 23rem | Content padding becomes 1.25rem 1rem; fields form one column. Navigation side insets cap at 2.5vw so enlarged labels stay whole. Search loses its decorative icon and tightens its inset; event headings and section links reduce to fit. |
 | At least 40rem | General page padding becomes 2rem. |
 | At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding. Below this threshold, event pages at least 32rem tall pin Tickets/Save above the bottom navigation. |
 | At least 72rem | A sticky labeled sidebar replaces the fixed rail/header, occupying 14rem expanded or 4.5rem collapsed. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |
@@ -410,7 +422,7 @@ The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100d
 
 ## Elevation & Depth
 
-The normal interface has one cast shadow: `shadow-raised`, a soft ink-tinted shadow under the selected result row, which also turns white and gains a 3px plum leading edge (Highlight in forced colors). Otherwise depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected row stays in the list's geometry. Community and Happening Now cards are white and bordered but flat, with no shadow. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not floating or glass surfaces.
+The normal interface has one cast shadow: `shadow-raised`, a soft ink-tinted shadow under the selected result row, which also turns white and gains a 3px plum leading edge (Highlight in forced colors). Otherwise depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected row stays in the list's geometry. Community and Happening Now cards are white and bordered but flat, with no shadow. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not glass surfaces. The phone navigation floats as an inset pill and the compact event action bar above it as a rounded card, but both are solid and border-defined: a one-pixel border, no cast shadow or blur.
 
 Focus is an outline, not a shadow: a solid plum ring (3px) offset from the target (4px), including navigation and sidebar controls. Themed library focus rings and card shadows are explicitly suppressed.
 
@@ -420,7 +432,7 @@ The source does use `box-shadow` for drag insertion markers: `inset 0 2px 0 var(
 
 ## Shapes
 
-Use modest, role-specific corner treatments: the shared `radius` for context/ticket containers, selected rows, and the search surround; `control` and `navigation` for buttons, fields, and links; `image` for photographs; and the smaller `date-marker` and `availability` corners for indexing and state. Sidebar move/drag tools use `sidebar-move`, while collapse, commit controls, and tooltips use `sidebar-utility`. These are rounded rectangles, not a universal pill vocabulary. Narrow result rows are separated by a top rule; only the wide results grid encloses events in white, bordered cards.
+Use modest, role-specific corner treatments: the shared `radius` for context/ticket containers, selected rows, and the search surround; `control` and `navigation` for buttons, fields, and links; `image` for photographs; and the smaller `date-marker` and `availability` corners for indexing and state. Sidebar move/drag tools use `sidebar-move`, while collapse, commit controls, and tooltips use `sidebar-utility`. These are rounded rectangles, not a universal pill vocabulary; the phone navigation and its current destination are the one pill-shaped exception. Narrow result rows are separated by a top rule; only the wide results grid encloses events in white, bordered cards.
 
 Some observed component-local corners are intentionally outside the reusable scale: the search input is .2rem, filter summary .3rem, preview artwork .6rem, and the library's inner empty-context Card uses its derived `radius-xl` (1.05rem) within the outer .75rem context boundary. They are real roles, not a mandate to homogenize radii or invent new primitives for every measurement.
 
@@ -485,7 +497,18 @@ use 160ms; result selection uses 180ms. Cross-document view transitions run 250m
 changes only. Geometry transitions opt into motion only when no reduction is
 requested. The reduced-motion safeguard also disables vendored animations and
 smooth scrolling. Hover requires a fine, hover-capable pointer; touch press
-feedback changes fill/color without movement. No loading shimmer ships.
+feedback changes fill/color without movement.
+
+Two motion enhancements are scroll- or load-bound and gated on
+`prefers-reduced-motion: no-preference`; otherwise they are static. Below 62rem
+and on viewports at least 32rem tall, browsers with scroll-driven animations
+(`@supports (animation-timeline: scroll())`) stick the compact header and shrink it
+over the first 4rem of scrolling: 1rem slides off the top, its content recentres,
+and the wordmark settles at 1.25rem. Root scroll padding grows to clear it. Other
+browsers keep the header static in the page flow. Discover pagination shows
+placeholder rows while the next page loads; a soft white highlight sweeps across
+them in 1.4s loops with the shared ease-out curve. With reduced motion they are
+plain pale-plum blocks.
 
 ### Inputs / Fields
 
@@ -497,7 +520,7 @@ Category and genre use the same native select treatment. All categories disables
 
 Quiet, grouped icon-and-text navigation. Expanded desktop navigation uses light stone, a quiet right border, ink labels (weight 550), muted outline icons, hover stone, and pale-plum current state with plum text/icons (weight 700). Browse groups Discover and Community; Your space groups Saved and Interests. Profile remains fixed in the bottom footer. Links and utility/move controls preserve 44px targets.
 
-Desktop collapse hides visual labels without removing their accessible names. CSS shows a compact label tooltip on both hover and keyboard focus: ink background, paper text, no cast shadow. Group labels and customization controls hide while collapsed. The intermediate fixed rail and compact four-item bottom navigation keep a fixed order: Discover, Saved, Community, Profile. Bottom navigation uses white with a quiet top border and icon-over-label layout; both compact layouts share the pale-plum current state. Its intrinsic grid reflows to two rows when enlarged text needs more space, with complete labels inside their targets. A sticky, normal-flow shell row reserves the bar's actual height and bottom safe area; the intermediate rail remains fixed.
+Desktop collapse hides visual labels without removing their accessible names. CSS shows a compact label tooltip on both hover and keyboard focus: ink background, paper text, no cast shadow. Group labels and customization controls hide while collapsed. The intermediate fixed rail and compact four-item bottom navigation keep a fixed order: Discover, Saved, Community, Profile. On phones the bottom navigation is a floating pill: inset from the screen edges and safe areas, a soft white surface with 30% pale plum, a one-pixel border, and icon-over-label items with .75rem labels. The current destination is a clear pill of its own: pale-plum fill, plum text, a plum-tinted border (Highlight in forced colors). The rail shares that current state with .5rem corners. The intrinsic grid reflows to two rows when enlarged text needs more space, with complete, unbroken labels inside their targets. A sticky, normal-flow shell row and its margins reserve the pill's actual height and the bottom safe area; the intermediate rail remains fixed. Below the context threshold, the event page's Tickets/Save bar sticks .5rem above the pill as a rounded, bordered card aligned to its edges.
 
 Explicit customization reveals section/link drag handles and Move up / Move down controls; links use white draft surfaces. Sections can move, links stay within their section, and Profile stays fixed. Done commits the draft; Cancel or Escape restores the previous order; Reset to default changes only the cancellable draft. Collapse is disabled while editing; leaving the desktop threshold cancels unfinished editing. Preferences are browser-only, not account persistence or cross-device sync. Storage failure leaves current-page controls usable with honest feedback. Without JavaScript, the expanded default navigation remains and enhancement-only tools hide. See the [sidebar preference contract](docs/design-guidelines.md#sidebar-preferences) for behavior details.
 
@@ -629,7 +652,7 @@ tokens, motion, typography, or raster assets are introduced.
 
 ### Cards / Containers
 
-Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. Errors keep retry/navigation available; stale preview/full-event data places a last-known provenance notice immediately before price and sale status, using the existing warning treatment rather than presenting stored availability as live.
+Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. While Discover's **Load more events** request runs, three `aria-hidden` placeholder rows appear above the action. They follow the result list's container layout (stacked, artwork beside facts, or cards) and shimmer only as described under motion; the button's "Loading events…" label remains the announced state. Errors keep retry/navigation available; stale preview/full-event data places a last-known provenance notice immediately before price and sale status, using the existing warning treatment rather than presenting stored availability as live.
 
 Keep event price and sale status ahead of participation controls. Search and pagination retain ordinary links/forms without JavaScript. Event Community lists public recommendations separately from explicitly public participants, with profile links and ordinary pagination; private interest contributes to interest counts without naming anyone. Public profiles show opted-in interest and independently published recommendations, using quiet separators and ordinary event links. Discussion shows public questions and links dedicated threads with replies and Helpful. Opt-in Google account destinations provide profiles/privacy defaults, private preferences, durable private saves, independent event interest, public recommendations, and private personalized Radar; disabled deployments explain that accounts are not enabled. Explicit on-sale emails and in-app reply updates are implemented; additional sale/price/event-change emails and discovery digests are out of scope, and push is not implemented. Selection and return strategy remain in the linked UX guide and surface contracts.
 

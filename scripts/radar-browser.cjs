@@ -27,7 +27,7 @@ fs.mkdirSync(out, { recursive: true });
       check('Same explanation: ' + reason.code, await page.locator(`[data-event-id="${item.event.id}"]`).getByText(reason.text, { exact: true }).isVisible());
     }
     check('Unknown category label uses understandable fallback', await page.getByText('Matches one of your preferred categories', { exact: true }).count() === 2);
-    check('Outage retains old data and incomplete-coverage evidence', await page.getByText('Showing last-known details.', { exact: false }).first().isVisible() && await page.locator('[data-coverage="not_collected"]').isVisible());
+    check('Outage retains old data and incomplete-coverage evidence', await page.getByText('Showing last-known details', { exact: false }).first().isVisible() && await page.locator('[data-coverage="not_collected"]').isVisible());
     check('Unknown price not free', await rows().getByText('Price not listed', { exact: false }).count() === 2);
     check('No nonexistent preview jump', await page.locator('a[href="#event-context"]').count() === 0);
     const capture = async (name, width, enlarged = false) => {

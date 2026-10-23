@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-10-23 — Pagination loading placeholders
+
+- While **Load more events** runs, show three `aria-hidden` placeholder rows in the
+  result list's container layout. A highlight sweeps across them only without a
+  reduced-motion preference; the "Loading events…" label stays the announced state.
+  See [discovery](../discovery.md#web-ui).
+
 ### 2026-10-23 — Command bar, date chips, display face and artwork tints
 
 - Merge location and search into one Discover command bar (**Events in {city}** ·

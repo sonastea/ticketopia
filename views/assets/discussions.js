@@ -109,8 +109,12 @@
       const toolbar = form.querySelector('.discussion-composer-actions');
       const rect = textarea.getBoundingClientRect();
       const end = toolbar.getBoundingClientRect().bottom;
-      const top = (viewport?.offsetTop || 0) + 8;
-      let bottom = top + (viewport?.height || innerHeight) - 16;
+      // The compact header can stick over the top of the page while scrolling.
+      const header = document.querySelector('.compact-header');
+      const headerEdge = header && getComputedStyle(header).position === 'sticky' ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+      const viewportTop = viewport?.offsetTop || 0;
+      const top = Math.max(viewportTop, headerEdge) + 8;
+      let bottom = viewportTop + (viewport?.height || innerHeight) - 8;
       const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect();
       if (nav?.height && nav.top > top && nav.top < bottom) bottom = nav.top - 8;
       // At enlarged text/very short heights, prioritize the field; controls are

@@ -6,6 +6,7 @@ import "github.com/sonastea/ticketopia/internal/eventactivity"
 import "github.com/sonastea/ticketopia/internal/radar"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/skeleton"
 
 templ MoreEventsList(page SearchPage) {
 	<ul hx-swap-oob="beforeend:#event-list">
@@ -185,6 +186,16 @@ templ Pagination(page SearchPage) {
 			<p class="field-note" role="status">{ page.ActivityError }</p>
 		}
 		if page.Events.NextCursor != nil {
+			<div class="pagination-skeleton" aria-hidden="true">
+				for range 3 {
+					<div class="skeleton-row">
+						@skeleton.Skeleton(skeleton.Props{Class: "skeleton-art"})
+						@skeleton.Skeleton(skeleton.Props{Class: "skeleton-line"})
+						@skeleton.Skeleton(skeleton.Props{Class: "skeleton-line"})
+						@skeleton.Skeleton(skeleton.Props{Class: "skeleton-line"})
+					</div>
+				}
+			</div>
 			@button.Button(button.Props{Href: nextURL(page), Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"hx-get": nextURL(page), "hx-target": "#pagination", "hx-swap": "outerHTML", "hx-indicator": "#pagination", "hx-sync": "this:drop"}}) {
 				<span class="ready-label">Load more events</span><span class="loading-label">Loading events…</span>@layouts.Icon("chevron")
 			}

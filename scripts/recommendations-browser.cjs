@@ -177,7 +177,7 @@ fs.mkdirSync(out, { recursive: true });
     await page.waitForFunction(() => document.activeElement?.matches('.recommendation-event h3 a'));
     check('Profile restores paginated title focus and scroll across sections', page.url() === profileOrigin && Math.abs(await page.evaluate(() => scrollY) - profileScroll) < 3);
     await page.goto(process.env.SAVED_FALLBACK_URL + '/events/' + id + '?section=community');
-    check('Provider/cache outage keeps event and published reasons', await page.locator('.recommendation-reason').filter({ hasText: 'A native form reason.' }).count() === 1 && await page.getByText('Showing last-known details.', { exact: false }).count() > 0);
+    check('Provider/cache outage keeps event and published reasons', await page.locator('.recommendation-reason').filter({ hasText: 'A native form reason.' }).count() === 1 && await page.getByText('Showing last-known details', { exact: false }).count() > 0);
     await page.goto(process.env.SAVED_DISABLED_URL + '/community');
     check('Disabled account deployment is truthful', (await page.innerText('main')).includes('require accounts to be enabled'));
     const disabled = await guest.request.get(process.env.SAVED_DISABLED_URL + '/api/v1/recommendations');

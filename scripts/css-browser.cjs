@@ -29,7 +29,9 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
       if (await page.locator('.bottom-nav').isVisible()) {
         check('Navigation labels stay inside 44px targets: ' + name, await page.locator('.bottom-nav .nav-link').evaluateAll(nodes => nodes.every(node => {
           const control = node.getBoundingClientRect(), label = node.querySelector('.nav-label').getBoundingClientRect();
-          return control.width >= 44 && control.height >= 44 && control.top >= 0 && control.bottom <= innerHeight + 1 && label.left >= control.left - 1 && label.right <= control.right + 1 && label.top >= control.top && label.bottom <= control.bottom && node.scrollWidth <= node.clientWidth + 1;
+          // Single-word labels stay on one line rather than breaking mid-word.
+          const words = document.createRange(); words.selectNodeContents(node.querySelector('.nav-label'));
+          return words.getClientRects().length === 1 && control.width >= 44 && control.height >= 44 && control.top >= 0 && control.bottom <= innerHeight + 1 && label.left >= control.left - 1 && label.right <= control.right + 1 && label.top >= control.top && label.bottom <= control.bottom && node.scrollWidth <= node.clientWidth + 1;
         })));
         check('Compact navigation reserves its actual height: ' + name, await page.evaluate(() => {
           const nav = document.querySelector('.bottom-nav');
@@ -71,6 +73,39 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     check('Intermediate rail/context thresholds unchanged', !await page.locator('.sidebar').isVisible() && await page.locator('.event-context').isVisible() && await page.locator('.bottom-nav').isVisible());
     await page.setViewportSize({ width: 390, height: 900 });
     check('Mobile navigation/document scrolling unchanged', !await page.locator('.sidebar').isVisible() && !await page.locator('.event-context').isVisible() && await page.locator('.bottom-nav').isVisible() && await page.locator('body').evaluate(node => getComputedStyle(node).overflowY === 'visible'));
+    check('Phone navigation floats inset from the edges with a bordered current pill', await page.locator('.bottom-nav').evaluate(nav => {
+      const rect = nav.getBoundingClientRect(), current = nav.querySelector('[aria-current="page"]');
+      const css = getComputedStyle(nav), pill = getComputedStyle(current);
+      return rect.left >= 8 && rect.right <= innerWidth - 8 && rect.bottom <= innerHeight - 8 && parseFloat(css.borderTopLeftRadius) >= 24 && css.fontSize === '12px' && pill.borderTopColor !== getComputedStyle(nav.querySelector('.nav-link:not([aria-current="page"])')).borderTopColor;
+    }));
+    check('Compact header shrinks with scroll, wordmark ends at the headline size', await page.evaluate(async () => {
+      const header = document.querySelector('.compact-header'), brand = header.querySelector('.brand');
+      if (!CSS.supports('animation-timeline: scroll()')) return getComputedStyle(header).position === 'static';
+      const before = parseFloat(getComputedStyle(brand).fontSize);
+      scrollTo(0, 400); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const stuck = header.getBoundingClientRect(), after = parseFloat(getComputedStyle(brand).fontSize);
+      scrollTo(0, 0);
+      return getComputedStyle(header).position === 'sticky' && before > after && after === 20 && Math.round(stuck.top) === -16;
+    }));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    check('Reduced motion keeps the compact header static', await page.locator('.compact-header').evaluate(node => getComputedStyle(node).position === 'static' && getComputedStyle(node.querySelector('.brand')).animationName === 'none'));
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+    await page.goto(base + '/?more=true');
+    check('Pagination skeleton stays hidden until a load starts', await page.locator('.pagination-skeleton').evaluate(node => getComputedStyle(node).display === 'none' && node.getAttribute('aria-hidden') === 'true'));
+    await page.locator('#pagination').evaluate(node => node.classList.add('htmx-request'));
+    check('Pagination loads show shimmering placeholder rows', await page.locator('.pagination-skeleton').evaluate(node => {
+      const block = node.querySelector('[data-slot="skeleton"]');
+      return getComputedStyle(node).display === 'grid' && node.querySelectorAll('.skeleton-row').length === 3 && block.getBoundingClientRect().height > 0 && getComputedStyle(block).animationName === 'skeleton-shimmer';
+    }));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    check('Reduced motion keeps pagination placeholders still', await page.locator('.pagination-skeleton [data-slot="skeleton"]').first().evaluate(node => getComputedStyle(node).animationName === 'none'));
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    if (out) {
+      await page.locator('#pagination').scrollIntoViewIfNeeded();
+      const file = path.join(out, 'pagination-loading-390.png');
+      await page.screenshot({ path: file }); report.screenshots.push(file);
+    }
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(base + '/?selected=true');
@@ -86,7 +121,7 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
         return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3).map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
       };
       const probe = document.createElement('span'); document.body.append(probe);
-      const pairs = [['ink', 'paper'], ['muted', 'paper'], ['muted', 'brand-soft'], ['brand', 'brand-soft'], ['ink', 'date-surface'], ['surface', 'brand'], ['surface', 'brand-dark'], ['surface', 'brand-active'], ['error', 'error-bg'], ['warning', 'warning-bg'], ['surface', 'google-brand'], ['surface', 'google-hover'], ['surface', 'google-active']];
+      const pairs = [['ink', 'paper'], ['muted', 'paper'], ['muted', 'brand-soft'], ['muted-warm', 'surface'], ['muted-warm', 'paper'], ['muted-warm', 'brand-soft'], ['muted-warm', 'nav-surface'], ['brand', 'brand-soft'], ['ink', 'date-surface'], ['surface', 'brand'], ['surface', 'brand-dark'], ['surface', 'brand-active'], ['error', 'error-bg'], ['warning', 'warning-bg'], ['surface', 'google-brand'], ['surface', 'google-hover'], ['surface', 'google-active']];
       const passes = pairs.every(([text, fill]) => {
         probe.style.color = `var(--${text})`; probe.style.backgroundColor = `var(--${fill})`;
         const css = getComputedStyle(probe), values = [luminance(css.color), luminance(css.backgroundColor)].sort((a, b) => b - a);
