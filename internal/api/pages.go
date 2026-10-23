@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,6 +13,42 @@ import (
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/home"
 )
+
+// canonicalPage drops query keys an HTML page does not support, such as utm_*
+// or fbclid added to shared links, so the caller can redirect instead of
+// rejecting them. Kept pairs retain their order and encoding, so duplicate or
+// invalid supported values still reach the parser. /api/v1 routes stay strict.
+func canonicalPage(u *url.URL, supported func(string) bool) (string, bool) {
+	if u.RawQuery == "" {
+		return "", false
+	}
+	parts := strings.Split(u.RawQuery, "&")
+	kept := make([]string, 0, len(parts))
+	for _, part := range parts {
+		key, _, _ := strings.Cut(part, "=")
+		if key, err := url.QueryUnescape(key); err == nil && supported(key) {
+			kept = append(kept, part)
+		}
+	}
+	if len(kept) == len(parts) {
+		return "", false
+	}
+	target := u.EscapedPath()
+	if len(kept) > 0 {
+		target += "?" + strings.Join(kept, "&")
+	}
+	return target, true
+}
+
+var webSelectionParams = []string{"selected_event", "section", "recommend", "selected_thread", "reply_to", "discussion_cursor"}
+
+func homeParam(key string) bool {
+	return discovery.QueryParam(key) || key == "genre_category_id" || slices.Contains(webSelectionParams, key)
+}
+
+func eventPageParam(key string) bool {
+	return key == "section" || key == "return_to" || key == "recommend"
+}
 
 // Web selection is deliberately separate from the shared discovery/API filters.
 func webSearch(values url.Values) (url.Values, string, string, error) {
@@ -33,7 +70,7 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 	if values, ok := filters["recommend"]; ok && (len(values) != 1 || values[0] != "true" || id == "" || section != "community") {
 		return nil, "", "", &discovery.ValidationError{Field: "recommend", Message: "open recommendations for a selected event's community section"}
 	}
-	for _, key := range []string{"selected_event", "section", "recommend", "selected_thread", "reply_to", "discussion_cursor"} {
+	for _, key := range webSelectionParams {
 		if len(filters[key]) > 1 {
 			return nil, "", "", &discovery.ValidationError{Field: key, Message: "use one value"}
 		}
@@ -125,6 +162,9 @@ func safeReturnURL(raw string) string {
 func (a *api) eventPageHandler(c echo.Context) error {
 	c.Response().Header().Set("Cache-Control", "private, no-store")
 	c.Response().Header().Set("Vary", "X-Ticketopia-Panel, X-Ticketopia-Section")
+	if target, ok := canonicalPage(c.Request().URL, eventPageParam); ok {
+		return c.Redirect(http.StatusFound, target)
+	}
 	page := home.EventPage{ReturnURL: safeReturnURL(c.QueryParam("return_to")), Section: "overview"}
 	privateAccountResponse(c)
 	page.ActionReturnURL = c.Request().URL.RequestURI()
@@ -132,7 +172,7 @@ func (a *api) eventPageHandler(c echo.Context) error {
 	id, err := url.PathUnescape(c.Param("event_id"))
 	if err == nil {
 		for key, values := range c.QueryParams() {
-			if (key != "section" && key != "return_to" && key != "recommend") || len(values) != 1 {
+			if !eventPageParam(key) || len(values) != 1 {
 				err = &discovery.ValidationError{Field: key, Message: "use one value for a supported event parameter"}
 				break
 			}

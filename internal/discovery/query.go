@@ -43,16 +43,20 @@ type Query struct {
 	Cursor                                             *Cursor
 }
 
+var queryParams = map[string]bool{
+	"city": true, "country": true, "keyword": true, "category_id": true, "genre_id": true,
+	"artist_id": true, "venue_id": true, "start_date": true,
+	"end_date": true, "limit": true, "cursor": true, "sort": true,
+}
+
+// QueryParam reports whether key is a supported discovery filter.
+func QueryParam(key string) bool { return queryParams[key] }
+
 // ParseQuery canonicalizes every supported filter before cache lookup. Default
 // dates are day-bucketed so requests do not create a new cache key every second.
 func ParseQuery(values url.Values, now time.Time) (Query, error) {
-	allowed := map[string]bool{
-		"city": true, "country": true, "keyword": true, "category_id": true, "genre_id": true,
-		"artist_id": true, "venue_id": true, "start_date": true,
-		"end_date": true, "limit": true, "cursor": true, "sort": true,
-	}
 	for field, list := range values {
-		if !allowed[field] || len(list) != 1 {
+		if !queryParams[field] || len(list) != 1 {
 			return Query{}, &ValidationError{field, "use one value for a supported filter"}
 		}
 	}

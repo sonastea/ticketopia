@@ -99,6 +99,9 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	// IP- and cookie-derived defaults must not be shared by an HTTP intermediary.
 	c.Response().Header().Set("Cache-Control", "private, no-store")
 	privateAccountResponse(c)
+	if target, ok := canonicalPage(c.Request().URL, homeParam); ok {
+		return c.Redirect(http.StatusFound, target)
+	}
 	filters, selectedID, section, err := webSearch(c.QueryParams())
 	page := home.SearchPage{SelectedID: selectedID, Section: section}
 	page.ActionReturnURL = c.Request().URL.RequestURI()

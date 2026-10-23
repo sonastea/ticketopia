@@ -171,6 +171,8 @@ total `count`, independently of pagination; valid unknown event IDs return zero 
 an empty array without provider calls. Limits are 1–100, default 20. Cursors bind to
 collection/audience/account/event and normalized filters; cross-scope reuse and
 repeated/unknown parameters return 400. Clients must disclose public attribution.
+The HTML `/community` page instead redirects away from unknown keys such as
+tracking parameters ([details](discovery.md#json-api)).
 The grouped endpoint's `items` contain `event`, `first_recommended_at`, active
 `count`, `recommendations` (at most three), and `meta`. Its limit counts events.
 Grouped and individual cursors are not interchangeable. Existing individual event,

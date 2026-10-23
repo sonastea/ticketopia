@@ -301,7 +301,7 @@ func (s *Service) ownerSnapshot(ctx context.Context, owner string, filter Filter
 				s.metrics.memoryLimit.Add(1)
 			}
 			s.metrics.projectionFailed.Add(1)
-			s.logger.Warn().Str("reason", reason).Msg("Live activity generation unavailable")
+			s.logger.Warn().Err(err).Str("reason", reason).Msg("Live activity generation unavailable")
 			s.index = nil
 			clear(s.views)
 			s.viewBytes = 0

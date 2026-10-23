@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -149,6 +150,42 @@ func TestReturnContextCannotNavigateOutsideDiscovery(t *testing.T) {
 	valid := "/?city=Boston&country=US&keyword=jazz"
 	if got := safeReturnURL(valid); got != valid {
 		t.Errorf("lost valid discovery filters: %q", got)
+	}
+}
+
+func TestSharedLinkTrackingParametersRedirectToCanonicalPages(t *testing.T) {
+	a := &api{}
+	for raw, want := range map[string]string{
+		"/?city=Boston&utm_source=facebook&fbclid=abc": "/?city=Boston",
+		"/?fbclid=abc": "/",
+		"/?keyword=jazz%20club&igshid=x&selected_event=ticketmaster:e1":       "/?keyword=jazz%20club&selected_event=ticketmaster:e1",
+		"/?city=A&utm_medium=social&city=B":                                   "/?city=A&city=B",
+		"/community?utm_campaign=launch&city=Chicago&category_id=all":         "/community?city=Chicago&category_id=all",
+		"/events/ticketmaster:e1?fbclid=abc&section=community&recommend=true": "/events/ticketmaster:e1?section=community&recommend=true",
+		"/events/ticketmaster:e1?return_to=%2F%3Fcity%3DBoston&utm_source=ig": "/events/ticketmaster:e1?return_to=%2F%3Fcity%3DBoston",
+	} {
+		rec := httptest.NewRecorder()
+		a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, raw, nil))
+		if rec.Code != http.StatusFound || rec.Header().Get("Location") != want {
+			t.Errorf("%s: %d %q, want redirect to %q", raw, rec.Code, rec.Header().Get("Location"), want)
+		}
+	}
+	// Supported keys are never rewritten, so duplicates and invalid values still
+	// reach their parsers; the public API keeps rejecting unknown parameters.
+	for u, supported := range map[string]func(string) bool{
+		"/?city=A&city=B&limit=0":                           homeParam,
+		"/community?city=Chicago&cursor=bad":                recommendations.FeedParam,
+		"/events/ticketmaster:e1?section=wrong&recommend=1": eventPageParam,
+	} {
+		parsed, _ := url.Parse(u)
+		if target, ok := canonicalPage(parsed, supported); ok {
+			t.Errorf("%s rewritten to %q", u, target)
+		}
+	}
+	rec := httptest.NewRecorder()
+	a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/events?city=Boston&utm_source=facebook", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("API accepted an unknown parameter: %d", rec.Code)
 	}
 }
 

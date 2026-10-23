@@ -206,6 +206,9 @@ func (a *api) recommendationView(c echo.Context, id string) home.RecommendationV
 }
 func (a *api) communityPage(c echo.Context) error {
 	privateAccountResponse(c)
+	if target, ok := canonicalPage(c.Request().URL, recommendations.FeedParam); ok {
+		return c.Redirect(http.StatusFound, target)
+	}
 	p := home.CommunityPage{Enabled: a.recommendationsEnabled(), ReturnURL: c.Request().URL.RequestURI()}
 	status := 200
 	var err error

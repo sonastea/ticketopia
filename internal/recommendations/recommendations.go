@@ -170,13 +170,22 @@ func (s *Service) Remove(ctx context.Context, owner, id string) error {
 var categoryID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 var countryCode = regexp.MustCompile(`^[A-Za-z]{2}$`)
 
+// FeedParam reports whether key is a supported community feed parameter.
+func FeedParam(key string) bool {
+	switch key {
+	case "limit", "cursor", "city", "country", "category_id":
+		return true
+	}
+	return false
+}
+
 func ParseQuery(values url.Values, scope string, community bool) (Query, error) {
 	q := Query{Limit: 20}
 	invalid := func(field, message string) (Query, error) {
 		return q, &accounts.ValidationError{Field: field, Message: message}
 	}
 	for key, entries := range values {
-		if len(entries) != 1 || (key != "limit" && key != "cursor" && (!community || (key != "city" && key != "country" && key != "category_id"))) {
+		if len(entries) != 1 || (key != "limit" && key != "cursor" && (!community || !FeedParam(key))) {
 			return invalid(key, "use one value for a supported recommendation parameter")
 		}
 	}

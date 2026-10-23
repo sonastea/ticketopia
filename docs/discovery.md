@@ -228,6 +228,11 @@ omitted. Unknown/repeated parameters are rejected. The catalog and contract rout
 accept no query parameters.
 JSON reads use the supplied filters; browser location defaults are applied by
 the HTML handler before calling the shared discovery service.
+HTML pages are forgiving instead: Discover (`/`), Community (`/community`) and
+event pages (`/events/{event_id}`) answer unsupported keys, such as `utm_*` or
+`fbclid` from shared links, with a `302` to the same URL without them. Supported
+pairs keep their order and encoding, so repeated or invalid supported values still
+return 400 and cache keys stay canonical.
 
 - `category_id` accepts a raw category/segment ID from `/api/v1/categories` or
   `all`. Omitted/empty means all categories, except legacy genre-only searches

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2026-10-22 — Shared links with tracking parameters
+
+- Discover, Community and event pages redirect (`302`) away from unsupported query
+  keys such as `utm_*`/`fbclid` instead of returning 400; `/api/v1` stays strict.
+  See [discovery](../discovery.md#json-api).
+
 ### 2026-10-11 — In-place event-section navigation
 
 - Deliver part 1 of [app polish](../design/app-polish-and-event-section-navigation.md)
