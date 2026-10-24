@@ -248,7 +248,7 @@ func TestEventOverviewKeepsDecisionContentVisibleAndActionsIndependent(t *testin
 				t.Fatal(err)
 			}
 			markup := out.String()
-			for _, text := range []string{"A supplied description", "Bring photo ID", "12 Main Street", "Tickets on Ticketmaster", "Showing last-known details", `data-status="canceled"`, "Price not listed"} {
+			for _, text := range []string{"A supplied description", "Bring photo ID", "12 Main Street", `Tickets<span class="ticket-provider"> on Ticketmaster</span>`, "Showing last-known details", `data-status="canceled"`, "Price not listed"} {
 				if !strings.Contains(markup, text) {
 					t.Errorf("missing decision content %q", text)
 				}
@@ -266,7 +266,7 @@ func TestEventOverviewKeepsDecisionContentVisibleAndActionsIndependent(t *testin
 			var walk func(*html.Node, bool)
 			walk = func(n *html.Node, disclosed bool) {
 				disclosed = disclosed || n.Data == "details"
-				if disclosed && n.Type == html.TextNode && (strings.Contains(n.Data, event.Info) || strings.Contains(n.Data, event.PleaseNote) || strings.Contains(n.Data, "Tickets on Ticketmaster")) {
+				if disclosed && n.Type == html.TextNode && (strings.Contains(n.Data, event.Info) || strings.Contains(n.Data, event.PleaseNote) || strings.Contains(n.Data, "on Ticketmaster")) {
 					t.Error("essential content hidden in disclosure")
 				}
 				for child := n.FirstChild; child != nil; child = child.NextSibling {

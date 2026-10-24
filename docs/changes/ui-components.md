@@ -7,7 +7,9 @@
 - Float the phone navigation as an inset pill above the bottom safe area: a soft
   white/pale-plum surface, a one-pixel border, a bordered current pill (Highlight
   in forced colors) and .75rem labels. Small phones use viewport-capped insets so
-  enlarged labels stay whole. The event Tickets/Save bar sits above it as a card.
+  enlarged labels stay whole. The event Tickets/Save bar sits above it as a card,
+  now on one row (122 → 70px at 390px and 320px wide): narrow bars show
+  **Tickets** and keep "Tickets on Ticketmaster" as the accessible name.
 - Add `--muted-warm` (muted mixed 12% toward plum) for all secondary text and the
   library's muted foreground; it is AA on every app surface and event tint.
 - Below 62rem, stick and shrink the compact header with a scroll-driven animation

@@ -188,7 +188,7 @@ const check = (name, value) => {assert.ok(value, name); report.checks.push(name)
     for (const status of ['canceled', 'postponed', 'offsale', 'unknown']) {
       await page.goto(base + '/events/ticketmaster:CSS_0?status=' + status + '&stale=true');
       check(status + ': honest status and adjacent stale warning', await page.locator('[data-status="' + status + '"]').isVisible() && await page.getByText('Showing last-known details', {exact: false}).first().isVisible());
-      check(status + ': supplied ticket link remains named', await page.locator('.ticket-link').innerText().then(text => text.includes('Tickets on Ticketmaster')));
+      check(status + ': supplied ticket link remains named', await page.locator('.ticket-link').and(page.getByRole('link', {name: /^Tickets on Ticketmaster/})).count() === 1);
     }
     await page.goto(base + '/events/ticketmaster:CSS_0?ticket=missing&account=disabled');
     check('Missing URL has explanation, no fake ticket action', !await page.locator('.ticket-link').count() && await page.getByText("A ticket link hasn't been supplied for this event.").isVisible());

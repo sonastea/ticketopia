@@ -289,7 +289,8 @@ templ TicketDetails(event models.Event) {
 templ TicketAction(event models.Event) {
 	if event.Source.URL != "" {
 		@button.Button(button.Props{Href: event.Source.URL, Class: "action ticket-link"}) {
-			<span>Tickets on Ticketmaster</span>@layouts.Icon("external")
+			// The provider stays in the accessible name when a narrow action bar hides it.
+			<span>Tickets<span class="ticket-provider">{ " on Ticketmaster" }</span></span>@layouts.Icon("external")
 		}
 	} else {
 		<p>A ticket link hasn't been supplied for this event.</p>

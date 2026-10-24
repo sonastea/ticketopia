@@ -2584,7 +2584,20 @@ summary::-webkit-details-marker {
       .event-page .event-primary-actions > .event-action-group { margin-inline: calc(.5rem - var(--page-gutter)); }
     }
     .event-page .event-primary-actions .event-actions { align-items: center; }
-    .event-page .event-primary-actions .ticket-link { flex: 1 1 12rem; }
+    /* One row: Tickets grows from its content beside Save. Narrow bars drop the
+       visible provider (still in the accessible name); enlarged text wraps. */
+    .event-page .event-primary-actions > .event-action-group { container: event-actions / inline-size; }
+    .event-page .event-primary-actions .ticket-link { flex: 1 1 auto; }
+    @container event-actions (max-width: 26rem) {
+      .event-page .event-primary-actions .ticket-provider {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: clip;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    }
     html:has(.event-page .event-action-group) {
       scroll-padding-block-end: calc(var(--bottom-nav-block-size, 4.5rem) + var(--nav-float-gap) + 6rem);
     }
