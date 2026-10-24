@@ -89,7 +89,7 @@ func Card(props ...Props) templ.Component {
 		if p.Size == "" {
 			p.Size = SizeDefault
 		}
-		var templ_7745c5c3_Var2 = []any{utils.CN("ring-foreground/10 bg-card text-card-foreground gap-(--card-spacing) overflow-hidden rounded-xl py-(--card-spacing) text-sm ring-1 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl group/card flex flex-col", p.Class)}
+		var templ_7745c5c3_Var2 = []any{utils.CN("ring-foreground/10 bg-card text-card-foreground gap-(--card-spacing) overflow-clip rounded-xl py-(--card-spacing) text-sm ring-1 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pbe-0 has-[>img:first-child]:pbs-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pbe-0 *:[img:first-child]:rounded-ss-xl *:[img:first-child]:rounded-se-xl *:[img:last-child]:rounded-es-xl *:[img:last-child]:rounded-ee-xl group/card flex flex-col", p.Class)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var2...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -193,7 +193,7 @@ func Header(props ...HeaderProps) templ.Component {
 			p = props[0]
 		}
 		var templ_7745c5c3_Var7 = []any{utils.CN(
-			"gap-1 rounded-t-xl px-(--card-spacing) [.border-b]:pb-(--card-spacing) group/card-header @container/card-header grid auto-rows-min items-start has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto]",
+			"gap-1 rounded-ss-xl rounded-se-xl px-(--card-spacing) [.border-b]:pbe-(--card-spacing) group/card-header @container/card-header grid auto-rows-min items-start has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto]",
 			p.Class,
 		),
 		}
@@ -651,7 +651,7 @@ func Footer(props ...FooterProps) templ.Component {
 		if len(props) > 0 {
 			p = props[0]
 		}
-		var templ_7745c5c3_Var27 = []any{utils.CN("bg-muted/50 rounded-b-xl border-t p-(--card-spacing) flex items-center", p.Class)}
+		var templ_7745c5c3_Var27 = []any{utils.CN("bg-muted/50 rounded-es-xl rounded-ee-xl border-bs p-(--card-spacing) flex items-center", p.Class)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var27...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

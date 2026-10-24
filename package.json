@@ -9,7 +9,7 @@
     "build": "npm run generate && npm run css && go build -o bin/ticketopia ./cmd/ticketopia"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "4.1.18",
-    "tailwindcss": "4.1.18"
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3"
   }
 }

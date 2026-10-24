@@ -32,7 +32,7 @@ TICKETMASTER_KEY=your-api-key ./bin/ticketopia
 ```
 
 The build bundles component JavaScript, generates templ Go code, compiles Tailwind
-CSS 4.1.18, and builds the Go binary. The binary embeds all browser assets and can
+CSS 4.3.3, and builds the Go binary. The binary embeds all browser assets and can
 run outside the repository. CSS, generated Go, the bundle manifest, and the hashed
 JS bundle are checked in so `go run ./cmd/ticketopia` still works after checkout.
 Regenerate and commit them together after source changes. `bin/` and `node_modules/`
@@ -117,11 +117,14 @@ color-scheme metadata. Library dark tokens use one `light-dark()` set; `.dark`
 only opts a subtree into `color-scheme: dark`, not a shipped whole-app dark mode.
 Tailwind's `hover` variant and app hover rules require both hover capability and
 a fine pointer. Touch has flat pressed feedback; links remain selectable. Focus
-uses real outlines, including forced-colors mode. Geometry transitions opt into
-`prefers-reduced-motion: no-preference`; vendored animations also respect the
-existing reduced-motion safeguard.
+uses real outlines, including forced-colors mode. Geometry transitions and animations opt into
+`prefers-reduced-motion: no-preference` individually; there is no global rule
+that zeroes durations, so new motion must carry its own guard.
 
-Use parent-owned gaps and shrink-safe tracks. Keep behavioral shell thresholds
+Use parent-owned gaps and shrink-safe tracks. Page padding comes from the fluid
+`--space-page-block`/`--space-page-inline` tokens (also the event page's
+`--page-gutter`) rather than viewport steps, and reusable groupings respond to
+their `results` or `workspace` container instead of the viewport. Keep behavioral shell thresholds
 at 62rem/72rem synchronized with JavaScript. Heading sizes adapt with bounded,
 rem-based `clamp()` tokens, while fields remain at least 16px to avoid iOS focus
 zoom without disabling user zoom. Text wraps without global min-content-shrinking
@@ -172,6 +175,9 @@ updating components, and review the registry diff before using `--overwrite`:
   readable disabled states, reduced motion, and the existing responsive shell.
 - `empty/empty.templ` routes child-link hover through the guarded Tailwind `hover`
   variant instead of an unconditional arbitrary `a:hover` selector.
+- Rendered components (`alert`, `badge`, `button`, `card`, `empty`, `input`) use
+  logical inline and block utilities (block ones need Tailwind 4.2+). They clip with `overflow-clip`, name color-only transitions, and keep a
+  transparent `outline-hidden` instead of `outline-none`.
 
 The upstream Select and Collapsible implementations and dependencies remain
 available for future JavaScript-enhanced widgets. Use the native variants for

@@ -108,7 +108,10 @@
 .reminder-list > li { padding-block: 1.5rem; border-block-start: 1px solid var(--line); }
 .reminder-list h2 { font-size: 1.125rem; font-weight: 750; }
 .reminder-list h2 > a { font: inherit; }
-.account-field-grid { display: grid; gap: 1rem; }
+/* City takes about twice Country's share and both wrap once the container is narrow. */
+.account-field-grid { display: flex; flex-wrap: wrap; gap: 1rem; }
+.account-field-grid > * { flex: 1 1 9rem; }
+.account-field-grid > :first-child { flex: 2 1 18rem; }
 .account-checkboxes { display: grid; gap: .5rem; padding: 0; border: 0; min-inline-size: 0; }
 .account-checkboxes legend { font-size: 1.25rem; font-weight: 750; margin-block: 1rem; }
 .account-checkboxes label { display: flex; align-items: center; gap: .75rem; min-block-size: 2.75rem; padding-block: .5rem; cursor: pointer; }
@@ -142,7 +145,6 @@
 .account-token-list { padding: 0; list-style: none; }
 .account-token-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-block-start: 1px solid var(--line); }
 .account-token-list li > div { min-inline-size: 0; overflow-wrap: break-word; }
-@media (min-width: 40rem) { .account-field-grid { grid-template-columns: 2fr 1fr; } }
 
 @font-face {
   font-family: Manrope;
@@ -214,6 +216,8 @@
   --text-event-heading: clamp(1.5rem, 1.125rem + 1.63vw, 1.75rem);
   --space-reply-indent: clamp(.5rem, .125rem + 1.875vw, 1.25rem);
   --space-hero-inset: clamp(.5rem, .125rem + 1.875vw, 2rem);
+  --space-page-block: clamp(1.25rem, .5rem + 3.75vw, 2rem);
+  --space-page-inline: clamp(1rem, .17rem + 4.17vw, 2rem);
   /* Resolved against the results container where rows place artwork beside facts. */
   --size-row-art: clamp(7.5rem, 2rem + 18cqi, 11rem);
   --ease-out: cubic-bezier(.16, 1, .3, 1);
@@ -567,8 +571,8 @@ h3 {
 }
 
 .discovery-workspace {
-  padding-block: 1.5rem;
-  padding-inline: 1.25rem;
+  padding-block: var(--space-page-block);
+  padding-inline: var(--space-page-inline);
 }
 
 .discovery-content, .destination-page:has(#event-list) {
@@ -1918,11 +1922,11 @@ summary::-webkit-details-marker {
 }
 
 .event-page, .destination-page {
-  padding-block: 1.5rem;
-  padding-inline: 1.25rem;
+  padding-block: var(--space-page-block);
+  padding-inline: var(--space-page-inline);
 }
 
-.event-page { --page-gutter: 1.25rem; }
+.event-page { --page-gutter: var(--space-page-inline); }
 
 .back-link {
   margin-block-end: 1rem;
@@ -2149,10 +2153,6 @@ summary::-webkit-details-marker {
   .compact-header > span {
     display: block;
   }
-  .discovery-workspace, .event-page, .destination-page {
-    padding: 2rem;
-  }
-  .event-page { --page-gutter: 2rem; }
 }
 
 @media (min-width: 62rem) {
@@ -2578,7 +2578,8 @@ summary::-webkit-details-marker {
   }
 }
 
-@media (min-width: 86rem) {
+/* Three filter columns follow the results column, which narrows with an open preview. */
+@container results (min-width: 48rem) {
   .field-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2662,10 +2663,6 @@ summary::-webkit-details-marker {
 }
 
 @media (max-width: 23rem) {
-  .discovery-workspace, .event-page, .destination-page {
-    padding-block: 1.25rem;
-    padding-inline: 1rem;
-  }
   .search-bar {
     gap: .4rem;
     padding-inline-start: .65rem;
@@ -2688,7 +2685,6 @@ summary::-webkit-details-marker {
   .context-inner {
     padding: 1rem;
   }
-  .event-page { --page-gutter: 1rem; }
   .section-nav {
     gap: .65rem;
   }
@@ -2749,15 +2745,6 @@ summary::-webkit-details-marker {
 
 @keyframes header-recentre { to { translate: 0 .5rem; } }
 @keyframes brand-shrink { to { font-size: 1.25rem; } }
-
-/* Also suppress animations supplied by the vendored component utilities. */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    transition-duration: 0s !important;
-    animation-duration: 0s !important;
-    scroll-behavior: auto !important;
-  }
-}
 
 @theme inline {
   --font-sans: Manrope, sans-serif;
@@ -2907,7 +2894,7 @@ summary::-webkit-details-marker {
 .moderation-form { margin-block-start: 1.5rem; }
 .moderation-utility { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 .moderation-empty { margin-block-start: 1.5rem; }
-@media (min-width: 40rem) {
+@container workspace (min-width: 40rem) {
   .recommendation-event { grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; }
   .recommendation-event .event-art { margin: 0; }
   .recommendation-event .event-image { aspect-ratio: 1; }

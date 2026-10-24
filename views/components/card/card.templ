@@ -67,7 +67,7 @@ templ Card(props ...Props) {
 		}
 		data-slot="card"
 		data-size={ string(p.Size) }
-		class={ utils.CN("ring-foreground/10 bg-card text-card-foreground gap-(--card-spacing) overflow-hidden rounded-xl py-(--card-spacing) text-sm ring-1 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl group/card flex flex-col", p.Class) }
+		class={ utils.CN("ring-foreground/10 bg-card text-card-foreground gap-(--card-spacing) overflow-clip rounded-xl py-(--card-spacing) text-sm ring-1 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pbe-0 has-[>img:first-child]:pbs-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pbe-0 *:[img:first-child]:rounded-ss-xl *:[img:first-child]:rounded-se-xl *:[img:last-child]:rounded-es-xl *:[img:last-child]:rounded-ee-xl group/card flex flex-col", p.Class) }
 		{ p.Attributes... }
 	>
 		{ children... }
@@ -86,7 +86,7 @@ templ Header(props ...HeaderProps) {
 		data-slot="card-header"
 		class={
 			utils.CN(
-				"gap-1 rounded-t-xl px-(--card-spacing) [.border-b]:pb-(--card-spacing) group/card-header @container/card-header grid auto-rows-min items-start has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto]",
+				"gap-1 rounded-ss-xl rounded-se-xl px-(--card-spacing) [.border-b]:pbe-(--card-spacing) group/card-header @container/card-header grid auto-rows-min items-start has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto]",
 				p.Class,
 			),
 		}
@@ -180,7 +180,7 @@ templ Footer(props ...FooterProps) {
 			id={ p.ID }
 		}
 		data-slot="card-footer"
-		class={ utils.CN("bg-muted/50 rounded-b-xl border-t p-(--card-spacing) flex items-center", p.Class) }
+		class={ utils.CN("bg-muted/50 rounded-es-xl rounded-ee-xl border-bs p-(--card-spacing) flex items-center", p.Class) }
 		{ p.Attributes... }
 	>
 		{ children... }
