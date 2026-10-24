@@ -105,8 +105,9 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	filters, selectedID, section, err := webSearch(c.QueryParams())
 	page := home.SearchPage{SelectedID: selectedID, Section: section}
 	page.ActionReturnURL = c.Request().URL.RequestURI()
+	now := a.clock()
 	if err == nil {
-		page.Filters, err = discovery.ParseQuery(filters, time.Now())
+		page.Filters, err = discovery.ParseQuery(filters, now)
 	}
 	status := http.StatusOK
 	partial := c.Request().Header.Get("HX-Request") == "true"
@@ -114,15 +115,18 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		page.LocationSource, err = a.locateSearch(c, &page.Filters)
 		page.NeedsLocation = page.Filters.City == "" && page.Filters.VenueID == ""
 	}
-	returnValues := page.Filters.Values()
-	if cursor := filters.Get("cursor"); cursor != "" {
-		returnValues.Set("cursor", cursor)
-	}
-	page.ReturnURL = "/?" + returnValues.Encode()
+	// Without start_date the range starts today in the browsed city, not on the
+	// UTC date, which is already tomorrow during a US evening. A city's zone is
+	// learned from its results, so its first search may be corrected once.
+	localDefault := err == nil && !page.NeedsLocation && filters.Get("start_date") == "" && filters.Get("cursor") == ""
+	localized := localDefault && a.localizeDefaultDates(&page.Filters, filters, now)
 	if err == nil && !page.NeedsLocation {
 		// Event results take priority: a failed optional catalog refresh must not
 		// pause this search before it reaches the shared provider request gate.
 		page.Events, err = a.events.Events(c.Request().Context(), page.Filters)
+		if err == nil && localDefault && !localized && a.localizeDefaultDates(&page.Filters, filters, now) {
+			page.Events, err = a.events.Events(c.Request().Context(), page.Filters)
+		}
 		if !partial {
 			// Taxonomy is optional. Its shared cache refresh can continue, but it
 			// must not hold an otherwise usable page behind a slow provider.
@@ -133,6 +137,11 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			page.CategoriesUnavailable = catalogErr != nil
 		}
 	}
+	returnValues := page.Filters.Values()
+	if cursor := filters.Get("cursor"); cursor != "" {
+		returnValues.Set("cursor", cursor)
+	}
+	page.ReturnURL = "/?" + returnValues.Encode()
 	if err != nil {
 		status, page.Error = errorMessage(err)
 		setRetryAfter(c, err)
@@ -209,6 +218,27 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		}
 	}
 	return render(c, status, home.Index(page))
+}
+
+// localizeDefaultDates moves an omitted start_date to the city's calendar day
+// once its zone is known, keeping an explicit end_date. It reports whether the
+// filters changed; an unknown zone or an invalid range leaves them unchanged.
+func (a *api) localizeDefaultDates(q *discovery.Query, filters url.Values, now time.Time) bool {
+	today, ok := a.events.CityToday(*q, now)
+	if !ok || today == q.StartDate {
+		return false
+	}
+	values := q.Values()
+	values.Set("start_date", today)
+	if filters.Get("end_date") == "" {
+		values.Del("end_date")
+	}
+	localized, err := discovery.ParseQuery(values, now)
+	if err != nil {
+		return false
+	}
+	*q = localized
+	return true
 }
 
 func errorMessage(err error) (int, string) {

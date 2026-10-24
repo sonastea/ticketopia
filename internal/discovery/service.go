@@ -44,6 +44,7 @@ type Service struct {
 	catalog     Catalog
 	freshFor    time.Duration
 	tints       *Tints
+	zones       cityZones
 }
 
 func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Config) *Service {
@@ -81,7 +82,16 @@ type eventPage struct {
 	TotalPages int            `json:"total_pages"`
 }
 
+// Events also remembers the city's time zone from its results for CityToday.
 func (s *Service) Events(ctx context.Context, q Query) (models.EventList, error) {
+	list, err := s.events(ctx, q)
+	if err == nil {
+		s.learnCityZone(q, list.Items)
+	}
+	return list, err
+}
+
+func (s *Service) events(ctx context.Context, q Query) (models.EventList, error) {
 	// Validate again at the service boundary for non-HTTP clients.
 	validated, err := ParseQuery(q.Values(), s.now())
 	if err != nil {

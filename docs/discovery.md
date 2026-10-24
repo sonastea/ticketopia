@@ -48,8 +48,13 @@ using the [cache guide](cache.md).
 
 Open `/` to search by city, two-letter country code, event/performer/team keyword,
 venue-local date range, category, and compatible genre. Searches default to
-**All categories**. The default range is today (UTC) through 90 days
-later. The web page uses a chosen city, a remembered city, or an approximate
+**All categories**. The default range is today through 90 days later, where
+"today" is the browsed city's calendar day: Ticketmaster dates are venue-local,
+and the UTC date is already tomorrow during a US evening. The city's zone is
+learned from its results' event or venue time zone into a bounded in-process
+memo, so a city's first search per replica may refetch once with the corrected
+range; until a zone is known the UTC date is used. An explicit `start_date` or a
+cursor is never moved, and the JSON API keeps its UTC default. The web page uses a chosen city, a remembered city, or an approximate
 IP-based city, in that order. When none is available it asks for a city before
 fetching events. Use both city and country to narrow ambiguous place names.
 See [location-aware discovery](location.md) for lookup caching, editable defaults,
@@ -180,6 +185,9 @@ A new form submission starts at the first page.
   on viewports at least 32rem tall, Tickets and Save form a sticky bar above the
   bottom navigation. It stays in normal flow, ordered last so it settles at the
   end of the event, and JavaScript only measures the navigation's actual height.
+  The two actions share one row; when the bar is narrower than 26rem (a container
+  query) the visible label shortens to **Tickets**, keeping "Tickets on
+  Ticketmaster" as the accessible name. Enlarged text wraps them instead.
   Description and practical notices are visible without disclosure. Interested/Recommend/reminders are grouped
   separately below content. **Event source & history** discloses only secondary
   provenance; stale warnings remain adjacent to essential facts.

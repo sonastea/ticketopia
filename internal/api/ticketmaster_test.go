@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -117,6 +118,77 @@ func (f failOnDurableRead) Upsert(context.Context, models.Event) (models.Event, 
 func (f failOnDurableRead) Get(context.Context, string) (models.Event, error) {
 	f.t.Error("discovery read changed to durable metadata")
 	return models.Event{}, events.ErrDisabled
+}
+
+// During a US evening the UTC date is already tomorrow; a default Discover list
+// must still include tonight's events in the browsed city.
+func TestDiscoverDefaultStartsOnBrowsedCityDay(t *testing.T) {
+	fixture := categoryFixture(t)
+	var mu sync.Mutex
+	var starts []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "classifications") {
+			_, _ = w.Write(fixture)
+			return
+		}
+		start, _, _ := strings.Cut(r.URL.Query().Get("localStartDateTime"), "T")
+		mu.Lock()
+		starts = append(starts, start)
+		mu.Unlock()
+		_, _ = fmt.Fprintf(w, `{"page":{"number":0,"totalElements":1,"totalPages":1},"_embedded":{"events":[{"id":"tonight","name":"Show on %s","dates":{"start":{"localDate":"%s","localTime":"20:00:00"},"timezone":"America/Los_Angeles"}}]}}`, start, start)
+	}))
+	defer upstream.Close()
+	cache := kv.NewMemory()
+	defer cache.Close()
+	// 01:30 UTC on Saturday is 18:30 on Friday in Los Angeles.
+	now := time.Date(2026, 10, 24, 1, 30, 0, 0, time.UTC)
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL}), now: func() time.Time { return now }}
+	routes := a.Routes()
+	request := func(query string) string {
+		t.Helper()
+		mu.Lock()
+		starts = nil
+		mu.Unlock()
+		rec := httptest.NewRecorder()
+		routes.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/?"+query, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: %d %s", query, rec.Code, rec.Body.String())
+		}
+		return rec.Body.String()
+	}
+	fetched := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), starts...)
+	}
+	// The first search learns the city's zone and corrects its range once.
+	body := request("city=Los+Angeles&country=US")
+	if got := fetched(); len(got) != 2 || got[0] != "2026-10-24" || got[1] != "2026-10-23" {
+		t.Fatalf("first search fetched %v", got)
+	}
+	if !strings.Contains(body, "Show on 2026-10-23") || !strings.Contains(body, "start_date=2026-10-23") || strings.Contains(body, "end_date=2027-01-22") {
+		t.Fatal("first search did not show the city's day")
+	}
+	// Later searches for the city start on its day without a probe.
+	body = request("city=los+angeles&country=US&keyword=jazz")
+	if got := fetched(); len(got) != 1 || got[0] != "2026-10-23" || !strings.Contains(body, "start_date=2026-10-23") {
+		t.Fatalf("known city fetched %v", got)
+	}
+	// An explicit end date is kept; an explicit start date is never moved.
+	request("city=Los+Angeles&country=US&end_date=2026-10-30")
+	if got := fetched(); len(got) != 1 || got[0] != "2026-10-23" {
+		t.Fatalf("explicit end date fetched %v", got)
+	}
+	request("city=Los+Angeles&country=US&start_date=2026-10-25")
+	if got := fetched(); len(got) != 1 || got[0] != "2026-10-25" {
+		t.Fatalf("explicit start date fetched %v", got)
+	}
+	// The public API keeps its documented UTC default (the probe's cached page).
+	rec := httptest.NewRecorder()
+	routes.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/events?city=Los+Angeles&country=US", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Show on 2026-10-24") {
+		t.Fatalf("API default changed: %d %s", rec.Code, rec.Body.String())
+	}
 }
 
 func TestUnavailableResponsesAreVisibleAndRedacted(t *testing.T) {

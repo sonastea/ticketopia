@@ -610,21 +610,8 @@ func chipCurrent(current bool) string {
 // searchToday takes the calendar day in the browsed city's time zone, read
 // from its events, so "Tonight" in Los Angeles is not the server's UTC date.
 func searchToday(events []models.Event, now time.Time) time.Time {
-	for _, event := range events {
-		zone := ""
-		if event.Start.Timezone != nil {
-			zone = *event.Start.Timezone
-		} else if len(event.Venues) > 0 {
-			zone = event.Venues[0].Timezone
-		}
-		if zone == "" {
-			continue
-		}
-		if loc, err := time.LoadLocation(zone); err == nil {
-			return now.In(loc)
-		}
-	}
-	return now.UTC()
+	today, _ := discovery.EventsToday(events, now)
+	return today
 }
 
 func cityLabel(page SearchPage) string {

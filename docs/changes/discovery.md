@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-10-23 — Tonight's events in US evenings
+
+- Start the default Discover range on the browsed city's calendar day, not the UTC
+  date, which is already tomorrow during a US evening. The city's zone is learned
+  from its results into a bounded memo, so only a city's first search may refetch
+  once. Explicit `start_date`, cursors and the `/api/v1/events` UTC default are
+  unchanged. See [discovery](../discovery.md#web-ui).
+
 ### 2026-10-23 — Pagination loading placeholders
 
 - While **Load more events** runs, show three `aria-hidden` placeholder rows in the
@@ -67,28 +75,6 @@
 - Discover, Community and event pages redirect (`302`) away from unsupported query
   keys such as `utm_*`/`fbclid` instead of returning 400; `/api/v1` stays strict.
   See [discovery](../discovery.md#json-api).
-
-### 2026-10-11 — In-place event-section navigation
-
-- Deliver part 1 of [app polish](../design/app-polish-and-event-section-navigation.md)
-  on Discover and standalone event pages. Preserve header/action/navigation and
-  participation/provenance nodes; replace only the requested section body.
-- Add private, validated section fragments, canonical action returns, selected-only
-  optional reads, and fresh fact/permission/CSRF reconciliation. Keep native links,
-  conversation-plus-community context, and the existing JSON API.
-- Commit history only after confirmed switches; restore reading position on Back,
-  preserve collection return journeys and scoped drafts (including blocked storage),
-  reject obsolete/redirected/mismatched responses, and offer local failure recovery.
-- Verify 218 Chromium fixture checks, eight clean automated accessibility scans,
-  stable DOM/document-request assertions, failure/rapid-switch/session-change cases,
-  native navigation, and batched desktop/mobile captures. Physical-device, manual
-  screen-reader and live OAuth checks remain outside this evidence.
-- Pass isolated MariaDB browser regressions for Saved (78), Interests (77),
-  recommendations (72), responsive discussions (137), Radar (38), reminders (23),
-  and followed discussions (46). Build assets/binary, run the full local-MariaDB
-  race suite, host vet and final Docker `make check`; only pre-existing
-  design-detector advisories remain.
-- See the [UX guide](../design-guidelines.md) and [fragment contract](../discovery.md#in-place-event-sections).
 
 Older entries: [discovery archive](archive/discovery/).
 
