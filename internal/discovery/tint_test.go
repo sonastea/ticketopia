@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/sonastea/ticketopia/internal/models"
 )
@@ -148,4 +149,39 @@ func TestTintsApplyIsBoundedAndMemoized(t *testing.T) {
 	}
 	var nilTints *Tints
 	nilTints.apply(context.Background(), again)
+}
+
+// An unavailable CDN must not cost every uncached search the batch timeout.
+func TestTintsPauseAfterTransientFailure(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	now := time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
+	tints := NewTints(server.Client())
+	tints.allow = func(*url.URL) bool { return true }
+	tints.now = func() time.Time { return now }
+	events := func(path string) []models.Event {
+		return []models.Event{{Images: []models.Image{{URL: server.URL + path, Width: 100, Height: 56}}}}
+	}
+	tints.apply(context.Background(), events("/a.png"))
+	tints.apply(context.Background(), events("/b.png"))
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("requests while paused = %d, want 1", got)
+	}
+	now = now.Add(tintRetryAfter)
+	tints.apply(context.Background(), events("/b.png"))
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("requests after pause = %d, want 2", got)
+	}
+	// A caller that went away does not pause later searches.
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	now = now.Add(tintRetryAfter)
+	tints.apply(cancelled, events("/c.png"))
+	if tints.pausedNow() {
+		t.Fatal("cancelled request paused artwork tints")
+	}
 }

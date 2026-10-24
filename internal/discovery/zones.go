@@ -18,6 +18,23 @@ type cityZones struct {
 	order []string
 }
 
+// loadedZones memoizes time.LoadLocation, which reads zoneinfo on every call
+// and runs on each Discover search and render. Only loadable names are kept,
+// so the map is bounded by the tz database rather than by provider input.
+var loadedZones sync.Map
+
+func loadZone(name string) (*time.Location, bool) {
+	if loc, ok := loadedZones.Load(name); ok {
+		return loc.(*time.Location), true
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return nil, false
+	}
+	loadedZones.Store(name, loc)
+	return loc, true
+}
+
 // EventsToday returns now in the time zone of the first event, or its first
 // venue, that names a loadable zone. Ticketmaster dates are venue-local, so
 // this is the calendar day a city's results are filtered by.
@@ -39,7 +56,7 @@ func eventsZone(events []models.Event) (*time.Location, bool) {
 		if zone == "" {
 			continue
 		}
-		if loc, err := time.LoadLocation(zone); err == nil {
+		if loc, ok := loadZone(zone); ok {
 			return loc, true
 		}
 	}

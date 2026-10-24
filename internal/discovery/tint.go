@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/models"
@@ -30,6 +31,10 @@ const (
 	tintMaxPixels    = 2048 * 2048
 	tintMemo         = 4096
 	tintSamples      = 4096
+	// A batch with a transient failure (timeout, 5xx, network error) pauses
+	// artwork requests, so a slow or unavailable CDN delays at most one search
+	// per pause rather than every uncached search by the full batch timeout.
+	tintRetryAfter = time.Minute
 
 	// Every tint has this OKLCH lightness and at most this chroma, so the
 	// 18% surface mix keeps muted text above WCAG AA (see tint_test.go).
@@ -40,9 +45,11 @@ const (
 type Tints struct {
 	client *http.Client
 	allow  func(*url.URL) bool
+	now    func() time.Time
 	mu     sync.Mutex
 	known  map[string]string
 	order  []string
+	paused time.Time
 }
 
 // NewTints fetches Ticketmaster CDN artwork only. A nil client uses a short,
@@ -54,7 +61,7 @@ func NewTints(client *http.Client) *Tints {
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		}
 	}
-	return &Tints{client: client, allow: ticketmasterArtwork, known: map[string]string{}}
+	return &Tints{client: client, allow: ticketmasterArtwork, now: time.Now, known: map[string]string{}}
 }
 
 func ticketmasterArtwork(u *url.URL) bool {
@@ -63,11 +70,11 @@ func ticketmasterArtwork(u *url.URL) bool {
 }
 
 // apply fills missing tints in place. It never fails the caller's read.
-func (t *Tints) apply(ctx context.Context, events []models.Event) {
+func (t *Tints) apply(parent context.Context, events []models.Event) {
 	if t == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(ctx, tintBatchTimeout)
+	ctx, cancel := context.WithTimeout(parent, tintBatchTimeout)
 	defer cancel()
 	wanted := map[string][]int{}
 	for i := range events {
@@ -84,6 +91,10 @@ func (t *Tints) apply(ctx context.Context, events []models.Event) {
 		}
 		wanted[source] = append(wanted[source], i)
 	}
+	if len(wanted) == 0 || t.pausedNow() {
+		return
+	}
+	var failed atomic.Bool
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	slots := make(chan struct{}, tintParallel)
@@ -97,6 +108,7 @@ func (t *Tints) apply(ctx context.Context, events []models.Event) {
 			defer func() { <-slots }()
 			tint, ok := t.fetch(ctx, source)
 			if !ok {
+				failed.Store(true)
 				return
 			}
 			t.remember(source, tint)
@@ -108,6 +120,18 @@ func (t *Tints) apply(ctx context.Context, events []models.Event) {
 		})
 	}
 	wg.Wait()
+	// A request the caller abandoned says nothing about the CDN.
+	if parent.Err() == nil && (failed.Load() || ctx.Err() != nil) {
+		t.mu.Lock()
+		t.paused = t.now().Add(tintRetryAfter)
+		t.mu.Unlock()
+	}
+}
+
+func (t *Tints) pausedNow() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.now().Before(t.paused)
 }
 
 func (t *Tints) recall(source string) (string, bool) {

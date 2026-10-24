@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/a-h/templ"
@@ -122,6 +124,31 @@ func twReorder(input, merged string) string {
 // resolves Tailwind conflicts with the last class winning, in input order.
 func CN(classes ...any) string {
 	flat := flattenClasses(classes)
+	// The result depends only on the space-joined classes: the shim's rewrites
+	// work within single tokens and the merge joins its arguments with spaces.
+	key := strings.Join(flat, " ")
+	if out, ok := cnMemo.Load(key); ok {
+		return out.(string)
+	}
+	out := cn(flat)
+	if cnMemoSize.Load() < cnMemoMax && cnMemoSize.Add(1) <= cnMemoMax {
+		cnMemo.Store(key, out)
+	}
+	return out
+}
+
+// Templates pass a small, mostly constant set of class lists, so every render
+// repeated the same regexp and merge work. Read-mostly sync.Map hits avoid
+// the merge library's global LRU lock; once full, new lists are computed
+// without being stored.
+const cnMemoMax = 4096
+
+var (
+	cnMemo     sync.Map
+	cnMemoSize atomic.Int64
+)
+
+func cn(flat []string) string {
 	merged := make([]string, len(flat))
 	for i, c := range flat {
 		merged[i] = twMapTokens(twV4Var.ReplaceAllString(c, "-[var($1)]"), twImportantToV3)

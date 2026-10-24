@@ -156,8 +156,10 @@ A new form submission starts at the first page.
   pixels, takes the most chroma-weighted hue family, and stores it in the event
   snapshot as `tint` (`#rrggbb` at OKLCH lightness .66, chroma ≤ .12). Grey
   artwork, timeouts and other hosts leave it empty and the page uses the brand
-  hue. Rendering never fetches images; only strict lowercase `#rrggbb` reaches
-  the inline `--event-tint`.
+  hue. A batch with a timeout, 5xx or network failure pauses artwork requests for
+  a minute (unless the caller abandoned the request), so a slow CDN delays at most
+  one uncached search per minute. Rendering never fetches images; only strict
+  lowercase `#rrggbb` reaches the inline `--event-tint`.
 - The results heading shares its line with a short sort label. A single results
   line combines update time, any stale-fallback warning and incomplete coverage
   (`data-coverage`). It isn't a live region, so it isn't re-announced on each load.

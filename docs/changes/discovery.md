@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-10-23 — Faster Discover rendering
+
+- Memoize loaded time zones, which `time.LoadLocation` re-read from disk on every
+  Discover search and render, and bounded `utils.CN` class-merge results. A
+  20-event Discover render fell from 1.20 ms to 0.45 ms (local benchmark).
+- Pause artwork tint requests for a minute after a transient batch failure, so an
+  unavailable CDN no longer adds the 1.5s deadline to every uncached search.
+  See [discovery](../discovery.md#responsive-navigation-and-event-details).
+
 ### 2026-10-23 — Quiet spotlight selection
 
 - Replace the selected row's plum leading edge and shadow, whose rounded corners
