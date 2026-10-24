@@ -128,8 +128,9 @@ A new form submission starts at the first page.
   Interests and Radar pages), not the viewport: below 26rem artwork stacks above
   facts, from 26rem rows place square artwork (7.5–11rem) beside them, and from
   48rem an intrinsic grid shows two or three cards. A ticket-stub date chip sits
-  on every row's artwork. The selected row keeps its geometry, with a 3px leading
-  brand edge on a raised surface.
+  on every row's artwork. The selected row keeps its geometry: a flat, rounded
+  pale-plum wash with a "Viewing" label after its date (cards also tint their
+  border), and list separators beside it give way.
 - One command bar joins location and search: **Events in {city}** (**Choose your
   city** before one is chosen) is a link that opens the native Filters disclosure
   and focuses City (with an accessible "change city" suffix), and the keyword

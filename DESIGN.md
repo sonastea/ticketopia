@@ -230,7 +230,7 @@ components:
     textColor: "{colors.ink}"
     padding: "1.5rem .75rem"
   event-row-selected:
-    backgroundColor: "{colors.brand-soft}"
+    backgroundColor: "color-mix(in oklch, var(--brand-soft) 35%, var(--surface))"
     rounded: "{rounded.radius}"
   event-image:
     backgroundColor: "{colors.brand-soft}"
@@ -422,13 +422,13 @@ The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100d
 
 ## Elevation & Depth
 
-The normal interface has one cast shadow: `shadow-raised`, a soft ink-tinted shadow under the selected result row, which also turns white and gains a 3px plum leading edge (Highlight in forced colors). Otherwise depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected row stays in the list's geometry. Community and Happening Now cards are white and bordered but flat, with no shadow. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not glass surfaces. The phone navigation floats as an inset pill and the compact event action bar above it as a rounded card, but both are solid and border-defined: a one-pixel border, no cast shadow or blur.
+The normal interface has no cast shadows. Depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected result row is a flat, rounded wash of 35% pale plum in white with a plum "Viewing" label after its date; in the card grid its border also mixes 30% plum, and in lists the separators on both sides turn transparent at full width. Forced colors replace the wash with a 2px `SelectedItem` frame. Hovering a row's title or artwork gives a neutral stone wash (control-line border on cards), deepening toward pale plum when the row is selected; pressing gives a deeper flat plum wash. The selected row stays in the list's geometry, and the hidden labels on other rows keep their space. Community and Happening Now cards are white and bordered but flat, with no shadow. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not glass surfaces. The phone navigation floats as an inset pill and the compact event action bar above it as a rounded card, but both are solid and border-defined: a one-pixel border, no cast shadow or blur.
 
 Focus is an outline, not a shadow: a solid plum ring (3px) offset from the target (4px), including navigation and sidebar controls. Themed library focus rings and card shadows are explicitly suppressed.
 
 The source does use `box-shadow` for drag insertion markers: `inset 0 2px 0 var(--brand)` before a target and `inset 0 -2px 0 var(--brand)` after it. These are functional two-pixel rules inside a reorder target, not elevation or cast depth; the dragged item/section also dims to opacity .55.
 
-**The Border-Only Depth Rule.** Separate surfaces with tone, spacing, and borders. The selected result row is the single raised exception; do not spread cast shadows to other components.
+**The Border-Only Depth Rule.** Separate surfaces with tone, spacing, and borders. Selection is tone plus a label, never elevation; do not add cast shadows to components.
 
 ## Shapes
 
@@ -560,7 +560,7 @@ collection context and Radar reasons. Only Interests retains interest management
 in its rows; reminders remain in event views. Missing URLs and disabled accounts
 have concise explanations rather than inert list toolbars.
 
-The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with artwork, then local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is a raised white surface with a 3px plum leading edge; the title and image remain real Overview links. The date marker is a ticket stub: radial-gradient masks perforate both inline edges, and on artwork it is a one-line chip (uppercase month, tabular day) in the image's lower start corner, wrapping between month and day only when space runs out. Its short date is decorative beside the full readable date; unknown dates say TBA.
+The signature pairs provider photography with compact dusty-rose date indexing. Rows lead with artwork, then local show date, event title, and venue, followed by sale status and known price or an explicit unknown. Their selected state is a flat pale-plum wash labeled "Viewing"; the title and image remain real Overview links. The date marker is a ticket stub: radial-gradient masks perforate both inline edges, and on artwork it is a one-line chip (uppercase month, tabular day) in the image's lower start corner, wrapping between month and day only when space runs out. Its short date is decorative beside the full readable date; unknown dates say TBA.
 
 The private Saved collection reuses these rows, ordered newest saved first, with ordinary pagination and event links that retain the return page. Its privacy statement and last-known-details guidance distinguish durable saves from public interest and current ticket availability. Save remains independent of Interested, whose list control appears only in the own Interests collection. That collection uses the same rows, newest interest first, above private category preferences on `/me/interests`. Its event links and participant pagination preserve the originating collection page. Empty collections lead back to Discover. See [saved events](docs/saved-events.md), [event interest](docs/event-interest.md), and the [Saved surface contract](.impeccable/surfaces/views-home-saved-templ.md) for feature behavior.
 

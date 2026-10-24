@@ -216,7 +216,6 @@
   --space-hero-inset: clamp(.5rem, .125rem + 1.875vw, 2rem);
   /* Resolved against the results container where rows place artwork beside facts. */
   --size-row-art: clamp(7.5rem, 2rem + 18cqi, 11rem);
-  --shadow-raised: 0 1px 2px color-mix(in oklch, var(--ink) 8%, transparent), 0 .75rem 1.5rem -1rem color-mix(in oklch, var(--ink) 35%, transparent);
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   /* The phone navigation floats this far above the bottom edge/home indicator. */
   --nav-float-gap: max(.75rem, calc(.25rem + env(safe-area-inset-bottom, 0px)));
@@ -943,20 +942,72 @@ summary::-webkit-details-marker {
   padding-block: 1.5rem;
   padding-inline: .75rem;
   border-block-start: 1px solid var(--line);
-  transition-property: background-color, box-shadow;
+  transition-property: background-color, border-color;
   transition-duration: 180ms;
   transition-timing-function: var(--ease-out);
   scroll-margin-block: 2rem 6rem;
+  /* Every wash stays lighter than pale plum, so its documented text contrast holds. */
+  --row-hover: color-mix(in oklch, var(--nav-surface) 70%, var(--surface));
+  --row-press: color-mix(in oklch, var(--brand-soft) 45%, var(--surface));
+  --row-selected: color-mix(in oklch, var(--brand-soft) 35%, var(--surface));
+  --row-selected-hover: color-mix(in oklch, var(--brand-soft) 60%, var(--surface));
 }
 
-/* Selection raises the row in place and marks its leading edge instead of filling it. */
+/* Selection is a quiet, uniform spotlight; the Viewing label and aria-current
+   carry it beyond the wash. Hover and press follow the row's Overview links. */
 .event-row[data-selected="true"] {
-  padding-inline-start: calc(.75rem - 3px);
-  border-inline-start: 3px solid var(--brand);
   border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-raised);
+  background: var(--row-selected);
 }
+
+@media (hover: hover) and (pointer: fine) {
+  .event-row:has(:is(.event-link, .event-art > a):hover) {
+    border-radius: var(--radius);
+    background: var(--row-hover);
+  }
+  .event-row[data-selected="true"]:has(:is(.event-link, .event-art > a):hover) {
+    background: var(--row-selected-hover);
+  }
+}
+
+.event-row:has(:is(.event-link, .event-art > a):active) {
+  border-radius: var(--radius);
+  background: var(--row-press);
+}
+.event-row[data-selected="true"]:has(:is(.event-link, .event-art > a):active) {
+  background: var(--brand-soft);
+}
+
+/* A lit list row's rounded surface stands alone: the rules on either side give
+   way while keeping their width, so nothing shifts. */
+@container results (width < 48rem) {
+  .event-row:is([data-selected="true"], :has(:is(.event-link, .event-art > a):active)),
+  .event-row:is([data-selected="true"], :has(:is(.event-link, .event-art > a):active)) + .event-row {
+    border-block-start-color: transparent;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  @container results (width < 48rem) {
+    .event-row:has(:is(.event-link, .event-art > a):hover),
+    .event-row:has(:is(.event-link, .event-art > a):hover) + .event-row {
+      border-block-start-color: transparent;
+    }
+  }
+}
+
+/* Shown only in Discover's extended rows, where selection happens; hidden labels
+   keep their space so selecting a row never reflows it. */
+.viewing-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .25rem;
+  margin-inline-start: .5rem;
+  color: var(--brand);
+  white-space: nowrap;
+  visibility: hidden;
+}
+.viewing-label .icon { align-self: center; inline-size: 1.125em; block-size: 1.125em; }
+.event-row[data-selected="true"] .viewing-label { visibility: visible; }
 
 @container results (min-width: 26rem) {
   .event-row { grid-template-columns: var(--size-row-art) minmax(0, 1fr); }
@@ -978,8 +1029,12 @@ summary::-webkit-details-marker {
     background: var(--surface);
   }
   .event-row[data-selected="true"] {
-    padding-inline-start: calc(.75rem - 2px);
-    border-inline-start: 3px solid var(--brand);
+    border-color: color-mix(in oklch, var(--brand) 30%, var(--line));
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .event-row:not([data-selected="true"]):has(:is(.event-link, .event-art > a):hover) {
+      border-color: var(--control-line);
+    }
   }
   .event-row .event-art { margin-block-end: 1rem; }
   .event-row .event-art .event-image { aspect-ratio: 16 / 9; }
@@ -1790,8 +1845,10 @@ summary::-webkit-details-marker {
   .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
     border-color: Highlight;
   }
+  /* Washes vanish here, so the selected row gains a system-colored frame. */
   .event-row[data-selected="true"] {
-    border-inline-start-color: Highlight;
+    outline: 2px solid SelectedItem;
+    outline-offset: -2px;
   }
 }
 

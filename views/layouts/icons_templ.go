@@ -107,6 +107,8 @@ func iconName(name string) string {
 		return "panel-left-close"
 	case "sidebar-expand":
 		return "panel-left-open"
+	case "viewing":
+		return "panel-right"
 	default:
 		return name
 	}

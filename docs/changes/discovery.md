@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-10-23 — Quiet spotlight selection
+
+- Replace the selected row's plum leading edge and shadow, whose rounded corners
+  clashed with straight list separators, with a flat 35% pale-plum wash and a
+  "Viewing" label after the date (space reserved, so nothing reflows). List
+  separators beside the selected row turn transparent; cards tint their border.
+- Rows gain a stone hover and flat press wash from their title or artwork links;
+  forced colors frame the selection with `SelectedItem`.
+  See [discovery](../discovery.md#responsive-navigation-and-event-details).
+
 ### 2026-10-23 — Tonight's events in US evenings
 
 - Start the default Discover range on the browsed city's calendar day, not the UTC
