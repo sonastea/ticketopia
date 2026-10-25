@@ -4,8 +4,8 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-10-24 — [Event discovery](changes/discovery.md)
 - 2026-10-23 — [UI components](changes/ui-components.md)
-- 2026-10-23 — [Event discovery](changes/discovery.md)
 - 2026-10-23 — [Authentication and accounts](changes/accounts.md)
 - 2026-10-23 — [Positive event communities](changes/event-communities.md)
 - 2026-10-23 — [OpenAPI contract](changes/openapi.md)

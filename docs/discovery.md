@@ -212,6 +212,9 @@ A new form submission starts at the first page.
   and Open event on failure. A failed preview leaves the discovery list usable.
   Choosing an event focuses its preview heading on every layout; closing restores
   the result title. History restores keep focus where the browser left it.
+  Opening the desktop preview reflows results, so the chosen row is centered
+  instantly in the same frame; closing it or widening to desktop scrolls only a
+  row left out of view.
   Successful compact context omits standalone expansion; desktop offers one
   **Open event page** link. Saved, Interests, and Radar return across event sections
   to the original collection cursor, position, and focused event.

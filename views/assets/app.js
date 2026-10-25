@@ -963,6 +963,19 @@
     }
     workspace.classList.toggle('has-selection', Boolean(id));
   };
+  const selectedRow = () => document.querySelector('.event-row[data-selected="true"]');
+  // Opening or closing the desktop preview reflows the results (cards become
+  // rows), stranding the selected row. Called in the same task as the reflow, the
+  // correction lands before paint, so nothing visibly jumps or animates. Rows
+  // that stayed fully visible are left alone unless `center` is requested, and a
+  // row taller than the viewport aligns its start with the root scroll padding.
+  const revealRow = (row, center) => {
+    if (!row) return;
+    const rect = row.getBoundingClientRect();
+    if (!center && rect.top >= 0 && rect.bottom <= innerHeight) return;
+    const inset = parseFloat(getComputedStyle(document.documentElement).scrollPaddingBlockStart) || 0;
+    scrollTo(0, scrollY + rect.top - Math.max(inset, (innerHeight - rect.height) / 2));
+  };
   const detailURL = (id, section = 'overview', recommend = false) => {
     const url = new URL('/events/' + encodeURIComponent(id), location.origin);
     url.searchParams.set('return_to', workspace.dataset.resultsUrl);
@@ -1056,7 +1069,9 @@
     }
     // Reveal the initial/different-event loading and recovery surface on compact
     // layouts; its URL is still committed only after a validated response.
+    const opening = !workspace.classList.contains('has-selection');
     markSelection(id);
+    if (push && desktop.matches) revealRow(selectedRow(), opening);
     context.setAttribute('aria-busy', 'true');
     context.replaceChildren(previewTemplate('loading'));
     status.textContent = 'Loading event preview.';
@@ -1133,12 +1148,14 @@
       writeHistory('pushState', { ...history.state }, '', url);
     }
     renderedURL = location.href;
+    const viewed = selectedRow();
     markSelection('');
     context.replaceChildren(previewTemplate('empty'));
     status.textContent = 'Event preview closed.';
     const trigger = [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === lastFocusID);
     trigger?.focus({ preventScroll: true });
     if (!desktop.matches) scrollTo(0, resultsScroll);
+    else if (push) revealRow(viewed, false);
   };
   document.addEventListener('click', event => {
     if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -1206,7 +1223,10 @@
       scrollTo(0, 0);
       if (!context.contains(document.activeElement)) context.focus({ preventScroll: true });
     } else {
-      scrollTo(0, resultsScroll);
+      // The compact offset predates the desktop reflow; follow the row instead.
+      const row = selectedRow();
+      if (row) revealRow(row, false);
+      else scrollTo(0, resultsScroll);
     }
   });
 })();

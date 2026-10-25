@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2026-10-24 — Selected row stays in view
+
+- Opening the desktop preview centers the chosen row before paint, without motion,
+  after cards reflow into rows. Closing or widening moves only an out-of-view row;
+  visible rows never shift under the pointer. See [discovery](../discovery.md#responsive-navigation-and-event-details).
+
 ### 2026-10-23 — Faster Discover rendering
 
 - Memoize loaded time zones, which `time.LoadLocation` re-read from disk on every
@@ -88,12 +94,6 @@
 - At 390×844 the first event starts at 475px with a stale, partial-coverage
   fixture; the four-item bottom bar stays on one row at 320px.
   See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-22 — Shared links with tracking parameters
-
-- Discover, Community and event pages redirect (`302`) away from unsupported query
-  keys such as `utm_*`/`fbclid` instead of returning 400; `/api/v1` stays strict.
-  See [discovery](../discovery.md#json-api).
 
 Older entries: [discovery archive](archive/discovery/).
 
