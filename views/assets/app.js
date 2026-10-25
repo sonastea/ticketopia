@@ -983,18 +983,26 @@
     if (recommend) url.searchParams.set('recommend', 'true');
     return url;
   };
+  // Load more and snapshot restores both replace #pagination. Until then the
+  // server renders the same first page, so only the reading position is kept.
+  const renderedPagination = document.getElementById('pagination');
   const rememberResults = () => {
     const list = document.getElementById('event-list');
     const pagination = document.getElementById('pagination');
-    if (!list || !pagination || list.innerHTML.length > 2000000) return;
-    writeHistory('replaceState', { ...history.state, ticketopiaResults: {
+    if (!list || !pagination) return;
+    const saved = {
       url: workspace.dataset.resultsUrl,
-      list: list.innerHTML,
-      pagination: pagination.outerHTML,
       scroll: desktop.matches || !workspace.classList.contains('has-selection') ? scrollY : resultsScroll,
       focus: lastFocusID,
       csrf: document.querySelector('[data-save-form] input[name="csrf_token"]')?.value || '',
-    } }, '', location.href);
+    };
+    if (pagination !== renderedPagination) {
+      const html = list.innerHTML;
+      if (html.length > 2000000) return;
+      saved.list = html;
+      saved.pagination = pagination.outerHTML;
+    }
+    writeHistory('replaceState', { ...history.state, ticketopiaResults: saved }, '', location.href);
   };
   const leaveResults = link => {
     rememberPanel();
@@ -1004,19 +1012,24 @@
     link.href = url.href;
     stageReturn(url, { origin: location.href, steps: 1 });
   };
-  const restoreResults = () => {
+  const restoreResults = event => {
+    // A back/forward-cache restore keeps the live results; the persisted
+    // pageshow handlers revalidate their private state.
+    if (event.persisted) return;
     const saved = history.state?.ticketopiaResults;
     const list = document.getElementById('event-list');
     if (!list || !saved || saved.url !== workspace.dataset.resultsUrl) return;
     const csrf = document.querySelector('[data-save-form] input[name="csrf_token"]')?.value || '';
     if ((saved.csrf || '') !== csrf) return; // Never restore another session's private controls.
-    list.innerHTML = saved.list;
-    document.getElementById('pagination').outerHTML = saved.pagination;
-    window.htmx?.process(list);
-    window.htmx?.process(document.getElementById('pagination'));
-    refreshSavedState();
-    document.dispatchEvent(new Event('ticketopia:state-restored'));
-    markSelection(new URL(location.href).searchParams.get('selected_event'));
+    if (typeof saved.list === 'string' && typeof saved.pagination === 'string') {
+      list.innerHTML = saved.list;
+      document.getElementById('pagination').outerHTML = saved.pagination;
+      window.htmx?.process(list);
+      window.htmx?.process(document.getElementById('pagination'));
+      refreshSavedState();
+      document.dispatchEvent(new Event('ticketopia:state-restored'));
+      markSelection(new URL(location.href).searchParams.get('selected_event'));
+    }
     requestAnimationFrame(() => {
       if (workspace.classList.contains('has-selection') && !desktop.matches) return;
       scrollTo(0, saved.scroll);

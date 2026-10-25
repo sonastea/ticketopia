@@ -49,8 +49,11 @@ go vet ./...
 Import installed components using the module path, for example
 `github.com/sonastea/ticketopia/views/components/button`. Render
 `@button.Button(button.Props{Type: button.TypeSubmit}) { Search }` within a form.
-`@components.Scripts()` is included once in `views/layouts/base.templ`.
-The script bundle is served at `/assets/js/shadcn-templ-<hash>.js`.
+The build still produces the script bundle, served at
+`/assets/js/shadcn-templ-<hash>.js`, but no page loads it: pages render only the
+native Select and Collapsible variants, which need no library JavaScript. Add
+`@components.Scripts()` back to `views/layouts/base.templ` (once, in `<head>`)
+before shipping a JavaScript-enhanced component.
 
 ## Theme and coverage
 
@@ -146,7 +149,13 @@ Secondary text uses `--muted-warm`, derived from `--muted` and `--brand`; use it
 rather than `--muted` for any new muted text. The compact header's scroll-linked
 shrink is written with animation longhands and `animation-duration: auto`: the
 minifier expands a shorthand list with a `0s` duration, which collapses a
-scroll-driven range. Scroll-driven and shimmer motion both sit under
+scroll-driven range. The wordmark animates `font-size`, not a scale: with enlarged
+text it wraps, and only the layout change shrinks the sticky header back for the
+reader. Its layout work is limited to the first 4rem of scrolling. Placeholder
+shimmer moves a clipped `::after` highlight with `translate`, which browsers composite,
+rather than repainting a background position. Sidebar collapse switches its grid
+tracks instantly; it is not transitioned, which would lay out the workspace on every
+frame. Scroll-driven and shimmer motion both sit under
 `prefers-reduced-motion: no-preference`.
 
 Modern features follow the existing Tailwind v4 browser baseline (Chrome 111+,
@@ -178,6 +187,9 @@ updating components, and review the registry diff before using `--overwrite`:
 - Rendered components (`alert`, `badge`, `button`, `card`, `empty`, `input`) use
   logical inline and block utilities (block ones need Tailwind 4.2+). They clip with `overflow-clip`, name color-only transitions, and keep a
   transparent `outline-hidden` instead of `outline-none`.
+
+- `baseui/lifecycle.js` rescans for component parts only when a mutation adds or
+  removes an element; text and comment changes are ignored.
 
 The upstream Select and Collapsible implementations and dependencies remain
 available for future JavaScript-enhanced widgets. Use the native variants for

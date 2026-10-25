@@ -10,14 +10,26 @@
     if (memory.has(key)) return memory.get(key);
     try { return JSON.parse(sessionStorage.getItem(key)); } catch (_) { return null; }
   }
-  function store(form, value) {
+  // Page memory updates on every keystroke; browser storage is written at most
+  // every 400ms while typing and flushed when the page is hidden or left.
+  const unsaved = new Map();
+  let persistTimer = 0;
+  function persist() {
+    clearTimeout(persistTimer); persistTimer = 0;
+    for (const [key, value] of unsaved) {
+      try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* In-page drafting still works. */ }
+    }
+    unsaved.clear();
+  }
+  function store(form, value, later) {
     const key = prefix + form.dataset.discussionDraft;
-    memory.set(key, value);
-    try { sessionStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* In-page drafting still works. */ }
+    memory.set(key, value); unsaved.set(key, value);
+    if (!later) persist();
+    else if (!persistTimer) persistTimer = setTimeout(persist, 400);
   }
   function clear(form) {
     const key = prefix + form.dataset.discussionDraft;
-    memory.set(key, null);
+    memory.set(key, null); unsaved.delete(key);
     try { sessionStorage.removeItem(key); } catch (_) {}
   }
   function feedback(form, message) {
@@ -38,15 +50,16 @@
     const dirty = form.elements.post_id.value ? form.elements.body.value !== form.elements.body.defaultValue : Boolean(form.elements.body.value);
     if (discard) discard.hidden = Boolean(attempt) || form.dataset.pending === 'true' || !dirty;
   }
-  function save(form) {
+  function saveDraft(form, later) {
     if (!form.isConnected || !form.dataset.discussionDraft || confirmedForms.has(form)) return;
     const attempt = attempts.get(form);
     if (form.elements.post_id.value && form.elements.body.value === form.elements.body.defaultValue) {
       clear(form); sync(form); return;
     }
-    store(form, {body: form.elements.body.value, key: form.elements.idempotency_key.value, parent: form.elements.parent_id.value, attempt});
+    store(form, {body: form.elements.body.value, key: form.elements.idempotency_key.value, parent: form.elements.parent_id.value, attempt}, later);
     sync(form);
   }
+  function save(form) { saveDraft(form, false); }
   function restore() {
     document.querySelectorAll('[data-discussion-draft]').forEach(form => {
       if (initialized.has(form)) return;
@@ -67,8 +80,9 @@
   }
   document.addEventListener('input', event => {
     const form = event.target.closest('[data-discussion-draft]');
-    if (form) { confirmedForms.delete(form); save(form); keepComposerVisible(); }
+    if (form) { confirmedForms.delete(form); saveDraft(form, true); keepComposerVisible(); }
   });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-discard-draft]');
     if (!button) return;
@@ -96,13 +110,19 @@
 
   // Normal document scrolling remains the fallback. Only the focused writing
   // group is nudged when the visual viewport (including a keyboard) changes.
-  let viewportFrame;
+  let viewportFrame, viewportBlockSize;
   function keepComposerVisible() {
     if (viewportFrame) return;
     viewportFrame = requestAnimationFrame(() => {
       viewportFrame = 0;
       const viewport = window.visualViewport;
-      document.documentElement.style.setProperty('--discussion-viewport-block-size', (viewport?.height || innerHeight) + 'px');
+      // Typing never resizes the viewport. Writing the variable only when it
+      // changes keeps keystrokes from invalidating style before the reads below.
+      const blockSize = (viewport?.height || innerHeight) + 'px';
+      if (blockSize !== viewportBlockSize) {
+        viewportBlockSize = blockSize;
+        document.documentElement.style.setProperty('--discussion-viewport-block-size', blockSize);
+      }
       const textarea = document.activeElement;
       const form = textarea?.closest('.discussion-composer');
       if (!form || textarea.tagName !== 'TEXTAREA') return;
@@ -330,7 +350,10 @@
   document.addEventListener('ticketopia:remember-drafts', () => document.querySelectorAll('[data-discussion-draft]').forEach(save));
   document.addEventListener('ticketopia:section-loaded', restore);
   window.addEventListener('pagehide', () => document.querySelectorAll('[data-discussion-draft]').forEach(save));
-  new MutationObserver(restore).observe(document.documentElement, {childList: true, subtree: true});
+  // Only added subtrees that contain a draft form trigger the document scan.
+  const addsDraft = record => [...record.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE
+    && (node.matches('[data-discussion-draft]') || node.querySelector('[data-discussion-draft]')));
+  new MutationObserver(records => { if (records.some(addsDraft)) restore(); }).observe(document.documentElement, {childList: true, subtree: true});
   window.addEventListener('pageshow', event => {
     if (event.persisted && page) readConversation(new URL(location.href), {saved: history.state?.ticketopiaConversation});
     else restore();

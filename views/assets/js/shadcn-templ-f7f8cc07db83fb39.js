@@ -882,7 +882,11 @@
     else sync(component);
   }
 
-  new MutationObserver(() => components.forEach(sync))
+  // Text and comment changes cannot mount or unmount a part, so they skip the
+  // document scans.
+  const changesElements = record =>
+    [...record.addedNodes, ...record.removedNodes].some(node => node.nodeType === Node.ELEMENT_NODE);
+  new MutationObserver(records => { if (records.some(changesElements)) components.forEach(sync); })
     .observe(document.documentElement, { childList: true, subtree: true });
 
   window.templ = window.templ || {};

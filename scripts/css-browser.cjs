@@ -96,10 +96,10 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     await page.locator('#pagination').evaluate(node => node.classList.add('htmx-request'));
     check('Pagination loads show shimmering placeholder rows', await page.locator('.pagination-skeleton').evaluate(node => {
       const block = node.querySelector('[data-slot="skeleton"]');
-      return getComputedStyle(node).display === 'grid' && node.querySelectorAll('.skeleton-row').length === 3 && block.getBoundingClientRect().height > 0 && getComputedStyle(block).animationName === 'skeleton-shimmer';
+      return getComputedStyle(node).display === 'grid' && node.querySelectorAll('.skeleton-row').length === 3 && block.getBoundingClientRect().height > 0 && getComputedStyle(block, '::after').animationName === 'skeleton-shimmer';
     }));
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    check('Reduced motion keeps pagination placeholders still', await page.locator('.pagination-skeleton [data-slot="skeleton"]').first().evaluate(node => getComputedStyle(node).animationName === 'none'));
+    check('Reduced motion keeps pagination placeholders still', await page.locator('.pagination-skeleton [data-slot="skeleton"]').first().evaluate(node => getComputedStyle(node).animationName === 'none' && getComputedStyle(node, '::after').animationName === 'none'));
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     if (out) {
       await page.locator('#pagination').scrollIntoViewIfNeeded();

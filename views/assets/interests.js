@@ -99,7 +99,7 @@
     participantTurns.set(id, turn);
     lists.forEach(node => { node.replaceChildren(); node.textContent = 'Refreshing public participants…'; });
     try {
-      const response = await fetch('/api/v1/events/' + encodeURIComponent(id) + '/interested-users');
+      const response = await fetch('/api/v1/events/' + encodeURIComponent(id) + '/interested-users', { signal: AbortSignal.timeout(10000) });
       if (!response.ok) throw new Error();
       const data = await response.json();
       if (participantTurns.get(id) !== turn) return;
@@ -180,7 +180,8 @@
         focusTarget = privacy.querySelector('summary');
         if (hadFocus) focusTarget.focus({ preventScroll: true });
       }
-      await refreshParticipants(id);
+      // The confirmed write re-enables controls now; the public list follows.
+      refreshParticipants(id);
       if (location.pathname === '/me/interests' && !data.state.interested) {
         announce(''); // The visible collection notice is the single announcement.
         document.dispatchEvent(new CustomEvent('ticketopia:collection-action', { detail: {

@@ -9,11 +9,23 @@
     const viewer = form.closest('[data-event-recommendations]')?.dataset.recommendationViewer;
     return viewer ? `ticketopia-recommendation-draft:${viewer}:${form.dataset.recommendationId}` : '';
   };
-  const remember = form => {
+  // Page memory updates on every keystroke; browser storage is written at most
+  // every 400ms while typing and flushed when the page is hidden or left.
+  const unsaved = new Map();
+  let persistTimer = 0;
+  const persist = () => {
+    clearTimeout(persistTimer); persistTimer = 0;
+    for (const [name, reason] of unsaved) {
+      try { sessionStorage.setItem(name, reason); } catch { /* In-page drafts still work without browser storage. */ }
+    }
+    unsaved.clear();
+  };
+  const remember = (form, later = false) => {
     const name = key(form); if (!name) return;
     const reason = form.elements.reason.value;
-    drafts.set(name, reason);
-    try { sessionStorage.setItem(name, reason); } catch { /* In-page drafts still work without browser storage. */ }
+    drafts.set(name, reason); unsaved.set(name, reason);
+    if (!later) persist();
+    else if (!persistTimer) persistTimer = setTimeout(persist, 400);
   };
   const initialize = () => {
     for (const form of forms()) {
@@ -28,8 +40,10 @@
       }
     }
   };
-  document.addEventListener('input', event => { const form = event.target.closest('[data-recommendation-form]'); if (form) remember(form); });
-  document.addEventListener('ticketopia:remember-drafts', () => forms().forEach(remember));
+  document.addEventListener('input', event => { const form = event.target.closest('[data-recommendation-form]'); if (form) remember(form, true); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+  window.addEventListener('pagehide', persist);
+  document.addEventListener('ticketopia:remember-drafts', () => forms().forEach(form => remember(form)));
   document.addEventListener('ticketopia:section-loaded', initialize);
   document.addEventListener('toggle', event => {
     if (!event.target.matches('[data-recommendation-editor]') || !event.target.open) return;
@@ -62,7 +76,7 @@
 	  document.dispatchEvent(new CustomEvent('ticketopia:activity-mutation', { detail: { id } }));
       const name = key(form);
       if (drafts.get(name) === body.get('reason')) {
-        drafts.delete(name); try { sessionStorage.removeItem(name); } catch { /* Storage is optional. */ }
+        drafts.delete(name); unsaved.delete(name); try { sessionStorage.removeItem(name); } catch { /* Storage is optional. */ }
       }
       if (!panel.isConnected) return; // A late write cannot replace another event's context.
       const parsed = new DOMParser().parseFromString(data.html, 'text/html');
@@ -91,12 +105,15 @@
     }
   });
   // Server-rendered previews can arrive after page initialization. Restore only
-  // this signed-in account's draft; never automatically publish it.
-  new MutationObserver(initialize).observe(document.body, { childList: true, subtree: true });
+  // this signed-in account's draft; never automatically publish it. Only added
+  // subtrees that contain a form trigger the document scan.
+  const addsForm = record => [...record.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE
+    && (node.matches('[data-recommendation-form]') || node.querySelector('[data-recommendation-form]')));
+  new MutationObserver(records => { if (records.some(addsForm)) initialize(); }).observe(document.body, { childList: true, subtree: true });
   initialize();
   window.addEventListener('pageshow', event => {
     if (!event.persisted) return;
-    forms().forEach(remember);
+    forms().forEach(form => remember(form));
     if (document.querySelector('[data-event-recommendations], .community-page, .account-public, .recommendation-list')) location.reload();
   });
 })();

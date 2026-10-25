@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### 2026-10-25 — Browser main-thread work
+
+- Stop loading the ~247 KiB component bundle on every page. Only native Select
+  and Collapsible variants render, so the bundle is still built but not loaded;
+  the bundle's lifecycle observer ignores text-only mutations.
+- Draft restore observers (discussions, recommendations) and the live-activity ID
+  observer react only to added/removed subtrees containing their targets. Live
+  count snapshots index targets once and skip unchanged counts. Toast collision
+  checks run only while a toast is shown.
+- Draft writes to `sessionStorage` are throttled to one per 400ms while typing and
+  flushed on submit, hide and pagehide. The discussion composer writes its
+  viewport variable only when the viewport size changes.
+- Interest controls re-enable after the confirmed write instead of waiting for
+  the public-participant refresh, which now times out after 10 seconds.
+- Results history snapshots serialize the list once, and only after Load more has
+  extended it; first-page entries keep only scroll/focus. Back/forward-cache
+  restores keep the live results instead of rebuilding them, removing a duplicate
+  saved-state request.
+- Placeholder shimmer uses a composited `translate`; sidebar collapse is instant.
+  The compact header's wordmark keeps its `font-size` animation (see the
+  [guide](../ui-components.md#modern-css-conventions)).
+
 ### 2026-10-23 — Finishing touches: floating navigation, warm text, scroll header
 
 - Float the phone navigation as an inset pill above the bottom safe area: a soft

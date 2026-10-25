@@ -60,18 +60,27 @@
       // Coalesce overflow rather than queueing a backlog behind the current task.
       if (toastBlocked()) removeToast(row);
     }
+    if (toasts.children.length) watchToasts();
   };
-  let toastTick = performance.now();
-  setInterval(() => {
+  // Collision and countdown checks read layout, so they run only while a toast
+  // is shown and stop once the last one is removed.
+  let toastTick = 0, toastTimer = 0;
+  const tickToasts = () => {
     const at = performance.now(), elapsed = at - toastTick; toastTick = at;
     while (toasts.children.length > (compact.matches ? 1 : 3)) removeToast(toasts.lastElementChild);
-    const blocked = toastBlocked();
+    const blocked = toasts.children.length && toastBlocked();
     if (blocked) [...toasts.children].forEach(removeToast);
     for (const row of [...toasts.children]) {
       if (!document.hidden && !blocked && !(hoverable.matches && row.matches(':hover')) && !row.contains(document.activeElement)) row.remaining -= elapsed;
       if (row.remaining <= 0 || !current.some(item => item.event_id === row.dataset.id && Date.parse(item.expires_at) > now())) removeToast(row);
     }
-  }, 200);
+    if (!toasts.children.length) { clearInterval(toastTimer); toastTimer = 0; }
+  };
+  const watchToasts = () => {
+    if (toastTimer) return;
+    toastTick = performance.now();
+    toastTimer = setInterval(tickToasts, 200);
+  };
   let hidden = false, paused = true, ready = false, stream, generation = 0, countsGeneration = 0;
   let reconnectTimer, debounceTimer, expiryTimer, announceTimer, lastMessage = 0, backoff = 5000, idsKey = '';
   let current = [], shown = [], baseline = true, serverAt = 0, receivedAt = 0, writes = 0;
@@ -86,7 +95,8 @@
   const activityQuery = values => { const q = query(values); if (authenticated) q.set('preferences_revision', revision); else q.set('filter', JSON.stringify(publicFilter(filters))); return q; };
   const seen = new Map(), pending = new Set();
   try { hidden = localStorage.getItem('ticketopia-live-hidden') === 'true'; } catch { /* Page memory remains usable. */ }
-  const ids = () => [...new Set([...document.querySelectorAll('[data-event-id], [data-interest-count], [data-event-recommendations], [data-live-total]')]
+  const eventTargets = '[data-event-id], [data-interest-count], [data-event-recommendations], [data-live-total]';
+  const ids = () => [...new Set([...document.querySelectorAll(eventTargets)]
     .filter(element => !element.closest('[data-live-list], [data-live-toasts]'))
     .map(element => element.dataset.eventId || element.dataset.interestCount || element.dataset.eventRecommendations || element.dataset.liveTotal))].sort();
   const query = values => { const q = new URLSearchParams(); values.forEach(id => q.append('event_id', id)); return q; };
@@ -212,31 +222,47 @@
       render(); refreshActivity();
     }, Math.max(0, Math.min(...current.map(item => Date.parse(item.expires_at))) - now()));
   };
+  // Index count targets once per snapshot and leave unchanged ones untouched, so
+  // an update costs one document scan rather than several per loaded event.
+  const byEvent = (selector, name) => {
+    const index = new Map();
+    for (const element of document.querySelectorAll(selector)) {
+      const id = element.dataset[name];
+      if (!index.has(id)) index.set(id, []);
+      index.get(id).push(element);
+    }
+    return index;
+  };
+  const setHidden = (element, value) => { if (element.hidden !== value) element.hidden = value; };
+  const setCount = (element, count, label) => {
+    const number = element.firstElementChild;
+    if (element.childNodes.length === 2 && number?.tagName === 'STRONG' && number.textContent === String(count) && element.lastChild.textContent === label) return;
+    const strong = document.createElement('strong'); strong.textContent = count;
+    element.replaceChildren(strong, document.createTextNode(label));
+  };
   const applyCounts = data => {
-    node('count-status').hidden = true;
+    setHidden(node('count-status'), true);
+    const totals = byEvent('[data-live-total]', 'liveTotal');
+    const empties = byEvent('[data-live-empty]', 'liveEmpty');
+    const interests = byEvent('[data-interest-count]', 'interestCount');
+    const recommendations = byEvent('[data-live-recommendation-count]', 'liveRecommendationCount');
     for (const item of data.items || []) {
-      for (const element of document.querySelectorAll('[data-live-total]')) {
-        if (element.dataset.liveTotal !== item.event_id) continue;
-        const number = document.createElement('strong'); number.textContent = item.recommendation_count;
-        element.replaceChildren(number, document.createTextNode(item.recommendation_count === 1 ? ' recommendation' : ' recommendations'));
+      for (const element of totals.get(item.event_id) || []) {
+        setCount(element, item.recommendation_count, item.recommendation_count === 1 ? ' recommendation' : ' recommendations');
         // An event's own count stays hidden at zero; its empty state says so instead.
-        if (element.hasAttribute('data-live-hide-zero')) element.hidden = item.recommendation_count === 0;
+        if (element.hasAttribute('data-live-hide-zero')) setHidden(element, item.recommendation_count === 0);
         delete element.dataset.countsStale;
       }
-      for (const element of document.querySelectorAll('[data-live-empty]')) {
-        if (element.dataset.liveEmpty === item.event_id) element.hidden = item.recommendation_count > 0;
+      for (const element of empties.get(item.event_id) || []) setHidden(element, item.recommendation_count > 0);
+      for (const element of interests.get(item.event_id) || []) {
+        setCount(element, item.interested_count, item.interested_count === 1 ? ' person interested' : ' people interested');
+        setHidden(element, item.interested_count === 0); delete element.dataset.countsStale;
       }
-      for (const element of document.querySelectorAll('[data-interest-count]')) {
-        if (element.dataset.interestCount !== item.event_id) continue;
-        const count = document.createElement('strong'); count.textContent = item.interested_count;
-        element.replaceChildren(count, document.createTextNode(item.interested_count === 1 ? ' person interested' : ' people interested'));
-        element.hidden = item.interested_count === 0; delete element.dataset.countsStale;
-      }
-      for (const element of document.querySelectorAll('[data-live-recommendation-count]')) {
-        if (element.dataset.liveRecommendationCount !== item.event_id) continue;
-        element.textContent = `${item.recommendation_count} public ${item.recommendation_count === 1 ? 'recommendation' : 'recommendations'}`;
-        element.closest('[data-live-recommendation-wrap]').hidden = item.recommendation_count === 0;
-        const group = element.closest('[data-live-count-group]'); group.hidden = ![...group.children].some(child => !child.hidden);
+      for (const element of recommendations.get(item.event_id) || []) {
+        const label = `${item.recommendation_count} public ${item.recommendation_count === 1 ? 'recommendation' : 'recommendations'}`;
+        if (element.textContent !== label) element.textContent = label;
+        setHidden(element.closest('[data-live-recommendation-wrap]'), item.recommendation_count === 0);
+        const group = element.closest('[data-live-count-group]'); setHidden(group, ![...group.children].some(child => !child.hidden));
         delete element.dataset.countsStale;
       }
     }
@@ -411,7 +437,12 @@
   document.addEventListener('submit', event => {
     if (event.target.matches('[data-interest-form], [data-recommendation-form]') && event.target.getAttribute('aria-busy') !== 'true') { ++writes; ++countsGeneration; stop(); }
   }, true);
-  new MutationObserver(() => {
+  // Only added or removed event targets can change the subscribed IDs; count text
+  // updates inside existing targets do not.
+  const changesTargets = record => [...record.addedNodes, ...record.removedNodes].some(node => node.nodeType === Node.ELEMENT_NODE
+    && (node.matches(eventTargets) || node.querySelector(eventTargets)));
+  new MutationObserver(records => {
+    if (!records.some(changesTargets)) return;
     clearTimeout(debounceTimer); debounceTimer = setTimeout(() => {
       const key = ids().join('|'); if (key !== idsKey) { idsKey = key; refreshCounts(); if (allowed()) connect(); }
     }, 300);

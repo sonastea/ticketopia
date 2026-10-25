@@ -1551,19 +1551,27 @@ summary::-webkit-details-marker {
   .pagination-skeleton [data-slot="skeleton"] { border: 1px solid GrayText; }
 }
 
+/* The highlight is a clipped layer that moves with `translate`, which browsers
+   composite, instead of a repainted background position. */
 @media (prefers-reduced-motion: no-preference) {
   .pagination-skeleton [data-slot="skeleton"] {
+    position: relative;
+    overflow: clip;
+  }
+  .pagination-skeleton [data-slot="skeleton"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
     background-image: linear-gradient(90deg, transparent, color-mix(in oklch, var(--surface) 70%, transparent), transparent);
-    background-repeat: no-repeat;
-    background-size: 200% 100%;
+    translate: -100% 0;
     animation: skeleton-shimmer 1.4s var(--ease-out) infinite;
   }
-  .pagination-skeleton [data-slot="skeleton"]:dir(rtl) { animation-direction: reverse; }
+  .pagination-skeleton [data-slot="skeleton"]:dir(rtl)::after { animation-direction: reverse; }
 }
 
 @keyframes skeleton-shimmer {
-  from { background-position: 150% 0; }
-  to { background-position: -50% 0; }
+  from { translate: -100% 0; }
+  to { translate: 100% 0; }
 }
 
 .load-error {
@@ -2697,9 +2705,9 @@ summary::-webkit-details-marker {
   .filter-disclosure > summary > .icon:last-child {
     transition: transform 160ms var(--ease-out);
   }
-  @media (min-width: 72rem) {
-    .app-shell { transition: grid-template-columns 160ms var(--ease-out); }
-  }
+  /* Sidebar collapse is deliberately instant: transitioning the shell's grid
+     tracks would lay out the whole workspace, and its container queries, on
+     every frame. */
   /* Same-origin navigations carry named artwork and titles into place; browsers
      without cross-document view transitions navigate normally. */
   @view-transition { navigation: auto; }
@@ -2735,6 +2743,9 @@ summary::-webkit-details-marker {
         animation-timeline: scroll(root block);
         animation-range: 0 1rem;
       }
+      /* The wordmark's font size, not a scale, shrinks: with enlarged text it
+         wraps, and only a layout change returns the sticky header's height to
+         the reader. Layout work is bounded to the first 4rem of scrolling. */
       .compact-header > .brand {
         animation-name: header-recentre, brand-shrink;
         animation-range: 0 1rem, 0 4rem;
