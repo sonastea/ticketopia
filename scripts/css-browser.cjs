@@ -78,17 +78,29 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
       const css = getComputedStyle(nav), pill = getComputedStyle(current);
       return rect.left >= 8 && rect.right <= innerWidth - 8 && rect.bottom <= innerHeight - 8 && parseFloat(css.borderTopLeftRadius) >= 24 && css.fontSize === '12px' && pill.borderTopColor !== getComputedStyle(nav.querySelector('.nav-link:not([aria-current="page"])')).borderTopColor;
     }));
-    check('Compact header shrinks with scroll, wordmark ends at the headline size', await page.evaluate(async () => {
+    // The wordmark steps once at the stick threshold; scroll anchoring must not
+    // pull the page back above it, which would unstick and regrow the header.
+    for (const enlarged of [false, true]) check('Compact header sticks, wordmark steps to the headline size' + (enlarged ? ' with 200% text' : ''), await page.evaluate(async enlarged => {
+      document.documentElement.style.fontSize = enlarged ? '200%' : '';
       const header = document.querySelector('.compact-header'), brand = header.querySelector('.brand');
-      if (!CSS.supports('animation-timeline: scroll()')) return getComputedStyle(header).position === 'static';
-      const before = parseFloat(getComputedStyle(brand).fontSize);
-      scrollTo(0, 400); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const stuck = header.getBoundingClientRect(), after = parseFloat(getComputedStyle(brand).fontSize);
-      scrollTo(0, 0);
-      return getComputedStyle(header).position === 'sticky' && before > after && after === 20 && Math.round(stuck.top) === -16;
-    }));
+      const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const size = () => parseFloat(getComputedStyle(brand).fontSize);
+      try {
+        if (!CSS.supports('container-type: scroll-state')) return getComputedStyle(header).position === 'static';
+        scrollTo(0, 0); await frames();
+        const before = size(), rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        scrollTo(0, rem / 2); await frames();
+        const unstuck = size();
+        scrollTo(0, rem + 2); await frames(); await frames(); await frames();
+        const stuck = header.getBoundingClientRect(), stepped = size(), held = Math.abs(scrollY - (rem + 2)) < 1;
+        scrollTo(0, 400); await frames();
+        return getComputedStyle(header).position === 'sticky' && unstuck === before && stepped === 1.25 * rem && size() === stepped && held && Math.round(stuck.top) === -rem;
+      } finally {
+        scrollTo(0, 0); document.documentElement.style.fontSize = '';
+      }
+    }, enlarged));
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    check('Reduced motion keeps the compact header static', await page.locator('.compact-header').evaluate(node => getComputedStyle(node).position === 'static' && getComputedStyle(node.querySelector('.brand')).animationName === 'none'));
+    check('Reduced motion keeps the compact header static', await page.locator('.compact-header').evaluate(node => getComputedStyle(node).position === 'static'));
     await page.emulateMedia({ reducedMotion: 'no-preference' });
 
     await page.goto(base + '/?more=true');

@@ -2721,41 +2721,38 @@ summary::-webkit-details-marker {
     block-size: 100%;
     object-fit: cover;
   }
-  /* Below the context threshold, the compact header sticks and shrinks over the
-     first 4rem of scrolling: 1rem of it slides off the top while its content
-     recentres and the wordmark settles at the headline size. Without
-     scroll-driven animations, or on short viewports, it stays static. */
+  /* Below the context threshold, the compact header sticks once 1rem of it has
+     slid off the top; then its content recentres and the wordmark steps down to
+     the headline size. Without scroll-state queries, or on short viewports, it
+     stays static. */
   @media (max-width: 61.999rem) and (min-height: 32rem) {
-    @supports (animation-timeline: scroll()) {
+    @supports (container-type: scroll-state) {
       html { scroll-padding-block-start: 5.5rem; }
+      /* No root scroll anchoring (Chromium reads it from body): the step moves
+         content above the reader's anchor, and compensating would scroll back
+         above the threshold, unstick the header and regrow it, swallowing the
+         scroll. */
+      html, body { overflow-anchor: none; }
       .compact-header {
         position: sticky;
         z-index: 20;
         inset-block-start: -1rem;
+        container: compact-header / scroll-state;
       }
-      /* Longhands: a minified shorthand list gains a 0s duration, which would
-         collapse the scroll-linked range; auto spans it. */
       .compact-header > * {
-        animation-name: header-recentre;
-        animation-duration: auto;
-        animation-timing-function: linear;
-        animation-fill-mode: both;
-        animation-timeline: scroll(root block);
-        animation-range: 0 1rem;
+        transition: translate 160ms var(--ease-out);
       }
       /* The wordmark's font size, not a scale, shrinks: with enlarged text it
          wraps, and only a layout change returns the sticky header's height to
-         the reader. Layout work is bounded to the first 4rem of scrolling. */
-      .compact-header > .brand {
-        animation-name: header-recentre, brand-shrink;
-        animation-range: 0 1rem, 0 4rem;
+         the reader. The query lays it out once on sticking and once on
+         unsticking rather than on every scroll frame. */
+      @container compact-header scroll-state(stuck: top) {
+        .compact-header > * { translate: 0 .5rem; }
+        .compact-header > .brand { font-size: 1.25rem; }
       }
     }
   }
 }
-
-@keyframes header-recentre { to { translate: 0 .5rem; } }
-@keyframes brand-shrink { to { font-size: 1.25rem; } }
 
 @theme inline {
   --font-sans: Manrope, sans-serif;

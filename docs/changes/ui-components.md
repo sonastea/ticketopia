@@ -21,8 +21,13 @@
   restores keep the live results instead of rebuilding them, removing a duplicate
   saved-state request.
 - Placeholder shimmer uses a composited `translate`; sidebar collapse is instant.
-  The compact header's wordmark keeps its `font-size` animation (see the
-  [guide](../ui-components.md#modern-css-conventions)).
+  The compact header's wordmark now steps to the headline size under a
+  `scroll-state(stuck: top)` query instead of shrinking on every scroll frame
+  (design change: a threshold, not a continuous shrink). Root scroll anchoring is
+  off so the step can't stall scrolling at 200% text; browsers without
+  scroll-state queries keep a static header (see the
+  [guide](../ui-components.md#modern-css-conventions)). Verified with CSS and
+  event-context checks in Chromium and WebKit.
 
 ### 2026-10-23 — Finishing touches: floating navigation, warm text, scroll header
 
@@ -74,25 +79,5 @@
 - Verify Chromium/WebKit responsive fixtures, 200% text, long content, touch,
   forced colors, and reduced motion; verify live count updates from zero to one
   and back using mocked responses. Home package race tests, vet, and build pass.
-
-### 2026-10-07 — Modern CSS conventions
-
-- Adopt [Good CSS](https://good-css.com/) in repository agent guidance and the
-  [component guide](../ui-components.md#modern-css-conventions).
-- Modernize app-owned CSS with logical properties, a defensive reset, OKLCH
-  palette/derived states, fluid heading tokens, native bounded textarea sizing,
-  non-scrolling image clipping, and contained inner scrolling.
-- Gate mouse hover and geometry motion by input/accessibility preferences;
-  preserve touch feedback, selectable links, visible forced-colors focus, the
-  default light identity, and shared navigation/preview thresholds.
-- Consolidate library light/dark tokens with `light-dark()` and regenerate the
-  compiled stylesheet and layout template. Keep vendored CSS unchanged.
-- Adapt copied button/empty primitives to avoid inherited press movement,
-  suppressed link selection, broad transitions, and unconditional child hover.
-- Add read-only production-template fixtures and browser regressions. Verify
-  desktop/rail/mobile/320px/enlarged-text layouts and interaction checks in
-  Chromium/WebKit, plus race tests, vet, and regenerated-asset application build.
-  Textarea sizing and other unsupported enhancements retain native fallbacks;
-  see [verification](../ui-components.md#verification).
 
 Older entries: [UI component archive](archive/ui-components/).

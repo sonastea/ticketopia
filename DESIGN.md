@@ -375,7 +375,7 @@ and essential facts rather than replacing them.
 
 **The One Voice, Clear Roles Rule.** Bricolage Grotesque is a voice for titles and dates, not a second text family. Use Manrope's size, weight, leading, and spacing to distinguish everything else; keep dates tabular and long event names able to wrap.
 
-**Wordmark exception:** the `ticketopia.` wordmark in the compact header is a logo, not a text role. It stays at 1.6rem (weight 800, −.04em tracking) and shrinks to the 1.25rem headline size while the compact header sticks; the desktop sidebar sizes it separately.
+**Wordmark exception:** the `ticketopia.` wordmark in the compact header is a logo, not a text role. It stays at 1.6rem (weight 800, −.04em tracking) and steps down to the 1.25rem headline size once the compact header sticks; the desktop sidebar sizes it separately.
 
 **Provider-brand exception:** only the Google sign-in CTA uses self-hosted Google
 Sans Medium (500) at .875rem/1.25rem, following Google's branding requirements.
@@ -391,7 +391,7 @@ component-specific insets remain explicit rather than becoming another scale.
 
 | Threshold | Shipped behavior |
 | --- | --- |
-| Base, below 40rem | Content padding 1.5rem 1.25rem. Light compact header and a four-item floating pill navigation, inset .75rem from the sides and `max(.75rem, .25rem + env(safe-area-inset-bottom))` from the bottom; its normal-flow row and margins reserve that space. Below 62rem and at least 32rem tall, the header sticks and shrinks with scroll where supported. |
+| Base, below 40rem | Content padding 1.5rem 1.25rem. Light compact header and a four-item floating pill navigation, inset .75rem from the sides and `max(.75rem, .25rem + env(safe-area-inset-bottom))` from the bottom; its normal-flow row and margins reserve that space. Below 62rem and at least 32rem tall, the header sticks and its wordmark steps down where supported. |
 | At most 23rem | Content padding becomes 1.25rem 1rem; fields form one column. Navigation side insets cap at 2.5vw so enlarged labels stay whole. Search loses its decorative icon and tightens its inset; event headings and section links reduce to fit. |
 | At least 40rem | General page padding becomes 2rem. |
 | At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding. Below this threshold, event pages at least 32rem tall pin Tickets/Save above the bottom navigation. |
@@ -501,11 +501,14 @@ feedback changes fill/color without movement.
 
 Two motion enhancements are scroll- or load-bound and gated on
 `prefers-reduced-motion: no-preference`; otherwise they are static. Below 62rem
-and on viewports at least 32rem tall, browsers with scroll-driven animations
-(`@supports (animation-timeline: scroll())`) stick the compact header and shrink it
-over the first 4rem of scrolling: 1rem slides off the top, its content recentres,
-and the wordmark settles at 1.25rem. Root scroll padding grows to clear it. Other
-browsers keep the header static in the page flow. Discover pagination shows
+and on viewports at least 32rem tall, browsers with scroll-state container queries
+(`@supports (container-type: scroll-state)`) stick the compact header. Once 1rem
+has slid off the top it is stuck: in one step its content recentres (a 160ms
+ease-out translate) and the wordmark drops to 1.25rem, reversing when it unsticks.
+It is a threshold, not a scroll-linked shrink, so layout happens only at the two
+transitions. Root scroll padding grows to clear it, and root scroll anchoring is
+off so the step cannot pull the page back above the threshold. Other browsers keep
+the header static in the page flow. Discover pagination shows
 placeholder rows while the next page loads; a soft white highlight sweeps across
 them in 1.4s loops with the shared ease-out curve. With reduced motion they are
 plain pale-plum blocks.
