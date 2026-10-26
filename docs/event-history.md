@@ -286,6 +286,8 @@ partial/outage/quota/restart HTML/API reads, missing-event details, and privacy.
 desktop/tablet/390px/320px/200%-text, keyword/sort, enhanced and native pagination,
 history detail, distinct coverage/empty states, keyboard focus and axe checks.
 Set `PLAYWRIGHT_MODULE`, `CHROMIUM_EXECUTABLE`, `AXE_SCRIPT`, and optionally
-`HISTORY_REVIEW_DIR` to local browser tooling. No live Ticketmaster quota,
+`HISTORY_REVIEW_DIR` to local browser tooling. `CHROMIUM_EXECUTABLE` must be a
+full Chromium build: Playwright's default headless shell reports every
+cross-document view transition as a page error. No live Ticketmaster quota,
 production migration, cluster
 deployment or backup/restore exercise is performed by this feature's tests.

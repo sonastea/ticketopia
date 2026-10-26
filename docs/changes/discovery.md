@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-10-25 — Server-rebuilt result history
+
+- Stop storing result HTML in history. Load more mirrors the last page's cursor
+  into the Discover URL (with an implicit city and dates spelled out, kept in
+  step on same-document Back) as HTML-only `through=<cursor>`; the server renders
+  every page through it, with current saved/interest state and CSRF, so reload
+  and Back restore at once. Restores take whole pages up to 10 pages or 200
+  events, drop overlapping rows, use the oldest page's time and batch private
+  reads. A stale `through` on a whole page falls back to the requested page.
+  See [discovery](../discovery.md#restoring-loaded-pages).
+
 ### 2026-10-24 — Selected row stays in view
 
 - Opening the desktop preview centers the chosen row before paint, without motion,
@@ -82,17 +93,6 @@
 - Align the search label with venue matching, shorten its placeholder, say
   **Enter a city** before one is chosen, and replace "Country code" with
   "Country (optional, 2-letter code)" across forms.
-  See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-22 — Compact Discover first screen
-
-- Merge freshness, stale fallback and coverage into one non-live results line,
-  keeping `data-coverage`; fix the repeated "Showing … Showing" stale copy.
-- Put a shorter sort label ("Soonest first") on the results heading line and
-  move Save privacy from above every result list into the first enhanced Save's
-  confirmation in each browser (page memory if storage is blocked).
-- At 390×844 the first event starts at 475px with a stale, partial-coverage
-  fixture; the four-item bottom bar stays on one row at 320px.
   See [discovery](../discovery.md#responsive-navigation-and-event-details).
 
 Older entries: [discovery archive](archive/discovery/).

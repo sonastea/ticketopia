@@ -38,6 +38,37 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     await page.getByRole('link', { name: 'Load more events' }).click();
     await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 7);
     check('SQL load more has no duplicates', await page.locator('#event-list > li').evaluateAll(nodes => new Set(nodes.map(n => n.dataset.eventId)).size === nodes.length));
+    // Loaded pages live in the URL as through=, written once htmx settles.
+    const rows = () => page.locator('#event-list > li').evaluateAll(nodes => nodes.map(n => n.dataset.eventId));
+    const synced = () => page.waitForFunction(() => new URL(location.href).searchParams.get('through') === document.getElementById('pagination').dataset.pageCursor);
+    await synced();
+    const loaded = await rows();
+    await page.reload();
+    check('Reload restores every loaded page in order', JSON.stringify(await rows()) === JSON.stringify(loaded));
+    // Closing the preview with Back keeps the rows, so its entry must name them.
+    await page.goto(base + query('Berlin'));
+    await page.locator('.event-link').first().click();
+    await page.waitForFunction(() => new URL(location.href).searchParams.has('selected_event'));
+    await page.getByRole('link', { name: 'Load more events' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 6);
+    await synced();
+    await page.goBack();
+    await page.waitForFunction(() => !new URL(location.href).searchParams.has('selected_event'));
+    await synced();
+    await page.reload();
+    check('Back from a preview keeps loaded pages across reload', (await rows()).length === 6);
+    // The cursor is bound to the remembered city, so the URL must name it.
+    await page.goto(base + '/?start_date=2026-10-08&end_date=2026-10-10&limit=3');
+    await page.getByRole('link', { name: 'Load more events' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 6);
+    await synced();
+    const shared = page.url();
+    const otherCity = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const otherPage = await otherCity.newPage();
+    await otherPage.goto(base + query('Partial'));
+    await otherPage.goto(shared);
+    check('Restore link opens the same pages for a viewer with another remembered city', JSON.stringify(await otherPage.locator('#event-list > li').evaluateAll(nodes => nodes.map(n => n.dataset.eventId))) === JSON.stringify(await rows()));
+    await otherCity.close();
     await page.locator('#filters > summary').click();
     await page.getByLabel('Sort events').selectOption('name_asc');
     await page.getByRole('button', { name: 'Apply filters' }).click();
@@ -51,6 +82,8 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     for (const [name, width, enlarged] of [['desktop',1440,false],['tablet',1024,false],['mobile',390,false],['compact',320,false],['enlarged',390,true]]) await capture(name,width,enlarged);
     await page.evaluate(() => document.documentElement.style.fontSize = '');
     await page.goto(base + '/events/ticketmaster:browser-Berlin-0?section=overview');
+    // History is secondary content behind the native provenance disclosure.
+    await page.getByText('Event source & history', { exact: true }).click();
     check('First/last seen on event detail', await page.getByText('First seen', { exact: false }).isVisible());
     check('Dated date change', await page.getByText('Previously scheduled for 2026-10-08', { exact: false }).isVisible());
     check('Dated venue change with escaped public name', await page.getByText('Moved from Old <venue>', { exact: false }).isVisible());

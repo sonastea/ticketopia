@@ -34,8 +34,11 @@ fs.mkdirSync(out, { recursive: true });
             });
           };
           const before = geometry();
-          for (const rect of before) {
-            if (rect.height < 44 || rect.x < -1 || rect.x + rect.width > row.getBoundingClientRect().width + 1) failures.push(`group ${index}: clipped or undersized control`);
+          // Clipping is judged against the row itself; a padded group insets it.
+          const bounds = row.getBoundingClientRect();
+          for (const control of controls) {
+            const rect = control.getBoundingClientRect();
+            if (rect.height < 44 || rect.left < bounds.left - 1 || rect.right > bounds.right + 1) failures.push(`group ${index}: clipped or undersized control`);
           }
           for (let i = 0; i < before.length; i++) {
             for (const other of before.slice(i + 1)) {
@@ -92,10 +95,52 @@ fs.mkdirSync(out, { recursive: true });
       check('No horizontal overflow: ' + name + ' ' + JSON.stringify(overflow), await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       if (axePath) {
         await page.addScriptTag({ path: axePath });
-        const violations = await page.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations);
+        const violations = await page.evaluate(async () => {
+          const found = (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations;
+          // axe judges target size at the current scroll position, so content
+          // scrolling under the floating navigation or the phone Tickets/Save bar
+          // fails wherever it happens to sit. Only that cover is set aside here;
+          // the focus check below requires every control to clear it once reached.
+          const chrome = '.bottom-nav, .event-page .event-primary-actions > .event-action-group';
+          const underChrome = node => {
+            const el = node.target.length === 1 && document.querySelector(node.target[0]);
+            if (!el || el.closest(chrome)) return false;
+            const r = el.getBoundingClientRect();
+            const hits = [];
+            for (let x = r.left + 1; x < r.right; x += 4) for (let y = r.top + 1; y < r.bottom; y += 4) hits.push(document.elementFromPoint(x, y));
+            // Rounded corners expose the target's own ancestors; those don't cover it.
+            const covers = hits.filter(hit => !hit || !(el.contains(hit) || hit.contains(el)));
+            return covers.length > 0 && covers.every(hit => hit?.closest(chrome));
+          };
+          return found.map(v => v.id === 'target-size' ? { ...v, nodes: v.nodes.filter(node => !underChrome(node)) } : v).filter(v => v.nodes.length);
+        });
         report.accessibility.push({ name, violations });
-        check('Accessibility: ' + name, violations.length === 0);
+        check('Accessibility: ' + name + ' ' + JSON.stringify(violations.map(v => v.id)), violations.length === 0);
       }
+      // A focused control scrolls clear of the floating navigation and the phone
+      // Tickets/Save bar (WCAG 2.4.11), and action targets keep 44px.
+      const obscured = await page.evaluate(() => {
+        const failures = [];
+        const start = scrollY;
+        const chrome = '.bottom-nav, .event-page .event-primary-actions > .event-action-group';
+        const controls = [...document.querySelectorAll('a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+          .filter(el => !el.closest(chrome) && el.tabIndex >= 0 && !el.disabled && el.getClientRects().length);
+        for (const el of controls) {
+          el.focus();
+          if (document.activeElement !== el) continue;
+          const r = el.getClientRects()[0];
+          const label = (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 40);
+          for (const y of [r.top + 2, (r.top + r.bottom) / 2, r.bottom - 2]) {
+            const hit = document.elementFromPoint((r.left + r.right) / 2, y);
+            if (hit?.closest(chrome)) { failures.push(label + ': under ' + hit.closest(chrome).className.split(' ')[0]); break; }
+          }
+          if (el.matches('[data-event-actions] :is(a, button), .interest-button') && el.getBoundingClientRect().height < 44) failures.push(label + ': under 44px');
+        }
+        document.activeElement?.blur();
+        scrollTo(0, start);
+        return failures;
+      });
+      check('Focused controls clear sticky chrome: ' + name + ' ' + JSON.stringify(obscured), obscured.length === 0);
     };
     const states = async () => (await context.request.get(base + '/api/v1/me/saved-events')).json();
     await page.goto(base + '/saved');

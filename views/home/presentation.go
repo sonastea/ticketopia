@@ -40,6 +40,8 @@ type SearchPage struct {
 	ActionReturnURL       string
 	Activity              map[string]eventactivity.Preview
 	ActivityError         string
+	// PageCursor read the last rendered page; empty for the first page.
+	PageCursor string
 }
 
 type EventPage struct {

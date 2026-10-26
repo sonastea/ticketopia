@@ -43,7 +43,7 @@ func canonicalPage(u *url.URL, supported func(string) bool) (string, bool) {
 var webSelectionParams = []string{"selected_event", "section", "recommend", "selected_thread", "reply_to", "discussion_cursor"}
 
 func homeParam(key string) bool {
-	return discovery.QueryParam(key) || key == "genre_category_id" || slices.Contains(webSelectionParams, key)
+	return discovery.QueryParam(key) || key == "genre_category_id" || key == "through" || slices.Contains(webSelectionParams, key)
 }
 
 func eventPageParam(key string) bool {
@@ -153,6 +153,8 @@ func safeReturnURL(raw string) string {
 	if err != nil {
 		return "/"
 	}
+	// Discover ignores a stale through cursor, so it needs no validation here.
+	filters.Del("through")
 	if _, err := discovery.ParseQuery(filters, time.Now()); err != nil {
 		return "/"
 	}

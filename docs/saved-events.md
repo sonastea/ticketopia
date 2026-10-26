@@ -65,8 +65,10 @@ For Kubernetes, reconcile the corresponding grants in the operator manifests.
   metadata with `stale: true` when the provider/cache cannot resolve an event.
   Provider disappearance does not imply cancellation. Removing a bookmark never
   removes the shared durable event or another user's bookmark.
-- Restored discovery controls revalidate private state in bounded batches. Results
-  with another session's CSRF token are not restored as private controls.
+- Restored discovery results are rendered again by the server with current private
+  state ([restoring loaded pages](discovery.md#restoring-loaded-pages)); browser
+  history never stores private controls. Back/forward-cache restores revalidate
+  private state in bounded batches.
 
 ## Action feedback and collection removal
 
@@ -157,9 +159,13 @@ optionally an axe-core script (neither is a runtime dependency):
 MARIADB_TEST_ADDR=127.0.0.1:3307 \
 SAVED_BROWSER_SCRIPT="$PWD/scripts/saved-browser.cjs" \
 PLAYWRIGHT_MODULE=/absolute/path/to/node_modules/playwright \
+CHROMIUM_EXECUTABLE=/absolute/path/to/full/chromium \
 AXE_SCRIPT=/absolute/path/to/axe.min.js \
 go test -race ./internal/persistence -run '^TestMariaDBSavedBrowserReview$' -v
 ```
+
+Use a full Chromium build: Playwright's default headless shell reports every
+cross-document view transition as a page error.
 
 The harness verifies enhanced/native saves, multiple clients/owners, guests,
 disabled accounts, paging/return context, empty/error states, retained metadata,
@@ -168,4 +174,8 @@ and its report go to ignored `.impeccable/review/saved-*` files. It uses synthet
 event fixtures, not live Google consent or a production deployment. Action-layout
 checks cover discovery, previews, loaded results, Saved, and full events with
 hidden/pending/success/remove/long-error feedback across the same viewports and
-text zoom. Rendering tests also keep feedback outside the controls row.
+text zoom. Rendering tests also keep feedback outside the controls row. Every
+capture also focuses each tab-order control and requires it to scroll clear of
+the floating navigation and the phone Tickets/Save bar, with 44px action targets.
+That check replaces axe `target-size` results caused only by that sticky chrome:
+axe judges them at one scroll position, where whatever sits under the bar fails.

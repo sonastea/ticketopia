@@ -186,7 +186,7 @@ templ CollectionCoverage(meta models.Freshness) {
 }
 
 templ Pagination(page SearchPage) {
-	<div id="pagination" class="pagination" aria-live="polite">
+	<div id="pagination" class="pagination" aria-live="polite" data-page-cursor={ page.PageCursor }>
 		if page.ActivityError != "" {
 			<p class="field-note" role="status">{ page.ActivityError }</p>
 		}

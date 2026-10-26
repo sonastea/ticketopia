@@ -155,9 +155,6 @@
         const response = await fetch('/api/v1/me/saved-events/states?' + params);
         if (turn !== saveStateTurn) return;
         if (response.status === 401) {
-          const state = { ...history.state };
-          delete state.ticketopiaResults;
-          writeHistory('replaceState', state, '', location.href);
           location.reload();
           return;
         }
@@ -773,8 +770,6 @@
           reload.className = 'text-link'; reload.textContent = 'Reload account controls';
           group.replaceChildren(reload);
         }
-        const state = { ...history.state }; delete state.ticketopiaResults;
-        writeHistory('replaceState', state, '', location.href);
       }
       host.dataset.viewerKey = shell.dataset.viewerKey;
       for (const selector of ['[data-shell-facts]', '.event-primary-actions', '.event-section-nav', '.event-participation', '.event-provenance']) reconcile(host.querySelector(selector), shell.querySelector(selector));
@@ -983,26 +978,47 @@
     if (recommend) url.searchParams.set('recommend', 'true');
     return url;
   };
-  // Load more and snapshot restores both replace #pagination. Until then the
-  // server renders the same first page, so only the reading position is kept.
-  const renderedPagination = document.getElementById('pagination');
+  // #pagination names the cursor of its last rendered page. The URL mirrors it
+  // as through=, so reload and Back get every loaded page, with current private
+  // state, in the first response; history itself keeps only position and focus.
+  // Selection URLs are built from location.href and carry it along.
+  const selectionParams = ['selected_event', 'section', 'recommend', 'selected_thread', 'reply_to', 'discussion_cursor'];
+  const syncThrough = () => {
+    const here = new URL(location.href);
+    let cursor = document.getElementById('pagination')?.dataset.pageCursor || '';
+    if (cursor === here.searchParams.get('cursor')) cursor = '';
+    // Any URLSearchParams write re-encodes the query, so only write a change.
+    if (cursor === (here.searchParams.get('through') || '')) return;
+    let url = here;
+    if (cursor) {
+      // The cursor is bound to the normalized filters, including a remembered
+      // or located city and default dates, so the URL spells them out.
+      url = new URL(workspace.dataset.resultsUrl, location.origin);
+      for (const [key, value] of here.searchParams) if (selectionParams.includes(key)) url.searchParams.append(key, value);
+      url.searchParams.set('through', cursor);
+    } else url.searchParams.delete('through');
+    const current = renderedURL === location.href;
+    // Panel and section positions are keyed to this entry's URL; keep them.
+    const state = { ...history.state };
+    for (const key of ['ticketopiaPanel', 'ticketopiaSection']) {
+      if (state[key]?.url === location.href) state[key] = { ...state[key], url: url.href };
+    }
+    writeHistory('replaceState', state, '', url);
+    if (current) renderedURL = location.href;
+  };
+  // A stale or capped through renders fewer pages; correct the URL to match.
+  syncThrough();
+  document.addEventListener('htmx:load', event => { if (event.target.id === 'pagination') syncThrough(); });
+  // Same-document Back/Forward keeps the loaded rows, so the entry it lands
+  // on must name them too. Registered before restoreSelection reads the URL.
+  addEventListener('popstate', syncThrough);
   const rememberResults = () => {
-    const list = document.getElementById('event-list');
-    const pagination = document.getElementById('pagination');
-    if (!list || !pagination) return;
-    const saved = {
+    if (!document.getElementById('event-list')) return;
+    writeHistory('replaceState', { ...history.state, ticketopiaResults: {
       url: workspace.dataset.resultsUrl,
       scroll: desktop.matches || !workspace.classList.contains('has-selection') ? scrollY : resultsScroll,
       focus: lastFocusID,
-      csrf: document.querySelector('[data-save-form] input[name="csrf_token"]')?.value || '',
-    };
-    if (pagination !== renderedPagination) {
-      const html = list.innerHTML;
-      if (html.length > 2000000) return;
-      saved.list = html;
-      saved.pagination = pagination.outerHTML;
-    }
-    writeHistory('replaceState', { ...history.state, ticketopiaResults: saved }, '', location.href);
+    } }, '', location.href);
   };
   const leaveResults = link => {
     rememberPanel();
@@ -1019,17 +1035,6 @@
     const saved = history.state?.ticketopiaResults;
     const list = document.getElementById('event-list');
     if (!list || !saved || saved.url !== workspace.dataset.resultsUrl) return;
-    const csrf = document.querySelector('[data-save-form] input[name="csrf_token"]')?.value || '';
-    if ((saved.csrf || '') !== csrf) return; // Never restore another session's private controls.
-    if (typeof saved.list === 'string' && typeof saved.pagination === 'string') {
-      list.innerHTML = saved.list;
-      document.getElementById('pagination').outerHTML = saved.pagination;
-      window.htmx?.process(list);
-      window.htmx?.process(document.getElementById('pagination'));
-      refreshSavedState();
-      document.dispatchEvent(new Event('ticketopia:state-restored'));
-      markSelection(new URL(location.href).searchParams.get('selected_event'));
-    }
     requestAnimationFrame(() => {
       if (workspace.classList.contains('has-selection') && !desktop.matches) return;
       scrollTo(0, saved.scroll);

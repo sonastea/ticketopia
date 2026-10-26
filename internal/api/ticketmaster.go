@@ -1,11 +1,14 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"errors"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 
@@ -106,11 +109,24 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	page := home.SearchPage{SelectedID: selectedID, Section: section}
 	page.ActionReturnURL = c.Request().URL.RequestURI()
 	now := a.clock()
+	status := http.StatusOK
+	partial := c.Request().Header.Get("HX-Request") == "true"
+	// through is HTML-only: the Discover URL carries the last loaded page's
+	// cursor, so reload and Back render every loaded page in the first response.
+	// A stale or edited value on a whole page falls back to the requested page.
+	var through string
+	if values, ok := filters["through"]; ok {
+		if len(values) == 1 && values[0] != "" {
+			through = values[0]
+		} else if partial && err == nil {
+			err = &discovery.ValidationError{Field: "through", Message: "use one results cursor"}
+		}
+		delete(filters, "through")
+	}
 	if err == nil {
 		page.Filters, err = discovery.ParseQuery(filters, now)
 	}
-	status := http.StatusOK
-	partial := c.Request().Header.Get("HX-Request") == "true"
+	page.PageCursor = filters.Get("cursor")
 	if err == nil {
 		page.LocationSource, err = a.locateSearch(c, &page.Filters)
 		page.NeedsLocation = page.Filters.City == "" && page.Filters.VenueID == ""
@@ -126,6 +142,13 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		page.Events, err = a.events.Events(c.Request().Context(), page.Filters)
 		if err == nil && localDefault && !localized && a.localizeDefaultDates(&page.Filters, filters, now) {
 			page.Events, err = a.events.Events(c.Request().Context(), page.Filters)
+		}
+		if err == nil && through != "" {
+			var throughErr error
+			page.Events, page.PageCursor, throughErr = a.restorePages(c.Request().Context(), page.Filters, page.Events, page.PageCursor, through, now)
+			if partial {
+				err = throughErr
+			}
 		}
 		if !partial {
 			// Taxonomy is optional. Its shared cache refresh can continue, but it
@@ -156,19 +179,33 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 	if selectedID != "" {
 		ids = append(ids, selectedID)
 	}
-	page.Saves = a.saveView(c, ids)
-	page.Interests = a.interestView(c, ids)
+	// Restored pages can exceed the 100-ID batch of private and activity reads,
+	// so they are read in a few bounded batches, never one query per event.
+	page.Saves = a.saveView(c, ids[:min(len(ids), stateBatch)])
+	page.Interests = a.interestView(c, ids[:min(len(ids), stateBatch)])
+	for start := stateBatch; start < len(ids); start += stateBatch {
+		batch := ids[start:min(start+stateBatch, len(ids))]
+		saves, interests := a.saveView(c, batch), a.interestView(c, batch)
+		page.Saves.States = mergeStates(page.Saves.States, saves.States)
+		page.Saves.Error = cmp.Or(page.Saves.Error, saves.Error)
+		page.Interests.States = mergeStates(page.Interests.States, interests.States)
+		page.Interests.Error = cmp.Or(page.Interests.Error, interests.Error)
+	}
 	if a.eventActivity != nil && !page.NeedsLocation && page.Error == "" {
-		// Only this results page is enriched, never the entire result set or the
-		// separately selected event. Optional failure leaves discovery usable.
+		// Only the rendered results are enriched, never the entire result set or
+		// the separately selected event. Optional failure leaves discovery usable.
 		activityIDs := make([]string, 0, len(page.Events.Items))
 		for _, event := range page.Events.Items {
 			activityIDs = append(activityIDs, event.ID)
 		}
-		var activityErr error
-		page.Activity, activityErr = a.eventActivity.Previews(c.Request().Context(), activityIDs)
-		if activityErr != nil {
-			page.ActivityError = "Community previews couldn't load. Open an event to check its activity."
+		for start := 0; start < len(activityIDs); start += stateBatch {
+			previews, activityErr := a.eventActivity.Previews(c.Request().Context(), activityIDs[start:min(start+stateBatch, len(activityIDs))])
+			if activityErr != nil {
+				page.Activity = nil
+				page.ActivityError = "Community previews couldn't load. Open an event to check its activity."
+				break
+			}
+			page.Activity = mergeStates(page.Activity, previews)
 		}
 	}
 	if partial {
@@ -239,6 +276,83 @@ func (a *api) localizeDefaultDates(q *discovery.Query, filters url.Values, now t
 	}
 	*q = localized
 	return true
+}
+
+const (
+	// stateBatch matches the ID limit of saved, interest and activity reads.
+	stateBatch = 100
+	// A restore stops at either bound, so a shifted result set whose cursor
+	// never recurs costs a bounded walk rather than the whole search.
+	maxRestoredPages  = 10
+	maxRestoredEvents = 200
+)
+
+// restorePages appends the pages after list, which was read with cursor,
+// through the page read with through: the last page the browser had loaded.
+// It returns the cursor of the last rendered page. A failed later page ends the
+// walk early and leaves its cursor to the Load more control.
+func (a *api) restorePages(ctx context.Context, q discovery.Query, list models.EventList, cursor, through string, now time.Time) (models.EventList, string, error) {
+	values := q.Values()
+	values.Set("cursor", through)
+	target, err := discovery.ParseQuery(values, now)
+	if err != nil {
+		return list, cursor, &discovery.ValidationError{Field: "through", Message: "invalid cursor or filters changed; start a new search"}
+	}
+	pages := maxRestoredPages
+	if !q.Stored && !target.Stored {
+		// Provider cursors carry their page number, so the walk length is known.
+		pages = min(pages, target.Page-q.Page+1)
+	}
+	seen := make(map[string]bool, len(list.Items))
+	for _, event := range list.Items {
+		seen[event.ID] = true
+	}
+	// Only whole pages fit: a trimmed page's remaining events would be
+	// unreachable from the Load more cursor that follows it.
+	for n := 1; n < pages && cursor != through && list.NextCursor != nil && len(list.Items)+q.Limit <= maxRestoredEvents; n++ {
+		values.Set("cursor", *list.NextCursor)
+		next, err := discovery.ParseQuery(values, now)
+		if err != nil {
+			break
+		}
+		more, err := a.events.Events(ctx, next)
+		if err != nil {
+			break
+		}
+		cursor = *list.NextCursor
+		// Provider pages can overlap when results shift between reads; a row
+		// already rendered keeps its first position. Building a new slice also
+		// leaves cached result slices untouched.
+		items := slices.Clip(list.Items)
+		for _, event := range more.Items {
+			if !seen[event.ID] {
+				seen[event.ID] = true
+				items = append(items, event)
+			}
+		}
+		list.Items = items
+		list.NextCursor, list.Limited = more.NextCursor, more.Limited
+		list.Meta.Stale = list.Meta.Stale || more.Meta.Stale
+		// The oldest supporting read dates the whole list.
+		if !more.Meta.DataAsOf.IsZero() && (list.Meta.DataAsOf.IsZero() || more.Meta.DataAsOf.Before(list.Meta.DataAsOf)) {
+			list.Meta.DataAsOf = more.Meta.DataAsOf
+		}
+		if !more.Meta.FreshUntil.IsZero() && (list.Meta.FreshUntil.IsZero() || more.Meta.FreshUntil.Before(list.Meta.FreshUntil)) {
+			list.Meta.FreshUntil = more.Meta.FreshUntil
+		}
+	}
+	return list, cursor, nil
+}
+
+func mergeStates[V any](dst, src map[string]V) map[string]V {
+	if len(src) == 0 {
+		return dst
+	}
+	if dst == nil {
+		dst = make(map[string]V, len(src))
+	}
+	maps.Copy(dst, src)
+	return dst
 }
 
 func errorMessage(err error) (int, string) {

@@ -71,9 +71,6 @@
         const response = await fetch('/api/v1/me/event-interests/states?' + params);
         if (turn !== stateTurn) return;
         if (response.status === 401) {
-          const state = { ...history.state };
-          delete state.ticketopiaResults;
-          history.replaceState(state, '', location.href);
           location.reload();
           return;
         }
@@ -197,7 +194,6 @@
       if (hadFocus && focusTarget.isConnected && document.activeElement === document.body) focusTarget.focus({ preventScroll: true });
     }
   });
-  document.addEventListener('ticketopia:state-restored', refresh);
   document.addEventListener('ticketopia:viewer-changed', () => { ++stateTurn; });
   window.addEventListener('pageshow', event => {
     if (!event.persisted) return;

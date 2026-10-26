@@ -98,6 +98,40 @@ before optional metadata so a catalog failure cannot replace successful results.
 Unavailable catalogs retain selected filter IDs and offer all-category search;
 retained catalogs show their stale state.
 
+### Restoring loaded pages
+
+`#pagination` carries `data-page-cursor`, the cursor that read its last rendered
+page (empty on the first page). After each Load more, JavaScript mirrors it into
+the Discover URL as the HTML-only `through=<cursor>` parameter with `replaceState`,
+removing it when only the requested page is shown. Because the cursor is bound to
+the normalized search, that URL is rebuilt from the results URL, spelling out a
+remembered or located city and default dates, plus any selection parameters.
+Same-document Back or Forward (for example, closing the preview) keeps the loaded
+rows, so the entry it lands on is updated the same way. Selection URLs are built
+from the current URL, so they carry it too. Reload, Back without the back/forward
+cache, and event-page **Back to results** links then receive every loaded page in
+the first response, with current Save/Interested state, account controls, CSRF
+tokens and activity counts. Browser history stores no result HTML, only scroll
+position and focus, and the browser restores scroll on a page that is already
+full length. There is no second request, placeholder or late scroll jump. A shared
+link opens the same loaded pages.
+
+The handler reads pages from the requested one (or the request's own `cursor`)
+until it has rendered the page read by `through`. `through` is validated like
+`cursor`: it must be bound to the same normalized filters and limit. On a whole
+page a stale, edited or repeated value is ignored and the requested page renders;
+JavaScript then drops it from the URL. Load more fragment requests
+(`HX-Request: true`) reject it with 400. A walk renders at most 10 pages or 200
+events, whichever comes first, and only whole pages: a page that would pass 200
+events is left to Load more, so none of its events become unreachable. Provider
+cursors carry their page number, so they stop exactly. A row repeated by an
+overlapping later page keeps its first position, and the "Updated" time is the
+oldest rendered page's. A stored result set that shifted, so the cursor never recurs, stops
+at that cap. A later page that fails ends the walk early and leaves its cursor in
+Load more. Either way, the URL is corrected to the last rendered page. Saved,
+interest and activity reads use batches of at most 100 IDs. `through` never enters
+cache keys, the results URL that rows link back to, or the JSON API.
+
 ### Category and genre controls
 
 Choose a category to enable its genre choices. Changing category clears the
@@ -203,7 +237,9 @@ A new form submission starts at the first page.
   event's names. Browsers without support navigate normally. In-page preview
   loads aren't animated.
 - Back restores previous selection; loaded result pages, focus, and scroll are
-  retained in browser history across the event's in-place section links. A
+  retained in browser history across the event's in-place section links. History
+  stores no result HTML; the URL carries the last loaded page's cursor (see
+  [restoring loaded pages](#restoring-loaded-pages)). A
   one-use, same-tab session-storage handoff carries the originating history entry;
   if storage is unavailable, a normal return
    link still preserves validated search filters and event/thread selection.
