@@ -9,26 +9,31 @@ import "github.com/sonastea/ticketopia/views/components/alert"
 templ Event(page EventPage) {
 	@layouts.App("discover", eventPageTitle(page)) {
 		<main id="main" class="event-page">
-			@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "text-link back-link", Attributes: templ.Attributes{"data-return-results": true}}) {
-				@layouts.Icon("back")
-				if isSavedURL(page.ReturnURL) {
-					Back to Saved
-				} else if isInterestsURL(page.ReturnURL) {
-					Back to Interests
-				} else if isRadarURL(page.ReturnURL) {
-					Back to Radar
-				} else if isHappeningNowURL(page.ReturnURL) {
-					Back to Happening Now
-				} else if isCommunityURL(page.ReturnURL) {
-					Back to Community
-				} else if isProfileURL(page.ReturnURL) {
-					Back to profile
-				} else if page.ReturnURL != "/" {
-					Back to results
-				} else {
-					Discover events
+			<div class="event-toolbar">
+				@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "text-link back-link", Attributes: templ.Attributes{"data-return-results": true}}) {
+					@layouts.Icon("back")
+					if isSavedURL(page.ReturnURL) {
+						Back to Saved
+					} else if isInterestsURL(page.ReturnURL) {
+						Back to Interests
+					} else if isRadarURL(page.ReturnURL) {
+						Back to Radar
+					} else if isHappeningNowURL(page.ReturnURL) {
+						Back to Happening Now
+					} else if isCommunityURL(page.ReturnURL) {
+						Back to Community
+					} else if isProfileURL(page.ReturnURL) {
+						Back to profile
+					} else if page.ReturnURL != "/" {
+						Back to results
+					} else {
+						Discover events
+					}
 				}
-			}
+				if page.Error == "" {
+					@ShareAction(page.Detail.Item)
+				}
+			</div>
 			if page.Error != "" {
 				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
 					<h1>Event unavailable</h1>
@@ -61,6 +66,7 @@ templ EventContext(page EventPage) {
 				@layouts.Icon("back")
 				<span>Back to results</span>
 			}
+			@ShareAction(page.Detail.Item)
 		</div>
 		@EventHeading(page, true)
 		@EventPrimaryActions(page)
@@ -242,11 +248,26 @@ templ EventSectionContent(page EventPage) {
 				}
 				if eventPlace(page.Detail.Item).Address != "" {
 					<h3>Venue</h3>
-					<p>{ venueLabel(page.Detail.Item) }<br/>{ eventPlace(page.Detail.Item).Address } { eventPlace(page.Detail.Item).PostalCode }</p>
+					<p>{ venueLabel(page.Detail.Item) }</p>
+					<a href={ templ.SafeURL(mapsURL(page.Detail.Item)) } class="text-link venue-map-link" data-maps-query={ mapsQuery(page.Detail.Item) }>
+						@layouts.Icon("location")
+						<span>{ eventPlace(page.Detail.Item).Address } { eventPlace(page.Detail.Item).PostalCode }<span class="sr-only"> (open in Maps)</span></span>
+					</a>
 				}
 				if page.Detail.Item.PleaseNote != "" {
 					<h3>Before you go</h3>
-					<p class="provider-copy">{ page.Detail.Item.PleaseNote }</p>
+					if intro, items := noticeList(page.Detail.Item.PleaseNote); len(items) > 0 {
+						if intro != "" {
+							<p>{ intro }</p>
+						}
+						<ul class="notice-list">
+							for _, item := range items {
+								<li>{ item }</li>
+							}
+						</ul>
+					} else {
+						<p class="provider-copy">{ page.Detail.Item.PleaseNote }</p>
+					}
 				}
 		}
 	</section>
@@ -295,6 +316,19 @@ templ TicketAction(event models.Event) {
 	} else {
 		<p>A ticket link hasn't been supplied for this event.</p>
 	}
+}
+
+// ShareAction opens the device share sheet, or copies the link where there is
+// none. It needs JavaScript, so CSS shows it only once the head script finds
+// either capability. It sits in the toolbar so the compact Tickets bar keeps
+// Save on one row.
+templ ShareAction(event models.Event) {
+	<div class="share-action">
+		<p class="share-feedback" role="status" data-share-feedback></p>
+		@button.Button(button.Props{Variant: button.VariantOutline, Class: "button-quiet share-button", Attributes: templ.Attributes{"data-share-url": shareURL(event.ID), "data-share-title": event.Name, "aria-label": "Share " + event.Name}}) {
+			@layouts.Icon("share")
+		}
+	</div>
 }
 
 templ ParticipationButton(name string, text string, noteID string) {

@@ -3,6 +3,7 @@ package home
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -772,6 +773,56 @@ func eventPlace(event models.Event) models.Place {
 		return *event.Place
 	}
 	return models.Place{}
+}
+
+// mapsURL opens the venue in Google Maps' universal search link, which Android
+// hands to its Maps app and every other browser serves on the web. app.js sends
+// iPhone and iPad taps to Apple Maps instead, from the same query.
+func mapsURL(event models.Event) string {
+	return "https://www.google.com/maps/search/?api=1&query=" + url.QueryEscape(mapsQuery(event))
+}
+
+func mapsQuery(event models.Event) string {
+	place := eventPlace(event)
+	var parts []string
+	for _, value := range []string{place.Name, place.Address, place.City, place.State, place.PostalCode, place.CountryCode} {
+		if value = strings.TrimSpace(value); value != "" {
+			parts = append(parts, value)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// shareURL is the event's canonical path, without the reader's return context.
+func shareURL(id string) string { return eventURL(id, "overview", "/") }
+
+// noticeBullet matches the provider's inline " - " bullets, including one that
+// opens the notice or a line.
+var noticeBullet = regexp.MustCompile(`(?:^|\s)-\s+`)
+
+// noticeList splits a provider "Before you go" notice written as inline
+// " - " bullets into an optional lead-in and its items. It only changes the
+// display: prose with a stray dash (for example "7pm - 11pm") stays a paragraph
+// unless it has two or more items after an empty or sentence-ending lead-in.
+func noticeList(text string) (string, []string) {
+	parts := noticeBullet.Split(strings.TrimSpace(text), -1)
+	if len(parts) < 3 {
+		return "", nil
+	}
+	intro := strings.TrimSpace(parts[0])
+	if intro != "" && !strings.ContainsAny(intro[len(intro)-1:], ":.!?") {
+		return "", nil
+	}
+	var items []string
+	for _, part := range parts[1:] {
+		if part = strings.TrimSpace(part); part != "" {
+			items = append(items, part)
+		}
+	}
+	if len(items) < 2 {
+		return "", nil
+	}
+	return intro, items
 }
 
 func hasGenre(genres []models.Genre, id string) bool {

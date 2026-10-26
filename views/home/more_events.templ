@@ -146,25 +146,42 @@ templ Freshness(meta models.Freshness) {
 
 // ResultsFreshness merges result freshness and collection coverage into one
 // line so compact screens reach the first event sooner. It renders once on
-// load, so it isn't a live region that would re-announce every visit.
+// load, so it isn't a live region that would re-announce every visit. Warnings
+// collapse to a one-line summary with the explanation behind a tap.
 templ ResultsFreshness(meta models.Freshness) {
-	if !meta.DataAsOf.IsZero() || meta.Coverage != nil {
-		<p
-			class={ "freshness", templ.KV("is-stale", meta.Stale) }
+	if summary := resultsNoticeSummary(meta); summary != "" {
+		<details
+			class={ "freshness freshness-notice", templ.KV("is-stale", meta.Stale) }
 			if meta.Coverage != nil {
 				data-coverage={ meta.Coverage.Status }
 			}
 		>
-			if meta.Stale {
-				<strong>Showing last-known results, not live availability.</strong>{ " " }
+			<summary>{ summary }</summary>
+			<p>
+				@resultsFreshnessText(meta)
+			</p>
+		</details>
+	} else if !meta.DataAsOf.IsZero() || meta.Coverage != nil {
+		<p
+			class="freshness"
+			if meta.Coverage != nil {
+				data-coverage={ meta.Coverage.Status }
 			}
-			if note := coverageNote(meta); note != "" {
-				{ note }{ " " }
-			}
-			if !meta.DataAsOf.IsZero() {
-				Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
-			}
+		>
+			@resultsFreshnessText(meta)
 		</p>
+	}
+}
+
+templ resultsFreshnessText(meta models.Freshness) {
+	if meta.Stale {
+		<strong>Showing last-known results, not live availability.</strong>{ " " }
+	}
+	if note := coverageNote(meta); note != "" {
+		{ note }{ " " }
+	}
+	if !meta.DataAsOf.IsZero() {
+		Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
 	}
 }
 

@@ -200,8 +200,12 @@ func TestEmptyStatesMatchTheirContext(t *testing.T) {
 func TestResultsFreshnessIsOneQuietLine(t *testing.T) {
 	meta := models.Freshness{DataAsOf: time.Now().UTC(), Stale: true, Coverage: &models.Coverage{Status: "partial"}}
 	body := renderNeighbor(t, ResultsFreshness(meta))
-	if strings.Count(body, "<p") != 1 || !strings.Contains(body, `data-coverage="partial"`) || strings.Contains(body, "role=") || !strings.Contains(body, "Showing last-known results") || !strings.Contains(body, "Partial coverage") || !strings.Contains(body, "Updated ") {
-		t.Fatal("freshness and coverage must share one non-live line", body)
+	if strings.Count(body, "<details") != 1 || !strings.Contains(body, "<summary>Last-known, partial results</summary>") || !strings.Contains(body, `data-coverage="partial"`) || strings.Contains(body, "role=") || !strings.Contains(body, "Showing last-known results") || !strings.Contains(body, "Partial coverage") || !strings.Contains(body, "Updated ") {
+		t.Fatal("a results warning must be one non-live summary line with its details behind a disclosure", body)
+	}
+	body = renderNeighbor(t, ResultsFreshness(models.Freshness{DataAsOf: time.Now().UTC(), Coverage: &models.Coverage{Status: "complete"}}))
+	if strings.Contains(body, "<details") || strings.Count(body, "<p") != 1 || !strings.Contains(body, "Updated ") {
+		t.Fatal("ordinary freshness must stay a plain line", body)
 	}
 }
 

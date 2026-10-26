@@ -143,6 +143,40 @@
     filters.open = true;
     document.getElementById('city').focus();
   });
+  // iPhone and iPad venue links open Apple Maps; others keep the Google Maps link.
+  const appleMaps = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  document.addEventListener('click', event => {
+    const link = appleMaps && event.target.closest('[data-maps-query]');
+    if (link) link.href = 'https://maps.apple.com/?q=' + encodeURIComponent(link.dataset.mapsQuery);
+  });
+  // Share uses the device sheet, falling back to copying the canonical link.
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('[data-share-url]');
+    if (!button) return;
+    const url = new URL(button.dataset.shareUrl, location.href).href;
+    const tell = (message, error = false) => {
+      const target = button.closest('.share-action')?.querySelector('[data-share-feedback]');
+      if (!target) return;
+      target.dataset.error = String(error);
+      target.textContent = message;
+      enter(target);
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: button.dataset.shareTitle, url });
+        return;
+      } catch (error) {
+        // Dismissing the sheet is a choice, not a failure.
+        if (error.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      tell('Link copied.');
+    } catch {
+      tell("Couldn't copy the link.", true);
+    }
+  });
   document.addEventListener('invalid', event => {
     const disclosure = event.target.closest('details');
     if (disclosure) disclosure.open = true;

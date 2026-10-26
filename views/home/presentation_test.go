@@ -99,3 +99,44 @@ func TestTintStyleAcceptsOnlyHexColours(t *testing.T) {
 		}
 	}
 }
+
+func TestNoticeListSplitsOnlyProviderBullets(t *testing.T) {
+	for _, tt := range []struct {
+		name, text, intro string
+		items             []string
+	}{
+		{"leading bullets", "- No re-entry. - Bags must be clear.", "", []string{"No re-entry.", "Bags must be clear."}},
+		{"lead-in", "Please note: - No cameras - All ages\n- Doors at 7", "Please note:", []string{"No cameras", "All ages", "Doors at 7"}},
+		{"one bullet stays prose", "Please note: - No cameras", "", nil},
+		{"dashes in prose stay prose", "Doors 7pm - 11pm - all ages", "", nil},
+		{"plain prose", "Bring photo ID.", "", nil},
+		{"hyphenated words", "Re-entry is not-permitted. - First - Second", "Re-entry is not-permitted.", []string{"First", "Second"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			intro, items := noticeList(tt.text)
+			if intro != tt.intro || strings.Join(items, "|") != strings.Join(tt.items, "|") {
+				t.Fatalf("noticeList(%q) = %q, %q", tt.text, intro, items)
+			}
+		})
+	}
+}
+
+func TestEventOverviewLinksVenueToMapsAndOffersShare(t *testing.T) {
+	event := models.Event{ID: "ticketmaster:Maps", Name: "Local show", PleaseNote: "- Clear bags only - No re-entry", Place: &models.Place{Name: "Local hall", Address: "12 Main Street", City: "Boston", PostalCode: "02110"}}
+	var out bytes.Buffer
+	if err := Event(EventPage{Detail: models.EventDetail{Item: event}, Section: "overview", ReturnURL: "/?city=Boston"}).Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	markup := out.String()
+	for _, want := range []string{
+		`href="https://www.google.com/maps/search/?api=1&amp;query=Local+hall%2C+12+Main+Street%2C+Boston%2C+02110"`,
+		`data-maps-query="Local hall, 12 Main Street, Boston, 02110"`,
+		`<li>Clear bags only</li><li>No re-entry</li>`,
+		`data-share-url="/events/ticketmaster:Maps"`,
+		`aria-label="Share Local show"`,
+	} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("missing %s", want)
+		}
+	}
+}

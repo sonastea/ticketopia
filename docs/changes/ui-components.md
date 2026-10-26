@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-10-26 — Event page quick wins
+
+- The venue address links to Maps: Google's universal link (the Maps app on
+  Android, the web elsewhere), and Apple Maps on iPhone and iPad.
+- A Share icon beside Back (page and preview) opens the share sheet with the
+  canonical event link, or copies it. It is shown only where one of those works,
+  and stays out of the Tickets bar so Save keeps its one row at 360–390px.
+- "Before you go" notices written as inline " - " bullets display as a list;
+  other prose, including stray dashes, stays a paragraph. Stored text is unchanged.
+- Results warnings (last-known, partial, not collected, older) collapse to a
+  one-line summary that opens into the full explanation; plain freshness stays a
+  line.
+
 ### 2026-10-26 — Mobile polish
 
 - Phone-width results keep a 5.5rem thumbnail beside the facts (about 370px per
@@ -63,34 +76,5 @@
   scroll-state queries keep a static header (see the
   [guide](../ui-components.md#modern-css-conventions)). Verified with CSS and
   event-context checks in Chromium and WebKit.
-
-### 2026-10-23 — Finishing touches: floating navigation, warm text, scroll header
-
-- Float the phone navigation as an inset pill above the bottom safe area: a soft
-  white/pale-plum surface, a one-pixel border, a bordered current pill (Highlight
-  in forced colors) and .75rem labels. Small phones use viewport-capped insets so
-  enlarged labels stay whole. The event Tickets/Save bar sits above it as a card,
-  now on one row (122 → 70px at 390px and 320px wide): narrow bars show
-  **Tickets** and keep "Tickets on Ticketmaster" as the accessible name.
-- Add `--muted-warm` (muted mixed 12% toward plum) for all secondary text and the
-  library's muted foreground; it is AA on every app surface and event tint.
-- Below 62rem, stick and shrink the compact header with a scroll-driven animation
-  under `@supports` and no reduced-motion preference; otherwise it stays static.
-- Snap destination empty-state headings to the headline size; record the 1.6rem
-  wordmark as a logo exception. Let event-page facts wrap below the date marker
-  instead of breaking words at 320px with 200% text.
-- Fix two Safari section-navigation faults. A few seconds of scrolling saved the
-  reading position every frame, exhausting WebKit's 100-writes-per-10-seconds
-  history budget, so section links silently did nothing. Positions now save once
-  scrolling settles, and a refused history write never aborts a navigation. Focus
-  also now returns to a clicked section link, which WebKit never focuses itself.
-- Bring browser checks up to date: the current stale-data copy, waiting out the
-  cross-document view transition on no-JavaScript pages, and production's
-  `no-store`/`Vary` headers on the read-only preview's event route.
-- Verify Chromium (273) and WebKit (269) CSS checks, event-context checks (228,
-  eight zero-violation axe views) in both engines, and an axe/overflow pass over
-  48 views at 1440/768/390/320px, 200% text, forced colors and reduced motion.
-  See [DESIGN.md](../../DESIGN.md#navigation) and the
-  [component guide](../ui-components.md#modern-css-conventions).
 
 Older entries: [UI component archive](archive/ui-components/).

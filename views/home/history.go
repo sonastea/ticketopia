@@ -38,6 +38,29 @@ func coverageNote(meta models.Freshness) string {
 	return ""
 }
 
+// resultsNoticeSummary is the one-line form of a results warning; the full
+// explanation sits behind a disclosure. Ordinary freshness needs no summary.
+func resultsNoticeSummary(meta models.Freshness) string {
+	partial := meta.Coverage != nil && meta.Coverage.Status == "partial"
+	switch {
+	case meta.Stale && partial:
+		return "Last-known, partial results"
+	case meta.Stale:
+		return "Showing last-known results"
+	case meta.Coverage == nil:
+		return ""
+	}
+	switch meta.Coverage.Status {
+	case "not_collected":
+		return "Not collected yet"
+	case "partial":
+		return "Partial results: more events may exist"
+	case "stale":
+		return "Older results"
+	}
+	return ""
+}
+
 func emptySearchTitle(meta models.Freshness) string {
 	if meta.Coverage != nil {
 		switch meta.Coverage.Status {

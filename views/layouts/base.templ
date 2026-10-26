@@ -33,8 +33,10 @@ templ Base(title string) {
 		<body>
 			// Apply the saved sidebar collapse before first paint; app.js is deferred
 			// and would otherwise shift the shell from expanded to collapsed on load.
+			// Share buttons likewise appear before paint only where they can work.
 			<script nonce={ templ.GetNonce(ctx) }>
 				try { if (localStorage.getItem('ticketopia-sidebar-collapsed-v1') === 'true') document.body.classList.add('nav-collapsed'); } catch {}
+				if (navigator.share || navigator.clipboard?.writeText) document.documentElement.dataset.canShare = '';
 			</script>
 			<a href="#main" class="skip-link">Skip to content</a>
 			{ children... }

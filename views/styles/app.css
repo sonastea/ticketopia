@@ -813,10 +813,10 @@ summary::-webkit-details-marker {
 /* Text disclosures share one chevron in every browser instead of the UA marker
    (drawn by Chromium and Firefox, hidden in WebKit). Borders survive forced
    colours; the drawn geometry is physical. */
-:is(.account-more, .follow-search, .event-provenance, .account-token-details) > summary {
+:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice) > summary {
   list-style: none;
 }
-:is(.account-more, .follow-search, .event-provenance, .account-token-details) > summary::after {
+:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice) > summary::after {
   content: "";
   display: inline-block;
   inline-size: .45em;
@@ -827,7 +827,7 @@ summary::-webkit-details-marker {
   border-bottom: 2px solid currentColor;
   rotate: 45deg;
 }
-:is(.account-more, .follow-search, .event-provenance, .account-token-details)[open] > summary::after {
+:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice)[open] > summary::after {
   rotate: 225deg;
   vertical-align: -.05em;
 }
@@ -963,6 +963,34 @@ summary::-webkit-details-marker {
   background: var(--warning-bg);
   padding: .75rem;
   border-radius: .5rem;
+}
+
+/* A results warning is one tappable summary line; its 44px row supplies the
+   stale box's block padding. */
+.freshness-notice.is-stale {
+  padding-block: 0;
+}
+
+.freshness-notice > summary {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding-block: .7rem;
+  font-weight: 650;
+}
+
+.freshness-notice > p {
+  padding-block-end: .75rem;
+}
+
+.freshness-notice:not(.is-stale) > p {
+  padding-block-end: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .freshness-notice > summary:hover {
+    color: var(--ink);
+  }
 }
 
 .participation-note {
@@ -1965,6 +1993,73 @@ summary::-webkit-details-marker {
 
 .provider-copy {
   white-space: pre-line;
+}
+
+.event-section .notice-list {
+  display: grid;
+  gap: .375rem;
+  max-inline-size: 70ch;
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  list-style: disc;
+  font-size: .9375rem;
+  color: var(--muted-warm);
+}
+
+.event-section p + .notice-list {
+  margin-block-start: .5rem;
+}
+
+.venue-map-link {
+  align-items: start;
+  padding-block: .6rem;
+}
+
+.venue-map-link > .icon {
+  flex: none;
+  margin-block-start: .15em;
+}
+
+.event-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-block-end: 1rem;
+}
+
+.event-toolbar > .back-link {
+  margin-block-end: 0;
+}
+
+.share-action {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-inline-start: auto;
+}
+
+.share-button {
+  flex: none;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  border-color: transparent;
+  background: transparent;
+}
+
+.share-feedback {
+  font-size: .8125rem;
+  font-weight: 500;
+  color: var(--muted-warm);
+  text-align: end;
+}
+
+.share-feedback[data-error="true"] {
+  color: var(--error);
+}
+
+/* Share needs the share sheet or clipboard, detected before first paint. */
+:root:not([data-can-share]) .share-action {
+  display: none;
 }
 
 .ticket-details {
