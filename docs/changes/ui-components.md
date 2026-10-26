@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### 2026-10-26 — Interaction motion
+
+- Sidebar collapse/expand and desktop preview open/close animate as 380ms
+  same-document view transitions (the grid still switches instantly, so no
+  per-frame workspace layout): the page takes its new layout at once while the
+  rail or preview slides over it like a drawer.
+- The signed-in Save control reserves the **Remove from Saved** width, so saving
+  no longer pushes it onto a new row (seen at ~380–530px and in some desktop
+  card widths).
+- Native controls share a 160ms colour transition baseline, and borders now ease
+  too (library buttons, actions, section tabs). Action feedback, inline errors and
+  newly revealed controls fade in, toasts drop in, pending forms dim gradually and
+  rail labels fade out. Found by a four-way transition audit.
+- Section and conversation swaps fade in, Load more rows settle in, late result
+  artwork fades in, and linked/just-written posts flash once. Rows surviving a
+  Saved/Interests removal and reordered sidebar items/sections slide into place.
+- Disclosures grow open and shut via `::details-content`; loaded previews settle
+  in; collapsed-rail labels fade in; saved bookmarks and interested stars fill and
+  pop when toggled. All motion is skipped under reduced motion (see the
+  [guide](../ui-components.md#modern-css-conventions)). Verified in Chrome; WebKit
+  opens disclosures instantly.
+
 ### 2026-10-25 — Browser main-thread work
 
 - Stop loading the ~247 KiB component bundle on every page. Only native Select
@@ -64,20 +86,5 @@
   Reserve actual sticky-bar/safe-area height in the shell instead of a fixed spacer.
 - Preserve rail/desktop thresholds; add label/content-clearance browser regressions.
   See [dated flow priorities](../design/ui-flow-polish-2026-10-12.md).
-
-### 2026-10-10 — Quieter event views and segmented navigation
-
-- Establish “Local frequency, less interface” in the [design philosophy](../../DESIGN.md#design-philosophy):
-  event-first hierarchy, restrained action styling, and one visual grammar per control.
-- Replace event underline buttons with responsive segmented navigation, including
-  an explicit forced-colors current state and real link semantics.
-- Quiet participation toolbars, move row Overview navigation into the metadata
-  disclosure, mute genre labels, and hide zero-interest counts until positive.
-- Simplify the preview to one container and a labeled Back to results action.
-- Preserve private/public labels, independent saves/interests, reminder access,
-  and the discussion-first selection and return-state contracts.
-- Verify Chromium/WebKit responsive fixtures, 200% text, long content, touch,
-  forced colors, and reduced motion; verify live count updates from zero to one
-  and back using mocked responses. Home package race tests, vet, and build pass.
 
 Older entries: [UI component archive](archive/ui-components/).

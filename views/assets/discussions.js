@@ -5,6 +5,15 @@
   const attempts = new WeakMap();
   const confirmedForms = new WeakSet();
   const labels = new WeakMap();
+  const motionOK = () => matchMedia('(prefers-reduced-motion: no-preference)').matches;
+  // Briefly highlights a post the reader was just taken to (CSS animates it).
+  const arrive = post => {
+    if (!post || !motionOK()) return;
+    post.removeAttribute('data-arrived');
+    void post.offsetWidth;
+    post.setAttribute('data-arrived', '');
+    post.addEventListener('animationend', () => post.removeAttribute('data-arrived'), {once: true});
+  };
   const uncertain = 'This post may already be published. Your draft and reply target are kept. Retry this unchanged draft to confirm it without posting twice.';
   function load(key) {
     if (memory.has(key)) return memory.get(key);
@@ -188,6 +197,8 @@
       document.querySelectorAll('[data-discussion-draft]').forEach(save);
       const open = content.querySelector('.discussion-editor[open] [data-discussion-draft]')?.dataset.discussionDraft;
       content.replaceChildren(...fresh.querySelector('[data-conversation-content]').childNodes);
+      // A reader-chosen conversation fades in; refreshes after a write don't.
+      if (push && !confirmation && motionOK()) content.animate({opacity: [0, 1]}, {duration: 160, easing: 'cubic-bezier(.16, 1, .3, 1)'});
       if (push) {
         const state = {...history.state, ticketopiaConversation: null};
         const journey = state.ticketopiaReturn;
@@ -217,8 +228,9 @@
         target = confirmation.action === 'helpful' || confirmation.action === 'unhelpful' ? post?.querySelector('button[aria-pressed]')
           : confirmation.action === 'edit' ? post?.querySelector('.discussion-editor > summary') : post;
         if (confirmation.action !== 'create') scrollTo(0, position);
+        if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
       } else if (url.hash === '#discussion-composer') target = content.querySelector('#discussion-composer textarea, #discussion-composer a');
-      else if (url.hash.startsWith('#post-')) target = document.getElementById(url.hash.slice(1));
+      else if (url.hash.startsWith('#post-')) arrive(target = document.getElementById(url.hash.slice(1)));
       else { target = content.querySelector('h2'); scrollTo(0, 0); }
       if (target) {
         if (target.matches('article, h2')) target.tabIndex = -1;

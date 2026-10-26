@@ -40,6 +40,9 @@
       if (!form.hasAttribute('data-interest-edit')) {
         form.elements.action.value = state.interested ? 'remove' : 'set';
         const button = form.querySelector('button');
+        if (state.interested && button.getAttribute('aria-pressed') !== 'true' && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+          button.querySelector('.icon')?.animate?.({ scale: [.6, 1.2, 1] }, { duration: 320, easing: 'cubic-bezier(.16, 1, .3, 1)' });
+        }
         button.setAttribute('aria-pressed', String(state.interested));
         const text = form.dataset.interestCollection === 'true' && state.interested ? `Remove interest · ${label(visibility)}` : `Interested · ${label(visibility)}`;
         button.setAttribute('aria-label', `${text} — ${state.interested ? 'Remove' : 'Mark'} interest for ${form.dataset.eventName}`);
@@ -55,7 +58,12 @@
     for (const details of document.querySelectorAll('[data-interest-details]')) {
       if (details.dataset.interestDetails !== id) continue;
       const privacy = details.querySelector('[data-interest-privacy]');
-      if (privacy) { privacy.hidden = !state.interested; if (!state.interested) privacy.open = false; }
+      if (privacy) {
+        if (state.interested && privacy.hidden && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+          privacy.animate?.({ opacity: [0, 1] }, { duration: 160, easing: 'cubic-bezier(.16, 1, .3, 1)' });
+        }
+        privacy.hidden = !state.interested; if (!state.interested) privacy.open = false;
+      }
     }
   };
   const refresh = async () => {

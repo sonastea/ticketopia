@@ -157,9 +157,35 @@ change returns the sticky header's height to the reader. The same block sets
 the 1rem threshold, unsticking and regrowing the header so scrolling stalls. Placeholder
 shimmer moves a clipped `::after` highlight with `translate`, which browsers composite,
 rather than repainting a background position. Sidebar collapse switches its grid
-tracks instantly; it is not transitioned, which would lay out the workspace on every
-frame. Scroll-driven and shimmer motion both sit under
-`prefers-reduced-motion: no-preference`.
+tracks instantly; transitioning them would lay out the workspace on every frame.
+Instead `app.js`'s `shellTransition()` wraps the switch, and desktop preview
+open/close, in `document.startViewTransition()`, setting `data-shell-transition`
+on the root for the latest transition. That names the sidebar, `#main` and the
+preview and drops per-event names. `#main` is not animated, since its reflowing
+results ghost under a crossfade; the rail and preview groups clip their
+natural-size snapshots and slide over it. A preview open defers its DOM swap to
+the transition callback, so it awaits that before applying the fetched panel, and
+superseded opens/closes skip their swap via the selection generation.
+Disclosures animate `::details-content` block size with a paint-only `clip-path`
+(no layout change; .375rem below the edge stays visible for focus outlines).
+Icon pops use the Web Animations API from `app.js`/`interests.js` only when state
+flips in place, so server-rendered saved states do not animate on load; the same
+applies to fading in reminder and visibility controls. Feedback, errors and toasts
+that start hidden use CSS keyframe entrances instead (an animation restarts when
+`[hidden]`'s `display: none` lifts), avoiding `transition` shorthands that would
+replace a control's colour transitions. A low-specificity `:where()` colour
+baseline near the global press rule covers native controls; any rule declaring
+its own `transition` replaces it, so list colour properties there too.
+`app.js` shares `enter(node, keyframes, duration)` for one-off entrances and
+`flip(nodes, update)` for reorders: it measures, runs `update`, then animates
+`translate` from the old positions, subtracting a moving ancestor's offset for
+nested groups/items and restarting from in-flight positions on rapid repeats.
+Collection removal runs its scroll compensation and focus handoff inside
+`update`, so neither becomes motion. Entrances are limited to reader-initiated
+changes (not history restores or post-write refreshes); posts use a transient
+`data-arrived` attribute, alongside `:target`, for the arrival tint. Scroll-driven,
+shimmer, disclosure, preview, view-transition and pop motion all sit under
+`prefers-reduced-motion: no-preference` (scripts check the same query).
 
 Modern features follow the existing Tailwind v4 browser baseline (Chrome 111+,
 Safari 16.4+, Firefox 128+). `light-dark()` requires Chrome 123+/Safari 17.5+;

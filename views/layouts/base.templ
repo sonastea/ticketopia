@@ -28,6 +28,11 @@ templ Base(title string) {
 			<title>{ title } · Ticketopia</title>
 		</head>
 		<body>
+			// Apply the saved sidebar collapse before first paint; app.js is deferred
+			// and would otherwise shift the shell from expanded to collapsed on load.
+			<script nonce={ templ.GetNonce(ctx) }>
+				try { if (localStorage.getItem('ticketopia-sidebar-collapsed-v1') === 'true') document.body.classList.add('nav-collapsed'); } catch {}
+			</script>
 			<a href="#main" class="skip-link">Skip to content</a>
 			{ children... }
 			<p class="sr-only" role="status" aria-atomic="true" data-interest-status></p>

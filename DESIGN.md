@@ -473,7 +473,7 @@ shown only for an eligible saved event with supported configuration; it navigate
 to settings without implying enrollment or an active reminder. Confirmed Save
 responses synchronize settings visibility; failed writes retain the prior state.
 
-Private Save / Remove from Saved controls are implemented when opt-in accounts are enabled. They inherit the quiet control's type, corners, target height, and plum focus outline; a saved event adds pale-plum fill with plum text and border, while hover uses pale plum and dark-plum text. Signed-out visitors get a Sign in to save link; disabled deployments explain the account requirement, and unavailable saved state is labeled rather than guessed. Ordinary POST forms work without JavaScript. Enhanced writes show pending, success, or retry feedback below the shared controls row and synchronize visible row/preview state only after confirmation. Feedback never participates in button alignment or wrapping; controls align at their top edge when labels wrap. Failed writes retain the prior state. Saved/Interests removal keeps surviving rows mounted, names the event, and restores removal-control focus without stealing focus moved elsewhere. Empty later pages prioritize newest-page recovery; a wholly empty collection leads to Discover. Transport/unreadable-response failures explain uncertain confirmation and safe retry without affecting independent recommendations. See [action feedback and removal](docs/saved-events.md#action-feedback-and-collection-removal).
+Private Save / Remove from Saved controls are implemented when opt-in accounts are enabled. They inherit the quiet control's type, corners, target height, and plum focus outline; a saved event adds pale-plum fill with plum text and border, while hover uses pale plum and dark-plum text. Signed-out visitors get a Sign in to save link; disabled deployments explain the account requirement, and unavailable saved state is labeled rather than guessed. Ordinary POST forms work without JavaScript. Enhanced writes show pending, success, or retry feedback below the shared controls row and synchronize visible row/preview state only after confirmation. Feedback never participates in button alignment or wrapping; controls align at their top edge when labels wrap. The signed-in Save control always reserves the width of **Remove from Saved**, so toggling never moves it or rewraps the row. Failed writes retain the prior state. Saved/Interests removal keeps surviving rows mounted, names the event, and restores removal-control focus without stealing focus moved elsewhere. Empty later pages prioritize newest-page recovery; a wholly empty collection leads to Discover. Transport/unreadable-response failures explain uncertain confirmation and safe retry without affecting independent recommendations. See [action feedback and removal](docs/saved-events.md#action-feedback-and-collection-removal).
 
 Interested is an independent durable choice when opt-in accounts are enabled. It inherits the same quiet control treatment, with pale-plum fill, plum text/border, and `aria-pressed` for the selected state. The separate aggregate uses .875rem ink text with a bold, tabular number. The action visibly says “Interested · Private” or “Interested · Public”, and its accessible name includes that label; do not repeat the visibility elsewhere while collapsed. Identity starts private; a profile visibility default applies only to new choices, not existing ones. A compact “Change visibility” disclosure beside the count reveals the per-event form and public event/profile explanation. Only one editor opens at a time; saving closes it and restores focus to its summary. Signed-out visitors get a sign-in link. Ordinary POST forms and enhanced writes both work; enhancement synchronizes confirmed row/preview state and announces pending/success without persistent visual status paragraphs. A single dismissible error stays near the action, outside the controls row, until dismissed, retried, or replaced. Failed writes retain the prior choice. Save is unaffected. See [event interest](docs/event-interest.md) for the feature contract.
 
@@ -491,12 +491,31 @@ the explicit action without performing it, except that Sign in to save completes
 the Save it names. Expired participation writes expose a
 contextual sign-in link. See [task continuity](docs/accounts.md#sign-in-task-continuity).
 
-Action background changes, sidebar width changes, and disclosure-chevron rotation
-use 160ms; result selection uses 180ms. Cross-document view transitions run 250ms with the shared ease-out curve, moving per-event artwork/titles between rows, preview and event page; they are enabled only under `prefers-reduced-motion: no-preference`. Buttons and badges share the source's
+Action background changes and disclosure-chevron rotation
+use 160ms; result selection uses 180ms. Disclosures grow open and shut over 200ms
+where `::details-content` and intrinsic-size interpolation are supported, and a
+loaded preview settles in (fade and .375rem rise, 200ms). Sidebar collapse and
+desktop preview open/close run as 380ms same-document view transitions on the
+gentler `--ease-standard` curve (`cubic-bezier(.2, 0, 0, 1)`): the page switches to
+its new layout at once while the rail or preview slides over it like a drawer,
+revealed under a clip. Collapsed-rail labels fade in over 120ms. Saved
+bookmarks and interested stars fill in over 160ms and, when turned on in place,
+pop with a 320ms overshoot. Cross-document view transitions run 250ms with the shared ease-out curve, moving per-event artwork/titles between rows, preview and event page; they are enabled only under `prefers-reduced-motion: no-preference`. Buttons and badges share the source's
 `cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms for color/fill
 changes only. Geometry transitions opt into motion only when no reduction is
-requested. The reduced-motion safeguard also disables vendored animations and
-smooth scrolling. Hover requires a fine, hover-capable pointer; touch press
+requested; there is no global safeguard, so each animation carries its own guard
+(the vendored shimmer utility has its own). Native links, buttons, summaries and
+selects share a 160ms ease-out colour baseline (background, text, border and
+underline colour), which reduced motion keeps. Under no reduction, action feedback,
+inline errors, revealed controls (reminder, visibility, custom timing)
+fade in over 160ms, live-activity toasts drop in over 200ms, pending forms dim
+gradually, and collapsed-rail labels also fade out; hiding is otherwise instant.
+A reader-chosen event section or conversation fades in (160ms); Load more rows
+settle in as one batch and late-loading result artwork fades over its placeholder
+(200ms). A post reached by link, or just published or edited, flashes the
+pale-plum tint once over 1.6s (static under reduced motion, outlined in forced
+colours). Rows that survive a Saved/Interests removal, and reordered sidebar
+items and sections, slide to their new places (240ms, `--ease-standard`). Hover requires a fine, hover-capable pointer; touch press
 feedback changes fill/color without movement.
 
 Two motion enhancements are scroll- or load-bound and gated on

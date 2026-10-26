@@ -8,6 +8,66 @@
     try { history[method](state, title, url); return true; } catch { return false; }
   };
 
+  const motionOK = () => matchMedia('(prefers-reduced-motion: no-preference)').matches;
+  const easeOut = 'cubic-bezier(.16, 1, .3, 1)';
+  // Plays a one-off entrance on content that just arrived.
+  const enter = (node, keyframes = { opacity: [0, 1] }, duration = 160) => {
+    if (node && motionOK()) node.animate?.(keyframes, { duration, easing: easeOut });
+  };
+  // Briefly highlights a post the reader was just taken to (CSS animates it).
+  const arrive = post => {
+    if (!post || !motionOK()) return;
+    post.removeAttribute('data-arrived');
+    void post.offsetWidth;
+    post.setAttribute('data-arrived', '');
+    post.addEventListener('animationend', () => post.removeAttribute('data-arrived'), { once: true });
+  };
+  // Slides nodes from where they were to where `update` put them (FLIP), with
+  // composited translates only. A node's offset excludes that of its nearest
+  // moving ancestor, so nested groups and items don't double up; repeated moves
+  // start from the in-flight position.
+  const flip = (nodes, update) => {
+    if (!motionOK()) return update();
+    const before = new Map(nodes.map(node => [node, node.getBoundingClientRect()]));
+    for (const node of nodes) node.flipAnimation?.cancel();
+    const result = update();
+    const shift = new Map();
+    for (const [node, was] of before) {
+      if (!node.isConnected) continue;
+      const now = node.getBoundingClientRect();
+      shift.set(node, [was.left - now.left, was.top - now.top]);
+    }
+    for (const [node, [x, y]] of shift) {
+      let parent = node.parentElement;
+      while (parent && !shift.has(parent)) parent = parent.parentElement;
+      const [dx, dy] = parent ? [x - shift.get(parent)[0], y - shift.get(parent)[1]] : [x, y];
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      node.flipAnimation = node.animate?.({ translate: [`${dx}px ${dy}px`, '0 0'] }, { duration: 240, easing: 'cubic-bezier(.2, 0, 0, 1)' });
+    }
+    return result;
+  };
+  // Shell layout switches (sidebar collapse, preview open/close) change grid
+  // tracks instantly inside a same-document view transition, so snapshots move
+  // on the compositor instead of the workspace laying out every frame. The root's
+  // data-shell-transition (sidebar|preview) names the shell parts while the
+  // latest transition runs. Resolves once the DOM is updated; without support or
+  // with reduced motion it updates now.
+  let shellTurn = 0;
+  const shellTransition = (kind, update) => {
+    if (!document.startViewTransition || !motionOK()) {
+      update();
+      return Promise.resolve();
+    }
+    const root = document.documentElement;
+    const turn = ++shellTurn;
+    root.dataset.shellTransition = kind;
+    const transition = document.startViewTransition(update);
+    const done = () => { if (turn === shellTurn) delete root.dataset.shellTransition; };
+    transition.ready.catch(() => {});
+    transition.finished.then(done, done);
+    return transition.updateCallbackDone;
+  };
+
   // Native timing forms are authoritative. Enhancement only reveals Custom and
   // previews the target; it never changes consent or promises a scheduled send.
   for (const form of document.querySelectorAll('[data-reminder-timing]')) {
@@ -90,6 +150,11 @@
   document.addEventListener('error', event => {
     if (event.target.matches?.('.event-image img')) event.target.hidden = true;
   }, true);
+  // Result artwork that loads after the page (lazy or slow) fades over its
+  // placeholder. Images already loaded before this script stay as they are.
+  document.addEventListener('load', event => {
+    if (event.target.matches?.('.event-row .event-image img')) enter(event.target, { opacity: [0, 1] }, 200);
+  }, true);
   for (const image of document.querySelectorAll('.event-image img')) {
     if (image.complete && !image.naturalWidth) image.hidden = true;
   }
@@ -134,12 +199,17 @@
       if (csrf) form.elements.csrf_token.value = csrf;
       const button = form.querySelector('button');
       const label = saved ? 'Remove from Saved' : 'Save';
+      // A brief overshoot as the bookmark fills in.
+      if (saved && button.dataset.saved !== 'true') enter(button.querySelector('.icon'), { scale: [.6, 1.2, 1] }, 320);
       button.dataset.saved = String(saved);
       button.setAttribute('aria-label', label + ' — ' + form.dataset.eventName);
       button.querySelector('span').textContent = label;
     }
     for (const reminder of document.querySelectorAll('[data-reminder-id]')) {
-      if (reminder.dataset.reminderId === id) reminder.hidden = !saved;
+      if (reminder.dataset.reminderId !== id) continue;
+      // Revealed by the confirmed save; a reminder shown on load doesn't fade.
+      if (saved && reminder.hidden) enter(reminder);
+      reminder.hidden = !saved;
     }
   };
   let saveStateTurn = 0;
@@ -206,13 +276,17 @@
     const control = isSaved ? '[data-save-form] button' : '.interest-button';
     const noticeTarget = document.querySelector(isSaved ? '#saved-notice' : '[data-interest-notice]');
     if (!selected && adjacent) {
-      row.remove();
-      if (noticeTarget) noticeTarget.textContent = notice;
-      scrollBy(0, adjacent.getBoundingClientRect().top - anchorTop);
-      if (shouldFocus) {
-        const button = adjacent.querySelector(control);
-        focusCollectionControl(button?.disabled ? adjacent.querySelector('.event-link') : button);
-      }
+      // Surviving rows slide into the gap, measured after scroll compensation
+      // and the focus handoff so neither becomes part of the motion.
+      flip([...row.parentElement.children].filter(node => node !== row), () => {
+        row.remove();
+        if (noticeTarget) noticeTarget.textContent = notice;
+        scrollBy(0, adjacent.getBoundingClientRect().top - anchorTop);
+        if (shouldFocus) {
+          const button = adjacent.querySelector(control);
+          focusCollectionControl(button?.disabled ? adjacent.querySelector('.event-link') : button);
+        }
+      });
       return;
     }
     // The server owns empty/error guidance and pagination. Only reload when no
@@ -320,7 +394,7 @@
       applyCollapse(collapsed);
       toggle.addEventListener('click', () => {
         collapsed = !collapsed;
-        applyCollapse(collapsed);
+        shellTransition('sidebar', () => applyCollapse(collapsed));
         try {
           localStorage.setItem(collapseKey, String(collapsed));
         } catch { /* The toggle still works for this page view. */ }
@@ -382,14 +456,19 @@
       const savedOrder = readOrder();
       if (savedOrder) applyOrder(savedOrder);
 
+      // Reordered items and sections slide to their new places.
+      const navNodes = (except = null) => [...navOrder.querySelectorAll('[data-nav-group], [data-nav-item]')]
+        .filter(node => !except?.contains(node));
       const moveItem = (item, direction) => {
         const sibling = direction === 'up' ? item.previousElementSibling : item.nextElementSibling;
         if (!sibling || !sibling.matches('[data-nav-item]')) {
           announce('Already at the ' + (direction === 'up' ? 'top' : 'bottom') + ' of this section.');
           return;
         }
-        if (direction === 'up') item.parentElement.insertBefore(item, sibling);
-        else item.parentElement.insertBefore(sibling, item);
+        flip(navNodes(), () => {
+          if (direction === 'up') item.parentElement.insertBefore(item, sibling);
+          else item.parentElement.insertBefore(sibling, item);
+        });
         announce(item.querySelector('.nav-label').textContent + ' moved ' + direction + '.');
       };
       const moveGroup = (group, direction) => {
@@ -398,8 +477,10 @@
           announce('This section is already ' + (direction === 'up' ? 'first' : 'last') + '.');
           return;
         }
-        if (direction === 'up') navOrder.insertBefore(group, sibling);
-        else navOrder.insertBefore(sibling, group);
+        flip(navNodes(), () => {
+          if (direction === 'up') navOrder.insertBefore(group, sibling);
+          else navOrder.insertBefore(sibling, group);
+        });
         announce(group.querySelector('.nav-group-label').textContent + ' section moved ' + direction + '.');
       };
       sidebar.addEventListener('click', event => {
@@ -447,14 +528,14 @@
           customize.focus();
         });
         const cancelCustomization = (restoreFocus = true) => {
-          if (snapshot) applyOrder(snapshot);
+          if (snapshot) flip(navNodes(), () => applyOrder(snapshot));
           setCustomizing(false);
           announce('Navigation changes canceled.');
           if (restoreFocus) customize.focus();
         };
         actions.querySelector('[data-nav-customize-cancel]').addEventListener('click', () => cancelCustomization());
         actions.querySelector('[data-nav-customize-reset]').addEventListener('click', () => {
-          applyOrder(initialDefault);
+          flip(navNodes(), () => applyOrder(initialDefault));
           announce('Default order restored. Choose Done to save, or Cancel to keep your previous order.');
         });
         sidebar.addEventListener('keydown', event => {
@@ -515,7 +596,8 @@
           if (over && over !== dragged.el && over.parentElement === dragged.el.parentElement && (over.classList.contains('drop-before') || over.classList.contains('drop-after'))) {
             event.preventDefault();
             const before = over.classList.contains('drop-before');
-            over.parentElement.insertBefore(dragged.el, before ? over : over.nextElementSibling);
+            // The dropped element lands where the pointer left it; neighbours slide.
+            flip(navNodes(dragged.el), () => over.parentElement.insertBefore(dragged.el, before ? over : over.nextElementSibling));
             const name = dragged.type === 'item'
               ? dragged.el.querySelector('.nav-label').textContent
               : dragged.el.querySelector('.nav-group-label').textContent + ' section';
@@ -774,7 +856,10 @@
       host.dataset.viewerKey = shell.dataset.viewerKey;
       for (const selector of ['[data-shell-facts]', '.event-primary-actions', '.event-section-nav', '.event-participation', '.event-provenance']) reconcile(host.querySelector(selector), shell.querySelector(selector));
       if (!panel) reconcile(host.querySelector('.event-identity > .event-image'), shell.querySelector('.event-image'));
-      region.querySelector('[data-section-body]').replaceChildren(...fresh.querySelector('[data-section-body]').childNodes);
+      const body = region.querySelector('[data-section-body]');
+      body.replaceChildren(...fresh.querySelector('[data-section-body]').childNodes);
+      // Only a reader-chosen section/thread fades in, not restores or refreshes.
+      if (push && !confirmation) enter(body);
       Object.assign(region.dataset, fresh.dataset);
       if (panel) {
         host.dataset.contextSection = section;
@@ -813,6 +898,7 @@
           if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') target = post?.querySelector('button[aria-pressed]');
           else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary');
           if (target) { if (target === post) target.tabIndex = -1; target.focus({ preventScroll: true }); }
+          if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
           if (confirmation.action !== 'create') {
             if (panel) document.getElementById('event-context').scrollTop = confirmation.scroll;
             scrollTo(0, confirmation.documentScroll);
@@ -1008,7 +1094,19 @@
   };
   // A stale or capped through renders fewer pages; correct the URL to match.
   syncThrough();
-  document.addEventListener('htmx:load', event => { if (event.target.id === 'pagination') syncThrough(); });
+  // Rows appended by Load more (out-of-band, before the new #pagination loads)
+  // settle in as one batch; rows already read don't move.
+  let rowsBeforePage = null;
+  document.addEventListener('htmx:beforeRequest', event => {
+    if (event.target.closest?.('#pagination')) rowsBeforePage = document.getElementById('event-list')?.children.length ?? null;
+  });
+  document.addEventListener('htmx:load', event => {
+    if (event.target.id !== 'pagination') return;
+    syncThrough();
+    const rows = rowsBeforePage === null ? [] : [...document.getElementById('event-list')?.children || []].slice(rowsBeforePage);
+    rowsBeforePage = null;
+    for (const row of rows) enter(row, { opacity: [0, 1], translate: ['0 .375rem', '0 0'] }, 200);
+  });
   // Same-document Back/Forward keeps the loaded rows, so the entry it lands
   // on must name them too. Registered before restoreSelection reads the URL.
   addEventListener('popstate', syncThrough);
@@ -1088,14 +1186,22 @@
     // Reveal the initial/different-event loading and recovery surface on compact
     // layouts; its URL is still committed only after a validated response.
     const opening = !workspace.classList.contains('has-selection');
-    markSelection(id);
-    if (push && desktop.matches) revealRow(selectedRow(), opening);
+    // A superseded open leaves the selection to whichever select/close followed.
+    const reveal = () => {
+      if (turn !== generation) return;
+      markSelection(id);
+      if (push && desktop.matches) revealRow(selectedRow(), opening);
+      context.replaceChildren(previewTemplate('loading'));
+    };
+    const shown = push && opening && desktop.matches ? shellTransition('preview', reveal) : (reveal(), Promise.resolve());
     context.setAttribute('aria-busy', 'true');
-    context.replaceChildren(previewTemplate('loading'));
     status.textContent = 'Loading event preview.';
     const timeout = setTimeout(() => currentRequest.abort(), 12000);
     try {
-      const response = await fetch(url, { signal: currentRequest.signal, headers: { 'X-Ticketopia-Panel': 'true' } });
+      const pending = fetch(url, { signal: currentRequest.signal, headers: { 'X-Ticketopia-Panel': 'true' } });
+      pending.catch(() => {});
+      await shown;
+      const response = await pending;
       if (!response.ok || response.redirected) throw new Error('Event unavailable');
       const html = await response.text();
       if (turn !== generation) return;
@@ -1120,6 +1226,7 @@
         if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') target = post?.querySelector('button[aria-pressed]') || heading;
         else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary') || heading;
         else if (confirmation.action === 'remove' && post) { post.tabIndex = -1; target = post; }
+        if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
         if (confirmation.action !== 'create') {
           context.scrollTop = confirmation.scroll;
           if (!desktop.matches) scrollTo(0, confirmation.documentScroll);
@@ -1152,7 +1259,7 @@
     }
   };
   const closeContext = (push = true) => {
-    ++generation;
+    const turn = ++generation;
     request?.abort();
     context.removeAttribute('aria-busy');
     if (push) {
@@ -1166,14 +1273,19 @@
       writeHistory('pushState', { ...history.state }, '', url);
     }
     renderedURL = location.href;
-    const viewed = selectedRow();
-    markSelection('');
-    context.replaceChildren(previewTemplate('empty'));
     status.textContent = 'Event preview closed.';
-    const trigger = [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === lastFocusID);
-    trigger?.focus({ preventScroll: true });
-    if (!desktop.matches) scrollTo(0, resultsScroll);
-    else if (push) revealRow(viewed, false);
+    const viewed = selectedRow();
+    const close = () => {
+      if (turn !== generation) return;
+      markSelection('');
+      context.replaceChildren(previewTemplate('empty'));
+      const trigger = [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === lastFocusID);
+      trigger?.focus({ preventScroll: true });
+      if (!desktop.matches) scrollTo(0, resultsScroll);
+      else if (push) revealRow(viewed, false);
+    };
+    if (push && desktop.matches) shellTransition('preview', close);
+    else close();
   };
   document.addEventListener('click', event => {
     if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
