@@ -514,7 +514,7 @@ func SearchControls(page SearchPage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Search events, artists, venues", Attributes: templ.Attributes{"maxlength": "120"}}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Search events, artists, venues", Attributes: templ.Attributes{"maxlength": "120", "enterkeyhint": "search"}}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -729,7 +729,7 @@ func SearchControls(page SearchPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country"}}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country", "autocapitalize": "characters"}}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -861,7 +861,7 @@ func SearchControls(page SearchPage) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = label.Label(label.Props{For: "sort", Class: "field"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var33), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = label.Label(label.Props{For: "sort", Class: "field field-wide"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var33), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -188,7 +188,7 @@ templ CommunityFilters(f CommunityFilterBar) {
 		@label.Label(label.Props{For:f.Prefix+"-country",Class:"sr-only"}) {
 			Country (optional, 2-letter code)
 		}
-		@input.Input(input.Props{ID:f.Prefix+"-country",Name:"country",Value:f.Country,Placeholder:"Country",Class:"filter-bar-country",Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","title":"Two-letter country code, such as US"}})
+		@input.Input(input.Props{ID:f.Prefix+"-country",Name:"country",Value:f.Country,Placeholder:"Country",Class:"filter-bar-country",Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","title":"Two-letter country code, such as US","autocomplete":"country","autocapitalize":"characters"}})
 		@label.Label(label.Props{For:f.Prefix+"-category",Class:"sr-only"}) {
 			Category
 		}

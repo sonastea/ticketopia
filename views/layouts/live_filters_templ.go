@@ -82,7 +82,7 @@ func LiveFilterFields(f activity.Filters, categories []models.Category, editor L
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" maxlength=\"120\" data-live-city></label> <label class=\"field\">Two-letter country <input name=\"live_country\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" maxlength=\"120\" autocomplete=\"address-level2\" data-live-city></label> <label class=\"field\">Two-letter country <input name=\"live_country\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -95,7 +95,7 @@ func LiveFilterFields(f activity.Filters, categories []models.Category, editor L
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" maxlength=\"2\" pattern=\"[A-Za-z]{2}\" data-live-country></label></div><button type=\"button\" class=\"text-link\" data-live-browsing hidden>Use browsing city</button><p class=\"field-note\">City names match within a country. This does not change Discover.</p><fieldset class=\"account-checkboxes\" data-live-categories><legend>Event types</legend><p class=\"field-note\">No selections means all event types.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" maxlength=\"2\" pattern=\"[A-Za-z]{2}\" autocomplete=\"country\" autocapitalize=\"characters\" data-live-country></label></div><button type=\"button\" class=\"text-link\" data-live-browsing hidden>Use browsing city</button><p class=\"field-note\">City names match within a country. This does not change Discover.</p><fieldset class=\"account-checkboxes\" data-live-categories><legend>Event types</legend><p class=\"field-note\">No selections means all event types.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

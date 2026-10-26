@@ -1,0 +1,16 @@
+{
+  "name": "Ticketopia",
+  "short_name": "Ticketopia",
+  "description": "Find events near you, keep your plans, and see what the community recommends.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "minimal-ui",
+  "background_color": "#faf9fb",
+  "theme_color": "#faf9fb",
+  "icons": [
+    { "src": "/assets/icons/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "/assets/icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/assets/icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/assets/icons/icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}

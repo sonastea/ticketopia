@@ -179,7 +179,7 @@ func Follows(page FollowsPage) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = input.Input(input.Props{ID: "follow-keyword", Name: "keyword", Value: page.Keyword, Required: true, Attributes: templ.Attributes{"maxlength": "120", "type": "search"}}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = input.Input(input.Props{ID: "follow-keyword", Name: "keyword", Value: page.Keyword, Required: true, Attributes: templ.Attributes{"maxlength": "120", "type": "search", "enterkeyhint": "search"}}).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -240,7 +240,7 @@ func Follows(page FollowsPage) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = input.Input(input.Props{ID: "follow-country", Name: "country", Value: page.Country, Attributes: templ.Attributes{"maxlength": "2", "placeholder": "US"}}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = input.Input(input.Props{ID: "follow-country", Name: "country", Value: page.Country, Attributes: templ.Attributes{"maxlength": "2", "placeholder": "US", "autocomplete": "country", "autocapitalize": "characters"}}).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

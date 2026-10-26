@@ -138,7 +138,14 @@ and contained overscroll. Textareas grow from 8rem to 24rem with `field-sizing`
 where supported, retaining native scrolling and manual resizing otherwise.
 
 Compact navigation is a floating pill with an intrinsic grid, .75rem labels and
-44px targets. It reflows to two rows at 320px/390px with 200% text, keeping each
+44px targets. Under the sticky-header conditions it also hides on downward
+scrolls: the root is a `page-scroll` scroll-state container, and
+`scroll-state(scrolled: bottom)` translates the pill away (not while it holds
+focus). The event action bar changes its sticky `inset-block-end` rather than
+translating, so a bar that has settled in flow never overlaps what follows.
+Disclosures relying on the UA marker (`.account-more`, `.follow-search`,
+`.event-provenance`, `.account-token-details`) share a border-drawn chevron
+instead, so WebKit and Chromium match and forced colours keep it. It reflows to two rows at 320px/390px with 200% text, keeping each
 label on one unbroken line. Its sticky shell row and margins reserve its actual
 height plus the `--nav-float-gap` above the bottom safe area, so page content remains
 reachable without a guessed spacer; JavaScript only reports the height to the

@@ -234,7 +234,7 @@ templ Preferences(p Page) {
 			}
 			@label.Label(label.Props{For:"preferred-country",Class:"field"}) {
 				Country <span>(optional, 2-letter code)</span>
-				@input.Input(input.Props{ID:"preferred-country",Name:"country",Value:p.Account.Preferences.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","autocomplete":"country"}})
+				@input.Input(input.Props{ID:"preferred-country",Name:"country",Value:p.Account.Preferences.Country,Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","autocomplete":"country","autocapitalize":"characters"}})
 			}
 		</div>
 		@label.Label(label.Props{For:"timezone",Class:"field"}) {

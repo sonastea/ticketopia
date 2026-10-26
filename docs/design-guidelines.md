@@ -172,7 +172,8 @@ Collapsing navigation can free space for the wider layout.
 From the full-sidebar threshold, selected context fills the usable viewport height
 even with little activity; longer content scrolls inside it. At enlarged text sizes,
 the default context width can shrink to preserve results, and narrow rows stack
-their image/facts instead of leaving a cramped text column.
+their image/facts instead of leaving a cramped text column. Phone widths at
+default text size keep a small thumbnail beside the facts instead.
 Discussion and Community preserve the event identity.
 Community lists explicit endorsements separately from opted-in interest identities;
 Discussion loads recent questions. **Open conversation** selects its root/replies

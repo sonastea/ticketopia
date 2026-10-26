@@ -63,7 +63,8 @@ The extra content spans the row width beneath image/identity; activity wraps
 intrinsically after Tickets and Save. Count links select Discussion or Community
 without separate navigation when enhanced. Events without activity add no empty
 social block. Default context widths may shrink to 45% of the content region when
-enlarged text consumes the workspace; narrow result containers stack image/facts.
+enlarged text consumes the workspace; phone-width result containers keep a small
+thumbnail beside the facts, and narrower (enlarged-text) ones stack image/facts.
 At 72rem+, selected context fills the usable viewport height even when activity
 is sparse, and scrolls internally for longer content. Page-batched public reads
 exclude withheld/withdrawn content and private identities, with local failure

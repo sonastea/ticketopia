@@ -14,8 +14,8 @@ templ LiveFilterFields(f activity.Filters, categories []models.Category, editor 
 			</select>
 		</label>
 		<div class="account-field-grid">
-			<label class="field">City <input name="live_city" value={ f.Location.City } maxlength="120" data-live-city/></label>
-			<label class="field">Two-letter country <input name="live_country" value={ f.Location.Country } maxlength="2" pattern="[A-Za-z]{2}" data-live-country/></label>
+			<label class="field">City <input name="live_city" value={ f.Location.City } maxlength="120" autocomplete="address-level2" data-live-city/></label>
+			<label class="field">Two-letter country <input name="live_country" value={ f.Location.Country } maxlength="2" pattern="[A-Za-z]{2}" autocomplete="country" autocapitalize="characters" data-live-country/></label>
 		</div>
 		<button type="button" class="text-link" data-live-browsing hidden>Use browsing city</button>
 		<p class="field-note">City names match within a country. This does not change Discover.</p>

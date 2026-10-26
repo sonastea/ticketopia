@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-10-26 — Mobile polish
+
+- Phone-width results keep a 5.5rem thumbnail beside the facts (about 370px per
+  result instead of 600px); enlarged text still stacks.
+- The floating navigation hides on downward scrolls and returns on upward ones
+  (scroll-direction queries; other browsers unchanged), and the event Tickets bar
+  drops into its place. Event section tabs stay on one swipeable row.
+- Filter fields align despite wrapping labels and Sort no longer truncates;
+  text disclosures share one chevron; search and country fields get keyboard
+  hints; the header wordmark meets 44px.
+- Add a favicon, apple-touch icon and web manifest (`minimal-ui`) from new SVG
+  ticket-tile sources ([icons README](../../views/assets/icons/README.md)).
+
 ### 2026-10-26 — Interaction motion
 
 - Sidebar collapse/expand and desktop preview open/close animate as 380ms
@@ -79,12 +92,5 @@
   48 views at 1440/768/390/320px, 200% text, forced colors and reduced motion.
   See [DESIGN.md](../../DESIGN.md#navigation) and the
   [component guide](../ui-components.md#modern-css-conventions).
-
-### 2026-10-12 — Enlarged-text compact navigation
-
-- Reflow full destination labels intrinsically, preserving targets and native links.
-  Reserve actual sticky-bar/safe-area height in the shell instead of a fixed spacer.
-- Preserve rail/desktop thresholds; add label/content-clearance browser regressions.
-  See [dated flow priorities](../design/ui-flow-polish-2026-10-12.md).
 
 Older entries: [UI component archive](archive/ui-components/).

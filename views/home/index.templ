@@ -107,7 +107,7 @@ templ SearchControls(page SearchPage) {
 					Event, performer, team, or venue
 				}
 				@layouts.Icon("search")
-				@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Search events, artists, venues", Attributes: templ.Attributes{"maxlength": "120"}})
+				@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Search events, artists, venues", Attributes: templ.Attributes{"maxlength": "120", "enterkeyhint": "search"}})
 				@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
 					Find events
 				}
@@ -140,7 +140,7 @@ templ SearchControls(page SearchPage) {
 					}
 					@label.Label(label.Props{For: "country", Class: "field"}) {
 						Country <span>(optional, 2-letter code)</span>
-						@input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country"}})
+						@input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country", "autocapitalize": "characters"}})
 					}
 					@label.Label(label.Props{For: "start-date", Class: "field"}) {
 						From
@@ -150,7 +150,7 @@ templ SearchControls(page SearchPage) {
 						Through
 						@input.Input(input.Props{ID: "end-date", Name: "end_date", Type: "date", Value: page.Filters.EndDate, Required: true})
 					}
-					@label.Label(label.Props{For: "sort", Class: "field"}) {
+					@label.Label(label.Props{For: "sort", Class: "field field-wide"}) {
 						Sort events
 						@selectcomp.Native(selectcomp.NativeProps{ID:"sort",Name:"sort"}) {
 							<option value="date_asc" selected?={page.Filters.Sort=="date_asc"}>Date, soonest first</option>

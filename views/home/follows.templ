@@ -36,7 +36,7 @@ templ Follows(page FollowsPage) {
 							}
 							@label.Label(label.Props{For: "follow-keyword", Class: "field"}) {
 								Name
-								@input.Input(input.Props{ID: "follow-keyword", Name: "keyword", Value: page.Keyword, Required: true, Attributes: templ.Attributes{"maxlength": "120", "type": "search"}})
+								@input.Input(input.Props{ID: "follow-keyword", Name: "keyword", Value: page.Keyword, Required: true, Attributes: templ.Attributes{"maxlength": "120", "type": "search", "enterkeyhint": "search"}})
 							}
 						</div>
 						if page.Kind == "venue" {
@@ -47,7 +47,7 @@ templ Follows(page FollowsPage) {
 								}
 								@label.Label(label.Props{For: "follow-country", Class: "field"}) {
 									Country (optional, 2-letter code)
-									@input.Input(input.Props{ID: "follow-country", Name: "country", Value: page.Country, Attributes: templ.Attributes{"maxlength": "2", "placeholder": "US"}})
+									@input.Input(input.Props{ID: "follow-country", Name: "country", Value: page.Country, Attributes: templ.Attributes{"maxlength": "2", "placeholder": "US", "autocomplete": "country", "autocapitalize": "characters"}})
 								}
 							</div>
 						}

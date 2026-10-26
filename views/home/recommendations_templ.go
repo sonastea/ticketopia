@@ -1121,7 +1121,7 @@ func CommunityFilters(f CommunityFilterBar) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = input.Input(input.Props{ID: f.Prefix + "-country", Name: "country", Value: f.Country, Placeholder: "Country", Class: "filter-bar-country", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "title": "Two-letter country code, such as US"}}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = input.Input(input.Props{ID: f.Prefix + "-country", Name: "country", Value: f.Country, Placeholder: "Country", Class: "filter-bar-country", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "title": "Two-letter country code, such as US", "autocomplete": "country", "autocapitalize": "characters"}}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

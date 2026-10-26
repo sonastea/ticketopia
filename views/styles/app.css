@@ -444,6 +444,7 @@ h3 {
   display: flex;
   align-items: center;
   gap: .65rem;
+  min-block-size: 2.75rem;
   color: var(--ink);
   /* Wordmark, not a text role: deliberately off the type scale (DESIGN.md). */
   font-size: 1.6rem;
@@ -809,6 +810,28 @@ summary::-webkit-details-marker {
   display: none;
 }
 
+/* Text disclosures share one chevron in every browser instead of the UA marker
+   (drawn by Chromium and Firefox, hidden in WebKit). Borders survive forced
+   colours; the drawn geometry is physical. */
+:is(.account-more, .follow-search, .event-provenance, .account-token-details) > summary {
+  list-style: none;
+}
+:is(.account-more, .follow-search, .event-provenance, .account-token-details) > summary::after {
+  content: "";
+  display: inline-block;
+  inline-size: .45em;
+  block-size: .45em;
+  margin-inline-start: .55em;
+  vertical-align: .2em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  rotate: 45deg;
+}
+:is(.account-more, .follow-search, .event-provenance, .account-token-details)[open] > summary::after {
+  rotate: 225deg;
+  vertical-align: -.05em;
+}
+
 .filter-disclosure > summary > .icon:last-child {
   margin-inline-start: auto;
   inline-size: 1.25em;
@@ -840,6 +863,8 @@ summary::-webkit-details-marker {
 .field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Paired fields line up even when one label wraps. */
+  align-items: end;
   gap: 1rem;
 }
 
@@ -1036,6 +1061,18 @@ summary::-webkit-details-marker {
   .event-row { grid-template-columns: var(--size-row-art) minmax(0, 1fr); }
   .event-row .event-art { align-self: start; margin-block-end: 0; }
   .event-row .event-art .event-image { aspect-ratio: 1; }
+}
+
+/* Phone-width results keep a small thumbnail beside the facts, so a screen holds
+   several events instead of one tall card. In rem, enlarged text narrows the
+   container below this band and rows stack again. */
+@container results (min-width: 18rem) and (width < 26rem) {
+  .event-row { grid-template-columns: 5.5rem minmax(0, 1fr); column-gap: 1rem; padding-block: 1rem; }
+  .event-row .event-art { align-self: start; margin-block-end: 0; }
+  .event-row .event-art .event-image { aspect-ratio: 1; }
+  .event-row .event-art .date-marker { inset-block-end: .3rem; inset-inline-start: .3rem; max-inline-size: calc(100% - .6rem); padding-inline: .45rem; }
+  .event-row .event-copy h3 { margin-block-start: .15rem; font-size: 1rem; }
+  .event-row-extension { margin-block-start: .75rem; }
 }
 
 @container results (min-width: 48rem) {
@@ -1552,6 +1589,11 @@ summary::-webkit-details-marker {
   block-size: 1.125rem;
 }
 
+@container results (min-width: 18rem) and (width < 26rem) {
+  .skeleton-row { grid-template-columns: 5.5rem minmax(0, 1fr); column-gap: 1rem; }
+  .skeleton-row .skeleton-art { grid-row: span 3; aspect-ratio: 1; }
+}
+
 @container results (min-width: 26rem) {
   .skeleton-row { grid-template-columns: var(--size-row-art) minmax(0, 1fr); column-gap: 1.25rem; }
   .skeleton-row .skeleton-art { grid-row: span 3; aspect-ratio: 1; }
@@ -1820,17 +1862,26 @@ summary::-webkit-details-marker {
 }
 
 /* Event sections are navigation, with an explicit segmented current state. */
+/* One row that scrolls sideways when the tabs outgrow it (phones, enlarged
+   text) rather than wrapping a lone tab onto a second line. */
 .event-section-nav {
+  flex-wrap: nowrap;
   gap: .25rem;
   padding: .25rem;
   border: 0;
   border-radius: .75rem;
   background: var(--nav-surface);
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: .25rem;
 }
 
+/* The scrolling row would clip the shared outset ring; draw it inside the tab. */
+.event-section-nav a:focus-visible { outline-offset: -3px; }
+
 .event-section-nav a {
-  flex: 1 1 auto;
-  min-inline-size: 0;
+  flex: 1 0 auto;
+  white-space: nowrap;
   padding-inline: .65rem;
   border: 1px solid transparent;
   border-radius: .5rem;
@@ -2741,6 +2792,9 @@ summary::-webkit-details-marker {
   .filter-disclosure > summary > .icon:last-child {
     transition: transform 160ms var(--ease-out);
   }
+  :is(.account-more, .follow-search, .event-provenance, .account-token-details) > summary::after {
+    transition: rotate 160ms var(--ease-out);
+  }
   /* Disclosures grow open and shut where `::details-content` is supported. A
      paint-only clip hides content below the growing edge without changing
      layout, leaving room for the bottom-most focus outline. */
@@ -2846,6 +2900,18 @@ summary::-webkit-details-marker {
       @container compact-header scroll-state(stuck: top) {
         .compact-header > * { translate: 0 .5rem; }
         .compact-header > .brand { font-size: 1.25rem; }
+      }
+      /* Scrolling down tucks the floating navigation below the screen edge;
+         any upward scroll, or focus inside it, brings it back. The event
+         action bar lowers its sticky offset into the freed space, which leaves
+         it alone once it has settled in flow. Browsers without scroll-direction
+         queries keep the navigation in place. */
+      html { container: page-scroll / scroll-state; }
+      .bottom-nav { transition: translate 220ms var(--ease-standard); }
+      .event-page .event-primary-actions > .event-action-group { transition: inset-block-end 220ms var(--ease-standard); }
+      @container page-scroll scroll-state(scrolled: bottom) {
+        .bottom-nav:not(:focus-within) { translate: 0 calc(100% + var(--nav-float-gap) + .5rem); }
+        .event-page .event-primary-actions > .event-action-group:not(:focus-within) { inset-block-end: var(--nav-float-gap); }
       }
     }
   }

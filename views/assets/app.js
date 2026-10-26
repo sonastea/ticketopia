@@ -150,6 +150,18 @@
   document.addEventListener('error', event => {
     if (event.target.matches?.('.event-image img')) event.target.hidden = true;
   }, true);
+  // Keep the current event section in view within its sideways-scrolling tabs.
+  const revealCurrentTab = () => {
+    for (const nav of document.querySelectorAll('.event-section-nav')) {
+      const current = nav.querySelector('[aria-current="page"]');
+      if (!current || nav.scrollWidth <= nav.clientWidth) continue;
+      const box = nav.getBoundingClientRect(), tab = current.getBoundingClientRect();
+      if (tab.left < box.left) nav.scrollLeft += tab.left - box.left - 4;
+      else if (tab.right > box.right) nav.scrollLeft += tab.right - box.right + 4;
+    }
+  };
+  revealCurrentTab();
+  document.addEventListener('ticketopia:section-loaded', revealCurrentTab);
   // Result artwork that loads after the page (lazy or slow) fades over its
   // placeholder. Images already loaded before this script stay as they are.
   document.addEventListener('load', event => {
@@ -1216,6 +1228,7 @@
       renderedURL = location.href;
       markSelection(id);
       context.replaceChildren(fresh);
+      revealCurrentTab();
       window.htmx?.process(context);
       context.scrollTop = 0;
       const heading = context.querySelector('.context-heading h2');
