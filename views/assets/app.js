@@ -450,8 +450,9 @@
     target.scrollIntoView({ block: 'nearest' });
     // Enlarged labels can make the sticky navigation taller than the root's
     // ordinary scroll padding. Keep the restored action above its actual edge.
+    // The intermediate rail starts at the top and covers no bottom edge.
     const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect();
-    const edge = nav?.width ? nav.top : innerHeight;
+    const edge = nav?.width && nav.top > 0 ? nav.top : innerHeight;
     const rect = target.getBoundingClientRect();
     if (rect.bottom > edge) scrollBy(0, rect.bottom - edge + 16);
   };
@@ -568,6 +569,25 @@
     const announce = message => {
       if (status) status.textContent = message;
     };
+
+    // The collapsed rail can't scroll its navigation without clipping the labels
+    // beside it. When short windows or enlarged text leave its destinations no
+    // room, flag it so CSS lets it grow and scroll with the page; a flagged rail
+    // is its content's height, so it fits again once that is within the window.
+    const desktopNav = sidebar.querySelector('.desktop-nav');
+    const fitRail = () => {
+      const collapsed = document.body.classList.contains('nav-collapsed');
+      const overflowing = sidebar.hasAttribute('data-overflowing')
+        ? sidebar.offsetHeight > innerHeight + 1
+        : desktopNav.scrollHeight > desktopNav.clientHeight + 1;
+      sidebar.toggleAttribute('data-overflowing', collapsed && overflowing);
+    };
+    if (desktopNav && window.ResizeObserver) {
+      const railObserver = new ResizeObserver(fitRail);
+      railObserver.observe(sidebar);
+      railObserver.observe(desktopNav);
+      addEventListener('resize', fitRail);
+    }
 
     const toggle = sidebar.querySelector('[data-sidebar-toggle]');
     if (toggle) {

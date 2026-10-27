@@ -364,6 +364,11 @@
     const sources = [...(node('connections')?.querySelectorAll('input:checked') || [])].map(input => input.value).sort();
     return { ...defaults(), ...window.ticketopiaLivePickers?.get(), location: node('location').value === 'city' ? { mode: 'city', city: node('city').value.trim().replace(/\s+/g, ' '), country: node('country').value.trim().toUpperCase() } : { mode: 'all' }, category_ids: [...node('categories').querySelectorAll('input:checked')].map(input => input.value).sort(), connections: { mode: sources.length ? 'any' : 'all_events', sources } };
   };
+  // What the fields last showed of confirmed filters: refreshes and saves leave
+  // later, unapplied edits alone instead of replacing them.
+  let shownFilters;
+  const showFilters = value => { if (!onPage) return; editFilters(value); shownFilters = JSON.stringify(draftFilters()); };
+  const fieldsEdited = () => onPage && shownFilters !== undefined && JSON.stringify(draftFilters()) !== shownFilters;
   let browsingCity;
   const browseQuery = new URLSearchParams(location.search);
   if (location.pathname === '/' && browseQuery.get('city') && /^[a-z]{2}$/i.test(browseQuery.get('country') || '')) {
@@ -380,28 +385,40 @@
   node('browsing').onclick = () => { if (confirm(`Use ${browsingCity.city}, ${browsingCity.country} for live activity?`)) { node('location').value = 'city'; node('city').value = browsingCity.city; node('country').value = browsingCity.country; } };
   node('reuse').onclick = () => { editFilters(guestFilters); node('filter-error').textContent = 'Browser filters copied. Apply to save them to your account.'; };
   node('filter-form').addEventListener('submit', async event => {
-    event.preventDefault(); if (saving || !ready) return;
+    event.preventDefault();
+    if (saving) { node('filter-error').textContent = 'Still applying your filters. Apply again once they finish.'; return; }
+    if (!ready) return;
     const next = event.submitter?.value === 'reset' ? defaults() : draftFilters();
     const turn = preferenceTurn, scope = preferenceScope;
-    saving = true; node('filter-form').setAttribute('aria-busy', 'true'); node('filter-error').textContent = '';
+    // Fields stay editable while a write is pending; edits made meanwhile are
+    // kept, not replaced by the confirmed filters, and need their own Apply.
+    const submitted = JSON.stringify(draftFilters());
+    const settle = () => {
+      if (JSON.stringify(draftFilters()) === submitted) { showFilters(filters); return; }
+      node('filter-error').textContent = 'Filters applied. Your newer changes aren\'t applied yet; apply again to save them.';
+    };
+    saving = true; node('filter-form').setAttribute('aria-busy', 'true'); node('filter-error').textContent = 'Applying filters…';
     try {
       if (authenticated) {
         const me = await fetchJSON('/api/v1/me');
         const response = await fetch('/api/v1/me/live-activity-preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': me.csrf_token, 'If-Match': scope }, body: JSON.stringify({ version: 1, enabled, filters: next }), signal: AbortSignal.timeout(10000) });
-        if (response.status === 412) { await preferences(); throw new Error('Settings changed in another tab. Review the current filters and apply again.'); }
+        if (response.status === 412) { await preferences(); showFilters(filters); throw new Error('Settings changed in another tab. Review the current filters and apply again.'); }
         if (!response.ok) throw new Error('Filters could not be saved. Check the city/country and choose at most 16 event types, artists and venues each, then retry.');
         if (scope !== preferenceScope) return;
         await preferences();
-        editFilters(filters);
+        node('filter-error').textContent = ''; settle();
       } else {
         const data = await fetchJSON('/api/v1/community/activity?filter=' + encodeURIComponent(JSON.stringify(publicFilter(next))));
         if (turn !== preferenceTurn || authenticated) return;
-        guestFilters = next; filters = next;
+        guestFilters = next; filters = next; node('filter-error').textContent = '';
         try { localStorage.setItem(storageKey, JSON.stringify(publicFilter(next))); } catch { node('filter-error').textContent = 'Applied for this page. Browser storage is unavailable.'; }
-        stop(); editFilters(filters); summary(); history.replaceState(history.state, '', nativeURL()); receive(data); if (allowed()) connect();
+        stop(); settle(); summary(); history.replaceState(history.state, '', nativeURL()); receive(data); if (allowed()) connect();
       }
     } catch (error) { node('filter-error').textContent = error.message || 'Filters could not be applied. Your confirmed filters are unchanged.'; }
-    finally { saving = false; node('filter-form').removeAttribute('aria-busy'); }
+    finally {
+      saving = false; node('filter-form').removeAttribute('aria-busy');
+      if (node('filter-error').textContent === 'Applying filters…') node('filter-error').textContent = '';
+    }
   });
   // A native guest form is a deliberate choice; carry it into the same browser
   // preference used by toasts. Account settings remain authoritative on sign-in.
@@ -423,7 +440,7 @@
       if (authenticated && !nextAuth) { paused = true; stop(); controls(); return; }
       if (preferenceScope.split('-')[1] !== nextScope.split('-')[1]) seen.clear();
       ready = true; paused = next; revision = nextRevision; authenticated = nextAuth; preferenceScope = nextScope; controls();
-      enabled = nextEnabled; filters = nextFilters; summary(); if (changed) editFilters(filters);
+      enabled = nextEnabled; filters = nextFilters; summary(); if (changed && !fieldsEdited()) showFilters(filters);
       if (changed) { stop(); if (allowed()) connect(); }
     } catch { if (turn === preferenceTurn) { paused = true; stop(); controls(); } }
   };

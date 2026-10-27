@@ -1445,9 +1445,12 @@ html:has(.filter-sheet:modal) {
   line-height: 1.4;
 }
 
-/* The title link is a 44px target; the tighter heading margins absorb most of it. */
+/* The title link is a 44px target; the tighter heading margins absorb most of it.
+   A grid with a zero-minimum track, not flex: the title text is an anonymous
+   item whose automatic minimum would otherwise stop unbroken names wrapping. */
 .event-copy h3 a {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   inline-size: fit-content;
   max-inline-size: 100%;
@@ -1932,6 +1935,7 @@ html:has(.filter-sheet:modal) {
 
 .context-toolbar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: .75rem;
@@ -2136,7 +2140,15 @@ html:has(.filter-sheet:modal) {
   min-block-size: 2.75rem;
 }
 
-.context-back { color: var(--muted-warm); }
+/* Like the event page's return link, a long label wraps rather than widening the preview. */
+.context-back {
+  flex: 0 1 auto;
+  max-inline-size: 100%;
+  block-size: auto;
+  white-space: normal;
+  text-align: start;
+  color: var(--muted-warm);
+}
 
 @media (forced-colors: active) {
   .event-section-nav a[aria-current="page"] {
@@ -2552,6 +2564,14 @@ html:has(.filter-sheet:modal) {
     border-inline-end: 1px solid var(--line);
     border-radius: 0;
     color: var(--ink);
+    /* Enlarged text on a short window can outgrow the fixed rail. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  /* The rail's .4rem inline padding is the scroller's only outline room. */
+  .bottom-nav .nav-link:focus-visible {
+    outline-offset: 2px;
   }
   .bottom-nav .nav-link {
     padding-block: .75rem;
@@ -2684,12 +2704,15 @@ html:has(.filter-sheet:modal) {
     min-inline-size: 0;
     min-block-size: 0;
   }
+  /* Scrolling navigation clips outside its padding: .5rem holds the 7px focus
+     outline, and the negative margin keeps the links where they were. */
   body:not(.nav-collapsed) .desktop-nav {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
     align-content: start;
-    padding: .25rem;
+    padding: .5rem;
+    margin: -.25rem;
   }
   .nav-group {
     display: grid;
@@ -2778,7 +2801,8 @@ html:has(.filter-sheet:modal) {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-    padding: .25rem;
+    padding: .5rem;
+    margin: -.25rem;
   }
   .sidebar[data-customizing="true"] .nav-group-head {
     flex-wrap: wrap;
@@ -2881,6 +2905,14 @@ html:has(.filter-sheet:modal) {
   }
   body.nav-collapsed .sidebar {
     padding-inline: .5rem;
+  }
+  /* Scrolling the collapsed rail would clip the labels beside it, so when its
+     destinations don't fit the window, app.js flags it and the rail scrolls
+     with the page instead. */
+  body.nav-collapsed .sidebar[data-overflowing] {
+    position: relative;
+    block-size: auto;
+    min-block-size: 100dvh;
   }
   body.nav-collapsed .sidebar-head {
     flex-direction: column;
@@ -3366,6 +3398,7 @@ html:has(.filter-sheet:modal) {
 .discussion-attribution time, .discussion-attribution > span { color: var(--muted-warm); font-size: .8125rem; }
 .discussion-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
 .discussion-actions > .text-link, .discussion-removal > summary { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
+.discussion-actions > .text-link { justify-content: center; min-inline-size: 2.75rem; }
 .discussion-actions form { min-inline-size: 0; }
 .discussion-actions button[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
 .discussion-removal > summary { color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
@@ -3565,7 +3598,7 @@ html:has(.filter-sheet:modal) {
 .live-filter-bar { gap: .25rem 1rem; padding-block: .25rem; padding-inline: 1rem .5rem; }
 .live-filter-bar > * { margin-block: 0; }
 .live-filter-bar > [data-live-summary] { flex: 1 1 14rem; }
-.live-filter-bar > form { flex: none; }
+.live-filter-bar > form { flex: 0 1 auto; max-inline-size: 100%; }
 .live-filter-bar > form:has(> details[open]) { flex-basis: 100%; order: 1; padding-block-end: 1rem; }
 .live-filter-bar > .account-actions { flex: 0 1 auto; min-inline-size: 0; margin: 0; gap: 0 1rem; }
 
@@ -3670,7 +3703,8 @@ html:has(.filter-sheet:modal) {
 .live-card .event-art .date-marker { inset-block-end: .3rem; inset-inline-start: .3rem; max-inline-size: calc(100% - .6rem); padding-inline: .45rem; }
 .live-card-copy { flex: 1 1 9rem; display: grid; justify-items: start; gap: .25rem; }
 .live-card-copy > p { margin: 0; }
-.live-card .byline { font-size: .875rem; }
+/* Enlarged text drops the attribution below the avatar rather than past the card. */
+.live-card .byline { flex-wrap: wrap; max-inline-size: 100%; font-size: .875rem; }
 .live-card .avatar { inline-size: 2rem; block-size: 2rem; font-size: .75rem; }
 .live-card-link { color: var(--ink); font-size: 1rem; font-weight: 750; line-height: 1.35; text-decoration: none; }
 .live-card-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
@@ -3695,4 +3729,12 @@ html:has(.filter-sheet:modal) {
   hyphens: auto;
 }
 [data-live-details] > .empty-display { margin-block: 2rem .75rem; }
-[data-live-details] > .live-empty-action { margin-block: 1rem; }
+/* At 320px with enlarged text "recommendations" alone outgrows the column; a
+   zero-minimum grid track, unlike an anonymous flex item, lets it break. */
+[data-live-details] > .live-empty-action {
+  display: inline-grid;
+  grid-template-columns: minmax(0, auto);
+  max-inline-size: 100%;
+  margin-block: 1rem;
+  text-align: center;
+}

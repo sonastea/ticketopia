@@ -55,7 +55,9 @@ country, and select catalog event types. **Apply** commits one change; **Reset
 filters** restores Everywhere / all types without enabling a disabled feed or
 clearing a pause/hide. Categories match any selection; location and categories
 compose with AND. No matches gives an explicit empty state, never a wider feed.
-The summary shows confirmed settings; unsaved changes stay in the editor.
+The summary shows confirmed settings; unsaved changes stay in the editor. Edits
+made while an Apply is pending, or before a background refresh, are kept rather
+than replaced by the confirmed filters, with a note that they still need Apply.
 
 Guests retain only public filter settings in `ticketopia-live-filters-v1` local
 storage. Account settings win on sign-in; **Reuse this browser’s filters** copies
