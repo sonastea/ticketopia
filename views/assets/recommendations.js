@@ -5,6 +5,13 @@
   const drafts = new Map();
   const initialized = new WeakSet();
   const announce = message => { const node = document.querySelector('[data-recommendation-status]'); if (node) node.textContent = message; };
+  // Mirrors the Save helpers in app.js.
+  const showPending = button => {
+    const timer = setTimeout(() => { button.dataset.pending = ''; }, 300);
+    return () => { clearTimeout(timer); delete button.dataset.pending; };
+  };
+  const disconnected = error => error.name === 'TypeError' || !navigator.onLine;
+  const connectionMessage = 'Couldn\'t connect. Check your connection and try again; repeating it is safe.';
   const key = form => {
     const viewer = form.closest('[data-event-recommendations]')?.dataset.recommendationViewer;
     return viewer ? `ticketopia-recommendation-draft:${viewer}:${form.dataset.recommendationId}` : '';
@@ -65,6 +72,7 @@
     errorNode.hidden = true; errorNode.textContent = '';
     form.setAttribute('aria-busy', 'true'); controls.forEach(control => { control.disabled = true; });
     announce(action === 'remove' ? 'Withdrawing recommendation…' : 'Saving public recommendation…');
+    const settle = showPending(trigger);
     const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 12000);
     let signIn = false;
     try {
@@ -87,7 +95,7 @@
       announce(data.notice);
     } catch (error) {
       if (form.isConnected) {
-        errorNode.textContent = error.name === 'AbortError' ? 'The change could not be confirmed. Try again; repeating the action is safe.' : error.message;
+        errorNode.textContent = disconnected(error) ? connectionMessage : ['AbortError', 'SyntaxError'].includes(error.name) ? 'The change could not be confirmed. Try again; repeating the action is safe.' : error.message;
         if (signIn && form.dataset.signInUrl) {
           const link = document.createElement('a');
           link.href = form.dataset.signInUrl;
@@ -98,7 +106,7 @@
         announce('');
       }
     } finally {
-      clearTimeout(timeout); writing.delete(id);
+      clearTimeout(timeout); settle(); writing.delete(id);
       document.dispatchEvent(new CustomEvent('ticketopia:activity-write-end'));
       form.removeAttribute('aria-busy'); controls.forEach(control => { control.disabled = false; });
       if (hadFocus && trigger.isConnected && document.activeElement === document.body) trigger.focus({ preventScroll: true });

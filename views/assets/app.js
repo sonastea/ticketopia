@@ -315,6 +315,15 @@
     }
   };
   const saving = new Set();
+  // Mirrored in interests.js and recommendations.js: a write that outlasts a
+  // quick confirmation swaps its icon or label for a spinner, and a dropped
+  // connection gets the same wording on every action.
+  const showPending = button => {
+    const timer = setTimeout(() => { button.dataset.pending = ''; }, 300);
+    return () => { clearTimeout(timer); delete button.dataset.pending; };
+  };
+  const disconnected = error => error.name === 'TypeError' || !navigator.onLine;
+  const connectionMessage = 'Couldn\'t connect. Check your connection and try again; repeating it is safe.';
   // Save privacy is explained on the first Save in this browser rather than
   // above every result list. Storage failure falls back to page memory.
   const savePrivacyKey = 'ticketopia-save-privacy-seen';
@@ -407,6 +416,7 @@
     const controls = saveForms(id);
     controls.forEach(item => { item.setAttribute('aria-busy', 'true'); item.querySelector('button').disabled = true; });
     saveFeedback('Updating your private save…', id, form);
+    const settle = showPending(trigger);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     let signIn = false;
@@ -428,9 +438,9 @@
         } }));
       }
     } catch (error) {
-      if (saveForms(id).some(item => item.elements.csrf_token.value === csrf)) saveFeedback(['AbortError', 'TypeError', 'SyntaxError'].includes(error.name) ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true, signIn);
+      if (saveForms(id).some(item => item.elements.csrf_token.value === csrf)) saveFeedback(disconnected(error) ? connectionMessage : ['AbortError', 'SyntaxError'].includes(error.name) ? 'The save could not be confirmed. Try again; repeating it is safe.' : error.message, id, form, true, signIn);
     } finally {
-      clearTimeout(timeout);
+      clearTimeout(timeout); settle();
       saving.delete(id);
       controls.forEach(item => { item.removeAttribute('aria-busy'); item.querySelector('button').disabled = false; });
       if (hadFocus && trigger.isConnected && document.activeElement === document.body) trigger.focus({ preventScroll: true });

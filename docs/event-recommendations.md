@@ -54,7 +54,8 @@ returns a retry/recovery page retaining the draft and safe event/return destinat
 without applying the rejected mutation. With an authenticated session a retry uses
 the current CSRF credential. After session expiry, the draft stays available to
 copy while sign-in returns to the event; native forms do not transfer it through OAuth.
-Enhancement announces pending/success, disables duplicate submits, keeps confirmed
+Enhancement announces pending/success, shows a spinner on slow writes, uses the
+shared [connection-failure message](saved-events.md#action-feedback-and-collection-removal), disables duplicate submits, keeps confirmed
 state on failure, refreshes the initiating panel after confirmation, closes the
 editor, and returns focus. Drafts survive section changes and resizing; browser
 session storage is scoped to account/event and never publishes a draft. Storage

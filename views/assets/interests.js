@@ -10,6 +10,13 @@
     const status = document.querySelector('[data-interest-status]');
     if (status) status.textContent = message;
   };
+  // Mirrors the Save helpers in app.js.
+  const showPending = button => {
+    const timer = setTimeout(() => { button.dataset.pending = ''; }, 300);
+    return () => { clearTimeout(timer); delete button.dataset.pending; };
+  };
+  const disconnected = error => error.name === 'TypeError' || !navigator.onLine;
+  const connectionMessage = 'Couldn\'t connect. Check your connection and try again; repeating it is safe.';
   const feedbackOrigins = new WeakMap();
   const clearFeedback = () => {
     document.querySelectorAll('[data-interest-feedback]').forEach(target => {
@@ -164,6 +171,7 @@
     controls.forEach(node => { node.setAttribute('aria-busy', 'true'); node.querySelectorAll('button, select').forEach(control => { control.disabled = true; }); });
     clearFeedback();
     announce('Updating event interest…');
+    const settle = showPending(trigger);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     let signIn = false;
@@ -194,9 +202,9 @@
         } }));
       }
     } catch (error) {
-      if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, ['AbortError', 'TypeError', 'SyntaxError'].includes(error.name) ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger, signIn);
+      if (form.isConnected && form.elements.csrf_token.value === csrf) feedback(form, disconnected(error) ? connectionMessage : ['AbortError', 'SyntaxError'].includes(error.name) ? 'Interest could not be confirmed. Try again; repeating the action is safe.' : error.message, trigger, signIn);
     } finally {
-      clearTimeout(timeout); writing.delete(id);
+      clearTimeout(timeout); settle(); writing.delete(id);
       document.dispatchEvent(new CustomEvent('ticketopia:activity-write-end'));
       controls.forEach(node => { node.removeAttribute('aria-busy'); node.querySelectorAll('button, select').forEach(control => { control.disabled = false; }); });
       if (hadFocus && focusTarget.isConnected && document.activeElement === document.body) focusTarget.focus({ preventScroll: true });

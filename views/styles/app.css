@@ -739,6 +739,49 @@ input::placeholder {
 /* Saved bookmarks and interested stars fill in; JavaScript adds a pop on change. */
 :is(.save-button, .interest-button) .icon { fill: currentColor; fill-opacity: 0; transition: fill-opacity 160ms var(--ease-out); }
 :is(.save-button[data-saved="true"], .interest-button[aria-pressed="true"]) .icon { fill-opacity: 1; }
+/* A write still pending after 300ms swaps the action's icon, or a text-only
+   action's label, for a spinner in the same space, so the button never resizes.
+   The label stays in the accessible name; status regions announce progress. */
+[data-pending]::before {
+  content: "";
+  flex: none;
+  box-sizing: border-box;
+  inline-size: 1.25em;
+  block-size: 1.25em;
+  border: .15em solid currentColor;
+  border-block-start-color: transparent;
+  border-radius: 50%;
+}
+[data-pending] > .icon { display: none; }
+[data-pending]:not(:has(> .icon)) {
+  position: relative;
+  -webkit-text-fill-color: transparent;
+  text-decoration-color: transparent;
+}
+[data-pending]:not(:has(> .icon))::before {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  inline-size: 1em;
+  block-size: 1em;
+  border-color: var(--brand);
+  border-block-start-color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-pending]::before { animation: pending-spin 700ms linear infinite; }
+}
+/* Without rotation the ring pulses, which still reads as ongoing work. */
+@media (prefers-reduced-motion: reduce) {
+  [data-pending]::before { animation: pending-pulse 1s var(--ease-standard) infinite alternate; }
+}
+@keyframes pending-spin { to { rotate: 1turn; } }
+@keyframes pending-pulse { to { opacity: .35; } }
+@media (forced-colors: active) {
+  [data-pending]::before { forced-color-adjust: none; border-color: GrayText; border-block-start-color: Canvas; }
+  /* System colours would show the label through an overlaid ring; keep the label. */
+  [data-pending]:not(:has(> .icon)) { -webkit-text-fill-color: GrayText; }
+  [data-pending]:not(:has(> .icon))::before { display: none; }
+}
 .saved-page { max-inline-size: 70rem; }
 .saved-page > .sort-label { margin-block: 1.5rem .75rem; margin-inline: 0; }
 .saved-page .pagination [data-slot="button"] { white-space: normal; max-inline-size: 100%; block-size: auto; }

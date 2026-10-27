@@ -52,7 +52,9 @@ One Private/Public label on the button avoids repeated state text. Counts use a
 readable, emphasized number; the compact **Change visibility** disclosure opens
 the form only when needed, with one editor open at a time. Successful visibility
 changes close the editor and restore focus to its summary. Pending/success outcomes
-are announced to assistive technology without adding persistent visual messages.
+are announced to assistive technology without adding persistent visual messages;
+slow writes also show a spinner, and dropped connections use the shared
+[connection-failure message](saved-events.md#action-feedback-and-collection-removal).
 Errors remain visible near the action until dismissed, retried, or replaced by a
 new action; at most one interest error is shown at a time. Dismissal restores focus
 to the action. Failed writes retain the last confirmed selected state. Browser-history

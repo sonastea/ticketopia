@@ -78,6 +78,15 @@ is uncertain and that retrying the same explicit action is safe; it does not cla
 the server made no change. Save stays private, interest keeps its Private/Public
 label, and neither action withdraws independently published recommendations.
 
+A write still pending after 300ms swaps the pressed control's icon for a small
+spinner (Save, Interested), or a text-only action's label (Save visibility,
+publish/save/withdraw recommendation), without resizing the button. Reduced motion
+pulses the ring instead of rotating it; forced colors keep text labels. When the
+connection drops (offline, or the request or response is lost), Save, Interested
+and recommendations all show "Couldn't connect. Check your connection and try
+again; repeating it is safe." A timeout or unreadable response keeps the
+action-specific "could not be confirmed" wording.
+
 Enhanced removal keeps surviving Saved/Interests rows mounted instead of reloading
 and refilling the page. The collection cursor and remaining row's reading position
 are retained; focus moves to the next removal control, or the previous one when

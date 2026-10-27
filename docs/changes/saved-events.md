@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-10-26 — Clearer pending and connection feedback
+
+- Save, Interested and recommendation writes still pending after 300ms swap the
+  action's icon or label for a same-size spinner (pulsing under reduced motion).
+- Dropped connections show one shared "Couldn't connect" retry message across all
+  three; recommendations no longer surface raw browser network errors.
+- Extend the action-feedback browser fixture with spinner size/clearing and the
+  lost-response message. See [action feedback](../saved-events.md#action-feedback-and-collection-removal).
+
 ### 2026-10-12 — Action feedback and collection removal
 
 - Keep surviving collection rows, reading position and keyboard focus mounted;
