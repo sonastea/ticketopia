@@ -2617,7 +2617,10 @@ html:has(.filter-sheet:modal) {
   .sidebar {
     display: flex;
     flex-direction: column;
+    /* Sticky makes the rail a stacking context, so its collapsed labels can only
+       rise above positioned workspace content (event rows) if the rail does. */
     position: sticky;
+    z-index: 10;
     inset-block-start: 0;
     align-self: start;
     block-size: 100dvh;
