@@ -2,7 +2,10 @@ package layouts
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
@@ -77,6 +80,44 @@ func TestSidebarEnhancementsStayHiddenWithoutJavaScript(t *testing.T) {
 	}
 	if controls != 2 {
 		t.Errorf("found %d enhancement controls, want 2", controls)
+	}
+}
+
+// Browsers silently ignore malformed rules, so prefetching would just stop.
+func TestSpeculationRulesPrefetchEventResultsOutsideDiscover(t *testing.T) {
+	var out bytes.Buffer
+	if err := App("saved", "Test").Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := html.Parse(&out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rules string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "script" && slices.Contains(n.Attr, html.Attribute{Key: "type", Val: "speculationrules"}) && n.FirstChild != nil {
+			rules = n.FirstChild.Data
+		}
+		for child := n.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(doc)
+	var parsed struct {
+		Prefetch []struct {
+			Where     map[string][]map[string]any `json:"where"`
+			Eagerness string                      `json:"eagerness"`
+		} `json:"prefetch"`
+	}
+	if err := json.Unmarshal([]byte(rules), &parsed); err != nil {
+		t.Fatalf("speculation rules are not JSON: %v\n%s", err, rules)
+	}
+	if len(parsed.Prefetch) != 1 || parsed.Prefetch[0].Eagerness != "conservative" || len(parsed.Prefetch[0].Where["and"]) != 3 {
+		t.Fatalf("unexpected speculation rules: %+v", parsed)
+	}
+	if got := fmt.Sprint(parsed.Prefetch[0].Where["and"][2]); !strings.Contains(got, "[data-results-url] [data-event-link]") {
+		t.Errorf("Discover's in-page previews are not excluded: %s", got)
 	}
 }
 

@@ -2,8 +2,11 @@ package home
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -749,17 +752,152 @@ func saleLabel(event models.Event) string {
 
 func freshnessLabel(at time.Time) string { return at.UTC().Format("Jan 2, 15:04 UTC") }
 
-func imageURL(images []models.Image) string { return sizedImageURL(images, 480) }
+// artSlot names where event artwork is drawn, so its sizes hint describes the
+// widths that frame actually covers.
+type artSlot int
 
-func sizedImageURL(images []models.Image, width int) string {
-	best, distance := "", int(^uint(0)>>1)
+const (
+	artResult     artSlot = iota // result rows and cards
+	artThumb                     // fixed 5.5rem squares (Happening Now)
+	artCollection                // stacked art, 8rem squares or community cards
+	artDetail                    // event page and preview banner
+)
+
+// artBand is one viewport range of a slot: the frame's inline size, in rem or
+// vw, and its aspect ratio. maxWidth is empty for the widest range.
+type artBand struct {
+	maxWidth string
+	size     float64
+	vw       bool
+	aspect   float64
+}
+
+// Bands follow the app.css layouts at the default text size: results stack
+// below an 18rem container, keep a 5.5rem thumbnail to 26rem, a thumbnail of at
+// most 11rem to 48rem and become cards beyond; viewport bounds add the page
+// gutters. Hints may round up but never down, so artwork stays sharp.
+var artBands = map[artSlot][]artBand{
+	artResult: {
+		{"20rem", 100, true, 16.0 / 9},
+		{"28.5rem", 5.5, false, 1},
+		{"51rem", 11, false, 1},
+		{"", 26, false, 16.0 / 9},
+	},
+	artThumb:      {{"", 5.5, false, 1}},
+	artCollection: {{"42rem", 100, true, 16.0 / 9}, {"", 30, false, 16.0 / 9}},
+	artDetail:     {{"62rem", 100, true, 2}, {"", 50, false, 2}},
+}
+
+type eventArt struct{ Src, SrcSet, Sizes string }
+
+// artFor picks one crop of the artwork and lists its renditions, so the
+// browser can download the smallest that covers the frame and switching
+// between them never reframes the picture. Small frames prefer the tallest
+// crop and the detail banner the widest, since those waste the fewest pixels;
+// a crop needs two renditions to offer a choice.
+func artFor(images []models.Image, slot artSlot) eventArt {
+	target := 480
+	if slot == artDetail {
+		target = 1000
+	}
+	crops := map[string][]models.Image{}
+	var order []string
+	for _, image := range images {
+		if image.URL == "" {
+			continue
+		}
+		if _, ok := crops[image.Ratio]; !ok {
+			order = append(order, image.Ratio)
+		}
+		crops[image.Ratio] = append(crops[image.Ratio], image)
+	}
+	var chosen []models.Image
+	aspect := 0.0
+	for _, ratio := range order {
+		crop := renditions(crops[ratio])
+		if len(crop) < 2 {
+			continue
+		}
+		a := cropAspect(crop)
+		if chosen == nil || (slot == artDetail && a > aspect) || (slot != artDetail && a < aspect) {
+			chosen, aspect = crop, a
+		}
+	}
+	if chosen == nil {
+		if src := closestImage(images, target); src.URL != "" {
+			return eventArt{Src: src.URL}
+		}
+		return eventArt{}
+	}
+	sources := make([]string, len(chosen))
+	for i, image := range chosen {
+		sources[i] = fmt.Sprintf("%s %dw", image.URL, image.Width)
+	}
+	return eventArt{
+		Src:    closestImage(chosen, target).URL,
+		SrcSet: strings.Join(sources, ", "),
+		Sizes:  artSizes(artBands[slot], aspect),
+	}
+}
+
+// renditions orders a crop by width, one image per width.
+func renditions(images []models.Image) []models.Image {
+	var out []models.Image
+	for _, image := range images {
+		if image.Width <= 0 || slices.ContainsFunc(out, func(seen models.Image) bool { return seen.Width == image.Width }) {
+			continue
+		}
+		out = append(out, image)
+	}
+	slices.SortFunc(out, func(a, b models.Image) int { return a.Width - b.Width })
+	return out
+}
+
+func cropAspect(crop []models.Image) float64 {
+	if a, b, ok := strings.Cut(crop[0].Ratio, "_"); ok {
+		w, errW := strconv.ParseFloat(a, 64)
+		h, errH := strconv.ParseFloat(b, 64)
+		if errW == nil && errH == nil && w > 0 && h > 0 {
+			return w / h
+		}
+	}
+	for _, image := range crop {
+		if image.Height > 0 {
+			return float64(image.Width) / float64(image.Height)
+		}
+	}
+	return 16.0 / 9
+}
+
+// artSizes gives each band the width a covering (object-fit: cover) image
+// needs: a crop wider than its frame is scaled to the frame's height.
+func artSizes(bands []artBand, aspect float64) string {
+	parts := make([]string, len(bands))
+	for i, band := range bands {
+		// Round up to a tenth, ignoring floating-point noise.
+		width := math.Ceil(band.size*max(1, aspect/band.aspect)*10-1e-9) / 10
+		unit := "rem"
+		if band.vw {
+			unit = "vw"
+		}
+		parts[i] = strconv.FormatFloat(width, 'f', -1, 64) + unit
+		if band.maxWidth != "" {
+			parts[i] = "(max-width: " + band.maxWidth + ") " + parts[i]
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+func closestImage(images []models.Image, width int) models.Image {
+	var best models.Image
+	distance := int(^uint(0) >> 1)
 	for _, image := range images {
 		diff := image.Width - width
 		if diff < 0 {
 			diff = -diff
 		}
 		if image.URL != "" && diff < distance {
-			best, distance = image.URL, diff
+			best, distance = image, diff
 		}
 	}
 	return best

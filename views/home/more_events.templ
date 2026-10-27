@@ -32,7 +32,7 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 		<li class="event-row" data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
 			<div class="event-art">
 				<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } tabindex="-1" aria-hidden="true">
-					@EventImage(event, false)
+					@EventImage(event, artResult)
 				</a>
 				<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
 			</div>
@@ -119,15 +119,35 @@ templ EventRowActivity(id string, preview eventactivity.Preview, returnURL strin
 	}
 }
 
-templ EventImage(event models.Event, large bool) {
+templ EventImage(event models.Event, slot artSlot) {
 	<div class="event-image" style={ transitionStyle("art", event.ID) }>
 		<div class="image-fallback" aria-hidden="true">@layouts.Icon(eventIcon(event))
 </div>
-		if imageURL(event.Images) != "" {
-			if large {
-				<img src={ sizedImageURL(event.Images, 1000) } alt="" width="640" height="360"/>
+		if art := artFor(event.Images, slot); art.Src != "" {
+			if slot == artDetail {
+				<img
+					src={ art.Src }
+					if art.SrcSet != "" {
+						srcset={ art.SrcSet }
+						sizes={ art.Sizes }
+					}
+					alt=""
+					width="640"
+					height="360"
+				/>
 			} else {
-				<img src={ imageURL(event.Images) } alt="" width="480" height="480" loading="lazy" decoding="async"/>
+				<img
+					src={ art.Src }
+					if art.SrcSet != "" {
+						srcset={ art.SrcSet }
+						sizes={ art.Sizes }
+					}
+					alt=""
+					width="480"
+					height="480"
+					loading="lazy"
+					decoding="async"
+				/>
 			}
 		}
 	</div>

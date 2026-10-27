@@ -140,3 +140,57 @@ func TestEventOverviewLinksVenueToMapsAndOffersShare(t *testing.T) {
 		}
 	}
 }
+
+func TestEventArtOffersOneCropSizedForItsFrame(t *testing.T) {
+	image := func(name, ratio string, w, h int) models.Image {
+		return models.Image{URL: "https://s1.ticketm.net/" + name + ".jpg", Ratio: ratio, Width: w, Height: h}
+	}
+	// Ticketmaster's usual set: several 16:9 and 3:2 renditions, one 4:3.
+	images := []models.Image{
+		image("portrait-16-9", "16_9", 640, 360), image("portrait-3-2", "3_2", 640, 427),
+		image("detail", "16_9", 205, 115), image("artist", "3_2", 305, 203), image("custom", "4_3", 305, 225),
+		image("tablet", "16_9", 1024, 576), image("tablet-3-2", "3_2", 1024, 683),
+		image("retina", "16_9", 1136, 639), image("large", "16_9", 2048, 1152), image("dup", "16_9", 640, 360),
+	}
+	for _, tt := range []struct {
+		name string
+		slot artSlot
+		want eventArt
+	}{
+		// A 3:2 crop covering a 5.5rem square must be 8.25rem wide.
+		{"result rows take the tallest crop", artResult, eventArt{
+			Src:    "https://s1.ticketm.net/portrait-3-2.jpg",
+			SrcSet: "https://s1.ticketm.net/artist.jpg 305w, https://s1.ticketm.net/portrait-3-2.jpg 640w, https://s1.ticketm.net/tablet-3-2.jpg 1024w",
+			Sizes:  "(max-width: 20rem) 100vw, (max-width: 28.5rem) 8.3rem, (max-width: 51rem) 16.5rem, 26rem",
+		}},
+		{"thumbnails cover their square", artThumb, eventArt{
+			Src:    "https://s1.ticketm.net/portrait-3-2.jpg",
+			SrcSet: "https://s1.ticketm.net/artist.jpg 305w, https://s1.ticketm.net/portrait-3-2.jpg 640w, https://s1.ticketm.net/tablet-3-2.jpg 1024w",
+			Sizes:  "8.3rem",
+		}},
+		{"the detail banner takes the widest crop", artDetail, eventArt{
+			Src:    "https://s1.ticketm.net/tablet.jpg",
+			SrcSet: "https://s1.ticketm.net/detail.jpg 205w, https://s1.ticketm.net/portrait-16-9.jpg 640w, https://s1.ticketm.net/tablet.jpg 1024w, https://s1.ticketm.net/retina.jpg 1136w, https://s1.ticketm.net/large.jpg 2048w",
+			Sizes:  "(max-width: 62rem) 100vw, 50rem",
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := artFor(images, tt.slot); got != tt.want {
+				t.Errorf("artFor() =\n%+v\nwant\n%+v", got, tt.want)
+			}
+		})
+	}
+	t.Run("a single rendition offers no choice", func(t *testing.T) {
+		got := artFor([]models.Image{image("only", "4_3", 305, 225), {Ratio: "16_9", Width: 640}}, artResult)
+		if got != (eventArt{Src: "https://s1.ticketm.net/only.jpg"}) {
+			t.Errorf("artFor() = %+v", got)
+		}
+		var out bytes.Buffer
+		if err := EventImage(models.Event{Images: []models.Image{image("only", "4_3", 305, 225)}}, artResult).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if body := out.String(); !strings.Contains(body, `src="https://s1.ticketm.net/only.jpg"`) || strings.Contains(body, "srcset") || strings.Contains(body, "sizes") {
+			t.Errorf("single rendition rendered %s", body)
+		}
+	})
+}

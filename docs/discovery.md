@@ -264,6 +264,30 @@ A new form submission starts at the first page.
 - Detail reads can fall back to durable last-known snapshots when current provider
    data is unavailable. Public metadata never includes private bookmark state.
 
+### Loading performance
+
+- Artwork offers a `srcset` of one Ticketmaster crop, so switching renditions
+  never reframes the picture. Rows, thumbnails and collection art use the tallest
+  crop with at least two renditions, and the detail banner the widest; one
+  rendition alone gets a plain `src`. `sizes` (`artBands` in
+  `views/home/presentation.go`) follows the app.css layouts at default text size
+  and states the width a covering image needs, so a 3:2 crop in a 5.5rem square
+  asks for 8.25rem. A 390px phone downloads the 305px rendition at 2x and 640px
+  at 3x. A 2x desktop card now takes the 1024px rendition rather than an
+  upscaled 640px.
+- Speculation rules prefetch an event page when its `[data-event-link]` is pressed
+  (`conservative`, Chromium only) outside Discover, where results open the
+  preview. There, app.js starts the preview request on `pointerdown`, and the
+  click adopts it within 5 seconds; `pointercancel` (a press that becomes a
+  scroll) aborts it. Event GETs are read-only.
+- Off-screen result rows skip rendering (`content-visibility: auto`) only after
+  app.js has seen them render at the current fonts and list width
+  (`data-settled`), so each skipped row keeps its real size
+  (`contain-intrinsic-block-size: auto`). Pixel scroll restores, collection FLIP
+  moves and the selected-row correction therefore land as before. A list width
+  change, the preview correction and compact close render every row again first.
+  The first render is not reduced; later style, layout and paint work is.
+
 ### In-place event sections
 
 Discover and standalone event pages enhance the same real section links. Only

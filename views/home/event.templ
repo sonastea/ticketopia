@@ -44,7 +44,7 @@ templ Event(page EventPage) {
 			} else {
 				<article class="event-main" data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF }>
 					<header class="event-identity" style={ tintStyle(page.Detail.Item) }>
-						@EventImage(page.Detail.Item, true)
+						@EventImage(page.Detail.Item, artDetail)
 						@EventHeading(page, false)
 					</header>
 					@EventPrimaryActions(page)
@@ -91,7 +91,7 @@ templ EventSectionResponse(page EventPage, panel bool) {
 			@EventHeading(page, panel)
 			@EventPrimaryActions(page)
 			if !panel {
-				@EventImage(page.Detail.Item, true)
+				@EventImage(page.Detail.Item, artDetail)
 			}
 			@EventSections(page)
 			if panel {
@@ -135,7 +135,7 @@ templ EventSectionRegion(page EventPage, panel bool) {
 		<p class="field-note" data-section-status role="status" hidden></p>
 		<div data-section-body>
 			if panel && (page.Section == "overview" || page.Section == "") {
-				@EventImage(page.Detail.Item, true)
+				@EventImage(page.Detail.Item, artDetail)
 			}
 			<div class={ "context-content", templ.KV("context-activity", page.Thread != nil) }>
 				if page.Thread != nil {

@@ -51,7 +51,7 @@ templ DrilldownReturn(eventID, section, origin string) {
 templ CollectionEventArt(event models.Event, returnURL string) {
 	<div class="event-art">
 		<a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="event-image-link" data-event-link data-id={ event.ID } aria-label={ "Overview — " + event.Name }>
-			@EventImage(event,false)
+			@EventImage(event, artCollection)
 		</a>
 		<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start,"Jan") }</span><strong>{ datePart(event.Start,"2") }</strong></div>
 	</div>

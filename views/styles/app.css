@@ -1027,7 +1027,12 @@ summary::-webkit-details-marker {
   --row-press: color-mix(in oklch, var(--brand-soft) 45%, var(--surface));
   --row-selected: color-mix(in oklch, var(--brand-soft) 35%, var(--surface));
   --row-selected-hover: color-mix(in oklch, var(--brand-soft) 60%, var(--surface));
+  /* Long lists skip rendering off-screen rows once app.js has seen them render
+     at this layout, so a skipped row keeps its real size; the estimate covers
+     rows that never rendered. */
+  contain-intrinsic-block-size: auto 20rem;
 }
+.event-row[data-settled] { content-visibility: auto; }
 
 /* Selection is a quiet, uniform spotlight; the Viewing label and aria-current
    carry it beyond the wash. Hover and press follow the row's Overview links. */

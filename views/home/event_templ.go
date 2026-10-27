@@ -230,7 +230,7 @@ func Event(page EventPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = EventImage(page.Detail.Item, true).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventImage(page.Detail.Item, artDetail).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -537,7 +537,7 @@ func EventSectionResponse(page EventPage, panel bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !panel {
-			templ_7745c5c3_Err = EventImage(page.Detail.Item, true).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = EventImage(page.Detail.Item, artDetail).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -855,7 +855,7 @@ func EventSectionRegion(page EventPage, panel bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if panel && (page.Section == "overview" || page.Section == "") {
-			templ_7745c5c3_Err = EventImage(page.Detail.Item, true).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = EventImage(page.Detail.Item, artDetail).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

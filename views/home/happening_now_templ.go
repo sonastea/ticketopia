@@ -289,7 +289,7 @@ func HappeningNow(p HappeningNowPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = EventImage(models.Event{}, false).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventImage(models.Event{}, artThumb).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -320,7 +320,7 @@ func HappeningNow(p HappeningNowPage) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = EventImage(event, false).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = EventImage(event, artThumb).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -359,7 +359,7 @@ func HappeningNow(p HappeningNowPage) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = EventImage(models.Event{}, false).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = EventImage(models.Event{}, artThumb).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

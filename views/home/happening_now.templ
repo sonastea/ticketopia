@@ -57,7 +57,7 @@ templ HappeningNow(p HappeningNowPage) {
 					<span data-live-badge class="sr-only"></span>
 					// Cards added live have no stored artwork yet; they reuse this fallback.
 					<template data-live-art>
-						<div class="event-art">@EventImage(models.Event{}, false)
+						<div class="event-art">@EventImage(models.Event{}, artThumb)
 </div>
 					</template>
 					<ul class="live-cards" data-live-list>
@@ -65,11 +65,11 @@ templ HappeningNow(p HappeningNowPage) {
 							<li class="live-card" data-id={ item.EventID }>
 								if event, ok := p.Events[item.EventID]; ok {
 									<div class="event-art">
-										@EventImage(event, false)
+										@EventImage(event, artThumb)
 										<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
 									</div>
 								} else {
-									<div class="event-art">@EventImage(models.Event{}, false)
+									<div class="event-art">@EventImage(models.Event{}, artThumb)
 </div>
 								}
 								<div class="live-card-copy">

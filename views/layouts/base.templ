@@ -28,6 +28,16 @@ templ Base(title string) {
 				<script src="/assets/live-pickers.js" defer></script>
 				<script src="/assets/live-activity.js" defer></script>
 			}
+			// Pressing an event result fetches its page before the press ends, so the
+			// navigation starts from a response already on its way. Discover's results
+			// open the preview instead; app.js starts that request on press.
+			<script type="speculationrules" nonce={ templ.GetNonce(ctx) }>
+				{"prefetch": [{"where": {"and": [
+					{"href_matches": {"pathname": "/events/*"}},
+					{"selector_matches": "[data-event-link]"},
+					{"not": {"selector_matches": "[data-results-url] [data-event-link]"}}
+				]}, "eagerness": "conservative"}]}
+			</script>
 			<title>{ title } · Ticketopia</title>
 		</head>
 		<body>

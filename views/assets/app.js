@@ -204,6 +204,35 @@
   for (const image of document.querySelectorAll('.event-image img')) {
     if (image.complete && !image.naturalWidth) image.hidden = true;
   }
+  // Off-screen result rows skip rendering (app.css), but only once they have
+  // rendered at the current layout and fonts: a skipped row keeps its last real
+  // size, so pixel scroll restores, the selected-row correction and FLIP moves
+  // land exactly as when every row rendered. A list that changes width renders
+  // every row again before its next paint, and they settle once remembered.
+  let settleTurn = 0;
+  const settleRows = () => {
+    const turn = ++settleTurn;
+    document.fonts.ready.then(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (turn !== settleTurn) return;
+      for (const row of document.querySelectorAll('.event-row:not([data-settled])')) row.dataset.settled = '';
+    })));
+  };
+  const unsettleRows = () => {
+    for (const row of document.querySelectorAll('.event-row[data-settled]')) delete row.dataset.settled;
+    settleRows();
+  };
+  if (window.ResizeObserver) {
+    const listWidths = new WeakMap();
+    const lists = new ResizeObserver(entries => {
+      for (const { target, contentRect } of entries) {
+        if (listWidths.has(target) && listWidths.get(target) !== contentRect.width) unsettleRows();
+        listWidths.set(target, contentRect.width);
+      }
+    });
+    for (const list of document.querySelectorAll('.event-list')) lists.observe(list);
+    settleRows();
+    document.addEventListener('htmx:load', settleRows);
+  }
   // Enlarged labels and the bottom safe area change the navigation's height;
   // the compact event action bar sticks just above its actual edge.
   const bottomNav = document.querySelector('.bottom-nav');
@@ -1096,8 +1125,10 @@
   // correction lands before paint, so nothing visibly jumps or animates. Rows
   // that stayed fully visible are left alone unless `center` is requested, and a
   // row taller than the viewport aligns its start with the root scroll padding.
+  // Skipped rows still have their pre-reflow size, so every row renders first.
   const revealRow = (row, center) => {
     if (!row) return;
+    unsettleRows();
     const rect = row.getBoundingClientRect();
     if (!center && rect.top >= 0 && rect.bottom <= innerHeight) return;
     const inset = parseFloat(getComputedStyle(document.documentElement).scrollPaddingBlockStart) || 0;
@@ -1110,6 +1141,41 @@
     if (recommend) url.searchParams.set('recommend', 'true');
     return url;
   };
+  const fetchPanel = (url, controller) => {
+    const response = fetch(url, { signal: controller.signal, headers: { 'X-Ticketopia-Panel': 'true' } });
+    response.catch(() => {});
+    return response;
+  };
+  // Pressing a result starts its preview request, which the click that follows
+  // adopts (full pages get the same head start from speculation rules). A press
+  // that becomes a scroll or a long-press cancels it; one left unclaimed is
+  // dropped by the next selection.
+  let pressed = null;
+  const dropPressed = () => {
+    pressed?.controller.abort();
+    pressed = null;
+  };
+  const freshPress = href => pressed?.href === href && performance.now() - pressed.at < 5000;
+  const takePressed = url => {
+    const claimed = freshPress(url.href) ? pressed : null;
+    if (claimed) pressed = null;
+    else dropPressed();
+    return claimed;
+  };
+  document.addEventListener('pointerdown', event => {
+    if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest('[data-event-link]');
+    if (!link || link.closest('[data-thread-link]')) return;
+    const href = new URL(link.href);
+    const id = link.dataset.id || decodeURIComponent(href.pathname.split('/').pop());
+    if (sectionHost()?.dataset.eventShell === id) return;
+    const url = detailURL(id, href.searchParams.get('section') || 'overview', href.searchParams.get('recommend') === 'true');
+    if (freshPress(url.href)) return;
+    dropPressed();
+    const controller = new AbortController();
+    pressed = { href: url.href, at: performance.now(), controller, response: fetchPanel(url, controller) };
+  });
+  document.addEventListener('pointercancel', dropPressed);
   // #pagination names the cursor of its last rendered page. The URL mirrors it
   // as through=, so reload and Back get every loaded page, with current private
   // state, in the first response; history itself keeps only position and focus.
@@ -1221,7 +1287,8 @@
     const panelHadFocus = context.contains(document.activeElement);
     const savedPanel = !push && history.state?.ticketopiaPanel?.url === location.href ? history.state.ticketopiaPanel : null;
     request?.abort();
-    request = new AbortController();
+    const early = takePressed(url);
+    request = early?.controller || new AbortController();
     const currentRequest = request;
     const turn = ++generation;
     if (push) {
@@ -1244,8 +1311,7 @@
     status.textContent = 'Loading event preview.';
     const timeout = setTimeout(() => currentRequest.abort(), 12000);
     try {
-      const pending = fetch(url, { signal: currentRequest.signal, headers: { 'X-Ticketopia-Panel': 'true' } });
-      pending.catch(() => {});
+      const pending = early?.response || fetchPanel(url, currentRequest);
       await shown;
       const response = await pending;
       if (!response.ok || response.redirected) throw new Error('Event unavailable');
@@ -1328,7 +1394,8 @@
       context.replaceChildren(previewTemplate('empty'));
       const trigger = [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === lastFocusID);
       trigger?.focus({ preventScroll: true });
-      if (!desktop.matches) scrollTo(0, resultsScroll);
+      // Hidden results may not have kept their rows' sizes.
+      if (!desktop.matches) { unsettleRows(); scrollTo(0, resultsScroll); }
       else if (push) revealRow(viewed, false);
     };
     if (push && desktop.matches) shellTransition('preview', close);
@@ -1403,7 +1470,7 @@
       // The compact offset predates the desktop reflow; follow the row instead.
       const row = selectedRow();
       if (row) revealRow(row, false);
-      else scrollTo(0, resultsScroll);
+      else { unsettleRows(); scrollTo(0, resultsScroll); }
     }
   });
 })();

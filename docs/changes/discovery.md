@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-10-26 — Right-sized artwork, pressed prefetch and lighter long lists
+
+- Artwork lists one crop's renditions in `srcset` with layout-derived `sizes`,
+  so 2x phones take 305px thumbnails instead of 640px.
+- Pressing a result prefetches its event page (speculation rules) or, on
+  Discover, starts its preview request.
+- Off-screen rows skip rendering once they have rendered at the current layout,
+  keeping scroll restores and the selected-row correction exact.
+  See [discovery](../discovery.md#loading-performance).
+
 ### 2026-10-25 — Server-rebuilt result history
 
 - Stop storing result HTML in history. Load more mirrors the last page's cursor
@@ -82,17 +92,6 @@
 - Event pages open with a wide artwork band and tinted identity surface. Below
   62rem, Tickets and Save form a sticky normal-flow bar above the bottom
   navigation on viewports at least 32rem tall.
-  See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-23 — Quieter rows and screen-reader fixes
-
-- Drop the provider-description excerpt from rows and hide Featuring performers
-  already named in the title (rows and Overview).
-- Make the row title the only tab stop, focus the preview heading after choosing
-  an event on desktop as on compact, and stop announcing Radar coverage notes.
-- Align the search label with venue matching, shorten its placeholder, say
-  **Enter a city** before one is chosen, and replace "Country code" with
-  "Country (optional, 2-letter code)" across forms.
   See [discovery](../discovery.md#responsive-navigation-and-event-details).
 
 Older entries: [discovery archive](archive/discovery/).
