@@ -6,6 +6,8 @@
   const confirmedForms = new WeakSet();
   const labels = new WeakMap();
   const motionOK = () => matchMedia('(prefers-reduced-motion: no-preference)').matches;
+  // Mirrors the easing helper in app.js.
+  const easing = name => getComputedStyle(document.documentElement).getPropertyValue(`--ease-${name}`).trim() || 'ease-out';
   // Briefly highlights a post the reader was just taken to (CSS animates it).
   const arrive = post => {
     if (!post || !motionOK()) return;
@@ -198,7 +200,7 @@
       const open = content.querySelector('.discussion-editor[open] [data-discussion-draft]')?.dataset.discussionDraft;
       content.replaceChildren(...fresh.querySelector('[data-conversation-content]').childNodes);
       // A reader-chosen conversation fades in; refreshes after a write don't.
-      if (push && !confirmation && motionOK()) content.animate({opacity: [0, 1]}, {duration: 160, easing: 'cubic-bezier(.16, 1, .3, 1)'});
+      if (push && !confirmation && motionOK()) content.animate({opacity: [0, 1]}, {duration: 160, easing: easing('out')});
       if (push) {
         const state = {...history.state, ticketopiaConversation: null};
         const journey = state.ticketopiaReturn;

@@ -394,7 +394,7 @@ func EventContext(page EventPage) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "context-back text-link", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview and return to results"}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "context-back text-link", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Back to results, closing the event preview"}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

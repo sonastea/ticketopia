@@ -5,6 +5,8 @@
   const writing = new Set();
   let stateTurn = 0;
   let defaultVisibility = document.querySelector('[data-interest-default]')?.dataset.interestDefault || 'private';
+  // Mirrors the easing helper in app.js.
+  const easing = name => getComputedStyle(document.documentElement).getPropertyValue(`--ease-${name}`).trim() || 'ease-out';
   const label = visibility => visibility === 'public' ? 'Public' : 'Private';
   const announce = message => {
     const status = document.querySelector('[data-interest-status]');
@@ -48,7 +50,7 @@
         form.elements.action.value = state.interested ? 'remove' : 'set';
         const button = form.querySelector('button');
         if (state.interested && button.getAttribute('aria-pressed') !== 'true' && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
-          button.querySelector('.icon')?.animate?.({ scale: [.6, 1.2, 1] }, { duration: 320, easing: 'cubic-bezier(.16, 1, .3, 1)' });
+          button.querySelector('.icon')?.animate?.({ scale: [.6, 1.2, 1] }, { duration: 320, easing: easing('out') });
         }
         button.setAttribute('aria-pressed', String(state.interested));
         const text = form.dataset.interestCollection === 'true' && state.interested ? `Remove interest · ${label(visibility)}` : `Interested · ${label(visibility)}`;
@@ -67,7 +69,7 @@
       const privacy = details.querySelector('[data-interest-privacy]');
       if (privacy) {
         if (state.interested && privacy.hidden && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
-          privacy.animate?.({ opacity: [0, 1] }, { duration: 160, easing: 'cubic-bezier(.16, 1, .3, 1)' });
+          privacy.animate?.({ opacity: [0, 1] }, { duration: 160, easing: easing('out') });
         }
         privacy.hidden = !state.interested; if (!state.interested) privacy.open = false;
       }

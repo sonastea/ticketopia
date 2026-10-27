@@ -63,7 +63,7 @@ templ Event(page EventPage) {
 templ EventContext(page EventPage) {
 	<div class="context-inner" data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF } data-context-id={ page.Detail.Item.ID } data-context-section={ page.Section } data-context-thread={ contextThreadID(page) }>
 		<div class="context-toolbar">
-			@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "context-back text-link", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Close event preview and return to results"}}) {
+			@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "context-back text-link", Attributes: templ.Attributes{"data-close-context": true, "aria-label": "Back to results, closing the event preview"}}) {
 				@layouts.Icon("back")
 				<span>Back to results</span>
 			}

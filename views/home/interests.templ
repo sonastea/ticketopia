@@ -13,7 +13,7 @@ templ InterestControl(id string, name string, view InterestView, returnURL strin
 	} else if view.Error != "" {
 		@button.Button(button.Props{Variant:button.VariantOutline,Class:"button-quiet",Disabled:true,Attributes:templ.Attributes{"aria-label":"Interest unavailable for " + name}}) { Interest unavailable }
 	} else if !view.SignedIn {
-		@button.Button(button.Props{Href:signInURL(EventSignInReturn(id, returnURL)),Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"aria-label":"Sign in to mark interested — " + name}}) {
+		@button.Button(button.Props{Href:signInURL(EventSignInReturn(id, returnURL)),Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"aria-label":"Sign in for Interested — " + name}}) {
 			@layouts.Icon("interests")<span>Sign in for Interested</span>
 		}
 	} else {

@@ -399,7 +399,7 @@ component-specific insets remain explicit rather than becoming another scale.
 | At least 72rem | A sticky labeled sidebar replaces the fixed rail/header, occupying 14rem expanded or 4.5rem collapsed. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |
 | At least 86rem | The filter grid becomes three columns, with the city field spanning two. |
 
-Result lists respond to their `results` container rather than these thresholds: artwork stacks above facts below 18rem (enlarged text on phones), phone-width containers (18–26rem) put a square 5.5rem thumbnail beside the facts with a 1rem gap and 1rem row padding while details and actions span below, rows use a square 7.5–11rem image column with a 1.25rem gap from 26rem, and from 48rem an intrinsic grid (16rem minimum, at most three columns, 1.5rem gap) shows cards. The CSS and JavaScript share the 62rem context and 72rem desktop-navigation thresholds. Selection, direct-entry, return-state, and resize strategy belong to the [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state) and [surface contract](.impeccable/surfaces/views-home-index-templ.md), not additional global design rules.
+Result lists respond to their `results` container rather than these thresholds: artwork stacks above facts below 17.5rem (enlarged text on phones), phone-width containers (17.5–26rem, low enough for a padded 320px phone) put a square 5.5rem thumbnail beside the facts with a 1rem gap and 1rem row padding while details and actions span below, rows use a square 7.5–11rem image column with a 1.25rem gap from 26rem, and from 48rem an intrinsic grid (16rem minimum, at most three columns, 1.5rem gap) shows cards. The CSS and JavaScript share the 62rem context and 72rem desktop-navigation thresholds. Selection, direct-entry, return-state, and resize strategy belong to the [responsive UX guide](docs/design-guidelines.md#discovery-to-discussion-journeys-and-shared-state) and [surface contract](.impeccable/surfaces/views-home-index-templ.md), not additional global design rules.
 
 Once the actual workspace reaches 64rem, a selected discovery event uses a 2:3
 results/context split, retaining a 24rem minimum results column. Collapsing
@@ -503,7 +503,9 @@ revealed under a clip. Collapsed-rail labels fade in over 120ms. Saved
 bookmarks and interested stars fill in over 160ms and, when turned on in place,
 pop with a 320ms overshoot. Cross-document view transitions run 250ms with the shared ease-out curve, moving per-event artwork/titles between rows, preview and event page; they are enabled only under `prefers-reduced-motion: no-preference`. Buttons and badges share the source's
 `cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms for color/fill
-changes only. Geometry transitions opt into motion only when no reduction is
+changes only. Script animations read `--ease-out` and `--ease-standard` from the
+root instead of copying the curves, and htmx's injected ease-in indicator style is
+turned off (`includeIndicatorStyles: false`). Geometry transitions opt into motion only when no reduction is
 requested; there is no global safeguard, so each animation carries its own guard
 (the vendored shimmer utility has its own). Native links, buttons, summaries and
 selects share a 160ms ease-out colour baseline (background, text, border and

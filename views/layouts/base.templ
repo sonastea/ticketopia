@@ -16,6 +16,9 @@ templ Base(title string) {
 			<link rel="preload" href="/assets/fonts/manrope.ttf" as="font" type="font/ttf" crossorigin/>
 			<link rel="preload" href="/assets/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin/>
 			<link rel="stylesheet" href="/assets/app.css"/>
+			// htmx's injected indicator style fades with ease-in; app.css styles
+			// .htmx-request states itself.
+			<meta name="htmx-config" content='{"includeIndicatorStyles":false}'/>
 			<script src="/assets/htmx.min.js" defer></script>
 			// Pages render only the native Select and Collapsible variants, so the
 			// component bundle (@components.Scripts()) is not loaded. Render it here

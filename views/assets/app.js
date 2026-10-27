@@ -9,10 +9,11 @@
   };
 
   const motionOK = () => matchMedia('(prefers-reduced-motion: no-preference)').matches;
-  const easeOut = 'cubic-bezier(.16, 1, .3, 1)';
+  // Reads a shared easing token (--ease-out, --ease-standard) from app.css.
+  const easing = name => getComputedStyle(document.documentElement).getPropertyValue(`--ease-${name}`).trim() || 'ease-out';
   // Plays a one-off entrance on content that just arrived.
   const enter = (node, keyframes = { opacity: [0, 1] }, duration = 160) => {
-    if (node && motionOK()) node.animate?.(keyframes, { duration, easing: easeOut });
+    if (node && motionOK()) node.animate?.(keyframes, { duration, easing: easing('out') });
   };
   // Briefly highlights a post the reader was just taken to (CSS animates it).
   const arrive = post => {
@@ -31,6 +32,7 @@
     const before = new Map(nodes.map(node => [node, node.getBoundingClientRect()]));
     for (const node of nodes) node.flipAnimation?.cancel();
     const result = update();
+    const ease = easing('standard');
     const shift = new Map();
     for (const [node, was] of before) {
       if (!node.isConnected) continue;
@@ -42,7 +44,7 @@
       while (parent && !shift.has(parent)) parent = parent.parentElement;
       const [dx, dy] = parent ? [x - shift.get(parent)[0], y - shift.get(parent)[1]] : [x, y];
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
-      node.flipAnimation = node.animate?.({ translate: [`${dx}px ${dy}px`, '0 0'] }, { duration: 240, easing: 'cubic-bezier(.2, 0, 0, 1)' });
+      node.flipAnimation = node.animate?.({ translate: [`${dx}px ${dy}px`, '0 0'] }, { duration: 240, easing: ease });
     }
     return result;
   };

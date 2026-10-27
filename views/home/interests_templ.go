@@ -87,7 +87,7 @@ func InterestControl(id string, name string, view InterestView, returnURL string
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = button.Button(button.Props{Href: signInURL(EventSignInReturn(id, returnURL)), Variant: button.VariantOutline, Class: "button-quiet", Attributes: templ.Attributes{"aria-label": "Sign in to mark interested — " + name}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = button.Button(button.Props{Href: signInURL(EventSignInReturn(id, returnURL)), Variant: button.VariantOutline, Class: "button-quiet", Attributes: templ.Attributes{"aria-label": "Sign in for Interested — " + name}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
