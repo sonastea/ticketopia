@@ -149,7 +149,9 @@ instead, so WebKit and Chromium match and forced colours keep it. It reflows to 
 label on one unbroken line. Its sticky shell row and margins reserve its actual
 height plus the `--nav-float-gap` above the bottom safe area, so page content remains
 reachable without a guessed spacer; JavaScript only reports the height to the
-event page's sticky action bar. Side insets use physical safe-area margins. The
+event page's sticky action bar. Because media-query rem ignores enlarged page
+text, JavaScript also sets `data-short-viewport` on the root below 32 actual
+rem of viewport height, which keeps that bar in place. Side insets use physical safe-area margins. The
 intermediate rail remains fixed and desktop navigation is unchanged.
 
 Secondary text uses `--muted-warm`, derived from `--muted` and `--brand`; use it

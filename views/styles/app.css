@@ -532,6 +532,15 @@ h3 {
   color: var(--brand);
 }
 
+/* Forced colors drop the current-page wash and leave icons their palette
+   color: icons follow the system link color and the current page is framed,
+   which also marks it on the label-less collapsed rail. */
+@media (forced-colors: active) {
+  .nav-link .icon,
+  .nav-link[aria-current="page"] .icon { color: inherit; }
+  .sidebar .nav-link[aria-current="page"] { outline: 2px solid Highlight; outline-offset: -2px; }
+}
+
 .bottom-nav {
   /* A floating pill: its normal-flow row and margins reserve the bar's actual
      enlarged-text height plus the gap above the bottom safe area. */
@@ -1262,7 +1271,7 @@ html:has(.filter-sheet:modal) {
   .event-row .event-art { align-self: start; margin-block-end: 0; }
   .event-row .event-art .event-image { aspect-ratio: 1; }
   .event-row .event-art .date-marker { inset-block-end: .3rem; inset-inline-start: .3rem; max-inline-size: calc(100% - .6rem); padding-inline: .45rem; }
-  .event-row .event-copy h3 { margin-block-start: .15rem; font-size: 1rem; }
+  .event-row .event-copy h3 { margin-block-start: 0; font-size: 1rem; }
   .event-row-extension { margin-block-start: .75rem; }
 }
 
@@ -1420,10 +1429,19 @@ html:has(.filter-sheet:modal) {
 .row-activity-links a { display: inline-flex; align-items: center; min-block-size: 2.75rem; font-size: .8125rem; }
 
 .event-copy h3 {
-  margin-block: .35rem .4rem;
+  margin-block: .1rem .15rem;
   margin-inline: 0;
   font-size: 1.125rem;
   line-height: 1.4;
+}
+
+/* The title link is a 44px target; the tighter heading margins absorb most of it. */
+.event-copy h3 a {
+  display: flex;
+  align-items: center;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-block-size: 2.75rem;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2115,7 +2133,7 @@ html:has(.filter-sheet:modal) {
     border-color: Highlight;
     color: Highlight;
   }
-  .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
+  :is(.event-actions, .discussion-actions) .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
     border-color: Highlight;
   }
   /* Washes vanish here, so the selected row gains a system-colored frame. */
@@ -2984,11 +3002,12 @@ html:has(.filter-sheet:modal) {
      with its edges. It stays in normal flow: ordered last in the article, it
      sticks while the event scrolls and settles at the end. JavaScript only
      refines the nav height. Short or text-enlarged viewports keep the actions
-     in place instead. */
+     in place instead: media rem ignores enlarged page text, so JavaScript also
+     flags viewports under 32 actual rem. */
   @media (min-height: 32rem) {
-    .event-page .event-main { display: flex; flex-direction: column; }
-    .event-page .event-primary-actions { display: contents; }
-    .event-page .event-primary-actions > .event-action-group {
+    :root:not([data-short-viewport]) .event-page .event-main { display: flex; flex-direction: column; }
+    :root:not([data-short-viewport]) .event-page .event-primary-actions { display: contents; }
+    :root:not([data-short-viewport]) .event-page .event-primary-actions > .event-action-group {
       order: 1;
       position: sticky;
       z-index: 15;
@@ -3001,15 +3020,15 @@ html:has(.filter-sheet:modal) {
       background: var(--surface);
     }
     @media (max-width: 23rem) {
-      .event-page .event-primary-actions > .event-action-group { margin-inline: calc(.5rem - var(--page-gutter)); }
+      :root:not([data-short-viewport]) .event-page .event-primary-actions > .event-action-group { margin-inline: calc(.5rem - var(--page-gutter)); }
     }
-    .event-page .event-primary-actions .event-actions { align-items: center; }
+    :root:not([data-short-viewport]) .event-page .event-primary-actions .event-actions { align-items: center; }
     /* One row: Tickets grows from its content beside Save. Narrow bars drop the
        visible provider (still in the accessible name); enlarged text wraps. */
-    .event-page .event-primary-actions > .event-action-group { container: event-actions / inline-size; }
-    .event-page .event-primary-actions .ticket-link { flex: 1 1 auto; }
+    :root:not([data-short-viewport]) .event-page .event-primary-actions > .event-action-group { container: event-actions / inline-size; }
+    :root:not([data-short-viewport]) .event-page .event-primary-actions .ticket-link { flex: 1 1 auto; }
     @container event-actions (max-width: 26rem) {
-      .event-page .event-primary-actions .ticket-provider {
+      :root:not([data-short-viewport]) .event-page .event-primary-actions .ticket-provider {
         position: absolute;
         inline-size: 1px;
         block-size: 1px;
@@ -3018,7 +3037,7 @@ html:has(.filter-sheet:modal) {
         white-space: nowrap;
       }
     }
-    html:has(.event-page .event-action-group) {
+    html:not([data-short-viewport]):has(.event-page .event-action-group) {
       scroll-padding-block-end: calc(var(--bottom-nav-block-size, 4.5rem) + var(--nav-float-gap) + 6rem);
     }
   }
@@ -3193,7 +3212,7 @@ html:has(.filter-sheet:modal) {
       .event-page .event-primary-actions > .event-action-group { transition: inset-block-end 220ms var(--ease-standard); }
       @container page-scroll scroll-state(scrolled: bottom) {
         .bottom-nav:not(:focus-within) { translate: 0 calc(100% + var(--nav-float-gap) + .5rem); }
-        .event-page .event-primary-actions > .event-action-group:not(:focus-within) { inset-block-end: var(--nav-float-gap); }
+        :root:not([data-short-viewport]) .event-page .event-primary-actions > .event-action-group:not(:focus-within) { inset-block-end: var(--nav-float-gap); }
       }
     }
   }
@@ -3515,7 +3534,7 @@ html:has(.filter-sheet:modal) {
 .live-filter-bar > [data-live-summary] { flex: 1 1 14rem; }
 .live-filter-bar > form { flex: none; }
 .live-filter-bar > form:has(> details[open]) { flex-basis: 100%; order: 1; padding-block-end: 1rem; }
-.live-filter-bar > .account-actions { flex: none; margin: 0; gap: 1rem; }
+.live-filter-bar > .account-actions { flex: 0 1 auto; min-inline-size: 0; margin: 0; gap: 0 1rem; }
 
 /* Community cards: artwork with the date stub, the people and their words as
    pull quotes, then the event facts. Flat, bordered, never raised. */
@@ -3588,7 +3607,8 @@ html:has(.filter-sheet:modal) {
   .avatar { border: 1px solid CanvasText; }
 }
 
-/* Happening Now cards: compact rows; the title link covers the card. */
+/* Happening Now cards: compact rows; the title link covers the card. The copy
+   drops below the artwork when enlarged text leaves it too narrow beside it. */
 .live-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
@@ -3599,10 +3619,10 @@ html:has(.filter-sheet:modal) {
 }
 .live-card {
   position: relative;
-  display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: start;
-  gap: 1rem;
+  gap: .75rem 1rem;
   padding: .75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -3611,11 +3631,11 @@ html:has(.filter-sheet:modal) {
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
-.live-card .event-art { margin: 0; }
+.live-card .event-art { flex: none; inline-size: 5.5rem; margin: 0; }
 .live-card .event-image { aspect-ratio: 1; }
 .live-card .image-fallback .icon { inline-size: 1.75rem; block-size: 1.75rem; }
 .live-card .event-art .date-marker { inset-block-end: .3rem; inset-inline-start: .3rem; max-inline-size: calc(100% - .6rem); padding-inline: .45rem; }
-.live-card-copy { display: grid; justify-items: start; gap: .25rem; }
+.live-card-copy { flex: 1 1 9rem; display: grid; justify-items: start; gap: .25rem; }
 .live-card-copy > p { margin: 0; }
 .live-card .byline { font-size: .875rem; }
 .live-card .avatar { inline-size: 2rem; block-size: 2rem; font-size: .75rem; }
@@ -3628,7 +3648,8 @@ html:has(.filter-sheet:modal) {
 .live-card:has(.live-card-link:active) { background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface)); }
 
 /* Empty Community states are a typographic moment, not a grey sentence. */
-.empty-moment { display: grid; justify-content: start; justify-items: start; gap: 1rem; padding-block: 2.5rem 3rem; padding-inline: 0; }
+/* The shrinkable column lets a long word in the display heading wrap, not overflow. */
+.empty-moment { display: grid; grid-template-columns: minmax(0, auto); justify-content: start; justify-items: start; gap: 1rem; padding-block: 2.5rem 3rem; padding-inline: 0; }
 .empty-moment > p { color: var(--muted-warm); max-inline-size: 50ch; }
 .empty-display {
   color: var(--ink);
@@ -3638,6 +3659,7 @@ html:has(.filter-sheet:modal) {
   letter-spacing: -.035em;
   max-inline-size: 18ch;
   text-wrap: balance;
+  hyphens: auto;
 }
 [data-live-details] > .empty-display { margin-block: 2rem .75rem; }
 [data-live-details] > .live-empty-action { margin-block: 1rem; }

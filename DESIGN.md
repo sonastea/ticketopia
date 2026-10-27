@@ -395,7 +395,7 @@ component-specific insets remain explicit rather than becoming another scale.
 | At most 23rem | Content padding becomes 1.25rem 1rem. Navigation side insets cap at 2.5vw so enlarged labels stay whole. Event headings and section links reduce to fit. |
 | Intrinsic | Filter fields pair while each column keeps 9.5rem for a full date, otherwise forming one column. The keyword field keeps 6rem beside the search icon, otherwise Find events wraps below it; in a results column of at most 21rem (a container query, so enlarged text counts) search drops its decorative icon and tightens its inset. A long event-page return label wraps beside Share. |
 | At least 40rem | General page padding becomes 2rem. |
-| At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding. Below this threshold, event pages at least 32rem tall pin Tickets/Save above the bottom navigation. |
+| At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding. Below this threshold, event pages at least 32rem tall (measured at the page's actual root text size) pin Tickets/Save above the bottom navigation. |
 | At least 72rem | A sticky labeled sidebar replaces the fixed rail/header, occupying 14rem expanded or 4.5rem collapsed. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |
 | At least 86rem | The filter grid becomes three columns, with the city field spanning two. |
 

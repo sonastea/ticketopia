@@ -196,7 +196,16 @@
     event.preventDefault();
     if (useSheet()) openSheet(link);
     else filters.open = true;
-    document.getElementById('city').focus();
+    const city = document.getElementById('city');
+    city.focus();
+    if (document.activeElement === city) return;
+    // The inline disclosure's content stays unfocusable until it starts to
+    // open; retry then, unless the reader has moved focus elsewhere meanwhile.
+    const retry = () => {
+      if (document.activeElement === link || document.activeElement === document.body) city.focus();
+    };
+    filters.addEventListener('toggle', () => requestAnimationFrame(retry), { once: true });
+    filters.addEventListener('transitionend', retry, { once: true });
   });
   // The phone header's search shortcut is a link to Discover's keyword field.
   // On Discover it focuses the field in place, keeping the current filters; with
@@ -319,10 +328,21 @@
     document.addEventListener('htmx:load', settleRows);
   }
   // Enlarged labels and the bottom safe area change the navigation's height;
-  // the compact event action bar sticks just above its actual edge.
+  // the compact event action bar sticks just above its actual edge. Media
+  // queries measure rem at the browser default, so enlarged page text never
+  // fails the bar's 32rem height check; viewports under 32 actual rem are
+  // flagged so the bar stays in place instead of covering the screen. Text
+  // size changes resize the navigation, so its observer rechecks them too.
   const bottomNav = document.querySelector('.bottom-nav');
+  const root = document.documentElement;
+  const flagShortViewport = () => root.toggleAttribute('data-short-viewport', innerHeight < 32 * parseFloat(getComputedStyle(root).fontSize));
+  flagShortViewport();
+  addEventListener('resize', flagShortViewport);
   if (bottomNav && window.ResizeObserver) {
-    new ResizeObserver(() => document.documentElement.style.setProperty('--bottom-nav-block-size', bottomNav.offsetHeight + 'px')).observe(bottomNav);
+    new ResizeObserver(() => {
+      root.style.setProperty('--bottom-nav-block-size', bottomNav.offsetHeight + 'px');
+      flagShortViewport();
+    }).observe(bottomNav);
   }
 
   // Ordinary forms remain the fallback. Enhanced saves preserve selection,
@@ -1304,8 +1324,11 @@
   // Rows appended by Load more (out-of-band, before the new #pagination loads)
   // settle in as one batch; rows already read don't move.
   let rowsBeforePage = null;
+  let pageHadFocus = false;
   document.addEventListener('htmx:beforeRequest', event => {
-    if (event.target.closest?.('#pagination')) rowsBeforePage = document.getElementById('event-list')?.children.length ?? null;
+    if (!event.target.closest?.('#pagination')) return;
+    rowsBeforePage = document.getElementById('event-list')?.children.length ?? null;
+    pageHadFocus = Boolean(document.activeElement?.closest('#pagination'));
   });
   document.addEventListener('htmx:load', event => {
     if (event.target.id !== 'pagination') return;
@@ -1313,6 +1336,12 @@
     const rows = rowsBeforePage === null ? [] : [...document.getElementById('event-list')?.children || []].slice(rowsBeforePage);
     rowsBeforePage = null;
     for (const row of rows) enter(row, { opacity: [0, 1], translate: ['0 .375rem', '0 0'] }, 200);
+    // The swap removed the pressed Load more; continue from the first new
+    // event rather than dropping keyboard focus to the page.
+    if (pageHadFocus && (!document.activeElement || document.activeElement === document.body)) {
+      (rows[0]?.querySelector('.event-link') || event.target.querySelector('a[href], button:not([hidden])'))?.focus();
+    }
+    pageHadFocus = false;
   });
   // Same-document Back/Forward keeps the loaded rows, so the entry it lands
   // on must name them too. Registered before restoreSelection reads the URL.
