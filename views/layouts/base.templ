@@ -105,6 +105,11 @@ templ App(active string, title string) {
 						<span class="brand-word">ticketopia<span class="brand-stop">.</span></span>
 					</a>
 					<span>Live events, worth finding.</span>
+					// Without JavaScript this opens Discover at its search field; app.js
+					// keeps an open Discover search and its filters in place.
+					<a href="/#keyword" class="header-search" aria-label="Search events" title="Search events" data-header-search>
+						@Icon("search")
+					</a>
 				</header>
 				{ children... }
 			</div>

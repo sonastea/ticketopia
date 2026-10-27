@@ -931,6 +931,9 @@ func mapsQuery(event models.Event) string {
 	return strings.Join(parts, ", ")
 }
 
+// calendarURL is the event's public iCalendar file (internal/api/calendar.go).
+func calendarURL(id string) string { return "/api/v1/events/" + url.PathEscape(id) + "/calendar.ics" }
+
 // shareURL is the event's canonical path, without the reader's return context.
 func shareURL(id string) string { return eventURL(id, "overview", "/") }
 

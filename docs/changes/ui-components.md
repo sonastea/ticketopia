@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 2026-10-26 — Search shortcut, filter sheet, calendar and offline page
+
+- The sticky phone header ends with a search icon: on Discover it focuses the
+  keyword field in place (keeping filters); elsewhere it opens `/#keyword`.
+- Below 62rem, Filters opens as a native modal `<dialog>` bottom sheet inside
+  the same GET form (Escape, close or backdrop; focus returns to its opener).
+  Without JavaScript, or from 62rem, the fields stay inline.
+- Overview adds **When** with an **Add to calendar** `.ics` download
+  ([OpenAPI](openapi.md)) once the provider announces a date.
+- A service worker shows a self-contained offline page when a navigation fails,
+  and caches nothing else ([discovery guide](../discovery.md#ui-source-and-assets)).
+
 ### 2026-10-26 — Event page quick wins
 
 - The venue address links to Maps: Google's universal link (the Maps app on

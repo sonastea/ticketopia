@@ -136,13 +136,94 @@
       category.form.elements.genre_category_id.value = category.value;
     });
   }
+  // Below the compact-shell threshold, Filters opens as a modal bottom sheet.
+  // The disclosure holds an open, in-flow dialog, so without JavaScript or
+  // showModal (and on wider screens) the same GET form fields show inline. The
+  // modal brings Escape, inert surroundings and contained focus; closing returns
+  // focus to whatever opened it and collapses the disclosure again.
+  const sheet = filters?.querySelector('[data-filter-sheet]');
+  const compact = matchMedia('(max-width: 61.999rem)');
+  const useSheet = () => Boolean(sheet?.showModal) && compact.matches;
+  let sheetOpener = null;
+  // showModal needs the in-flow dialog closed first; that close's (queued)
+  // event is not the reader closing the sheet.
+  let reopening = false;
+  // The opener is passed in because WebKit doesn't focus a pressed link or summary.
+  const openSheet = opener => {
+    if (sheet.matches(':modal')) return;
+    sheetOpener = opener;
+    filters.open = true;
+    if (sheet.open) {
+      reopening = true;
+      sheet.close();
+    }
+    sheet.showModal();
+    // The fields were hidden in the collapsed disclosure an instant ago, so
+    // don't rely on showModal's own pick of a first control.
+    sheet.querySelector('[data-filter-sheet-close]').focus();
+  };
+  if (sheet?.showModal) {
+    const summary = filters.querySelector('summary');
+    summary.addEventListener('click', event => {
+      if (!useSheet()) return;
+      event.preventDefault();
+      openSheet(summary);
+    });
+    sheet.addEventListener('close', () => {
+      if (reopening) {
+        reopening = false;
+        return;
+      }
+      // Restore the in-flow dialog that the modal close removed. Setting the
+      // attribute, unlike show(), moves no focus.
+      sheet.setAttribute('open', '');
+      if (compact.matches) filters.open = false;
+      (sheetOpener?.isConnected ? sheetOpener : summary).focus({ preventScroll: true });
+      sheetOpener = null;
+    });
+    // The sheet has no padding of its own, so only a backdrop press targets it.
+    sheet.addEventListener('click', event => {
+      if (event.target === sheet && sheet.matches(':modal')) sheet.close();
+    });
+    sheet.querySelector('[data-filter-sheet-close]').addEventListener('click', () => sheet.close());
+    compact.addEventListener('change', () => { if (sheet.matches(':modal')) sheet.close(); });
+    // Returning to a page left by Apply filters shows its results, not the sheet.
+    addEventListener('pageshow', event => { if (event.persisted && sheet.matches(':modal')) sheet.close(); });
+  }
   document.addEventListener('click', event => {
     const link = event.target.closest('[data-open-filters]');
     if (!link || !filters) return;
     event.preventDefault();
-    filters.open = true;
+    if (useSheet()) openSheet(link);
+    else filters.open = true;
     document.getElementById('city').focus();
   });
+  // The phone header's search shortcut is a link to Discover's keyword field.
+  // On Discover it focuses the field in place, keeping the current filters; with
+  // a preview covering the results it reopens those results at the field.
+  const focusKeyword = () => {
+    const keyword = document.getElementById('keyword');
+    if (!keyword?.checkVisibility?.()) return false;
+    keyword.focus({ preventScroll: true });
+    // Bring the whole command bar, city included, below the sticky header.
+    keyword.closest('form').scrollIntoView({ block: 'start' });
+    keyword.select();
+    return true;
+  };
+  document.addEventListener('click', event => {
+    if (!event.target.closest('[data-header-search]')) return;
+    const results = document.querySelector('main[data-results-url]')?.dataset.resultsUrl;
+    if (focusKeyword()) event.preventDefault();
+    else if (results) {
+      event.preventDefault();
+      location.assign(results + '#keyword');
+    }
+  });
+  if (location.hash === '#keyword') focusKeyword();
+  // The service worker only replaces failed page loads with an offline page.
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once: true });
+  }
   // iPhone and iPad venue links open Apple Maps; others keep the Google Maps link.
   const appleMaps = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   document.addEventListener('click', event => {
@@ -178,6 +259,10 @@
     }
   });
   document.addEventListener('invalid', event => {
+    if (sheet?.contains(event.target) && useSheet()) {
+      openSheet(filters.querySelector('summary'));
+      return;
+    }
     const disclosure = event.target.closest('details');
     if (disclosure) disclosure.open = true;
   }, true);

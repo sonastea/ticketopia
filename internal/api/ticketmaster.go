@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sonastea/ticketopia/internal/calendar"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/views/home"
@@ -363,6 +364,9 @@ func errorMessage(err error) (int, string) {
 	if errors.Is(err, discovery.ErrNotFound) {
 		return http.StatusNotFound, "This event is no longer available. Try another search."
 	}
+	if errors.Is(err, calendar.ErrNoDate) {
+		return http.StatusNotFound, "This event's date hasn't been announced yet, so it can't be added to a calendar."
+	}
 	return http.StatusServiceUnavailable, "We couldn't refresh the events. Please try again shortly."
 }
 
@@ -385,6 +389,8 @@ func problem(c echo.Context, err error) error {
 		fields = map[string]string{invalid.Field: invalid.Message}
 	} else if errors.Is(err, discovery.ErrNotFound) {
 		code = "event_not_found"
+	} else if errors.Is(err, calendar.ErrNoDate) {
+		code = "date_not_announced"
 	}
 	setRetryAfter(c, err)
 	c.Response().Header().Set(echo.HeaderContentType, "application/problem+json")

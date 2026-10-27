@@ -132,90 +132,101 @@ templ SearchControls(page SearchPage) {
 				@layouts.Icon("filters")
 				<span>Filters</span><span class="filter-summary">{ categoryFilterLabel(page) }<span aria-hidden="true">· </span>{ dateRangeLabel(page.Filters) }</span>@layouts.Icon("chevron")
 			}
-			<div class="filter-fields">
-				<div class="field-grid">
-					@label.Label(label.Props{For: "city", Class: "field"}) {
-						City
-						@input.Input(input.Props{ID: "city", Name: "city", Value: page.Filters.City, Placeholder: "e.g. Chicago", Required: page.Filters.VenueID == "", Attributes: templ.Attributes{"maxlength": "120", "autocomplete": "address-level2"}})
-					}
-					@label.Label(label.Props{For: "country", Class: "field"}) {
-						Country <span>(optional, 2-letter code)</span>
-						@input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country", "autocapitalize": "characters"}})
-					}
-					@label.Label(label.Props{For: "start-date", Class: "field"}) {
-						From
-						@input.Input(input.Props{ID: "start-date", Name: "start_date", Type: "date", Value: page.Filters.StartDate, Required: true})
-					}
-					@label.Label(label.Props{For: "end-date", Class: "field"}) {
-						Through
-						@input.Input(input.Props{ID: "end-date", Name: "end_date", Type: "date", Value: page.Filters.EndDate, Required: true})
-					}
-					@label.Label(label.Props{For: "sort", Class: "field field-wide"}) {
-						Sort events
-						@selectcomp.Native(selectcomp.NativeProps{ID:"sort",Name:"sort"}) {
-							<option value="date_asc" selected?={page.Filters.Sort=="date_asc"}>Date, soonest first</option>
-							<option value="date_desc" selected?={page.Filters.Sort=="date_desc"}>Date, latest first</option>
-							<option value="name_asc" selected?={page.Filters.Sort=="name_asc"}>Name, A–Z</option>
-						}
-					}
-					@label.Label(label.Props{For: "category", Class: "field field-wide"}) {
-						Category
-						@selectcomp.Native(selectcomp.NativeProps{ID: "category", Name: "category_id", Attributes: templ.Attributes{"aria-describedby": "genre-help"}}) {
-							<option value="all" selected?={ page.Filters.CategoryID == "" }>All categories</option>
-							if page.Filters.CategoryID != "" && page.category().ID == "" {
-								<option value={ page.Filters.CategoryID } selected>{ page.Filters.CategoryID }</option>
-							}
-							for _, category := range page.Categories.Items {
-								<option value={ category.ID } selected?={ category.ID == page.Filters.CategoryID }>{ category.Name }</option>
-							}
-						}
-					}
-					@label.Label(label.Props{For: "genre", Class: "field field-wide"}) {
-						Genre
-						@selectcomp.Native(selectcomp.NativeProps{ID: "genre", Name: "genre_id", Disabled: page.Filters.CategoryID == "", Attributes: templ.Attributes{"aria-describedby": "genre-help"}}) {
-							<option value="">All genres</option>
-							if page.Filters.GenreID != "" && !hasGenre(page.category().Genres, page.Filters.GenreID) {
-								<option value={ page.Filters.GenreID } selected>{ page.Filters.GenreID }</option>
-							}
-							@GenreOptions(page.category().Genres, page.Filters.GenreID)
-						}
-					}
+			// An open, in-flow dialog: these fields show inline (and submit with the
+			// form) everywhere. On compact screens app.js opens it as a modal sheet,
+			// which alone reveals the sheet heading and close control.
+			<dialog open class="filter-sheet" aria-labelledby="filter-sheet-title" data-filter-sheet>
+				<div class="filter-sheet-head">
+					<h2 id="filter-sheet-title">Filters</h2>
+					<button type="button" class="filter-sheet-close" data-filter-sheet-close aria-label="Close filters">
+						@layouts.Icon("close")
+					</button>
 				</div>
-				<input type="hidden" name="genre_category_id" value={ page.Filters.CategoryValue() }/>
-				for _, category := range page.Categories.Items {
-					<template data-category-genres={ category.ID }>@GenreOptions(category.Genres, "")
+				<div class="filter-fields">
+					<div class="field-grid">
+						@label.Label(label.Props{For: "city", Class: "field"}) {
+							City
+							@input.Input(input.Props{ID: "city", Name: "city", Value: page.Filters.City, Placeholder: "e.g. Chicago", Required: page.Filters.VenueID == "", Attributes: templ.Attributes{"maxlength": "120", "autocomplete": "address-level2"}})
+						}
+						@label.Label(label.Props{For: "country", Class: "field"}) {
+							Country <span>(optional, 2-letter code)</span>
+							@input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country", "autocapitalize": "characters"}})
+						}
+						@label.Label(label.Props{For: "start-date", Class: "field"}) {
+							From
+							@input.Input(input.Props{ID: "start-date", Name: "start_date", Type: "date", Value: page.Filters.StartDate, Required: true})
+						}
+						@label.Label(label.Props{For: "end-date", Class: "field"}) {
+							Through
+							@input.Input(input.Props{ID: "end-date", Name: "end_date", Type: "date", Value: page.Filters.EndDate, Required: true})
+						}
+						@label.Label(label.Props{For: "sort", Class: "field field-wide"}) {
+							Sort events
+							@selectcomp.Native(selectcomp.NativeProps{ID:"sort",Name:"sort"}) {
+								<option value="date_asc" selected?={page.Filters.Sort=="date_asc"}>Date, soonest first</option>
+								<option value="date_desc" selected?={page.Filters.Sort=="date_desc"}>Date, latest first</option>
+								<option value="name_asc" selected?={page.Filters.Sort=="name_asc"}>Name, A–Z</option>
+							}
+						}
+						@label.Label(label.Props{For: "category", Class: "field field-wide"}) {
+							Category
+							@selectcomp.Native(selectcomp.NativeProps{ID: "category", Name: "category_id", Attributes: templ.Attributes{"aria-describedby": "genre-help"}}) {
+								<option value="all" selected?={ page.Filters.CategoryID == "" }>All categories</option>
+								if page.Filters.CategoryID != "" && page.category().ID == "" {
+									<option value={ page.Filters.CategoryID } selected>{ page.Filters.CategoryID }</option>
+								}
+								for _, category := range page.Categories.Items {
+									<option value={ category.ID } selected?={ category.ID == page.Filters.CategoryID }>{ category.Name }</option>
+								}
+							}
+						}
+						@label.Label(label.Props{For: "genre", Class: "field field-wide"}) {
+							Genre
+							@selectcomp.Native(selectcomp.NativeProps{ID: "genre", Name: "genre_id", Disabled: page.Filters.CategoryID == "", Attributes: templ.Attributes{"aria-describedby": "genre-help"}}) {
+								<option value="">All genres</option>
+								if page.Filters.GenreID != "" && !hasGenre(page.category().Genres, page.Filters.GenreID) {
+									<option value={ page.Filters.GenreID } selected>{ page.Filters.GenreID }</option>
+								}
+								@GenreOptions(page.category().Genres, page.Filters.GenreID)
+							}
+						}
+					</div>
+					<input type="hidden" name="genre_category_id" value={ page.Filters.CategoryValue() }/>
+					for _, category := range page.Categories.Items {
+						<template data-category-genres={ category.ID }>@GenreOptions(category.Genres, "")
 </template>
-				}
-				<p id="genre-help" class="field-note">Genres belong to a category. Changing category clears the previous genre.</p>
-				<noscript><p class="field-note">Apply your category first, then choose a genre from the updated options.</p></noscript>
-				if page.Filters.ArtistID != "" {
-					<input type="hidden" name="artist_id" value={ page.Filters.ArtistID }/>
-				}
-				if page.Filters.VenueID != "" {
-					<input type="hidden" name="venue_id" value={ page.Filters.VenueID }/>
-				}
-				if page.Filters.Limit > 0 {
-					<input type="hidden" name="limit" value={ fmt.Sprint(page.Filters.Limit) }/>
-				}
-				if page.CategoriesUnavailable {
-					<p class="field-note">Category and genre options are temporarily unavailable. You can still search by city, dates, or keyword.</p>
-				} else if page.Categories.Meta.Stale {
-					<p class="field-note">Showing previously collected category and genre options while Ticketmaster is unavailable.</p>
-				}
-				<div class="filter-actions">
-					@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
-						Apply filters
 					}
-					<span id="browser-location" hidden>@button.Button(button.Props{ID: "detect-city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"aria-describedby": "location-feedback"}}) {
+					<p id="genre-help" class="field-note">Genres belong to a category. Changing category clears the previous genre.</p>
+					<noscript><p class="field-note">Apply your category first, then choose a genre from the updated options.</p></noscript>
+					if page.Filters.ArtistID != "" {
+						<input type="hidden" name="artist_id" value={ page.Filters.ArtistID }/>
+					}
+					if page.Filters.VenueID != "" {
+						<input type="hidden" name="venue_id" value={ page.Filters.VenueID }/>
+					}
+					if page.Filters.Limit > 0 {
+						<input type="hidden" name="limit" value={ fmt.Sprint(page.Filters.Limit) }/>
+					}
+					if page.CategoriesUnavailable {
+						<p class="field-note">Category and genre options are temporarily unavailable. You can still search by city, dates, or keyword.</p>
+					} else if page.Categories.Meta.Stale {
+						<p class="field-note">Showing previously collected category and genre options while Ticketmaster is unavailable.</p>
+					}
+					<div class="filter-actions">
+						@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
+							Apply filters
+						}
+						<span id="browser-location" hidden>@button.Button(button.Props{ID: "detect-city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"aria-describedby": "location-feedback"}}) {
 	Detect my city
 }
 </span>
-					@button.Button(button.Props{Href: "/", Variant: button.VariantLink, Class: "text-link"}) {
-						Reset filters
-					}
+						@button.Button(button.Props{Href: "/", Variant: button.VariantLink, Class: "text-link"}) {
+							Reset filters
+						}
+					</div>
+					<p id="location-feedback" role="status" class="field-note"></p>
 				</div>
-				<p id="location-feedback" role="status" class="field-note"></p>
-			</div>
+			</dialog>
 		}
 	</form>
 }

@@ -187,10 +187,12 @@ func (a *api) Routes() *echo.Echo {
 	a.moderationRoutes(e)
 	a.accountRoutes(e)
 	a.liveActivityRoutes(e)
+	offlineRoutes(e)
 	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/events/:event_id", a.eventHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/events/:event_id/history", a.eventHistoryHandler, a.publicCacheBoundary)
+	e.GET("/api/v1/events/:event_id/calendar.ics", a.eventCalendarHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/genres", a.genresHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/categories", a.categoriesHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/openapi.yaml", func(c echo.Context) error {

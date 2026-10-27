@@ -141,6 +141,26 @@ func TestEventOverviewLinksVenueToMapsAndOffersShare(t *testing.T) {
 	}
 }
 
+func TestEventOverviewOffersCalendarOnlyForAnnouncedDates(t *testing.T) {
+	date := "2026-11-01"
+	for _, tc := range []struct {
+		start models.EventStart
+		offer bool
+	}{
+		{models.EventStart{LocalDate: &date, NoSpecificTime: true}, true},
+		{models.EventStart{LocalDate: &date, DateTBA: true}, false},
+	} {
+		var out bytes.Buffer
+		event := models.Event{ID: "ticketmaster:Cal 1", Name: "Show", Start: tc.start}
+		if err := Event(EventPage{Detail: models.EventDetail{Item: event}, Section: "overview", ReturnURL: "/"}).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(out.String(), `href="/api/v1/events/ticketmaster:Cal%201/calendar.ics"`); got != tc.offer {
+			t.Errorf("%+v: calendar link %v, want %v", tc.start, got, tc.offer)
+		}
+	}
+}
+
 func TestEventArtOffersOneCropSizedForItsFrame(t *testing.T) {
 	image := func(name, ratio string, w, h int) models.Image {
 		return models.Image{URL: "https://s1.ticketm.net/" + name + ".jpg", Ratio: ratio, Width: w, Height: h}

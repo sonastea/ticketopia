@@ -94,7 +94,15 @@ clear action with its public audience nearby; owner/report controls remain quiet
 
 ### Discovery controls
 
-Search filters use a native disclosure on every layout. Category changes reset
+Search filters use a native disclosure on every layout. Below 62rem, with
+JavaScript, opening it shows the same fields as a modal bottom sheet: a native
+`<dialog>` inside the GET form, so Apply filters submits as before. Escape, the
+close control or a backdrop press closes it and returns focus to the control
+that opened it (Filters or **Events in {city}**); surroundings are inert while it
+is open. An invalid field reopens the sheet. Without JavaScript, or from 62rem,
+the fields stay inline. The sticky compact header carries a search shortcut that
+focuses the keyword field on Discover (keeping the current filters) or opens
+Discover at it elsewhere. Category changes reset
 genre selection and offer only compatible options. Results default to soonest date;
 native sorting also offers latest date and name A–Z. There is no filter-chip strip
 or map view. Explicit

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.19.0
+  version: 1.20.0
   license:
     name: MIT
     identifier: MIT
@@ -446,6 +446,35 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '404':
           description: Unknown event identity.
+          headers:
+            Cache-Control: {$ref: '#/components/headers/PublicErrorCacheControl'}
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /api/v1/events/{event_id}/calendar.ics:
+    get:
+      operationId: getEventCalendar
+      summary: Download an event as an iCalendar file
+      description: 'One RFC 5545 VEVENT built from the same public read as getEvent, with no private account data. A known start is a UTC DTSTART with no end, because the provider does not supply one; an event with no specific or announced time is an all-day entry on its local date. URL and the event-page link are included only when the server has a public base URL. A provider-cancelled event carries STATUS:CANCELLED. No query parameters.'
+      parameters:
+        - {$ref: '#/components/parameters/IfNoneMatch'}
+        - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200':
+          description: The calendar file, offered as a download named after the event.
+          headers:
+            ETag: {$ref: '#/components/headers/PublicETag'}
+            Cache-Control: {$ref: '#/components/headers/EventCacheControl'}
+            Content-Disposition:
+              schema: {type: string, example: 'attachment; filename="night-market.ics"'}
+          content:
+            text/calendar:
+              schema: {type: string}
+        '304': {$ref: '#/components/responses/PublicNotModified'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404':
+          description: Event not found (code event_not_found), or its date is still to be announced (code date_not_announced).
           headers:
             Cache-Control: {$ref: '#/components/headers/PublicErrorCacheControl'}
           content:
@@ -3069,6 +3098,6 @@ components:
         type: {type: string, const: 'about:blank'}
         title: {type: string}
         status: {type: integer}
-        code: {type: string, enum: [invalid_query, event_not_found, provider_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable]}
+        code: {type: string, enum: [invalid_query, event_not_found, date_not_announced, provider_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable]}
         detail: {type: string}
         fields: {type: object, additionalProperties: {type: string}}

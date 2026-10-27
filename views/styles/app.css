@@ -479,8 +479,24 @@ h3 {
 
 .compact-header > span {
   display: none;
+  margin-inline-start: auto;
   font-size: .8125rem;
   color: var(--muted-warm);
+}
+
+/* Search stays one tap away once the sticky header is all that's left. */
+.header-search {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border-radius: 50%;
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .header-search:hover { background: var(--nav-hover); }
 }
 
 .nav-link {
@@ -901,6 +917,98 @@ summary::-webkit-details-marker {
   padding-block: 1rem 1.25rem;
   padding-inline: 0;
   border-block-end: 1px solid var(--line);
+}
+
+/* The filter fields sit in an open dialog. In flow (no JavaScript, wider
+   screens) it is only the disclosure's content; app.js opens it as a modal
+   bottom sheet on compact screens. */
+.filter-sheet {
+  position: static;
+  inline-size: auto;
+  max-inline-size: none;
+  block-size: auto;
+  max-block-size: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+.filter-sheet-head {
+  display: none;
+}
+
+.filter-sheet:modal {
+  position: fixed;
+  inset-block: auto 0;
+  inset-inline: 0;
+  /* Field columns follow the sheet, not the results column behind it. */
+  container: results / inline-size;
+  inline-size: auto;
+  max-inline-size: 40rem;
+  max-block-size: calc(100dvh - 2rem);
+  margin-inline: auto;
+  margin-block-end: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-block-end: 0;
+  border-start-start-radius: 1.25rem;
+  border-start-end-radius: 1.25rem;
+  background: var(--surface);
+}
+
+.filter-sheet:modal > * {
+  padding-inline: var(--space-page-inline);
+}
+
+.filter-sheet:modal .filter-sheet-head {
+  position: sticky;
+  z-index: 1;
+  inset-block-start: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: .5rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.filter-sheet:modal .filter-fields {
+  border-block-end: 0;
+  /* Physical: the home indicator is a device edge. */
+  padding-bottom: max(1.25rem, calc(.75rem + env(safe-area-inset-bottom, 0px)));
+}
+
+.filter-sheet-close {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  margin-inline-end: -.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .filter-sheet-close:hover { background: var(--nav-hover); }
+}
+
+.filter-sheet::backdrop {
+  background: color-mix(in oklch, var(--ink) 40%, transparent);
+}
+
+html:has(.filter-sheet:modal) {
+  overflow: hidden;
+}
+
+@media (forced-colors: active) {
+  .filter-sheet:modal { border-color: CanvasText; }
 }
 
 .field-grid {
@@ -2950,6 +3058,19 @@ summary::-webkit-details-marker {
     transition-behavior: allow-discrete;
   }
   details[open]::details-content { block-size: auto; }
+  /* The filter sheet rises from the bottom edge as its backdrop dims in;
+     closing is immediate. */
+  /* Its disclosure opens with it but stays empty in flow; growing it would only
+     keep the fields unfocusable while showModal looks for a first control. */
+  .filter-disclosure:has(> .filter-sheet:modal)::details-content { transition: none; }
+  .filter-sheet:modal {
+    transition: translate 240ms var(--ease-standard);
+    @starting-style { translate: 0 100%; }
+  }
+  .filter-sheet::backdrop {
+    transition: background-color 240ms var(--ease-out);
+    @starting-style { background-color: transparent; }
+  }
   /* A freshly loaded preview settles into place instead of popping in. */
   .event-context > [data-event-shell] { animation: settle-in 200ms var(--ease-out); }
   /* Feedback and controls revealed by an action fade in whenever they go from

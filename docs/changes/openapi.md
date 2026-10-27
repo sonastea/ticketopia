@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-10-26 — Event calendar file, contract v1.20.0
+
+- Add `GET /api/v1/events/{event_id}/calendar.ics`: one public `text/calendar`
+  VEVENT with event-detail cache semantics and no query parameters. A date that is
+  still TBA/TBD returns 404 with the new `date_not_announced` problem code. See
+  [discovery](../discovery.md#json-api).
+
 ### 2026-10-23 — Artwork tint on events, contract v1.19.0
 
 - Add optional `Event.tint` (`#rrggbb`), an artwork-derived header colour

@@ -211,7 +211,11 @@ A new form submission starts at the first page.
   parameters never enter discovery cache keys or the JSON event API.
 - Event pages use `section=overview|discussion|community` and a validated local
   `return_to` URL. Overview shows supplied descriptions, venue information, prices,
-  status, separate sale dates, freshness, and the Ticketmaster link. Community shows
+  status, separate sale dates, freshness, and the Ticketmaster link. Once a date is
+  announced, a **When** heading repeats it with an **Add to calendar** download of
+  the public `.ics` file: a known start is a UTC point in time (Ticketmaster
+  supplies no end, so none is invented), and a date without a time is an all-day
+  entry. Community shows
   public recommendations and opted-in interest identities. Discussion loads recent
   questions and a public composer. Threads/replies load in context, with canonical
   dedicated routes for expansion/sharing. Overview, Questions & tips, and
@@ -329,7 +333,16 @@ npm run build
 ```
 
 This generates templates, bundles component scripts, builds Tailwind v4 CSS, and
-builds the binary. Restart the Go server after asset edits because browser files
+builds the binary.
+
+`/sw.js` is a service worker with a single job: when a page navigation fails
+because the network is unreachable, it shows the self-contained `/offline` page
+(Try again reloads the same URL; it also reloads when the connection returns).
+It caches only that page. Pages, the API, live activity and assets always come
+from the network, and other requests bypass the worker where the static routing
+API is supported. Navigation preload starts each page request while the worker
+boots. The server versions the worker with a hash of the offline page, so editing
+`views/home/offline.templ` installs a new worker on the next update check. Restart the Go server after asset edits because browser files
 are embedded in the binary.
 
 ## JSON API
@@ -339,6 +352,7 @@ are embedded in the binary.
 | GET | `/api/v1/events` | Filtered events with pagination and freshness. |
 | GET | `/api/v1/events/{event_id}` | One normalized event, fetched on demand if uncached. |
 | GET | `/api/v1/events/{event_id}/history` | Public dated history, SQL-only; `before`/`limit` pagination. |
+| GET | `/api/v1/events/{event_id}/calendar.ics` | The event as an iCalendar file; 404 `date_not_announced` until a date is known. |
 | GET | `/api/v1/genres` | Music genre/subgenre metadata and freshness. |
 | GET | `/api/v1/categories` | Categories with compatible genres/subgenres and freshness. |
 | GET | `/api/v1/openapi.yaml` | [OpenAPI 3.1 contract](../internal/api/openapi.yaml). |

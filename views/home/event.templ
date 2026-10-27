@@ -1,6 +1,7 @@
 package home
 
 import "github.com/sonastea/ticketopia/internal/models"
+import "github.com/sonastea/ticketopia/internal/calendar"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 import "github.com/sonastea/ticketopia/views/components/badge"
@@ -241,6 +242,14 @@ templ EventSectionContent(page EventPage) {
 					<p class="provider-copy">{ page.Detail.Item.Info }</p>
 				} else {
 					<p>Ticketmaster hasn't supplied a description for this event. Check the ticket page for the latest details.</p>
+				}
+				if calendar.Available(page.Detail.Item) {
+					<h3>When</h3>
+					<p>{ startLabel(page.Detail.Item.Start) }</p>
+					<a href={ templ.SafeURL(calendarURL(page.Detail.Item.ID)) } class="text-link calendar-link" download>
+						@layouts.Icon("calendar")
+						<span>Add to calendar</span>
+					</a>
 				}
 				if featuringLabel(page.Detail.Item) != "" {
 					<h3>Featuring</h3>
