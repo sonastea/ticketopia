@@ -652,8 +652,11 @@ h3 {
   margin-block-end: 2rem;
 }
 
+/* The keyword field keeps a usable minimum; without room for it beside the
+   icon, the submit button wraps onto its own line instead. */
 .search-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: .65rem;
   padding: .45rem;
@@ -664,12 +667,13 @@ h3 {
 }
 
 .search-bar > .icon {
+  flex: none;
   color: var(--muted-warm);
 }
 
 .search-bar input {
-  inline-size: 100%;
-  min-inline-size: 0;
+  flex: 1 1 6rem;
+  inline-size: auto;
   min-block-size: 2.75rem;
   padding-block: .4rem;
   padding-inline: 0;
@@ -684,7 +688,8 @@ input::placeholder {
 }
 
 .search-bar .action {
-  flex-shrink: 0;
+  flex: none;
+  margin-inline-start: auto;
 }
 
 .action {
@@ -1013,7 +1018,9 @@ html:has(.filter-sheet:modal) {
 
 .field-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Two columns while each keeps room for a full date beside its picker icon;
+     one column below that, including with enlarged text. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(9.5rem, (100% - 1rem) / 2)), 1fr));
   /* Paired fields line up even when one label wraps. */
   align-items: end;
   gap: 1rem;
@@ -2183,14 +2190,23 @@ html:has(.filter-sheet:modal) {
   margin-block-end: 1rem;
 }
 
+/* A long return label wraps beside Share rather than widening the page. */
 .event-toolbar > .back-link {
+  flex: 0 1 auto;
+  block-size: auto;
   margin-block-end: 0;
+  white-space: normal;
+  text-align: start;
 }
 
 .share-action {
   display: flex;
   align-items: center;
   gap: .5rem;
+  /* Share feedback wraps before the return link narrows, and Share never
+     shrinks under its button. */
+  flex: 0 100 auto;
+  min-inline-size: min-content;
   margin-inline-start: auto;
 }
 
@@ -3008,7 +3024,9 @@ html:has(.filter-sheet:modal) {
   }
 }
 
-@media (max-width: 23rem) {
+/* Container rem follows the root font size, so enlarged text compacts too.
+   21rem of results matches the former 23rem viewport less page gutters. */
+@container results (max-width: 21rem) {
   .search-bar {
     gap: .4rem;
     padding-inline-start: .65rem;
@@ -3019,9 +3037,9 @@ html:has(.filter-sheet:modal) {
   .search-bar .action {
     padding-inline: .65rem;
   }
-  .field-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+}
+
+@media (max-width: 23rem) {
   .filter-summary {
     font-size: .75rem;
   }
