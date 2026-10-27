@@ -1,4 +1,6 @@
-.PHONY: help check migrate db-setup ses-setup local-setup
+.PHONY: help check migrate db-setup ses-setup local-setup review-server
+
+REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 
 help:
 	@printf '%s\n' \
@@ -6,7 +8,8 @@ help:
 		'make migrate   Apply schema migrations to the configured database only.' \
 		'make db-setup  Prepare local MariaDB, apply migrations and grants, and verify runtime access.' \
 		'make ses-setup Start local SES emulation in MiniStack and seed the test sender.' \
-		'make local-setup Prepare MiniStack SES and MariaDB for local development.'
+		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
+		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -27,3 +30,8 @@ ses-setup:
 local-setup:
 	@$(MAKE) ses-setup
 	@$(MAKE) db-setup
+
+# Local manual review only: isolated fixture schema, dropped on Ctrl-C.
+review-server:
+	@MARIADB_TEST_ADDR=$${MARIADB_TEST_ADDR:-127.0.0.1:3307} REVIEW_SERVER_ADDR=$(REVIEW_SERVER_ADDR) \
+		go test -count=1 -timeout 0 -run '^TestMariaDBReviewServer$$' -v ./internal/persistence

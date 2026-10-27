@@ -64,3 +64,31 @@ Database fixtures create and clean up random schemas/users. Never use a shared
 or production database. Browser reviews and emulator checks have additional
 opt-in variables documented in the corresponding feature guides. Report skipped
 checks explicitly; a passing default suite is not evidence they ran.
+
+## Signed-in manual review server
+
+For manual or agent-driven review of signed-in screens (phone widths, enlarged
+text, forced colors, keyboard), serve the production handlers over an isolated
+fixture schema:
+
+```sh
+make review-server
+```
+
+It runs `TestMariaDBReviewServer` with `MARIADB_TEST_ADDR=127.0.0.1:3307` on
+`REVIEW_SERVER_ADDR` (default `127.0.0.1:8090`; loopback only). Three accounts
+(`owner`, `other`, `moderator`) sign in through the real login service with the
+fixture provider. There is no runtime auth bypass, and CSRF checks still apply.
+Seeded state covers six Chicago events (including long names), saves, public and
+private interest, recommendations, on-sale reminders, a followed discussion
+with replies, Helpful reactions and unread reply notifications, and a reported
+post in the moderator queue. Ticketmaster and IP lookup stay off; events come
+from cache fixtures.
+
+`REVIEW_SERVER_STATE_DIR` (default `$TMPDIR/ticketopia-review`) receives
+`manifest.json` (base URL, account IDs, routes, event and thread IDs) and one
+Playwright storage-state file per account, for example
+`browser.newContext({ storageState: manifest.accounts.owner.storage_state })`.
+Writes go to the throwaway schema, so reviewers may save, post and report. Stop
+with Ctrl-C to drop the schema and users and remove the state files. A killed
+process leaves its `ticketopia_test_*` schema behind.

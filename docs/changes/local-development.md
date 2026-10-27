@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-10-27 — Signed-in manual review server
+
+- `make review-server` serves production handlers over an isolated MariaDB
+  fixture schema with three accounts signed in through the real login service,
+  seeded saves, interest, reminders, discussions, notifications and a report,
+  plus Playwright storage states. Ctrl-C drops the schema.
+  See [testing](../testing.md#signed-in-manual-review-server).
+
 ### 2026-10-10 — Token-free MiniStack SESv2 capture
 
 - Verify LocalStack Community 4.14.0 rejects SESv2 and the active free-account
