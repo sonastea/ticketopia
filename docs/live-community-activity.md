@@ -58,6 +58,8 @@ compose with AND. No matches gives an explicit empty state, never a wider feed.
 The summary shows confirmed settings; unsaved changes stay in the editor. Edits
 made while an Apply is pending, or before a background refresh, are kept rather
 than replaced by the confirmed filters, with a note that they still need Apply.
+This includes undoing a submitted selection back to the previous confirmed value
+while Apply is pending; confirmation compares against the submitted draft.
 
 Guests retain only public filter settings in `ticketopia-live-filters-v1` local
 storage. Account settings win on sign-in; **Reuse this browser’s filters** copies
@@ -233,8 +235,9 @@ Elsewhere, new publications show at most three toasts, or one below the compact
 navigation threshold. Each offers an event link, Happening Now and Dismiss. Toasts
 expire after eight visible non-interacting seconds, suspended during hover/focus.
 Repeated contributions update a visible event without resetting its lifetime. Bursts
-are coalesced without a backlog; insufficient space, dialogs and focused controls
-defer display. Dismissal never removes the event from Happening Now. Initial,
+are coalesced without a backlog; insufficient space, modal dialogs and overlapping
+focused controls suppress display. Discover's inline nonmodal filter dialog does
+not block toasts. Dismissal never removes the event from Happening Now. Initial,
 reconnect, filter-change and navigation snapshots are quiet. One debounced polite
 status announces availability, without reading every count or stealing focus.
 

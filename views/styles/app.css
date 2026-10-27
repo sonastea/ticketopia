@@ -469,6 +469,7 @@ h3 {
    spacing stop growing at their default-text size on a 320px screen; the
    search target keeps scaling. */
 .compact-header {
+  container: compact-header / inline-size;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2239,6 +2240,11 @@ html:has(.filter-sheet:modal) {
   text-align: start;
 }
 
+.event-toolbar > .back-link > span {
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+}
+
 .share-action {
   display: flex;
   align-items: center;
@@ -2534,7 +2540,8 @@ html:has(.filter-sheet:modal) {
   inline-size: 60%;
 }
 
-@media (min-width: 40rem) {
+/* Reveal decorative copy only when the header's actual text-sized space fits. */
+@container compact-header (min-width: 35rem) {
   .compact-header > span {
     display: block;
   }
@@ -3254,7 +3261,7 @@ html:has(.filter-sheet:modal) {
         position: sticky;
         z-index: 20;
         inset-block-start: -1rem;
-        container: compact-header / scroll-state;
+        container: compact-header / inline-size scroll-state;
       }
       .compact-header > * {
         transition: translate 160ms var(--ease-out);
@@ -3422,10 +3429,10 @@ html:has(.filter-sheet:modal) {
 [data-discussion-error] { color: var(--error); }
 /* Without motion, or in forced colours, a linked post keeps a static marker. */
 @media (prefers-reduced-motion: reduce) {
-  .discussion-post:target { background-color: var(--brand-soft); box-shadow: 0 0 0 .75rem var(--brand-soft); }
+  .discussion-post:is(:target, [data-arrived]) { background-color: var(--brand-soft); box-shadow: 0 0 0 .75rem var(--brand-soft); }
 }
 @media (forced-colors: active) {
-  .discussion-post:target { outline: 2px solid Highlight; outline-offset: .5rem; }
+  .discussion-post:is(:target, [data-arrived]) { outline: 2px solid Highlight; outline-offset: .5rem; }
 }
 .moderation-page { max-inline-size: 72rem; }
 .moderation-page > h1 { margin-block: 1.25rem .75rem; }
@@ -3651,9 +3658,10 @@ html:has(.filter-sheet:modal) {
   font-weight: 800;
   line-height: 1;
 }
-.byline { display: flex; align-items: center; gap: .625rem; }
+.byline { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; max-inline-size: 100%; }
 /* Name link (a 44px target) and the rest of the sentence wrap as units. */
 .byline > p { display: flex; flex-wrap: wrap; align-items: center; column-gap: .3em; margin: 0; }
+.byline > p > span { min-inline-size: 0; }
 .avatar {
   flex: none;
   display: inline-grid;
@@ -3704,7 +3712,7 @@ html:has(.filter-sheet:modal) {
 .live-card-copy { flex: 1 1 9rem; display: grid; justify-items: start; gap: .25rem; }
 .live-card-copy > p { margin: 0; }
 /* Enlarged text drops the attribution below the avatar rather than past the card. */
-.live-card .byline { flex-wrap: wrap; max-inline-size: 100%; font-size: .875rem; }
+.live-card .byline { font-size: .875rem; }
 .live-card .avatar { inline-size: 2rem; block-size: 2rem; font-size: .75rem; }
 .live-card-link { color: var(--ink); font-size: 1rem; font-weight: 750; line-height: 1.35; text-decoration: none; }
 .live-card-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }

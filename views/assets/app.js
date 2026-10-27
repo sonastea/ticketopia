@@ -550,6 +550,7 @@
     } finally {
       clearTimeout(timeout); settle();
       saving.delete(id);
+      document.dispatchEvent(new Event('ticketopia:save-write-end'));
       controls.forEach(item => { item.removeAttribute('aria-busy'); item.querySelector('button').disabled = false; });
       if (hadFocus && trigger.isConnected && document.activeElement === document.body) trigger.focus({ preventScroll: true });
     }
@@ -996,6 +997,19 @@
   // link rather than trusting document.activeElement.
   let clickedSection = null;
   document.addEventListener('click', event => { clickedSection = event.target.closest?.('[data-event-section]') || null; }, true);
+  const selectionParams = ['selected_event', 'section', 'recommend', 'selected_thread', 'reply_to', 'discussion_cursor'];
+  const selectionHistoryURL = next => {
+    if (!workspace) return next;
+    // Load more can finish during a panel/section request. Keep its current,
+    // normalized results URL and cursor, merging only the requested selection.
+    const current = new URL(location.href);
+    for (const key of selectionParams) {
+      current.searchParams.delete(key);
+      for (const value of next.searchParams.getAll(key)) current.searchParams.append(key, value);
+    }
+    current.hash = next.hash;
+    return current;
+  };
   const switchSection = async (url, next, push = true, recommend = false, confirmation = null, force = false) => {
     const host = sectionHost();
     const region = sectionRegion();
@@ -1081,7 +1095,7 @@
         const state = { ...history.state };
         delete state.ticketopiaSection; delete state.ticketopiaPanel;
         if (validJourney(state.ticketopiaReturn)) state.ticketopiaReturn = { ...state.ticketopiaReturn, steps: state.ticketopiaReturn.steps + 1 };
-        writeHistory('pushState', state, '', next);
+        writeHistory('pushState', state, '', selectionHistoryURL(next));
       }
       renderedURL = location.href;
       window.htmx?.process(host);
@@ -1300,6 +1314,17 @@
     pressed?.controller.abort();
     pressed = null;
   };
+  // Private writes can stale an unclaimed panel, including one fetched while
+  // the write was pending. Drop at both boundaries, even on uncertain failures,
+  // and after a browser-cache restore. A claimed panel compares writesEnded
+  // instead: select refetches it when a write finished during its request.
+  let writesEnded = 0;
+  const invalidatePress = () => { clearTouch(); dropPressed(); };
+  document.addEventListener('submit', invalidatePress, true);
+  for (const type of ['ticketopia:save-write-end', 'ticketopia:activity-write-end', 'ticketopia:discussion-saved', 'ticketopia:viewer-changed']) {
+    document.addEventListener(type, () => { writesEnded++; invalidatePress(); });
+  }
+  window.addEventListener('pageshow', event => { if (event.persisted) invalidatePress(); });
   const freshPress = href => pressed?.href === href && performance.now() - pressed.at < 5000;
   const takePressed = url => {
     const claimed = freshPress(url.href) ? pressed : null;
@@ -1315,7 +1340,7 @@
     if (freshPress(url.href)) return;
     dropPressed();
     const controller = new AbortController();
-    pressed = { href: url.href, at: performance.now(), controller, response: fetchPanel(url, controller) };
+    pressed = { href: url.href, at: performance.now(), writes: writesEnded, controller, response: fetchPanel(url, controller) };
   };
   const releaseTouch = () => {
     const link = touch?.link;
@@ -1341,7 +1366,6 @@
   // as through=, so reload and Back get every loaded page, with current private
   // state, in the first response; history itself keeps only position and focus.
   // Selection URLs are built from location.href and carry it along.
-  const selectionParams = ['selected_event', 'section', 'recommend', 'selected_thread', 'reply_to', 'discussion_cursor'];
   const syncThrough = () => {
     const here = new URL(location.href);
     let cursor = document.getElementById('pagination')?.dataset.pageCursor || '';
@@ -1481,9 +1505,15 @@
     status.textContent = 'Loading event preview.';
     const timeout = setTimeout(() => currentRequest.abort(), 12000);
     try {
+      let writes = early ? early.writes : writesEnded;
       const pending = early?.response || fetchPanel(url, currentRequest);
       await shown;
-      const response = await pending;
+      let response = await pending;
+      // Writes ending after insertion update the panel's controls in place.
+      while (writes !== writesEnded) {
+        writes = writesEnded;
+        response = await fetchPanel(url, currentRequest);
+      }
       if (!response.ok || response.redirected) throw new Error('Event unavailable');
       const html = await response.text();
       if (turn !== generation) return;
@@ -1493,7 +1523,7 @@
       if (push) {
         const state = { ...history.state };
         delete state.ticketopiaPanel; delete state.ticketopiaSection;
-        writeHistory('pushState', state, '', next);
+        writeHistory('pushState', state, '', selectionHistoryURL(next));
       }
       renderedURL = location.href;
       markSelection(id);

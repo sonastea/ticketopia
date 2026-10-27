@@ -149,6 +149,22 @@ fs.mkdirSync(out, { recursive: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(base + process.env.SAVED_SEARCH_PATH);
     check('Discovery fixture has two rows', await page.locator('.event-row').count() === 2);
+    const firstLink = page.locator('.event-link').first();
+    const prefetched = page.waitForResponse(response => response.request().headers()['x-ticketopia-panel'] === 'true');
+    await firstLink.dispatchEvent('pointerdown', { button: 0, pointerType: 'mouse' });
+    await prefetched;
+    await page.locator('.event-row').first().locator('[data-save-form] button').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('[data-save-id="ticketmaster:Browser_0"] button').dataset.saved === 'true');
+    // Keyboard activation does not start a new pointer prefetch and therefore
+    // would adopt the old unsaved panel unless the write invalidated it.
+    await firstLink.focus(); await page.keyboard.press('Enter');
+    await page.locator('#event-context [data-save-id="ticketmaster:Browser_0"] button[data-saved="true"]').waitFor();
+    check('Confirmed Save invalidates unclaimed preview with stale private controls', true);
+    await page.locator('.event-row').first().locator('[data-save-form] button').click();
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-save-id="ticketmaster:Browser_0"] button')].every(button => button.dataset.saved === 'false'));
+    await page.locator('[data-close-context]').click();
+    await page.locator('[data-context-id="ticketmaster:Browser_0"]').waitFor({ state: 'detached' });
     await page.locator('.event-link').first().click();
     await page.locator('[data-context-id="ticketmaster:Browser_0"]').waitFor();
     check('Overview Save is available without disclosure', await page.locator('#event-context [data-save-form]').isVisible());

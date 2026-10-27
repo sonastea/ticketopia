@@ -375,7 +375,7 @@ and essential facts rather than replacing them.
 
 **The One Voice, Clear Roles Rule.** Bricolage Grotesque is a voice for titles and dates, not a second text family. Use Manrope's size, weight, leading, and spacing to distinguish everything else; keep dates tabular and long event names able to wrap.
 
-**Wordmark exception:** the `ticketopia.` wordmark in the compact header is a logo, not a text role. It stays at 1.6rem (weight 800, −.04em tracking) and steps down to the 1.25rem headline size once the compact header sticks; the desktop sidebar sizes it separately.
+**Wordmark exception:** the `ticketopia.` wordmark in the compact header is a logo, not a text role. It stays at `min(1.6rem, 8vw)` (weight 800, −.04em tracking) and steps down to the headline size, `min(1.25rem, 6.25vw)`, once the compact header sticks. The `vw` caps hold it at its default-text size on a 320px screen, so enlarged text cannot wrap it; the desktop sidebar sizes it separately.
 
 **Provider-brand exception:** only the Google sign-in CTA uses self-hosted Google
 Sans Medium (500) at .875rem/1.25rem, following Google's branding requirements.
@@ -393,7 +393,7 @@ component-specific insets remain explicit rather than becoming another scale.
 | --- | --- |
 | Base, below 40rem | Content padding 1.5rem 1.25rem. Light compact header and a four-item floating pill navigation, inset .75rem from the sides and `max(.75rem, .25rem + env(safe-area-inset-bottom))` from the bottom; its normal-flow row and margins reserve that space. Below 62rem and at least 32rem tall, the header sticks and its wordmark steps down where supported. A 44px search icon ends the header row; on Discover it focuses the keyword field in place, elsewhere it opens Discover there. |
 | At most 23rem | Content padding becomes 1.25rem 1rem. Navigation side insets cap at 2.5vw so enlarged labels stay whole. Event headings and section links reduce to fit. |
-| Intrinsic | Filter fields pair while each column keeps 9.5rem for a full date, otherwise forming one column. The keyword field keeps 6rem beside the search icon, otherwise Find events wraps below it; in a results column of at most 21rem (a container query, so enlarged text counts) search drops its decorative icon and tightens its inset. A long event-page return label wraps beside Share. |
+| Intrinsic | Filter fields pair while each column keeps 9.5rem for a full date, otherwise forming one column. The keyword field keeps 6rem beside the search icon, otherwise Find events wraps below it; in a results column of at most 21rem (a container query, so enlarged text counts) search drops its decorative icon and tightens its inset. A long event-page return label wraps beside Share. The compact header shows its decorative tagline only once the header container reaches 35rem, so enlarged text hides it. |
 | At least 40rem | General page padding becomes 2rem. |
 | At least 62rem | A fixed 5.5rem light-stone navigation rail replaces the bottom bar; the light header remains. Discovery gains a 20rem context column with 1.5rem gutter/padding. Below this threshold, event pages at least 32rem tall (measured at the page's actual root text size) pin Tickets/Save above the bottom navigation. |
 | At least 72rem | A sticky labeled sidebar replaces the fixed rail/header, occupying 14rem expanded or 4.5rem collapsed. Discovery context becomes 21rem with 2rem gutters/padding; event/destination page padding is 2rem 2.5rem, with destination top padding increased to 3rem. |

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 2026-10-27 — Preserve pending filter edits and fresh previews
+
+- Preserve unapplied live-filter drafts across background refreshes and Apply
+  confirmation (`013bc65`), including undoing a selection while Apply or Reset is
+  pending, or when another tab's refresh lands first. Keep the confirmed summary
+  separate and explain when newer edits need Apply.
+- Allow Discover toasts beside its inline nonmodal filter dialog; actual modal
+  dialogs and ARIA-modal surfaces still suppress them.
+- Merge the latest loaded-page cursor when preview/section navigation commits;
+  invalidate unclaimed preview prefetches around private writes and browser-cache
+  restores, and refetch a claimed preview when a write finished during its
+  request, to avoid stale Save/Interested controls. Add browser regressions for these races and correct
+  collapsed coverage assertions and the pre-submit spinner-size baseline.
+  See [filter behavior](../live-community-activity.md#city-and-event-type-filters-part-2).
+
 ### 2026-10-22 — Happening Now moves into Community
 
 - For the pilot, remove Happening Now from the desktop sidebar, intermediate rail
@@ -79,16 +94,5 @@
   stale worker failures after recovery and private rebuild livelock under corrections.
 - Record measurements and outstanding gates in the [rollout record](../live-activity-rollout.md).
   Part 5 remains in progress; production remains explicitly off.
-
-### 2026-10-19 — Part 4: private connection filters
-
-- Add schema 19 transactional membership revisions, candidate-scoped batched joins,
-  incremental per-account bitmaps, private cache separation and bounded rebuilds.
-- Connect Saved/Interested/followed-artist/followed-venue controls to authenticated
-  snapshots/streams and native preferences, with guest explanation and quiet updates.
-- Preserve public attribution/counts, later pauses, drafts and owner isolation.
-  See the [guide and verification](../live-community-activity.md#private-connections-part-4).
-- Pass 25 new and 95 existing browser checks, real-MariaDB race/rollback/replica
-  regressions, vet, OpenAPI lint, generated build and Docker `make check`.
 
 Older entries: [archive](archive/live-community-activity/).

@@ -30,7 +30,7 @@
   const hoverable = matchMedia('(hover: hover) and (pointer: fine)');
   const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
   const toastBlocked = () => {
-    if (document.querySelector('dialog[open], [aria-modal="true"]')) return true;
+    if (document.querySelector('dialog:modal, [aria-modal="true"]')) return true;
     const viewport = window.visualViewport;
     if (viewport && viewport.height < innerHeight * .75) return true;
     const rect = toasts.getBoundingClientRect();
@@ -393,8 +393,13 @@
     // Fields stay editable while a write is pending; edits made meanwhile are
     // kept, not replaced by the confirmed filters, and need their own Apply.
     const submitted = JSON.stringify(draftFilters());
+    // defaults() already has the fields' key order and empty selections.
+    const applied = event.submitter?.value === 'reset' ? JSON.stringify(defaults()) : submitted;
     const settle = () => {
       if (JSON.stringify(draftFilters()) === submitted) { showFilters(filters); return; }
+      // Future refreshes must also recognize an undo as a newer draft, rather
+      // than comparing it with the pre-submit confirmed fields.
+      shownFilters = applied;
       node('filter-error').textContent = 'Filters applied. Your newer changes aren\'t applied yet; apply again to save them.';
     };
     saving = true; node('filter-form').setAttribute('aria-busy', 'true'); node('filter-error').textContent = 'Applying filters…';
@@ -404,8 +409,10 @@
         const response = await fetch('/api/v1/me/live-activity-preferences', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': me.csrf_token, 'If-Match': scope }, body: JSON.stringify({ version: 1, enabled, filters: next }), signal: AbortSignal.timeout(10000) });
         if (response.status === 412) { await preferences(); showFilters(filters); throw new Error('Settings changed in another tab. Review the current filters and apply again.'); }
         if (!response.ok) throw new Error('Filters could not be saved. Check the city/country and choose at most 16 event types, artists and venues each, then retry.');
-        if (scope !== preferenceScope) return;
-        await preferences();
+        // A refresh that already moved the scope skipped the editor while
+        // saving, so settle against its newer filters instead of refetching.
+        if (scope === preferenceScope) await preferences();
+        if (!authenticated) return;
         node('filter-error').textContent = ''; settle();
       } else {
         const data = await fetchJSON('/api/v1/community/activity?filter=' + encodeURIComponent(JSON.stringify(publicFilter(next))));
@@ -440,7 +447,9 @@
       if (authenticated && !nextAuth) { paused = true; stop(); controls(); return; }
       if (preferenceScope.split('-')[1] !== nextScope.split('-')[1]) seen.clear();
       ready = true; paused = next; revision = nextRevision; authenticated = nextAuth; preferenceScope = nextScope; controls();
-      enabled = nextEnabled; filters = nextFilters; summary(); if (changed && !fieldsEdited()) showFilters(filters);
+      // During Apply, only the submitted-snapshot comparison may reconcile the
+      // editor: a newer edit can equal the older confirmed fields (an undo).
+      enabled = nextEnabled; filters = nextFilters; summary(); if (changed && !saving && !fieldsEdited()) showFilters(filters);
       if (changed) { stop(); if (allowed()) connect(); }
     } catch { if (turn === preferenceTurn) { paused = true; stop(); controls(); } }
   };

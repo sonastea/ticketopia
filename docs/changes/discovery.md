@@ -12,6 +12,12 @@
   **Not collected yet**, which read as "nothing here" above shown results.
   See [discovery](../discovery.md#loading-performance).
 
+### 2026-10-27 — Calendar downloads keep announced local times
+
+- Calendar downloads preserve announced local times when the provider omits the
+  UTC instant but supplies a valid local date, time and zone; invalid time/zone
+  values keep the all-day fallback. See [discovery](../discovery.md#responsive-navigation-and-event-details).
+
 ### 2026-10-26 — Right-sized artwork, pressed prefetch and lighter long lists
 
 - Artwork lists one crop's renditions in `srcset` with layout-derived `sizes`,

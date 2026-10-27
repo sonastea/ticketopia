@@ -215,6 +215,8 @@ A new form submission starts at the first page.
   announced, a **When** heading repeats it with an **Add to calendar** download of
   the public `.ics` file: a known start is a UTC point in time (Ticketmaster
   supplies no end, so none is invented), and a date without a time is an all-day
+  entry. When only a local date, time, and loadable time zone are supplied, the
+  calendar derives the UTC start from them; invalid times/zones retain an all-day
   entry. Community shows
   public recommendations and opted-in interest identities. Discussion loads recent
   questions and a public composer. Threads/replies load in context, with canonical

@@ -45,6 +45,38 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     const loaded = await rows();
     await page.reload();
     check('Reload restores every loaded page in order', JSON.stringify(await rows()) === JSON.stringify(loaded));
+    // A preview or section response must not overwrite pagination completed
+    // after the selection began, including normalized city/date parameters.
+    for (const section of [false, true]) {
+      await page.goto(base + query('Berlin'));
+      if (section) {
+        await page.locator('.event-link').first().click();
+        await page.waitForFunction(() => new URL(location.href).searchParams.has('selected_event'));
+      }
+      let release, observed;
+      const pending = new Promise(resolve => { release = resolve; });
+      const started = new Promise(resolve => { observed = resolve; });
+      await page.route('**/events/**', async route => {
+        const headers = route.request().headers();
+        if (!(section ? headers['x-ticketopia-section'] : headers['x-ticketopia-panel'])) return route.continue();
+        observed(); await pending; await route.continue();
+      });
+      if (section) await page.locator('#event-context [data-event-section="community"]').click();
+      else await page.locator('.event-link').first().click();
+      await started;
+      await page.getByRole('link', { name: 'Load more events' }).click();
+      await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 6);
+      await synced();
+      release();
+      await page.waitForFunction(section => {
+        const url = new URL(location.href);
+        return url.searchParams.has('selected_event') && (!section || url.searchParams.get('section') === 'community');
+      }, section);
+      await synced();
+      await page.unroute('**/events/**');
+      await page.reload();
+      check((section ? 'Section' : 'Preview') + ' pending during Load more retains cursor across reload', (await rows()).length === 6);
+    }
     // Closing the preview with Back keeps the rows, so its entry must name them.
     await page.goto(base + query('Berlin'));
     await page.locator('.event-link').first().click();
@@ -94,6 +126,11 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
       const response = await page.goto(base + query(city));
       check(city + ': usable response', response.status() === 200);
       check(city + ': coverage state', await page.locator('[data-coverage="' + status + '"]').first().isVisible());
+      const disclosure = page.locator('details[data-coverage="' + status + '"]');
+      if (await disclosure.count()) {
+        check(city + ': visible coverage summary', await disclosure.locator('summary').isVisible());
+        await disclosure.locator('summary').click();
+      }
       check(city + ': honest state copy', await page.getByText(title, { exact: false }).first().isVisible());
     }
     const native = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 1000 } });

@@ -237,7 +237,7 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 										}
 										<figcaption class="byline">
 											@Avatar(initials(item.Profile.DisplayName))
-											<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event</p>
+											<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> <span>recommends this event</span></p>
 										</figcaption>
 									</figure>
 								</li>

@@ -456,7 +456,7 @@ paths:
     get:
       operationId: getEventCalendar
       summary: Download an event as an iCalendar file
-      description: 'One RFC 5545 VEVENT built from the same public read as getEvent, with no private account data. A known start is a UTC DTSTART with no end, because the provider does not supply one; an event with no specific or announced time is an all-day entry on its local date. URL and the event-page link are included only when the server has a public base URL. A provider-cancelled event carries STATUS:CANCELLED. No query parameters.'
+      description: 'One RFC 5545 VEVENT built from the same public read as getEvent, with no private account data. A known start is a UTC DTSTART with no end, because the provider does not supply one; when the UTC instant is absent, a valid local date, time and time zone supply the start instead. An event with no specific or announced time, or an invalid local time or zone, is an all-day entry on its local date. URL and the event-page link are included only when the server has a public base URL. A provider-cancelled event carries STATUS:CANCELLED. No query parameters.'
       parameters:
         - {$ref: '#/components/parameters/IfNoneMatch'}
         - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}

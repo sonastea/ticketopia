@@ -4,6 +4,11 @@
 
 ### 2026-10-27 — Enlarged-text wordmark and offline nonce
 
+- Follow-up review fixes: event return labels wrap beside Share; Community
+  bylines wrap attribution below the avatar when needed. The header tagline
+  responds to actual text-sized container space, avoiding wordmark crowding at
+  640px with 200% text. Enhanced post arrivals retain reduced-motion and
+  forced-colors markers without a URL hash. See [CSS conventions](../ui-components.md#modern-css-conventions).
 - At 200% text on a 320px phone the header wordmark no longer wraps letter by
   letter (786px header, now 144px). The logotype and the header's padding and
   gaps stop growing at their default-text size on a 320px screen; the search

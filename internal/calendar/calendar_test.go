@@ -20,6 +20,12 @@ func TestEventStartsOnlyFromAnnouncedDates(t *testing.T) {
 		want  []string
 	}{
 		{"timed", models.EventStart{DateTime: &instant, LocalDate: ptr("2026-11-01")}, []string{"DTSTART:20261102T073000Z\r\n"}},
+		{"local time and zone", models.EventStart{LocalDate: ptr("2026-10-27"), LocalTime: ptr("20:00:00"), Timezone: ptr("America/Los_Angeles")}, []string{"DTSTART:20261028T030000Z\r\n"}},
+		{"zero instant with local time", models.EventStart{DateTime: ptr(time.Time{}), LocalDate: ptr("2026-10-27"), LocalTime: ptr("20:00:00"), Timezone: ptr("America/Los_Angeles")}, []string{"DTSTART:20261028T030000Z\r\n"}},
+		{"invalid zone", models.EventStart{LocalDate: ptr("2026-10-27"), LocalTime: ptr("20:00:00"), Timezone: ptr("Mars/City")}, []string{"DTSTART;VALUE=DATE:20261027\r\n"}},
+		{"invalid local time", models.EventStart{LocalDate: ptr("2026-10-27"), LocalTime: ptr("25:00:00"), Timezone: ptr("America/Los_Angeles")}, []string{"DTSTART;VALUE=DATE:20261027\r\n"}},
+		{"local time TBA", models.EventStart{LocalDate: ptr("2026-10-27"), LocalTime: ptr("20:00:00"), Timezone: ptr("America/Los_Angeles"), TimeTBA: true}, []string{"DTSTART;VALUE=DATE:20261027\r\n"}},
+		{"local no specific time", models.EventStart{LocalDate: ptr("2026-10-27"), LocalTime: ptr("20:00:00"), Timezone: ptr("America/Los_Angeles"), NoSpecificTime: true}, []string{"DTSTART;VALUE=DATE:20261027\r\n"}},
 		{"no specific time", models.EventStart{LocalDate: ptr("2026-11-01"), NoSpecificTime: true}, []string{"DTSTART;VALUE=DATE:20261101\r\n", "DTEND;VALUE=DATE:20261102\r\n"}},
 		{"time TBA", models.EventStart{DateTime: &instant, LocalDate: ptr("2026-12-31"), TimeTBA: true}, []string{"DTSTART;VALUE=DATE:20261231\r\n", "DTEND;VALUE=DATE:20270101\r\n"}},
 	} {
@@ -36,8 +42,26 @@ func TestEventStartsOnlyFromAnnouncedDates(t *testing.T) {
 				t.Errorf("%s: missing %q in\n%s", tc.name, want, body)
 			}
 		}
-		if tc.name == "timed" && strings.Contains(string(body), "DTEND") {
+		if strings.Contains(string(body), "DTSTART:") && strings.Contains(string(body), "DTEND") {
 			t.Errorf("timed event invented an end:\n%s", body)
+		}
+	}
+	// Go leaves the offset of a skipped or repeated wall time unspecified;
+	// either offset still exports a timed start rather than an all-day entry.
+	for _, tc := range []struct {
+		date, clock string
+		want        [2]string // CDT and CST readings
+	}{
+		{"2026-03-08", "02:30:00", [2]string{"20260308T073000Z", "20260308T083000Z"}},
+		{"2026-11-01", "01:30:00", [2]string{"20261101T063000Z", "20261101T073000Z"}},
+	} {
+		event := models.Event{ID: "ticketmaster:x", Name: "Show", Start: models.EventStart{LocalDate: &tc.date, LocalTime: &tc.clock, Timezone: ptr("America/Chicago")}}
+		body, err := Event(event, Details{Stamp: instant})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(body), "DTSTART:"+tc.want[0]) && !strings.Contains(string(body), "DTSTART:"+tc.want[1]) {
+			t.Errorf("%s %s Chicago: want DTSTART %v in\n%s", tc.date, tc.clock, tc.want, body)
 		}
 	}
 	for _, start := range []models.EventStart{

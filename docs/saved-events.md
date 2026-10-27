@@ -46,6 +46,10 @@ For Kubernetes, reconcile the corresponding grants in the operator manifests.
   [task continuity](accounts.md#sign-in-task-continuity).
 - Enhancement keeps discovery filters, event selection, focus and loaded results
   intact and synchronizes visible row/preview controls after a successful write.
+  Unclaimed preview prefetches are discarded around private writes and
+  browser-cache restores, and a preview whose request overlapped a finished write
+  is fetched again, so reopening an event shows current controls instead of a
+  stale saved state.
   A failed or timed-out save retains the prior state with retry guidance.
   Feedback appears below the initiating action row without moving or rewrapping
   its controls; Saved removal restores focus

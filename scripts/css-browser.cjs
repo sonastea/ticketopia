@@ -44,6 +44,9 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
       }
       check('44px action targets: ' + name, await page.locator('main button:visible, main [data-slot="button"]:visible').evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().height >= 44)));
       check('Event action labels fit their controls: ' + name, await page.locator('.event-actions [data-slot="button"]:visible').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1 && node.scrollHeight <= node.clientHeight + 1)));
+      check('Return label stays inside its control beside Share: ' + name, await page.locator('.event-toolbar > .back-link').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1 && node.scrollHeight <= node.clientHeight + 1)));
+      check('Byline text stays inside its attribution: ' + name, await page.locator('.byline, .byline > p, .byline a').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1)));
+      check('Compact wordmark stays on one line: ' + name, await page.locator('.compact-header:visible .brand').evaluateAll(nodes => nodes.every(node => node.getBoundingClientRect().height <= Math.max(parseFloat(getComputedStyle(node).lineHeight), 2.75 * parseFloat(getComputedStyle(document.documentElement).fontSize)) + 1)));
       if (await page.locator('.reminder-button:visible').count()) {
         check('Reminder matches the button group, without an underline: ' + name, await page.locator('.reminder-button:visible').evaluateAll(nodes => nodes.every(node => {
           const css = getComputedStyle(node);
@@ -58,13 +61,17 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
       }
     };
     if (process.env.CSS_SKIP_LAYOUT !== 'true') {
-      for (const [name, route] of [['discovery', '/'], ['preview', '/?selected=true'], ['event', '/events/ticketmaster:CSS_0'], ['profile', '/me'], ['sign-in', '/auth/sign-in'], ['composer', '/events/ticketmaster:CSS_0?section=community']]) {
+      for (const [name, route] of [['discovery', '/'], ['preview', '/?selected=true'], ['event', '/events/ticketmaster:CSS_0'], ['profile', '/me'], ['sign-in', '/auth/sign-in'], ['composer', '/events/ticketmaster:CSS_0?section=community'], ['return-community', '/events/ticketmaster:CSS_0?return=community'], ['return-happening-now', '/events/ticketmaster:CSS_0?return=happening-now']]) {
         for (const width of [1440, 1024, 390, 320]) await capture(name + '-' + width, width, route);
         await capture(name + '-200-text', 390, route, true);
         await capture(name + '-200-text-320', 320, route, true);
       }
+      await capture('discovery-200-text-640', 640, '/', true);
       await capture('profile-short', 390, '/me', false, 480);
       await capture('profile-short-200-text', 320, '/me', true, 480);
+      await page.goto(base + '/community');
+      await page.evaluate(async () => { document.documentElement.style.fontSize = '200%'; await document.fonts.ready; });
+      check('Community bylines fit at 320px with 200% text', await page.locator('.byline, .byline > p, .byline a, .byline > p > span').evaluateAll(nodes => nodes.length > 0 && nodes.every(node => node.scrollWidth <= node.clientWidth + 1)));
     }
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(base + '/');
@@ -94,7 +101,8 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
         scrollTo(0, rem + 2); await frames(); await frames(); await frames();
         const stuck = header.getBoundingClientRect(), stepped = size(), held = Math.abs(scrollY - (rem + 2)) < 1;
         scrollTo(0, 400); await frames();
-        return getComputedStyle(header).position === 'sticky' && unstuck === before && stepped === 1.25 * rem && size() === stepped && held && Math.round(stuck.top) === -rem;
+        const headlineSize = Math.min(1.25 * rem, .0625 * innerWidth);
+        return getComputedStyle(header).position === 'sticky' && unstuck === before && Math.abs(stepped - headlineSize) < .01 && size() === stepped && held && Math.round(stuck.top) === -rem;
       } finally {
         scrollTo(0, 0); document.documentElement.style.fontSize = '';
       }
@@ -202,6 +210,12 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     check('Forced-colors focus retains a real outline', await page.locator('.sidebar .nav-link').first().evaluate(node => { const css = getComputedStyle(node); return css.outlineStyle === 'solid' && parseFloat(css.outlineWidth) >= 2; }));
     await save.focus();
     check('Event action focus remains visible in forced colors', await save.evaluate(node => { const css = getComputedStyle(node); return css.outlineStyle === 'solid' && parseFloat(css.outlineWidth) >= 2; }));
+    await page.goto(base + '/?selected=true&thread=true');
+    await page.locator('.discussion-post').first().evaluate(node => node.setAttribute('data-arrived', ''));
+    check('Enhanced post arrival retains a forced-colors outline without a hash', await page.locator('.discussion-post[data-arrived]').evaluate(node => {
+      const css = getComputedStyle(node);
+      return !node.matches(':target') && css.outlineStyle === 'solid' && parseFloat(css.outlineWidth) >= 2;
+    }));
     await page.emulateMedia({ forcedColors: 'none', reducedMotion: 'no-preference', colorScheme: 'light' });
 
     await page.goto(base + '/me');

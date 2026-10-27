@@ -74,7 +74,20 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     const signedForm = signed.locator('[data-live-filter-form]');
     await signedForm.locator('summary').click();
     await signedForm.getByLabel('Music', { exact: true }).check();
+    let releaseApply, observeApply;
+    const pendingApply = new Promise(resolve => { releaseApply = resolve; });
+    const applying = new Promise(resolve => { observeApply = resolve; });
+    await signed.route('**/api/v1/me/live-activity-preferences', async route => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      observeApply(); await pendingApply; await route.continue();
+    });
     await signedForm.getByRole('button', { name: 'Apply', exact: true }).click();
+    await applying;
+    await signedForm.getByLabel('Music', { exact: true }).uncheck();
+    releaseApply();
+    await signedForm.getByText("Filters applied. Your newer changes aren't applied yet; apply again to save them.", { exact: true }).waitFor();
+    check('Undo during pending Apply preserves newer unchecked category', !await signedForm.getByLabel('Music', { exact: true }).isChecked());
+    await signed.unroute('**/api/v1/me/live-activity-preferences');
     await signed.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
     const pref = await (await owner.request.get(base + '/api/v1/me/live-activity-preferences')).json();
     check('Account preference saved', pref.filters.category_ids.join() === 'Music' && pref.revision === 2);
@@ -117,7 +130,7 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     const fallbackPage = await fallback.newPage(); await fallbackPage.goto(base + '/happening-now');
     await fallbackPage.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 1);
     check('Filtered JSON fallback restores guest scope', await fallbackPage.locator('[data-live-list]').textContent().then(text => text.includes('Berlin music beyond twenty')));
-    check('No browser errors', errors.length === 0);
+    check('No browser errors: ' + errors.join('; '), errors.length === 0);
     fs.writeFileSync(path.join(output, 'checks.json'), JSON.stringify({ checks, errors }, null, 2));
     console.log(JSON.stringify({ checks: checks.length, output }));
   } finally { await browser.close(); }

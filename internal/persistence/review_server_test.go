@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -134,13 +136,30 @@ func TestMariaDBReviewServer(t *testing.T) {
 		details, entries = append(details, d), append(entries, d.Item)
 		seed("ticketmaster:v1:event:"+d.Item.ID, d.Item)
 	}
-	q, err := discovery.ParseQuery(url.Values{"city": {city}}, now)
+	// Match the owner's account-derived city AND country defaults. ParseQuery
+	// supplies the same normalized dates, limit and filters as the HTML handler.
+	// Seeds use the start time's dates: after UTC or Chicago midnight the default
+	// query changes and, with the provider disabled, `/` shows an error; restart.
+	q, err := discovery.ParseQuery(url.Values{"city": {city}, "country": {country}}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q.Limit = 20
-	sum := sha256.Sum256([]byte(q.Values().Encode()))
-	seed(fmt.Sprintf("ticketmaster:v1:events:%x:0", sum), map[string]any{"items": entries, "total": len(entries), "total_pages": 1})
+	seedResults := func(q discovery.Query) {
+		sum := sha256.Sum256([]byte(q.Values().Encode()))
+		seed(fmt.Sprintf("ticketmaster:v1:events:%x:0", sum), map[string]any{"items": entries, "total": len(entries), "total_pages": 1})
+	}
+	seedResults(q)
+	// The first results read learns Chicago's zone. During a US evening the
+	// handler repeats the search with the local day, so seed that normalized
+	// query too, following localizeDefaultDates' ParseQuery path.
+	localValues := q.Values()
+	localValues.Set("start_date", now.In(chicago).Format(time.DateOnly))
+	localValues.Del("end_date")
+	localQuery, err := discovery.ParseQuery(localValues, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedResults(localQuery)
 
 	owner, other, moderator := people["owner"].ID, people["other"].ID, people["moderator"].ID
 	for i, d := range details {
@@ -184,6 +203,7 @@ func TestMariaDBReviewServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = listener.Close() })
 	base := "http://" + listener.Addr().String()
 	config := accounts.Config{Enabled: true, BaseURL: base, ClientID: "fixture", ClientSecret: "fixture"}
 	live := activity.New(ctx, p.Activity(), 256)
@@ -198,7 +218,17 @@ func TestMariaDBReviewServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := &http.Server{Handler: app.Routes(), ReadHeaderTimeout: 10 * time.Second}
+	routes := app.Routes()
+	// Verify the actual signed-in default-query path, rather than relying only
+	// on a manually reproduced cache-key format while the provider is disabled.
+	request := httptest.NewRequest(http.MethodGet, base+"/", nil)
+	request.AddCookie(&http.Cookie{Name: config.CookieName("session"), Value: tokens["owner"]})
+	response := httptest.NewRecorder()
+	routes.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `data-event-id="`+entries[0].ID+`"`) {
+		t.Fatalf("owner default Discover did not use seeded results: status %d", response.Code)
+	}
+	server := &http.Server{Handler: routes, ReadHeaderTimeout: 10 * time.Second}
 	served := make(chan error, 1)
 	go func() { served <- server.Serve(listener) }()
 	t.Cleanup(func() { _ = server.Close() })

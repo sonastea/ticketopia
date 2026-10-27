@@ -113,6 +113,12 @@ func main() {
 		if r.PathValue("id") == longEvent.ID {
 			page.Detail.Item = longEvent
 		}
+		switch r.URL.Query().Get("return") {
+		case "community":
+			page.ReturnURL = "/community"
+		case "happening-now":
+			page.ReturnURL = "/happening-now"
+		}
 		if r.URL.Query().Get("ticket") == "missing" {
 			page.Detail.Item.Source.URL = ""
 		}
@@ -147,6 +153,15 @@ func main() {
 		} else {
 			render(w, r, home.Event(page))
 		}
+	})
+	mux.HandleFunc("GET /community", func(w http.ResponseWriter, r *http.Request) {
+		render(w, r, home.Community(home.CommunityPage{
+			Enabled: true, ReturnURL: "/community",
+			List: recommendations.Feed{Items: []recommendations.EventGroup{{
+				Event: event, FirstRecommendedAt: now, Count: 1, Meta: detail.Meta,
+				Recommendations: search.Recommendations.List.Items,
+			}}},
+		}))
 	})
 	mux.HandleFunc("GET /me", func(w http.ResponseWriter, r *http.Request) {
 		render(w, r, account.Settings(account.Page{

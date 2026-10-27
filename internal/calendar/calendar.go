@@ -35,7 +35,7 @@ func start(s models.EventStart) (time.Time, bool, bool) {
 	if s.DateTBA || s.DateTBD {
 		return time.Time{}, false, false
 	}
-	if s.DateTime != nil && !s.TimeTBA && !s.NoSpecificTime {
+	if s.DateTime != nil && !s.DateTime.IsZero() && !s.TimeTBA && !s.NoSpecificTime {
 		return s.DateTime.UTC(), false, true
 	}
 	if s.LocalDate == nil {
@@ -44,6 +44,13 @@ func start(s models.EventStart) (time.Time, bool, bool) {
 	day, err := time.Parse(time.DateOnly, *s.LocalDate)
 	if err != nil {
 		return time.Time{}, false, false
+	}
+	if !s.TimeTBA && !s.NoSpecificTime && s.LocalTime != nil && s.Timezone != nil && *s.Timezone != "" && *s.Timezone != "Local" {
+		if zone, err := time.LoadLocation(*s.Timezone); err == nil {
+			if at, err := time.ParseInLocation(time.DateOnly+" "+time.TimeOnly, *s.LocalDate+" "+*s.LocalTime, zone); err == nil {
+				return at.UTC(), false, true
+			}
+		}
 	}
 	return day, true, true
 }

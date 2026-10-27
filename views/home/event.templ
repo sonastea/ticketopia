@@ -13,23 +13,25 @@ templ Event(page EventPage) {
 			<div class="event-toolbar">
 				@button.Button(button.Props{Href: page.ReturnURL, Variant: button.VariantLink, Class: "text-link back-link", Attributes: templ.Attributes{"data-return-results": true}}) {
 					@layouts.Icon("back")
-					if isSavedURL(page.ReturnURL) {
-						Back to Saved
-					} else if isInterestsURL(page.ReturnURL) {
-						Back to Interests
-					} else if isRadarURL(page.ReturnURL) {
-						Back to Radar
-					} else if isHappeningNowURL(page.ReturnURL) {
-						Back to Happening Now
-					} else if isCommunityURL(page.ReturnURL) {
-						Back to Community
-					} else if isProfileURL(page.ReturnURL) {
-						Back to profile
-					} else if page.ReturnURL != "/" {
-						Back to results
-					} else {
-						Discover events
-					}
+					<span>
+						if isSavedURL(page.ReturnURL) {
+							Back to Saved
+						} else if isInterestsURL(page.ReturnURL) {
+							Back to Interests
+						} else if isRadarURL(page.ReturnURL) {
+							Back to Radar
+						} else if isHappeningNowURL(page.ReturnURL) {
+							Back to Happening Now
+						} else if isCommunityURL(page.ReturnURL) {
+							Back to Community
+						} else if isProfileURL(page.ReturnURL) {
+							Back to profile
+						} else if page.ReturnURL != "/" {
+							Back to results
+						} else {
+							Discover events
+						}
+					</span>
 				}
 				if page.Error == "" {
 					@ShareAction(page.Detail.Item)

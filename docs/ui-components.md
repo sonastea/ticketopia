@@ -163,10 +163,17 @@ changes `font-size`, not a scale: only the layout change returns the sticky
 header's height to the reader. The wordmark (a logotype, exempt from text
 resizing) and the header's padding and gaps are capped with `vw` at their
 default-text size on a 320px screen, so 200% text keeps the wordmark on one line
-beside the search action instead of wrapping it letter by letter. The same block sets
+beside the search action instead of wrapping it letter by letter. The stuck size
+is `min(1.25rem, 6.25vw)`. The same block sets
 `overflow-anchor: none` on `html` and `body` (Chromium reads the root value from
 `body`). Otherwise, at 200% text the 69px step would be compensated back below
-the 1rem threshold, unsticking and regrowing the header so scrolling stalls. Placeholder
+the 1rem threshold, unsticking and regrowing the header so scrolling stalls. Its
+decorative tagline appears only when the header's inline-size container reaches
+35rem, accounting for enlarged text rather than viewport media-query rem.
+Return-label spans shrink and wrap beside Share; Community bylines wrap the
+avatar, name and shrinkable attribution text as needed. Post arrival uses both
+`:target` and `[data-arrived]` for reduced-motion markers and forced-colors
+outlines, matching enhanced edits without a hash change. Placeholder
 shimmer moves a clipped `::after` highlight with `translate`, which browsers composite,
 rather than repainting a background position. Sidebar collapse switches its grid
 tracks instantly; transitioning them would lay out the workspace on every frame.
