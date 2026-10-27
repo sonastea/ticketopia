@@ -1266,8 +1266,16 @@
   // Pressing a result starts its preview request, which the click that follows
   // adopts (full pages get the same head start from speculation rules). A press
   // that becomes a scroll or a long-press cancels it; one left unclaimed is
-  // dropped by the next selection.
+  // dropped by the next selection. Every scroll that begins on a result is also
+  // a touch press, so touch waits for a short hold or the release (still before
+  // the click); the pointercancel that starts panning usually comes first.
+  const touchHold = 100;
   let pressed = null;
+  let touch = null;
+  const clearTouch = () => {
+    clearTimeout(touch?.timer);
+    touch = null;
+  };
   const dropPressed = () => {
     pressed?.controller.abort();
     pressed = null;
@@ -1279,10 +1287,7 @@
     else dropPressed();
     return claimed;
   };
-  document.addEventListener('pointerdown', event => {
-    if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const link = event.target.closest('[data-event-link]');
-    if (!link || link.closest('[data-thread-link]')) return;
+  const startPress = link => {
     const href = new URL(link.href);
     const id = link.dataset.id || decodeURIComponent(href.pathname.split('/').pop());
     if (sectionHost()?.dataset.eventShell === id) return;
@@ -1291,8 +1296,27 @@
     dropPressed();
     const controller = new AbortController();
     pressed = { href: url.href, at: performance.now(), controller, response: fetchPanel(url, controller) };
+  };
+  const releaseTouch = () => {
+    const link = touch?.link;
+    clearTouch();
+    if (link) startPress(link);
+  };
+  document.addEventListener('pointerdown', event => {
+    if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest('[data-event-link]');
+    if (!link || link.closest('[data-thread-link]')) return;
+    clearTouch();
+    if (event.pointerType !== 'touch') return startPress(link);
+    touch = { id: event.pointerId, link, timer: setTimeout(releaseTouch, touchHold) };
   });
-  document.addEventListener('pointercancel', dropPressed);
+  document.addEventListener('pointerup', event => {
+    if (touch?.id === event.pointerId) releaseTouch();
+  });
+  document.addEventListener('pointercancel', () => {
+    clearTouch();
+    dropPressed();
+  });
   // #pagination names the cursor of its last rendered page. The URL mirrors it
   // as through=, so reload and Back get every loaded page, with current private
   // state, in the first response; history itself keeps only position and focus.

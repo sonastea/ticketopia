@@ -27,7 +27,7 @@ func coverageNote(meta models.Freshness) string {
 	}
 	switch meta.Coverage.Status {
 	case "not_collected":
-		return "Not collected yet: Ticketmaster couldn't be refreshed, so this isn't a confirmed empty search."
+		return "Ticketmaster couldn't be refreshed for every requested date, so some events may be missing."
 	case "partial":
 		return "Partial coverage: more events may exist. Try a shorter date range."
 	case "stale":
@@ -52,7 +52,8 @@ func resultsNoticeSummary(meta models.Freshness) string {
 	}
 	switch meta.Coverage.Status {
 	case "not_collected":
-		return "Not collected yet"
+		// Shown above results too, so it must not read as "nothing here".
+		return "Results may be incomplete"
 	case "partial":
 		return "Partial results: more events may exist"
 	case "stale":

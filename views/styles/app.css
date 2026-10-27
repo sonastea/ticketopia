@@ -464,17 +464,26 @@ h3 {
   color: var(--brand);
 }
 
+/* Enlarged text must not wrap the wordmark letter by letter beside the search
+   action. Its size (a logotype, exempt from text resizing) and the header's
+   spacing stop growing at their default-text size on a 320px screen; the
+   search target keeps scaling. */
 .compact-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: min(1rem, 5vw);
   min-block-size: 4.5rem;
   padding-block: .75rem;
-  padding-inline: 1.25rem;
+  padding-inline: min(1.25rem, 6.25vw);
   background: var(--surface);
   border-block-end: 1px solid var(--line);
   color: var(--ink);
+}
+
+.compact-header > .brand {
+  gap: min(.65rem, 3.25vw);
+  font-size: min(1.6rem, 8vw);
 }
 
 .compact-header > span {
@@ -3221,7 +3230,7 @@ html:has(.filter-sheet:modal) {
          unsticking rather than on every scroll frame. */
       @container compact-header scroll-state(stuck: top) {
         .compact-header > * { translate: 0 .5rem; }
-        .compact-header > .brand { font-size: 1.25rem; }
+        .compact-header > .brand { font-size: min(1.25rem, 6.25vw); }
       }
       /* Scrolling down tucks the floating navigation below the screen edge;
          any upward scroll, or focus inside it, brings it back. The event

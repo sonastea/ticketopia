@@ -17,6 +17,10 @@ func TestServiceWorkerVersionFollowsTheOfflinePage(t *testing.T) {
 	if page.Code != 200 || !strings.Contains(page.Body.String(), "You're offline") || strings.Contains(page.Body.String(), "/assets/") {
 		t.Fatalf("offline page must be self-contained: %d\n%s", page.Code, page.Body)
 	}
+	// Rendered once and replayed from cache, it can't carry a valid per-response nonce.
+	if strings.Contains(page.Body.String(), "nonce=") {
+		t.Fatalf("cached offline page must not carry a nonce:\n%s", page.Body)
+	}
 	if worker.Code != 200 || worker.Header().Get("Content-Type") != "text/javascript; charset=utf-8" || worker.Header().Get("Cache-Control") != "no-cache" ||
 		!strings.Contains(worker.Body.String(), "const VERSION = '"+hex.EncodeToString(sum[:8])+"';") {
 		t.Fatalf("worker: %d %v\n%s", worker.Code, worker.Header(), worker.Body)

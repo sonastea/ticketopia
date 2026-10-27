@@ -6,7 +6,9 @@ import "github.com/sonastea/ticketopia/views/layouts"
 // network. It must work from its one cached response, so it is a complete
 // document: no stylesheet, font or script requests, and its colours repeat the
 // app.css palette roles. Try again reloads whichever URL failed, because the
-// worker serves this page in that URL's place.
+// worker serves this page in that URL's place. It is rendered once and replayed
+// from the cache, so its inline style and script carry no per-response nonce;
+// a future Content-Security-Policy must allow them by hash instead.
 templ Offline() {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -17,7 +19,7 @@ templ Offline() {
 			<meta name="color-scheme" content="light"/>
 			<meta name="robots" content="noindex"/>
 			<title>You're offline · Ticketopia</title>
-			<style nonce={ templ.GetNonce(ctx) }>
+			<style>
 				:root {
 					--ink: oklch(0.272162 0.015629 307.825);
 					--muted: oklch(0.504217 0.021128 314.624);
@@ -80,7 +82,7 @@ templ Offline() {
 				<p>Ticketopia needs a connection to find events and load your plans. Check your connection, then try again.</p>
 				<a href="">Try again</a>
 			</main>
-			<script nonce={ templ.GetNonce(ctx) }>
+			<script>
 				addEventListener('online', () => location.reload());
 			</script>
 		</body>

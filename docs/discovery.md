@@ -281,9 +281,11 @@ A new form submission starts at the first page.
   upscaled 640px.
 - Speculation rules prefetch an event page when its `[data-event-link]` is pressed
   (`conservative`, Chromium only) outside Discover, where results open the
-  preview. There, app.js starts the preview request on `pointerdown`, and the
-  click adopts it within 5 seconds; `pointercancel` (a press that becomes a
-  scroll) aborts it. Event GETs are read-only.
+  preview. There, app.js starts the preview request on a mouse or pen
+  `pointerdown`, and on touch after a 100ms hold or on release, because every
+  scroll that begins on a result is also a touch press. The click adopts it
+  within 5 seconds; `pointercancel` (a press that becomes a scroll) cancels a
+  waiting touch or aborts a started request. Event GETs are read-only.
 - Off-screen result rows skip rendering (`content-visibility: auto`) only after
   app.js has seen them render at the current fonts and list width
   (`data-settled`), so each skipped row keeps its real size

@@ -203,6 +203,11 @@ func TestResultsFreshnessIsOneQuietLine(t *testing.T) {
 	if strings.Count(body, "<details") != 1 || !strings.Contains(body, "<summary>Last-known, partial results</summary>") || !strings.Contains(body, `data-coverage="partial"`) || strings.Contains(body, "role=") || !strings.Contains(body, "Showing last-known results") || !strings.Contains(body, "Partial coverage") || !strings.Contains(body, "Updated ") {
 		t.Fatal("a results warning must be one non-live summary line with its details behind a disclosure", body)
 	}
+	// Uncollected dates sit above shown results too; the summary must not read as "nothing here".
+	body = renderNeighbor(t, ResultsFreshness(models.Freshness{Coverage: &models.Coverage{Status: "not_collected"}}))
+	if !strings.Contains(body, "<summary>Results may be incomplete</summary>") || strings.Contains(body, "empty search") {
+		t.Fatal("uncollected coverage must say results may be incomplete", body)
+	}
 	body = renderNeighbor(t, ResultsFreshness(models.Freshness{DataAsOf: time.Now().UTC(), Coverage: &models.Coverage{Status: "complete"}}))
 	if strings.Contains(body, "<details") || strings.Count(body, "<p") != 1 || !strings.Contains(body, "Updated ") {
 		t.Fatal("ordinary freshness must stay a plain line", body)

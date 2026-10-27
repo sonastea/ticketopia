@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-10-27 — Touch-safe preview prefetch and clearer partial results
+
+- A touch press starts its preview request only after a 100ms hold or on
+  release (still before the click), so scrolls that begin on a result no longer
+  reach the server: 12 of 12 sampled touch scrolls started one before, none
+  after. Mouse and pen presses still start it at once.
+- Uncollected dates summarize as **Results may be incomplete** rather than
+  **Not collected yet**, which read as "nothing here" above shown results.
+  See [discovery](../discovery.md#loading-performance).
+
 ### 2026-10-26 — Right-sized artwork, pressed prefetch and lighter long lists
 
 - Artwork lists one crop's renditions in `srcset` with layout-derived `sizes`,
@@ -76,22 +86,6 @@
   to OKLCH L .66 / C ≤ .12, stored as `tint` in the snapshot JSON (no migration)
   and documented in OpenAPI. The header mixes it 18% into white, which tests show
   stays AA for every hue, with a brand-hue fallback.
-  See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-23 — Artwork-led discovery
-
-- Lead rows with larger artwork and a perforated ticket-stub date chip on the
-  image. The results container decides the layout: stacked when narrow, rows from
-  26rem, and an intrinsic two-to-three-column card grid from 48rem (Discover,
-  Saved, Interests, Radar), replacing the 40/62/86rem row-image steps.
-- Mark the selected row with a 3px leading brand edge on a raised surface instead
-  of a plum fill (Highlight in forced colors).
-- Same-origin navigations use cross-document view transitions (250ms, reduced
-  motion opts out); event artwork/titles share per-event names across rows, the
-  preview and the event page.
-- Event pages open with a wide artwork band and tinted identity surface. Below
-  62rem, Tickets and Save form a sticky normal-flow bar above the bottom
-  navigation on viewports at least 32rem tall.
   See [discovery](../discovery.md#responsive-navigation-and-event-details).
 
 Older entries: [discovery archive](archive/discovery/).

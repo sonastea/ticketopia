@@ -14,7 +14,9 @@ import "github.com/sonastea/ticketopia/views/layouts"
 // network. It must work from its one cached response, so it is a complete
 // document: no stylesheet, font or script requests, and its colours repeat the
 // app.css palette roles. Try again reloads whichever URL failed, because the
-// worker serves this page in that URL's place.
+// worker serves this page in that URL's place. It is rendered once and replayed
+// from the cache, so its inline style and script carry no per-response nonce;
+// a future Content-Security-Policy must allow them by hash instead.
 func Offline() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -36,20 +38,7 @@ func Offline() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\"><meta name=\"theme-color\" content=\"#faf9fb\"><meta name=\"color-scheme\" content=\"light\"><meta name=\"robots\" content=\"noindex\"><title>You're offline · Ticketopia</title><style nonce=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/offline.templ`, Line: 20, Col: 37}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">\n\t\t\t\t:root {\n\t\t\t\t\t--ink: oklch(0.272162 0.015629 307.825);\n\t\t\t\t\t--muted: oklch(0.504217 0.021128 314.624);\n\t\t\t\t\t--brand: oklch(0.427958 0.080387 337.297);\n\t\t\t\t\t--brand-soft: oklch(0.911900 0.021106 332.882);\n\t\t\t\t\t--paper: oklch(0.983440 0.002834 308.429);\n\t\t\t\t\t--surface: oklch(1 0 none);\n\t\t\t\t\t--ease-out: cubic-bezier(.16, 1, .3, 1);\n\t\t\t\t\tcolor-scheme: light;\n\t\t\t\t\toverflow-wrap: break-word;\n\t\t\t\t\t-webkit-text-size-adjust: 100%;\n\t\t\t\t}\n\t\t\t\t*, *::before, *::after { box-sizing: border-box; min-inline-size: 0; }\n\t\t\t\tbody {\n\t\t\t\t\tdisplay: grid;\n\t\t\t\t\tplace-items: center;\n\t\t\t\t\tmin-block-size: 100dvh;\n\t\t\t\t\tmargin: 0;\n\t\t\t\t\tpadding: clamp(1rem, .17rem + 4.17vw, 2rem);\n\t\t\t\t\tbackground: var(--paper);\n\t\t\t\t\tcolor: var(--ink);\n\t\t\t\t\tfont-family: Manrope, system-ui, sans-serif;\n\t\t\t\t\tline-height: 1.6;\n\t\t\t\t}\n\t\t\t\tmain { display: grid; justify-items: start; gap: 1rem; max-inline-size: 28rem; }\n\t\t\t\t.brand { display: flex; align-items: center; gap: .65rem; color: var(--ink); font-size: 1.6rem; font-weight: 800; letter-spacing: -.04em; }\n\t\t\t\t.stop { color: var(--brand); }\n\t\t\t\t.icon { flex: none; inline-size: 1.125em; block-size: 1.125em; color: var(--brand); rotate: -12deg; }\n\t\t\t\th1 { margin: 0; font-size: clamp(1.75rem, 1.5rem + .625vw, 2rem); line-height: 1.25; letter-spacing: -.035em; text-wrap: balance; }\n\t\t\t\tp { margin: 0; color: color-mix(in oklch, var(--muted), var(--brand) 12%); }\n\t\t\t\ta {\n\t\t\t\t\tdisplay: inline-flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tmin-block-size: 2.75rem;\n\t\t\t\t\tpadding-inline: 1.25rem;\n\t\t\t\t\tborder-radius: .5rem;\n\t\t\t\t\tbackground: var(--brand);\n\t\t\t\t\tcolor: var(--surface);\n\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\ttransition: background-color 160ms var(--ease-out);\n\t\t\t\t}\n\t\t\t\ta:active { background: color-mix(in oklch, var(--brand), black 28%); }\n\t\t\t\ta:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }\n\t\t\t\t@media (hover: hover) and (pointer: fine) {\n\t\t\t\t\ta:hover { background: color-mix(in oklch, var(--brand), black 18%); }\n\t\t\t\t}\n\t\t\t\t@media (forced-colors: active) {\n\t\t\t\t\ta { border: 1px solid ButtonText; }\n\t\t\t\t}\n\t\t\t</style></head><body><main><p class=\"brand\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\"><meta name=\"theme-color\" content=\"#faf9fb\"><meta name=\"color-scheme\" content=\"light\"><meta name=\"robots\" content=\"noindex\"><title>You're offline · Ticketopia</title><style>\n\t\t\t\t:root {\n\t\t\t\t\t--ink: oklch(0.272162 0.015629 307.825);\n\t\t\t\t\t--muted: oklch(0.504217 0.021128 314.624);\n\t\t\t\t\t--brand: oklch(0.427958 0.080387 337.297);\n\t\t\t\t\t--brand-soft: oklch(0.911900 0.021106 332.882);\n\t\t\t\t\t--paper: oklch(0.983440 0.002834 308.429);\n\t\t\t\t\t--surface: oklch(1 0 none);\n\t\t\t\t\t--ease-out: cubic-bezier(.16, 1, .3, 1);\n\t\t\t\t\tcolor-scheme: light;\n\t\t\t\t\toverflow-wrap: break-word;\n\t\t\t\t\t-webkit-text-size-adjust: 100%;\n\t\t\t\t}\n\t\t\t\t*, *::before, *::after { box-sizing: border-box; min-inline-size: 0; }\n\t\t\t\tbody {\n\t\t\t\t\tdisplay: grid;\n\t\t\t\t\tplace-items: center;\n\t\t\t\t\tmin-block-size: 100dvh;\n\t\t\t\t\tmargin: 0;\n\t\t\t\t\tpadding: clamp(1rem, .17rem + 4.17vw, 2rem);\n\t\t\t\t\tbackground: var(--paper);\n\t\t\t\t\tcolor: var(--ink);\n\t\t\t\t\tfont-family: Manrope, system-ui, sans-serif;\n\t\t\t\t\tline-height: 1.6;\n\t\t\t\t}\n\t\t\t\tmain { display: grid; justify-items: start; gap: 1rem; max-inline-size: 28rem; }\n\t\t\t\t.brand { display: flex; align-items: center; gap: .65rem; color: var(--ink); font-size: 1.6rem; font-weight: 800; letter-spacing: -.04em; }\n\t\t\t\t.stop { color: var(--brand); }\n\t\t\t\t.icon { flex: none; inline-size: 1.125em; block-size: 1.125em; color: var(--brand); rotate: -12deg; }\n\t\t\t\th1 { margin: 0; font-size: clamp(1.75rem, 1.5rem + .625vw, 2rem); line-height: 1.25; letter-spacing: -.035em; text-wrap: balance; }\n\t\t\t\tp { margin: 0; color: color-mix(in oklch, var(--muted), var(--brand) 12%); }\n\t\t\t\ta {\n\t\t\t\t\tdisplay: inline-flex;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tmin-block-size: 2.75rem;\n\t\t\t\t\tpadding-inline: 1.25rem;\n\t\t\t\t\tborder-radius: .5rem;\n\t\t\t\t\tbackground: var(--brand);\n\t\t\t\t\tcolor: var(--surface);\n\t\t\t\t\tfont-weight: 700;\n\t\t\t\t\ttext-decoration: none;\n\t\t\t\t\ttransition: background-color 160ms var(--ease-out);\n\t\t\t\t}\n\t\t\t\ta:active { background: color-mix(in oklch, var(--brand), black 28%); }\n\t\t\t\ta:focus-visible { outline: 3px solid var(--brand); outline-offset: 4px; }\n\t\t\t\t@media (hover: hover) and (pointer: fine) {\n\t\t\t\t\ta:hover { background: color-mix(in oklch, var(--brand), black 18%); }\n\t\t\t\t}\n\t\t\t\t@media (forced-colors: active) {\n\t\t\t\t\ta { border: 1px solid ButtonText; }\n\t\t\t\t}\n\t\t\t</style></head><body><main><p class=\"brand\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -57,20 +46,7 @@ func Offline() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span>ticketopia<span class=\"stop\">.</span></span></p><h1>You're offline</h1><p>Ticketopia needs a connection to find events and load your plans. Check your connection, then try again.</p><a href=\"\">Try again</a></main><script nonce=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.GetNonce(ctx))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/offline.templ`, Line: 83, Col: 38}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">\n\t\t\t\taddEventListener('online', () => location.reload());\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<span>ticketopia<span class=\"stop\">.</span></span></p><h1>You're offline</h1><p>Ticketopia needs a connection to find events and load your plans. Check your connection, then try again.</p><a href=\"\">Try again</a></main><script>\n\t\t\t\taddEventListener('online', () => location.reload());\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

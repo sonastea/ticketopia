@@ -159,8 +159,11 @@ rather than `--muted` for any new muted text. The compact header is a
 `scroll-state` container: under `@container compact-header scroll-state(stuck: top)`
 its content recentres and the wordmark steps to 1.25rem, so it lays out once on
 sticking and once on unsticking rather than every scroll frame. The wordmark
-changes `font-size`, not a scale: with enlarged text it wraps, and only the layout
-change returns the sticky header's height to the reader. The same block sets
+changes `font-size`, not a scale: only the layout change returns the sticky
+header's height to the reader. The wordmark (a logotype, exempt from text
+resizing) and the header's padding and gaps are capped with `vw` at their
+default-text size on a 320px screen, so 200% text keeps the wordmark on one line
+beside the search action instead of wrapping it letter by letter. The same block sets
 `overflow-anchor: none` on `html` and `body` (Chromium reads the root value from
 `body`). Otherwise, at 200% text the 69px step would be compensated back below
 the 1rem threshold, unsticking and regrowing the header so scrolling stalls. Placeholder

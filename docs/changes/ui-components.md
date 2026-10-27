@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-10-27 — Enlarged-text wordmark and offline nonce
+
+- At 200% text on a 320px phone the header wordmark no longer wraps letter by
+  letter (786px header, now 144px). The logotype and the header's padding and
+  gaps stop growing at their default-text size on a 320px screen; the search
+  action keeps scaling. Default-text layout is unchanged.
+- The cached offline page drops its always-empty nonce attributes; a future CSP
+  must allow its inline style and script by hash.
+
 ### 2026-10-26 — Search shortcut, filter sheet, calendar and offline page
 
 - The sticky phone header ends with a search icon: on Discover it focuses the
@@ -61,32 +70,5 @@
   pop when toggled. All motion is skipped under reduced motion (see the
   [guide](../ui-components.md#modern-css-conventions)). Verified in Chrome; WebKit
   opens disclosures instantly.
-
-### 2026-10-25 — Browser main-thread work
-
-- Stop loading the ~247 KiB component bundle on every page. Only native Select
-  and Collapsible variants render, so the bundle is still built but not loaded;
-  the bundle's lifecycle observer ignores text-only mutations.
-- Draft restore observers (discussions, recommendations) and the live-activity ID
-  observer react only to added/removed subtrees containing their targets. Live
-  count snapshots index targets once and skip unchanged counts. Toast collision
-  checks run only while a toast is shown.
-- Draft writes to `sessionStorage` are throttled to one per 400ms while typing and
-  flushed on submit, hide and pagehide. The discussion composer writes its
-  viewport variable only when the viewport size changes.
-- Interest controls re-enable after the confirmed write instead of waiting for
-  the public-participant refresh, which now times out after 10 seconds.
-- Results history snapshots serialize the list once, and only after Load more has
-  extended it; first-page entries keep only scroll/focus. Back/forward-cache
-  restores keep the live results instead of rebuilding them, removing a duplicate
-  saved-state request.
-- Placeholder shimmer uses a composited `translate`; sidebar collapse is instant.
-  The compact header's wordmark now steps to the headline size under a
-  `scroll-state(stuck: top)` query instead of shrinking on every scroll frame
-  (design change: a threshold, not a continuous shrink). Root scroll anchoring is
-  off so the step can't stall scrolling at 200% text; browsers without
-  scroll-state queries keep a static header (see the
-  [guide](../ui-components.md#modern-css-conventions)). Verified with CSS and
-  event-context checks in Chromium and WebKit.
 
 Older entries: [UI component archive](archive/ui-components/).
