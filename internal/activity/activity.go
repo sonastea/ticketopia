@@ -100,11 +100,14 @@ type Update struct {
 	MembershipChanged bool
 }
 type subscriber struct {
-	held     time.Time // first skipped delivery while a rebuild is in progress
-	owner    string
-	ids      []string // owner, ids and filter are immutable after Subscribe
-	ch       chan Update
-	initial  bool
+	held    time.Time // first skipped delivery while a rebuild is in progress
+	owner   string
+	ids     []string // owner, ids and filter are immutable after Subscribe
+	ch      chan Update
+	initial bool
+	// terminal marks a queued membership.changed (under mu): the stream ends
+	// with it, so later deliveries must not replace it.
+	terminal bool
 	filter   Filters
 	previous [sha256.Size]byte
 	// The public cohort key for keyCity, cached under the projection gate.
@@ -120,9 +123,13 @@ type Service struct {
 	memberFacts       map[string]MembershipCandidate
 	memberSlots       map[string]int
 	memberAt          time.Time
-	repo              Repository
-	mu                sync.Mutex
-	subs              map[*subscriber]struct{}
+	memberSweep       uint64
+	// memberIndex is the candidate generation membership bits were last
+	// reconciled with; another generation may have reused their slots.
+	memberIndex *candidateIndex
+	repo        Repository
+	mu          sync.Mutex
+	subs        map[*subscriber]struct{}
 	// private indexes connection-filtered subscriptions by owner (under mu), so
 	// a committing membership write touches only its owner's streams.
 	private    map[string]map[*subscriber]struct{}
@@ -178,6 +185,7 @@ func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Log
 				default:
 				}
 				sub.ch <- Update{Unavailable: true, MembershipChanged: true}
+				sub.terminal = true
 			}
 		})
 	}
@@ -390,6 +398,10 @@ func (s *Service) selectOwnerCached(ctx context.Context, f Filters, owner string
 	digest := publicKey(key, f)
 	var membership bitmap
 	if f.Connections.Mode == "any" {
+		if s.memberIndex != s.index {
+			// A warm read can follow a public generation refresh.
+			s.reconcileMembers()
+		}
 		m := s.members[owner]
 		if m == nil || !m.valid || sourceMask(f)&^m.sources != 0 {
 			return Snapshot{}, ErrUnavailable
@@ -584,7 +596,7 @@ func (s *Service) SubscribeOwnerContext(ctx context.Context, owner string, ids [
 				view, err := s.selectOwnerCached(ctx, f, owner)
 				if err == nil {
 					s.mu.Lock()
-					if f.Connections.Mode != "any" || (!s.invalidAll && !s.invalidMembers[owner]) {
+					if f.Connections.Mode != "any" || (!s.invalidAll && !s.invalidMembers[owner] && !sub.terminal) {
 						select {
 						case sub.ch <- Update{Snapshot: view}:
 						default:
@@ -772,6 +784,13 @@ func (s *Service) run(ctx context.Context) {
 				s.mu.Unlock()
 				continue
 			}
+			if sub.terminal {
+				// A rebuild consumed the invalidation; the queued change still ends
+				// this stream and is never replaced by a newer view.
+				sub.initial = false
+				s.mu.Unlock()
+				continue
+			}
 			membershipChanged := false
 			if sub.filter.Connections.Mode == "any" && (s.invalidAll || s.invalidMembers[sub.owner]) {
 				viewErr, membershipChanged = ErrUnavailable, true
@@ -812,6 +831,7 @@ func (s *Service) run(ctx context.Context) {
 					sub.ch <- u
 				}
 				sub.initial = false
+				sub.terminal = membershipChanged
 			}
 			if viewErr == nil {
 				sub.previous = contentHash

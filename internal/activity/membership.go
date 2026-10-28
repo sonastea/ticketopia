@@ -73,6 +73,9 @@ type memberState struct {
 	used       time.Time
 	retryAt    time.Time
 	generation uint64
+	// swept is the revision sweep that last read this account's revision. An
+	// account absent from a sweep's union must not borrow its freshness.
+	swept uint64
 }
 
 func sourceMask(f Filters) uint8 {
@@ -148,34 +151,11 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		delete(s.invalidMembers, id)
 	}
 	s.mu.Unlock()
-	for id := range s.memberFacts {
-		slot, exists := s.index.slots[id]
-		if !exists || slot != s.memberSlots[id] {
-			for _, m := range s.members {
-				for _, b := range m.bits {
-					if b != nil {
-						b[s.memberSlots[id]/64] &^= 1 << (s.memberSlots[id] % 64)
-					}
-				}
-			}
-			delete(s.memberFacts, id)
-			delete(s.memberSlots, id)
-			changed = true
-		}
+	if s.reconcileMembers() {
+		changed = true
 	}
-	for _, c := range s.index.data.Items {
-		old, exists := s.memberFacts[c.Item.EventID]
-		if !exists || !old.Revision.Equal(c.Revision) {
-			slot := s.index.slots[c.Item.EventID]
-			for _, m := range s.members {
-				m.dirty.add(slot)
-				m.valid = false
-				m.retryAt = time.Time{}
-			}
-			s.memberFacts[c.Item.EventID] = MembershipCandidate{c.Item.EventID, c.Revision}
-			s.memberSlots[c.Item.EventID] = slot
-			changed = true
-		}
+	if periodic {
+		s.memberSweep++
 	}
 	for id, mask := range wanted {
 		m := s.members[id]
@@ -219,6 +199,11 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		if !m.valid && !now.Before(m.retryAt) {
 			changed = true
 		}
+		// An account outside the last sweep (a snapshot-only owner between
+		// requests) is checked on re-entry rather than at the next interval.
+		if m.valid && m.swept != s.memberSweep {
+			changed = true
+		}
 	}
 	if !changed && !periodic {
 		return s.memberResult(s.members[owner])
@@ -233,7 +218,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 	ids := []string{}
 	for id := range wanted {
 		m := s.members[id]
-		if (periodic || !m.valid) && (m.valid || !now.Before(m.retryAt)) {
+		if (m.swept != s.memberSweep || !m.valid) && (m.valid || !now.Before(m.retryAt)) {
 			ids = append(ids, id)
 		}
 	}
@@ -274,6 +259,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		work := []MembershipOwner{}
 		for _, id := range chunk {
 			m := s.members[id]
+			m.swept = s.memberSweep
 			if revisions[id] == 0 {
 				m.valid = false
 				continue
@@ -389,6 +375,45 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 		}
 	}
 	return s.memberResult(s.members[owner])
+}
+
+// reconcileMembers aligns membership bits with the current candidate
+// generation (under the projection gate, without SQL): a removed or reused
+// slot is cleared and a new or revised candidate marks every account dirty.
+// It reports whether any membership became incomplete.
+func (s *Service) reconcileMembers() bool {
+	changed := false
+	for id := range s.memberFacts {
+		slot, exists := s.index.slots[id]
+		if !exists || slot != s.memberSlots[id] {
+			for _, m := range s.members {
+				for _, b := range m.bits {
+					if b != nil {
+						b[s.memberSlots[id]/64] &^= 1 << (s.memberSlots[id] % 64)
+					}
+				}
+			}
+			delete(s.memberFacts, id)
+			delete(s.memberSlots, id)
+			changed = true
+		}
+	}
+	for _, c := range s.index.data.Items {
+		old, exists := s.memberFacts[c.Item.EventID]
+		if !exists || !old.Revision.Equal(c.Revision) {
+			slot := s.index.slots[c.Item.EventID]
+			for _, m := range s.members {
+				m.dirty.add(slot)
+				m.valid = false
+				m.retryAt = time.Time{}
+			}
+			s.memberFacts[c.Item.EventID] = MembershipCandidate{c.Item.EventID, c.Revision}
+			s.memberSlots[c.Item.EventID] = slot
+			changed = true
+		}
+	}
+	s.memberIndex = s.index
+	return changed
 }
 
 // memberResult reports a complete membership, a bounded hold while a newer
