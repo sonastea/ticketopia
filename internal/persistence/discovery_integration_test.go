@@ -307,6 +307,43 @@ func TestMariaDBDiscoverPartialEmptyAndDailyCoverage(t *testing.T) {
 	}
 }
 
+// Enclosing scopes without a success are unordered in SQL. An abandoned older
+// default range must not replace the newest attempt's time and freshness.
+func TestMariaDBDiscoverPartialCoverageReportsNewestAttempt(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "1" {
+			w.WriteHeader(503)
+			return
+		}
+		fixtureCatalog(w, r, 105)
+	}))
+	defer upstream.Close()
+	db := f.runtime.Database
+	for _, end := range []string{"2026-12-01", "2026-12-15", "2026-12-31", "2027-01-05"} {
+		execSQL(t, f.admin, `UPDATE `+db+`.provider_budgets SET blocked_until=UTC_TIMESTAMP(6)`)
+		s := catalogService(t, p, upstream.URL, 100)
+		if _, err := s.Events(t.Context(), catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-01&end_date="+end)); err != nil {
+			t.Fatal(err)
+		}
+		s.WaitRefreshes()
+	}
+	execSQL(t, f.admin, `UPDATE `+db+`.discovery_scopes SET data_as_of=TIMESTAMPADD(DAY,-14,UTC_TIMESTAMP(6)),last_attempt=TIMESTAMPADD(DAY,-14,UTC_TIMESTAMP(6)),next_refresh=TIMESTAMPADD(DAY,-13,UTC_TIMESTAMP(6))`)
+	execSQL(t, f.admin, `UPDATE `+db+`.provider_budgets SET blocked_until=UTC_TIMESTAMP(6)`)
+	s := catalogService(t, p, upstream.URL, 100)
+	q := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-10")
+	if _, err := s.Events(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	s.WaitRefreshes()
+	read, err := p.Discovery().Search(t.Context(), q, 6*time.Hour)
+	if err != nil || read.List.Meta.Coverage.Status != "partial" || read.List.Meta.Stale || time.Since(read.List.Meta.DataAsOf) > time.Minute {
+		t.Fatalf("newest partial attempt not reported: %+v %v", read.List.Meta, err)
+	}
+}
+
 func TestMariaDBMissingEventDetailAndPublicHistory(t *testing.T) {
 	f := newMaria(t)
 	f.migrate(t)

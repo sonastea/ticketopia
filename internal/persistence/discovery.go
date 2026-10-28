@@ -424,6 +424,9 @@ func coverageStampAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, fresh
 	}
 	defer rows.Close()
 	refresh := true
+	// Unsuccessful scopes sort in no particular order; report the newest attempt
+	// rather than whichever row (perhaps an abandoned older range) comes last.
+	var newestPartial time.Time
 	for rows.Next() {
 		stamp.scopes++
 		var success, at sql.NullTime
@@ -451,7 +454,8 @@ func coverageStampAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, fresh
 				c.CollectedDays, c.Status = days, "stale"
 				meta.DataAsOf, meta.Stale = success.Time, true
 			}
-		} else if at.Valid && c.CollectedDays < days {
+		} else if at.Valid && c.CollectedDays < days && at.Time.After(newestPartial) {
+			newestPartial = at.Time
 			c.Status = "partial"
 			meta.DataAsOf = at.Time
 			meta.Stale = now.Sub(at.Time) >= freshFor || status == "failed"
