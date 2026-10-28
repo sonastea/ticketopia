@@ -8,6 +8,12 @@ not compare it. A bounded `Snapshots` batch read (at most 50 IDs, one SELECT on
 `event_snapshots`) supplies display-only artwork to Happening Now. See
 [discovery](discovery.md#responsive-navigation-and-event-details).
 
+Schema 20 adds nullable `event_reminders.enrolled_at`: when a reminder's current
+lead time took effect. Changing the lead or re-enabling a stopped reminder resets
+it; existing rows stay `NULL` and fall back to `created_at`, so nothing is
+backfilled. Existing table grants suffice; startup probes require the column.
+See [reminders](reminders.md).
+
 Schema 19 adds transactional live-activity membership revisions on accounts;
 save/interest/artist-follow/venue-follow changes increment them without resetting
 notification preferences. See [private live filters](live-community-activity.md#private-connections-part-4).
@@ -339,8 +345,9 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 19 only**. Versions 0–18 and 20+ are rejected;
-Partial schemas/missing columns or non-InnoDB tables fail startup. The
+This binary supports **clean schema version 20 only**. Versions 0–19 and 21+ are rejected;
+Partial schemas/missing columns or non-InnoDB tables fail startup. The additive
+v19-to-v20 upgrade still requires drained v19 replicas, then migrate and start. The
 v16-to-v17 upgrade requires drained writes and the normal migrate/reconcile/start
 sequence. Roll back with a schema-17-compatible image and the live kill switch;
 do not undo the migration or restore previous pause values over later user choices.

@@ -46,7 +46,8 @@ digest choice; its existing JSON preference contract remains for compatibility,
 not a delivery promise.
 
 Unknown or TBD sale times stay pending. Known future sales whose lead time has
-already elapsed can be reminded immediately after enrollment. Already-on-sale
+already elapsed can be reminded immediately after enrollment, including after
+changing the lead time or re-enabling a stopped reminder. Already-on-sale
 events never produce a late reminder. Messages more than five minutes past their
 scheduled time expire rather than catching up after an outage or long pause.
 Observed time changes reconcile pending jobs; explicit cancellation/postponement

@@ -65,17 +65,20 @@ func TestMariaDBLivePreferenceUpgrade(t *testing.T) {
 	if _, _, err = posts.Create(t.Context(), fmt.Sprintf("%032d", 1), root.EventID, root.ID, "", "Existing reply", accounts.ID()); err != nil {
 		t.Fatal(err)
 	}
-	// Seed the historical row directly: today's writer requires schema 19's
-	// transactional membership revision, which deliberately does not exist yet.
+	// Seed historical rows directly: today's writers require schema 19's
+	// membership revision and schema 20's reminder enrollment, absent here.
 	execSQL(t, db, `INSERT INTO saved_events(account_id,event_id) VALUES (?,?)`, fmt.Sprintf("%032d", 1), detail.Item.ID)
-	if _, err = oldPool.Reminders().Set(t.Context(), fmt.Sprintf("%032d", 1), detail.Item.ID, 60); err != nil {
-		t.Fatal(err)
-	}
+	execSQL(t, db, `INSERT INTO event_reminders(reminder_id,account_id,event_id,lead_minutes) VALUES (?,?,?,60)`, accounts.ID(), fmt.Sprintf("%032d", 1), detail.Item.ID)
 	execSQL(t, db, `INSERT INTO reminder_jobs(job_id,reminder_id,sale_at,scheduled_at,state,attempts,attempted_at,message_id) SELECT ?,reminder_id,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),'accepted',1,UTC_TIMESTAMP(6),'existing-receipt' FROM event_reminders`, accounts.ID())
 	tables := []string{"discussion_follows", "discussion_notifications", "discussion_notification_posts", "event_reminders", "reminder_jobs", "reminder_dispatch"}
 	dump := func(table string) string {
 		t.Helper()
-		rows, e := db.QueryContext(t.Context(), `SELECT * FROM `+table+` ORDER BY 1`)
+		columns := "*"
+		if table == "event_reminders" {
+			// Later additive columns (schema 20 enrolled_at) are not reset data.
+			columns = "reminder_id,account_id,event_id,lead_minutes,active,state,sale_at,scheduled_at,next_check,lease_until,token,created_at"
+		}
+		rows, e := db.QueryContext(t.Context(), `SELECT `+columns+` FROM `+table+` ORDER BY 1`)
 		if e != nil {
 			t.Fatal(e)
 		}

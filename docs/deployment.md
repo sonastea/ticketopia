@@ -10,13 +10,14 @@ Schema 17 resets all existing notification pauses once and initializes enabled l
 preferences. Apply it to production only during that final rollout, not early as a
 schema-only change. Schema 18 adds city/category filters and stored public titles
 without resetting later choices. Schema 19 adds membership revisions for private
-connection filtering, also preserving later choices. Drain old replicas, migrate
-through schema 19, reconcile the runtime
+connection filtering, also preserving later choices. Schema 20 adds an additive
+reminder enrollment column. Drain old replicas, migrate
+through schema 20, reconcile the runtime
 grants (including INSERT/DELETE on `live_recommendation_activity`), then start the
 new binary. Startup probes verify the column/table and permissions.
 The new preference columns use existing account table grants. Subsequent pauses and
 live disables survive restarts/reruns; email permissions and delivery history remain
-independent. Rollback means a schema-19-compatible image with the live kill switch
+independent. Rollback means a schema-20-compatible image with the live kill switch
 off, preserving preferences rather than reversing the account reset.
 
 Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and

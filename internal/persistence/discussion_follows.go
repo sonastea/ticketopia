@@ -173,6 +173,10 @@ func enqueueDiscussionReply(ctx context.Context, tx *sql.Tx, post discussions.Po
 		if _, err = tx.ExecContext(ctx, `INSERT INTO discussion_notification_posts (notification_id,post_id) SELECT notification_id,? FROM discussion_notifications WHERE account_id=? AND thread_id=? AND batch_key=?`, post.ID, r.who, post.ThreadID, batch); err != nil {
 			return err
 		}
+		// A reply committed after its digest window was read is still unseen.
+		if _, err = tx.ExecContext(ctx, `UPDATE discussion_notifications SET read_at=NULL WHERE account_id=? AND thread_id=? AND batch_key=? AND read_at IS NOT NULL`, r.who, post.ThreadID, batch); err != nil {
+			return err
+		}
 	}
 	return nil
 }

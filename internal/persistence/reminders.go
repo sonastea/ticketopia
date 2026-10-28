@@ -65,8 +65,10 @@ func (r *ReminderRepository) Set(ctx context.Context, owner, event string, lead 
 		return reminders.Item{}, safeError("reminder saved event", err)
 	}
 	// Identical PUT preserves schedule and in-flight ownership. Changed settings
-	// invalidate pre-send claims but never reset accepted/uncertain occurrences.
-	_, err = tx.ExecContext(ctx, `INSERT INTO event_reminders (reminder_id,account_id,event_id,lead_minutes) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE token=IF(active=TRUE AND lead_minutes=VALUES(lead_minutes),token,NULL),lease_until=IF(active=TRUE AND lead_minutes=VALUES(lead_minutes),lease_until,NULL),next_check=IF(active=TRUE AND lead_minutes=VALUES(lead_minutes),next_check,UTC_TIMESTAMP(6)),lead_minutes=VALUES(lead_minutes),active=TRUE`, accounts.ID(), owner, event, lead)
+	// invalidate pre-send claims but never reset accepted/uncertain occurrences;
+	// they restart enrollment so an elapsed new lead is due now, not expired.
+	// Assignments apply in order: enrolled_at must compare the old settings.
+	_, err = tx.ExecContext(ctx, `INSERT INTO event_reminders (reminder_id,account_id,event_id,lead_minutes) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE enrolled_at=IF(active=TRUE AND lead_minutes=VALUES(lead_minutes),enrolled_at,UTC_TIMESTAMP(6)),token=IF(active=TRUE AND lead_minutes=VALUES(lead_minutes),token,NULL),lease_until=IF(active=TRUE AND lead_minutes=VALUES(lead_minutes),lease_until,NULL),next_check=IF(active=TRUE AND lead_minutes=VALUES(lead_minutes),next_check,UTC_TIMESTAMP(6)),lead_minutes=VALUES(lead_minutes),active=TRUE`, accounts.ID(), owner, event, lead)
 	if err != nil {
 		return reminders.Item{}, safeError("reminder write", err)
 	}
@@ -196,9 +198,9 @@ func (r *ReminderRepository) Prepare(ctx context.Context, c reminders.Claim, fre
 	var active bool
 	var token sql.NullString
 	var lead int
-	var created, now time.Time
-	var lease sql.NullTime
-	err = tx.QueryRowContext(ctx, `SELECT active,token,lead_minutes,created_at,UTC_TIMESTAMP(6),lease_until FROM event_reminders WHERE reminder_id=? FOR UPDATE`, c.ID).Scan(&active, &token, &lead, &created, &now, &lease)
+	var enrolled, now time.Time
+	var lease, trackedSale, trackedDue sql.NullTime
+	err = tx.QueryRowContext(ctx, `SELECT active,token,lead_minutes,COALESCE(enrolled_at,created_at),UTC_TIMESTAMP(6),lease_until,sale_at,scheduled_at FROM event_reminders WHERE reminder_id=? FOR UPDATE`, c.ID).Scan(&active, &token, &lead, &enrolled, &now, &lease, &trackedSale, &trackedDue)
 	if err != nil {
 		return nil, safeError("reminder planning", err)
 	}
@@ -221,7 +223,7 @@ func (r *ReminderRepository) Prepare(ctx context.Context, c reminders.Claim, fre
 		state, sale, due = reminders.Schedule(e, lead, now)
 		next = now.Add(time.Hour)
 		if due != nil {
-			v := maxTime(*due, created)
+			v := maxTime(*due, enrolled)
 			due = &v
 			next = minTime(next, maxTime(v, now.Add(time.Second)))
 		}
@@ -281,6 +283,20 @@ func (r *ReminderRepository) Prepare(ctx context.Context, c reminders.Claim, fre
 				return nil, safeError("reminder attempt", err)
 			}
 		}
+	} else if active && trackedSale.Valid && (sale == nil || sale.Equal(trackedSale.Time)) {
+		// A receipt records what already happened to the tracked occurrence; a
+		// later refresh failure, pause or elapsed sale must not replace it.
+		var receipt string
+		err = tx.QueryRowContext(ctx, `SELECT state FROM reminder_jobs WHERE reminder_id=? AND sale_at=?`, c.ID, trackedSale.Time).Scan(&receipt)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, safeError("reminder receipt", err)
+		}
+		if receipt == "accepted" || receipt == "uncertain" || receipt == "failed" {
+			state, sale = receipt, &trackedSale.Time
+			if trackedDue.Valid {
+				due = &trackedDue.Time
+			}
+		}
 	}
 	_, err = tx.ExecContext(ctx, `UPDATE event_reminders SET active=?,state=?,sale_at=?,scheduled_at=?,next_check=?,token=NULL,lease_until=NULL WHERE reminder_id=?`, active, state, sale, due, next, c.ID)
 	if err != nil {
@@ -320,10 +336,21 @@ func (r *ReminderRepository) Finish(ctx context.Context, id, state, messageID st
 	if err = tx.QueryRowContext(ctx, `SELECT reminder_id,sale_at FROM reminder_jobs WHERE job_id=?`, id).Scan(&setting, &sale); err != nil {
 		return safeError("reminder receipt", err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE event_reminders SET state=?,next_check=IF(?='pending',UTC_TIMESTAMP(6)+INTERVAL 1 MINUTE,UTC_TIMESTAMP(6)+INTERVAL 1 HOUR) WHERE reminder_id=? AND active=TRUE AND sale_at=?`, state, state, setting, sale); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT reminder_id FROM event_reminders WHERE reminder_id=? FOR UPDATE`, setting).Scan(&setting); err != nil {
 		return safeError("reminder receipt", err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE reminder_jobs SET state=?,message_id=? WHERE job_id=? AND state='sending'`, state, messageID, id); err != nil {
+	// Only the attempt still owning the job decides the outcome; a late receipt
+	// after recovery marked it uncertain must not contradict that durable state.
+	res, err := tx.ExecContext(ctx, `UPDATE reminder_jobs SET state=?,message_id=? WHERE job_id=? AND state='sending'`, state, messageID, id)
+	if err != nil {
+		return safeError("reminder receipt", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return safeError("reminder receipt", err)
+	} else if n == 0 {
+		return nil
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE event_reminders SET state=?,next_check=IF(?='pending',UTC_TIMESTAMP(6)+INTERVAL 1 MINUTE,UTC_TIMESTAMP(6)+INTERVAL 1 HOUR) WHERE reminder_id=? AND active=TRUE AND sale_at=?`, state, state, setting, sale); err != nil {
 		return safeError("reminder receipt", err)
 	}
 	if state == "pending" {

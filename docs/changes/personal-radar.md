@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-10-28 — Reminder outcomes and enrollment, schema v20
+
+- Keep a sent occurrence's accepted/uncertain/failed outcome through later refresh
+  failures, pauses or an elapsed sale; ignore receipts for jobs already recovered.
+- Add `event_reminders.enrolled_at`: changing the lead or re-enabling a reminder
+  makes an elapsed lead due now instead of expiring. See [reminders](../reminders.md).
+
 ### 2026-10-14 — Page-bounded Radar reads
 
 - Move [Radar](../radar.md) eligibility, distinct-signal ranking and keyset paging

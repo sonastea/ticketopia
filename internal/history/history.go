@@ -168,13 +168,15 @@ func KnownFacts(before, after models.Event) models.Event {
 		after.Venues = before.Venues
 	}
 	s := after.Start
-	if s.DateTime == nil && s.LocalDate == nil && !s.DateTBA && !s.DateTBD && !s.TimeTBA && !s.NoSpecificTime {
+	// A supplied local time or zone is a fact even when the date is missing.
+	if s.DateTime == nil && s.LocalDate == nil && s.LocalTime == nil && s.Timezone == nil && !s.DateTBA && !s.DateTBD && !s.TimeTBA && !s.NoSpecificTime {
 		after.Start = before.Start
 	} else {
 		unknownDate := s.DateTBA || s.DateTBD
 		unknownTime := s.TimeTBA || s.NoSpecificTime
 		sameOptional := func(a, b *string) bool { return a == nil || (b != nil && *a == *b) }
-		if s.DateTime == nil && !unknownDate && !unknownTime && sameOptional(s.LocalDate, before.Start.LocalDate) && sameOptional(s.LocalTime, before.Start.LocalTime) {
+		// The same wall clock in another zone is a different instant.
+		if s.DateTime == nil && !unknownDate && !unknownTime && sameOptional(s.LocalDate, before.Start.LocalDate) && sameOptional(s.LocalTime, before.Start.LocalTime) && sameOptional(s.Timezone, before.Start.Timezone) {
 			after.Start.DateTime = before.Start.DateTime
 		}
 		if s.LocalDate == nil && !unknownDate {
@@ -208,17 +210,30 @@ func KnownFacts(before, after models.Event) models.Event {
 		// Copy before merging optional times; callers' observation evidence must
 		// never be mutated by change detection.
 		after.Presales = append([]models.Presale(nil), after.Presales...)
+		// Names are labels, not identities: among same-named windows, inherit
+		// only from the one matching the supplied times, never by array order.
+		sameTime := func(a, b *time.Time) bool { return a == nil || (b != nil && a.Equal(*b)) }
 		for i, p := range after.Presales {
+			var named, matched []models.Presale
 			for _, old := range before.Presales {
 				if strings.EqualFold(strings.TrimSpace(p.Name), strings.TrimSpace(old.Name)) {
-					if p.Start == nil {
-						after.Presales[i].Start = old.Start
+					named = append(named, old)
+					if sameTime(p.Start, old.Start) && sameTime(p.End, old.End) {
+						matched = append(matched, old)
 					}
-					if p.End == nil {
-						after.Presales[i].End = old.End
-					}
-					break
 				}
+			}
+			if len(matched) != 1 {
+				if len(matched) != 0 || len(named) != 1 {
+					continue
+				}
+				matched = named
+			}
+			if p.Start == nil {
+				after.Presales[i].Start = matched[0].Start
+			}
+			if p.End == nil {
+				after.Presales[i].End = matched[0].End
 			}
 		}
 	}

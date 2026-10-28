@@ -375,7 +375,13 @@ func (r *ModerationRepository) Decide(ctx context.Context, who, post string, rev
 		return moderation.Outcome{}, &accounts.ValidationError{Field: "action", Message: "choose an action compatible with the current contribution state"}
 	}
 	id := accounts.ID()
-	if _, err = tx.ExecContext(ctx, `INSERT INTO moderation_decisions (decision_id,post_id,moderator_id,action,reason,notes) VALUES (?,?,?,?,?,?)`, id, post, who, review.Action, review.Reason, review.Notes); err != nil {
+	// Decisions are ordered by created_at. Under the post lock, keep it strictly
+	// after the previous decision even if the database clock steps backward.
+	var at time.Time
+	if err = tx.QueryRowContext(ctx, `SELECT GREATEST(UTC_TIMESTAMP(6),COALESCE(MAX(created_at)+INTERVAL 1 MICROSECOND,UTC_TIMESTAMP(6))) FROM moderation_decisions WHERE post_id=?`, post).Scan(&at); err != nil {
+		return moderation.Outcome{}, safeError("moderation decision", err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO moderation_decisions (decision_id,post_id,moderator_id,action,reason,notes,created_at) VALUES (?,?,?,?,?,?,?)`, id, post, who, review.Action, review.Reason, review.Notes, at); err != nil {
 		return moderation.Outcome{}, safeError("moderation decision", err)
 	}
 	state := `hidden_at`
