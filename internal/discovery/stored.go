@@ -141,6 +141,9 @@ func (s *Service) storedEvent(ctx context.Context, id string) (models.EventDetai
 				return models.EventDetail{}, err
 			}
 			detail.Meta.Stale = true
+		} else if fresh.Meta.Stale && storedErr == nil && !fresh.Meta.DataAsOf.After(stored.Meta.DataAsOf) {
+			// A retained cache fallback must not rewind newer durable facts.
+			detail.Meta.Stale = true
 		} else {
 			detail = fresh
 			if !fresh.Meta.Stale {
