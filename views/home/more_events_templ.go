@@ -493,11 +493,11 @@ func EventRowsContent(events []models.Event, returnURL string, selectedID string
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = EventRowTools(event, returnURL, saves, actionReturnURL, interests, true).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventRowActivity(event.ID, activity[event.ID], returnURL).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = EventRowActivity(event.ID, activity[event.ID], returnURL).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = EventRowTools(event, returnURL, saves, actionReturnURL, interests, true).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

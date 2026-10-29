@@ -73,8 +73,8 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 							<p class="sale-date">{ saleLabel(event) }</p>
 						}
 					</div>
-					@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
 					@EventRowActivity(event.ID, activity[event.ID], returnURL)
+					@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
 				</div>
 			}
 		</li>

@@ -1309,6 +1309,17 @@ html:has(.filter-sheet:modal) {
   }
   .event-row .event-art { margin-block-end: 1rem; }
   .event-row .event-art .event-image { aspect-ratio: 16 / 9; }
+
+  /* Grid cells already stretch to the tallest card in their row; a column
+     flow lets the actions take the leftover space so CTAs line up. */
+  .event-row { display: flex; flex-direction: column; }
+  .event-row > .event-art { flex: none; align-self: stretch; }
+  .event-row > :is(.event-copy, .event-row-extension) { display: flex; flex-direction: column; flex: 1; }
+  .event-row:has(> .event-row-extension) > .event-copy { flex: none; }
+  .event-row > :is(.event-copy, .event-row-extension) > .event-action-group {
+    margin-block-start: auto;
+    padding-block-start: .5rem;
+  }
 }
 
 /* The open preview owns the selected event's shared transition names. */
