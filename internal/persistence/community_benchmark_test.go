@@ -166,6 +166,9 @@ func BenchmarkMariaDBWrites(b *testing.B) {
 					b.StartTimer()
 				}
 			})
+			// The fixture outlives -count samples; keep the snapshot sequence
+			// advancing so each sample writes new data instead of replaying it.
+			pages := 0
 			b.Run("collection_batch_100", func(b *testing.B) {
 				r := f.p.History()
 				task := history.NewTask(history.Scope{City: "Write fixture", Country: "DE"}, "2026-10-08")
@@ -176,7 +179,6 @@ func BenchmarkMariaDBWrites(b *testing.B) {
 				for i := range 100 {
 					list.Items = append(list.Items, benchmarkEvent(i))
 				}
-				i := 0
 				b.ReportAllocs()
 				for b.Loop() {
 					b.StopTimer()
@@ -185,8 +187,8 @@ func BenchmarkMariaDBWrites(b *testing.B) {
 					if err != nil {
 						b.Fatal(err)
 					}
-					i++
-					list.Meta.DataAsOf = benchmarkAt.Add(time.Duration(i) * time.Second)
+					pages++
+					list.Meta.DataAsOf = benchmarkAt.Add(time.Duration(pages) * time.Second)
 					b.StartTimer()
 					if err := r.Page(b.Context(), claim, 0, list); err != nil {
 						b.Fatal(err)
