@@ -40,6 +40,23 @@ still happen. There is no additional application response cache. See the
 [HTTP measurements](public-cache-measurements.md) for timing, allocations and
 repository invocation counts.
 
+## Browser assets
+
+Pages link the stylesheet and scripts through `assets.Path`, which appends
+`?v=<content hash>` (a SHA-256 prefix of the embedded file). The version follows
+the file's bytes, not the commit, so unchanged files keep their URL and caches
+across deploys while any edit gets a new URL past Cloudflare and browsers.
+
+| Request | Cache-Control |
+| --- | --- |
+| `/assets/<file>?v=<current version>` | `public, max-age=31536000, immutable` |
+| Unversioned or older-version `/assets/<file>` | `no-cache` |
+
+Every embedded file carries `ETag: "<version>"`, so revalidation returns 304.
+Fonts, icons and the manifest stay unversioned: the stylesheet references fonts by
+plain URL, and preloads must match it. The query string must remain part of the
+CDN cache key; do not enable Cloudflare's "Ignore Query String" for `/assets/`.
+
 ## Source cache
 
 Ticketopia uses an in-process, concurrency-safe KV cache by default. No cache

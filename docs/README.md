@@ -97,7 +97,7 @@ their status; they describe intended work rather than available features.
   frontend search, request budgets, and verification.
 - [Location-aware discovery](location.md): editable IP/remembered city defaults,
   lookup caching, manual fallback, and trusted-proxy configuration.
-- [Cache configuration](cache.md): public HTTP validators/freshness, backends,
+- [Cache configuration](cache.md): public HTTP validators/freshness, versioned browser assets, backends,
   expiration, fallback behavior, NATS setup and [HTTP measurements](public-cache-measurements.md).
 - [Product context](../PRODUCT.md): agreed audience, web platform, current UI scope,
   and accessibility baseline.

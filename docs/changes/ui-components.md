@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-10-29 — Aligned event card actions and versioned assets
+
+- In the results card grid, event cards fill their row height and pin the action
+  group to the bottom, so ticket and Save buttons line up across a row. Discover
+  shows the activity preview before the actions. See [CSS conventions](../ui-components.md#modern-css-conventions).
+- Page stylesheets and scripts link through `assets.Path`, so CSS and JavaScript
+  changes reach browsers on deploy. See [browser assets](../cache.md#browser-assets).
+
 ### 2026-10-27 — Enlarged-text wordmark and offline nonce
 
 - Follow-up review fixes: event return labels wrap beside Share; Community

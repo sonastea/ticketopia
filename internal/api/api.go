@@ -194,7 +194,7 @@ func (a *api) Routes() *echo.Echo {
 	a.accountRoutes(e)
 	a.liveActivityRoutes(e)
 	offlineRoutes(e)
-	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
+	e.GET("/assets/*", assetHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/events/:event_id", a.eventHandler, a.publicCacheBoundary)
 	e.GET("/api/v1/events/:event_id/history", a.eventHistoryHandler, a.publicCacheBoundary)

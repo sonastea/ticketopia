@@ -37,6 +37,9 @@ run outside the repository. CSS, generated Go, the bundle manifest, and the hash
 JS bundle are checked in so `go run ./cmd/ticketopia` still works after checkout.
 Regenerate and commit them together after source changes. `bin/` and `node_modules/`
 are ignored. Air runs the same build and watches CSS/JS as well as Go and templ.
+Link page stylesheets and scripts with `assets.Path("<file>")`, never a literal
+`/assets/` URL, so each deploy gets a content-versioned URL past CDN and browser
+caches; see [browser assets](cache.md#browser-assets).
 
 ```sh
 go tool shadcn-templ add textarea
@@ -133,7 +136,10 @@ rem-based `clamp()` tokens, while fields remain at least 16px to avoid iOS focus
 zoom without disabling user zoom. Text wraps without global min-content-shrinking
 `anywhere`; dates, prices, counts, and changing numeric facts use tabular figures.
 Image wrappers reserve aspect ratios and clip without creating scroll containers.
-Actual sidebar/preview scroll areas retain `overflow-y: auto`, stable gutters,
+In the results card grid, each event card is a flex column whose action group
+takes the leftover space (`margin-block-start: auto`), so CTAs line up across a
+row however much metadata each card shows; keep actions as each card's last
+content group. Actual sidebar/preview scroll areas retain `overflow-y: auto`, stable gutters,
 and contained overscroll. Textareas grow from 8rem to 24rem with `field-sizing`
 where supported, retaining native scrolling and manual resizing otherwise.
 

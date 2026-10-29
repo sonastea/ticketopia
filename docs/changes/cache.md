@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-10-29 — Content-versioned browser assets
+
+- Link the stylesheet and scripts as `/assets/<file>?v=<content hash>` and serve
+  the current version as a year-long immutable response. Other asset requests
+  revalidate against a version ETag, so a deploy can no longer be hidden behind
+  Cloudflare's default four-hour cache.
+
+See [browser assets](../cache.md#browser-assets).
+
 ### 2026-10-29 — Decoded warm hits and shared catalog refreshes
 
 - Reuse each process's decoded discovery record while the store returns the same
