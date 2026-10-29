@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,7 +39,10 @@ type Service struct {
 	client      *http.Client
 	gate        requestGate
 	flights     singleflight.Group
+	decoded     decodedCache
 	refreshes   sync.WaitGroup
+	refreshMu   sync.Mutex
+	refreshing  map[string]chan struct{}
 	now         func() time.Time
 	coordinator Coordinator
 	catalog     Catalog
@@ -131,7 +135,8 @@ func (s *Service) events(ctx context.Context, q Query) (models.EventList, error)
 }
 
 func eventList(q Query, page eventPage, meta models.Freshness) models.EventList {
-	list := models.EventList{Items: page.Items, Total: page.Total, Meta: meta}
+	// Pages may be shared cache records: clipping makes appends copy.
+	list := models.EventList{Items: slices.Clip(page.Items), Total: page.Total, Meta: meta}
 	if len(page.Items) > 0 && q.Page+1 < page.TotalPages {
 		if (q.Page+1)*q.Limit < 1000 {
 			cursor := q.nextCursor()
@@ -251,7 +256,7 @@ func (s *Service) Genres(ctx context.Context) (models.GenreList, error) {
 		}
 		return normalizedGenres(raw), nil
 	})
-	return models.GenreList{Items: items, Meta: meta}, err
+	return models.GenreList{Items: slices.Clip(items), Meta: meta}, err
 }
 
 // Categories exposes Ticketmaster segments with their compatible genres. The
@@ -297,7 +302,7 @@ func (s *Service) Categories(ctx context.Context) (models.CategoryList, error) {
 		})
 		return items, nil
 	})
-	return models.CategoryList{Items: items, Meta: meta}, err
+	return models.CategoryList{Items: slices.Clip(items), Meta: meta}, err
 }
 
 func normalizedGenres(raw providerSegment) []models.Genre {

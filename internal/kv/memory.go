@@ -43,7 +43,8 @@ func (s *memoryStore) Get(ctx context.Context, key string) ([]byte, error) {
 		delete(s.entries, key)
 		return nil, ErrNotFound
 	}
-	return bytes.Clone(entry.value), nil
+	// Set stores a private copy that is never modified, so readers share it.
+	return entry.value, nil
 }
 
 func (s *memoryStore) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {

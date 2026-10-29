@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-10-29 — Decoded warm hits and shared catalog refreshes
+
+- Reuse each process's decoded discovery record while the store returns the same
+  bytes, and stop copying in-memory reads. A warm 20-event page hit fell from
+  about 312 µs/194 KB to under 1 µs on the memory store (about 10 µs when a
+  network backend returns fresh bytes); see `BenchmarkCachedHit`.
+- Start one in-process refresh goroutine per stored Discover scope; concurrent
+  visitors share it instead of each parking a goroutine until it finishes.
+
+See [source cache](../cache.md#source-cache).
+
 ### 2026-10-15 — Public HTTP caching and event revalidation
 
 - Add deterministic complete-representation weak ETags and grammar-aware

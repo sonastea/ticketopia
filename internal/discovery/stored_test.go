@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -312,6 +313,60 @@ func TestStoredRefreshReturnsRetainedResultsWithoutWaiting(t *testing.T) {
 	}
 	unblock.Do(func() { close(release) })
 	<-finished
+}
+
+func TestStoredRefreshStartsOneGoroutinePerScope(t *testing.T) {
+	s := newTestService(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(eventsFixture) })
+	t.Cleanup(s.WaitRefreshes)
+	started, release := make(chan struct{}), make(chan struct{})
+	var startOnce, unblock sync.Once
+	t.Cleanup(func() { unblock.Do(func() { close(release) }) })
+	var claims atomic.Int32
+	s.catalog = storedTestCatalog{
+		search: func(context.Context, Query, time.Duration) (CatalogRead, error) {
+			return CatalogRead{Refresh: true, List: models.EventList{Items: []models.Event{{ID: "ticketmaster:retained"}}}}, nil
+		},
+		claim: func(context.Context, Query) (string, error) { claims.Add(1); return "owner", nil },
+		page: func(ctx context.Context, _ Query, _ string, _ int, _ models.EventList) error {
+			startOnce.Do(func() { close(started) })
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-release:
+				return nil
+			}
+		},
+		finish: func(_ context.Context, _ Query, _ string, status string, _ time.Duration) (string, error) {
+			return status, nil
+		},
+	}
+	q := testQuery(t, "city=Boston")
+	if _, err := s.Events(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	before := runtime.NumGoroutine()
+	// Visitors served retained results during a slow refresh must not each
+	// leave a goroutine parked until it completes.
+	const visitors = 200
+	for range visitors {
+		if list, err := s.Events(t.Context(), q); err != nil || len(list.Items) != 1 {
+			t.Fatalf("retained results lost during refresh: %+v %v", list, err)
+		}
+	}
+	if grown := runtime.NumGoroutine() - before; grown > visitors/20 || claims.Load() != 1 {
+		t.Fatalf("visitors piled up behind one refresh: goroutines grew by %d, claims=%d", grown, claims.Load())
+	}
+	unblock.Do(func() { close(release) })
+	s.WaitRefreshes()
+	// A finished refresh must not be mistaken for one still in flight.
+	if _, err := s.Events(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	s.WaitRefreshes()
+	if claims.Load() != 2 {
+		t.Fatalf("a completed refresh blocked the next one: claims=%d", claims.Load())
+	}
 }
 
 func TestStoredRefreshFinalizesIngestionFailure(t *testing.T) {

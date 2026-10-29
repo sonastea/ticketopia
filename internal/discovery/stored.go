@@ -37,19 +37,7 @@ func (s *Service) storedEvents(ctx context.Context, q Query) (models.EventList, 
 		return models.EventList{}, err
 	}
 	if read.Refresh {
-		// One browser must not cancel a refresh shared by other visitors. Track
-		// the work so shutdown drains it before closing persistence/cache.
-		done := make(chan struct{})
-		s.refreshes.Go(func() {
-			defer close(done)
-			s.flights.Do("stored:"+q.ScopeID(), func() (any, error) {
-				err := s.refreshSearch(q.CollectionScope())
-				if err != nil && s.ctx.Err() == nil {
-					s.logger.Warn().Err(err).Msg("Discover refresh incomplete; retaining catalog")
-				}
-				return nil, err
-			})
-		})
+		done := s.startRefresh(q)
 		// Serve last-good results (including previously collected empty searches)
 		// immediately, preserving their freshness/coverage labels.
 		if len(read.List.Items) > 0 || !read.List.Meta.DataAsOf.IsZero() {
@@ -73,6 +61,37 @@ func (s *Service) storedEvents(ctx context.Context, q Query) (models.EventList, 
 		}
 	}
 	return read.List, nil
+}
+
+// startRefresh returns a channel closed when the scope's in-process refresh
+// ends, starting one only if none is running. Concurrent visitors share it
+// rather than each parking a goroutine until it finishes.
+func (s *Service) startRefresh(q Query) <-chan struct{} {
+	key := q.ScopeID()
+	s.refreshMu.Lock()
+	defer s.refreshMu.Unlock()
+	if done, ok := s.refreshing[key]; ok {
+		return done
+	}
+	if s.refreshing == nil {
+		s.refreshing = make(map[string]chan struct{})
+	}
+	done := make(chan struct{})
+	s.refreshing[key] = done
+	// One browser must not cancel a refresh shared by other visitors. Track
+	// the work so shutdown drains it before closing persistence/cache.
+	s.refreshes.Go(func() {
+		defer func() {
+			s.refreshMu.Lock()
+			delete(s.refreshing, key)
+			s.refreshMu.Unlock()
+			close(done)
+		}()
+		if err := s.refreshSearch(q.CollectionScope()); err != nil && s.ctx.Err() == nil {
+			s.logger.Warn().Err(err).Msg("Discover refresh incomplete; retaining catalog")
+		}
+	})
+	return done
 }
 
 func (s *Service) refreshSearch(scope Query) error {

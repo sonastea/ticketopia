@@ -66,6 +66,14 @@ results populate detail entries from embedded metadata. The HTML and JSON API
 share these entries. Cancellation of one caller does not cancel a shared refresh.
 Expired in-memory entries are cleaned up automatically.
 
+Each process also remembers the decoded record behind recently read entries
+(bounded by 4 MiB of stored bytes) and reuses it while the store returns
+identical bytes, so warm hits skip JSON decoding. The store remains authoritative:
+writes from any replica, expiry, eviction and corruption are seen on the next
+read. Decoded records are shared between requests, so discovery results are
+read-only; code that changes a result copies the affected slice first. The
+in-memory store likewise returns its stored bytes without copying.
+
 [IP-based city hints](location.md#ip-lookup-and-caching) use the same KV store:
 24 hours for successful lookups and 15 minutes for unsuccessful lookups, with
 per-process concurrent-request deduplication. They expire without a stale window.

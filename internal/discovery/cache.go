@@ -1,9 +1,11 @@
 package discovery
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/kv"
@@ -89,19 +91,87 @@ func cached[T any](ctx context.Context, s *Service, key string, policy cachePoli
 }
 
 func readRecord[T any](ctx context.Context, s *Service, key string) (cacheRecord[T], bool) {
-	var record cacheRecord[T]
 	data, err := s.cache.Get(ctx, key)
 	if err != nil {
-		if !errors.Is(err, kv.ErrNotFound) && ctx.Err() == nil {
+		if errors.Is(err, kv.ErrNotFound) {
+			s.decoded.drop(key)
+		} else if ctx.Err() == nil {
 			s.logger.Warn().Err(err).Msg("Could not read discovery cache")
 		}
-		return record, false
+		return cacheRecord[T]{}, false
 	}
-	if json.Unmarshal(data, &record) != nil || record.FetchedAt.IsZero() || record.FreshUntil.Before(record.FetchedAt) || record.StaleUntil.Before(record.FreshUntil) {
-		s.logger.Warn().Msg("Invalid discovery cache entry; fetching fresh data")
-		return record, false
+	record, ok := s.decoded.get(key, data).(cacheRecord[T])
+	if !ok {
+		if json.Unmarshal(data, &record) != nil || record.FetchedAt.IsZero() || record.FreshUntil.Before(record.FetchedAt) || record.StaleUntil.Before(record.FreshUntil) {
+			s.logger.Warn().Msg("Invalid discovery cache entry; fetching fresh data")
+			return record, false
+		}
+		s.decoded.put(key, data, record)
 	}
 	return record, s.now().Before(record.StaleUntil)
+}
+
+// decodedBudget bounds the stored bytes behind remembered records; decoded
+// values are a few times larger.
+const decodedBudget = 4 << 20
+
+// decodedCache remembers each key's last decoded record while the store still
+// returns the same bytes, so warm hits skip JSON decoding. The store stays the
+// source of truth for expiry and invalidation: a write from any replica
+// changes the bytes and is decoded afresh. Records are shared, so discovery
+// results are read-only; callers copy slices before modifying them.
+type decodedCache struct {
+	mu      sync.Mutex
+	entries map[string]decodedEntry
+	size    int
+}
+
+type decodedEntry struct {
+	raw    []byte
+	record any
+}
+
+func (c *decodedCache) get(key string, raw []byte) any {
+	c.mu.Lock()
+	entry, ok := c.entries[key]
+	c.mu.Unlock()
+	// Stores return immutable bytes, so comparing outside the lock is safe.
+	if ok && bytes.Equal(entry.raw, raw) {
+		return entry.record
+	}
+	return nil
+}
+
+func (c *decodedCache) put(key string, raw []byte, record any) {
+	if len(raw) > decodedBudget/16 {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = make(map[string]decodedEntry)
+	}
+	c.size -= len(c.entries[key].raw)
+	delete(c.entries, key)
+	// Arbitrary eviction suffices: a dropped record is only decoded again.
+	for k, entry := range c.entries {
+		if c.size+len(raw) <= decodedBudget {
+			break
+		}
+		delete(c.entries, k)
+		c.size -= len(entry.raw)
+	}
+	c.entries[key] = decodedEntry{raw, record}
+	c.size += len(raw)
+}
+
+func (c *decodedCache) drop(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if entry, ok := c.entries[key]; ok {
+		delete(c.entries, key)
+		c.size -= len(entry.raw)
+	}
 }
 
 func writeRecord[T any](ctx context.Context, s *Service, key string, record cacheRecord[T]) {

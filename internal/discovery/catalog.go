@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -159,7 +160,7 @@ func (s *Service) Catalog(ctx context.Context, kind string, values url.Values) (
 	if err != nil {
 		return models.CatalogList{}, err
 	}
-	list := models.CatalogList{Items: page.Items, Total: page.Total, Meta: meta}
+	list := models.CatalogList{Items: slices.Clip(page.Items), Total: page.Total, Meta: meta}
 	if len(page.Items) > 0 && q.Page+1 < page.TotalPages {
 		if (q.Page+1)*q.Limit < 1000 {
 			data, _ := json.Marshal(pageCursor{Version: 1, Page: q.Page + 1, Filters: q.fingerprint()})
