@@ -29,6 +29,9 @@ func (r *visibilityRepository) Set(_ context.Context, _ string, detail models.Ev
 	r.detail, r.value = detail, visibility
 	return Item{Event: detail.Item, Visibility: visibility}, errors.Is(r.err, ErrNotFound), nil
 }
+func (r *visibilityRepository) Add(ctx context.Context, owner string, detail models.EventDetail, visibility string) (Item, bool, error) {
+	return r.Set(ctx, owner, detail, visibility)
+}
 
 type visibilityDetails struct {
 	detail models.EventDetail

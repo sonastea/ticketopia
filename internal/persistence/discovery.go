@@ -67,17 +67,14 @@ func (r *DiscoveryRepository) countCacheKey(q discovery.Query) string {
 	return dbKey + "\x00" + q.CountKey()
 }
 
-func lookupDiscoverCount(key string, writeGen uint64, coverage coverageStamp, minTotal int, now time.Time) (int, bool, bool) {
+func lookupDiscoverCount(key string, writeGen uint64, coverage coverageStamp, minTotal int, now time.Time) (int, bool) {
 	discoverCountsMu.RLock()
 	entry, exists := discoverCounts[key]
 	discoverCountsMu.RUnlock()
-	if !exists {
-		return 0, false, false
+	if !exists || entry.writeGen != writeGen || entry.coverage != coverage || !now.Before(entry.expiresAt) || entry.total < minTotal {
+		return 0, false
 	}
-	if entry.writeGen != writeGen || entry.coverage != coverage || !now.Before(entry.expiresAt) || entry.total < minTotal {
-		return 0, false, true
-	}
-	return entry.total, true, false
+	return entry.total, true
 }
 
 func storeDiscoverCount(key string, total int, writeGen uint64, coverage coverageStamp, ttl time.Duration, now time.Time) {
@@ -218,7 +215,9 @@ func discoverPageQuery(q discovery.Query, cursor *discovery.Cursor) (string, []a
 			args = append(args, cursor.Date, cursor.Date, cursor.Time, cursor.Name, cursor.ID)
 		}
 	}
-	return `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) FROM (SELECT e.event_id` + from + ` ORDER BY ` + order + ` LIMIT ?) e STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id`, append(args, q.Limit+1)
+	// The derived table's ORDER BY only selects the page; join strategies such as
+	// batched key access may return it in another order, so order the outer rows.
+	return `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) FROM (SELECT e.event_id,e.local_date,e.local_time,e.name` + from + ` ORDER BY ` + order + ` LIMIT ?) e STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id ORDER BY ` + order, append(args, q.Limit+1)
 }
 
 // A zero reference retains the database clock used by live coverage/leases.
@@ -228,15 +227,27 @@ func scheduledCoverageQuery(q discovery.Query, freshFor time.Duration, now time.
 	if now.IsZero() {
 		cutoff, args = `TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6))`, []any{freshFor.Microseconds()}
 	}
-	return `SELECT COUNT(last_success),COALESCE(SUM(last_success>=` + cutoff + ` AND last_failure=''),0),MIN(last_success),MAX(last_success),MAX(last_attempt) FROM collection_tasks WHERE city=? AND country=? AND local_date BETWEEN ? AND ?`, append(args, q.City, q.Country, q.StartDate, q.EndDate)
+	// Case/accent-insensitive city matching can find several task identities
+	// for one local date, so aggregate each date's newest evidence first.
+	return `SELECT COUNT(success),COALESCE(SUM(fresh),0),MIN(success),MAX(success),MAX(attempt) FROM (SELECT MAX(last_success) AS success,MAX(last_success>=` + cutoff + ` AND last_failure='') AS fresh,MAX(last_attempt) AS attempt FROM collection_tasks WHERE city=? AND country=? AND local_date BETWEEN ? AND ? GROUP BY local_date) d`, append(args, q.City, q.Country, q.StartDate, q.EndDate)
 }
 
 func onDemandCoverageQuery(scope discovery.Query, freshFor time.Duration, now time.Time) (string, []any) {
-	cutoff, clock, args := `?`, `?`, []any{now.Add(-freshFor).UTC(), now.UTC(), now.UTC()}
+	cutoff, clock, args := `?`, `?`, []any{now.Add(-freshFor).UTC()}
 	if now.IsZero() {
 		cutoff, clock, args = `TIMESTAMPADD(MICROSECOND,-?,UTC_TIMESTAMP(6))`, `UTC_TIMESTAMP(6)`, []any{freshFor.Microseconds()}
 	}
-	return `SELECT last_success,data_as_of,status,last_success<` + cutoff + `,(next_refresh>` + clock + ` OR COALESCE(lease_until>` + clock + `,0)) FROM discovery_scopes WHERE city=? AND country=? AND start_date<=? AND end_date>=? AND artist_id=? AND venue_id=? ORDER BY last_success DESC`, append(args, scope.City, scope.Country, scope.StartDate, scope.EndDate, scope.ArtistID, scope.VenueID)
+	at := func() {
+		if !now.IsZero() {
+			args = append(args, now.UTC())
+		}
+	}
+	at()
+	args = append(args, scope.StartDate, scope.EndDate)
+	at()
+	// An enclosing scope that hit the provider cap may never reach the
+	// requested dates; its cooldown cannot block the shorter-range remedy.
+	return `SELECT last_success,data_as_of,status,last_success<` + cutoff + `,((next_refresh>` + clock + ` AND (status<>'limited' OR (start_date=? AND end_date=?))) OR COALESCE(lease_until>` + clock + `,0)) FROM discovery_scopes WHERE city=? AND country=? AND start_date<=? AND end_date>=? AND artist_id=? AND venue_id=? ORDER BY last_success DESC`, append(args, scope.City, scope.Country, scope.StartDate, scope.EndDate, scope.ArtistID, scope.VenueID)
 }
 
 func (r *DiscoveryRepository) Search(ctx context.Context, q discovery.Query, freshFor time.Duration) (discovery.CatalogRead, error) {
@@ -329,14 +340,13 @@ func (r *DiscoveryRepository) searchAt(ctx context.Context, q discovery.Query, f
 				minTotal = max(q.Limit+1, len(read.List.Items)+1)
 			}
 		}
-		cachedTotal, ok, invalidated := lookupDiscoverCount(cacheKey, writeGen, stamp, minTotal, now)
-		switch {
-		case ok && (cursor == nil || len(read.List.Items) > 0):
+		// A cursor's carried total is unversioned: after a restart or eviction
+		// nothing proves the catalog is unchanged since it was minted, so a
+		// cache miss recounts.
+		cachedTotal, ok := lookupDiscoverCount(cacheKey, writeGen, stamp, minTotal, now)
+		if ok && (cursor == nil || len(read.List.Items) > 0) {
 			read.List.Total = cachedTotal
-		case !invalidated && cursor != nil && len(read.List.Items) > 0 && cursor.Total >= minTotal:
-			read.List.Total = cursor.Total
-			storeDiscoverCount(cacheKey, read.List.Total, writeGen, stamp, freshFor, now)
-		default:
+		} else {
 			query, args := discoverCountQuery(q)
 			if err := tx.QueryRowContext(ctx, query, args...).Scan(&read.List.Total); err != nil {
 				return read, safeError("discover count", err)
@@ -393,6 +403,9 @@ func coverageStampAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, fresh
 		if count > 0 {
 			meta.DataAsOf = oldest.Time
 			c.Status = "partial"
+			// Collected days older than freshness are stale even before every
+			// requested day has evidence.
+			meta.Stale = fresh < count
 		}
 		if count == days {
 			c.Status = "complete"
@@ -427,6 +440,9 @@ func coverageStampAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, fresh
 	// Unsuccessful scopes sort in no particular order; report the newest attempt
 	// rather than whichever row (perhaps an abandoned older range) comes last.
 	var newestPartial time.Time
+	// A complete scope settles coverage, but later rows still feed the count
+	// stamp: another replica's newer receipt must invalidate cached totals.
+	complete := false
 	for rows.Next() {
 		stamp.scopes++
 		var success, at sql.NullTime
@@ -439,16 +455,18 @@ func coverageStampAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, fresh
 		if at.Valid && at.Time.UTC().UnixMicro() > stamp.newestAttempt {
 			stamp.newestAttempt = at.Time.UTC().UnixMicro()
 		}
+		if success.Valid && success.Time.UTC().UnixMicro() > stamp.newestSuccess {
+			stamp.newestSuccess = success.Time.UTC().UnixMicro()
+		}
+		if complete {
+			continue
+		}
 		if success.Valid {
-			if success.Time.UTC().UnixMicro() > stamp.newestSuccess {
-				stamp.newestSuccess = success.Time.UTC().UnixMicro()
-			}
 			if !old.Bool && status == "complete" {
 				c.CollectedDays, c.Status = days, "complete"
 				meta.DataAsOf, meta.Stale = success.Time, false
-				stamp.status, stamp.collectedDays, stamp.freshDays, stamp.stale, stamp.refresh = c.Status, c.CollectedDays, fresh, meta.Stale, false
-				stamp.dataAsOf = meta.DataAsOf.UTC().UnixMicro()
-				return meta, false, stamp, nil
+				complete = true
+				continue
 			}
 			if c.CollectedDays < days || success.Time.After(meta.DataAsOf) {
 				c.CollectedDays, c.Status = days, "stale"
@@ -466,6 +484,11 @@ func coverageStampAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, fresh
 	}
 	if err := rows.Err(); err != nil {
 		return meta, false, stamp, err
+	}
+	if complete {
+		stamp.status, stamp.collectedDays, stamp.freshDays, stamp.stale, stamp.refresh = c.Status, c.CollectedDays, fresh, meta.Stale, false
+		stamp.dataAsOf = meta.DataAsOf.UTC().UnixMicro()
+		return meta, false, stamp, nil
 	}
 	if c.Status == "not_collected" {
 		// Scheduled partial pages are evidence even before a complete day.

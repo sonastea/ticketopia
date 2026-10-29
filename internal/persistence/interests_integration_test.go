@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/interests"
+	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
 
@@ -258,5 +260,57 @@ func TestMariaDBInterestMigrationPreservesSavesAccountsAndSessions(t *testing.T)
 	states, err := p.Interests().States(t.Context(), a.ID, []string{detail.Item.ID})
 	if err != nil || states[detail.Item.ID].Interested || states[detail.Item.ID].Count != 0 {
 		t.Fatal("migration turned save into interest")
+	}
+}
+
+type interestDetailsFunc func(context.Context, string) (models.EventDetail, error)
+
+func (f interestDetailsFunc) Detail(ctx context.Context, id string) (models.EventDetail, error) {
+	return f(ctx, id)
+}
+
+// docs/event-interest.md requires omission to preserve an existing choice.
+// An omitted visibility must preserve an existing choice even when the choice
+// is created while the first request is fetching details. Neither serial order
+// of an omitted/default-public PUT and an explicit-private PUT can end public.
+func TestMariaDBInterestOmittedVisibilityPreservesConcurrentPrivateChoice(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p, other := f.open(t), f.open(t)
+	auth := accounts.New(p.Accounts(), accountProviderFixture{})
+	owner, _ := loginAccount(t, auth, "audit-interest-default-race")
+	owner, err := auth.UpdateProfile(t.Context(), owner.ID, accounts.ProfilePatch{InterestVisibility: pointer("public")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail := savedDetail("AuditVisibilityRace")
+	var private interests.Item
+	fetched := false
+	details := interestDetailsFunc(func(ctx context.Context, id string) (models.EventDetail, error) {
+		// The outer service has already read ErrNotFound. Commit the explicit
+		// private action before allowing that older request to finish its write.
+		fetched = true
+		var created bool
+		var err error
+		private, created, err = other.Interests().Set(ctx, owner.ID, detail, "private")
+		if err != nil || !created {
+			t.Fatalf("explicit private choice: created=%v err=%v", created, err)
+		}
+		return detail, nil
+	})
+	item, created, err := interests.New(p.Interests(), details).Set(t.Context(), owner.ID, detail.Item.ID, nil, owner.InterestVisibility)
+	if err != nil || !fetched || created {
+		t.Fatalf("omitted-visibility request: fetched=%v created=%v err=%v", fetched, created, err)
+	}
+	stored, err := p.Interests().Get(t.Context(), owner.ID, detail.Item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	participants, err := p.Interests().Participants(t.Context(), detail.Item.ID, interests.Query{Limit: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Visibility != "private" || stored.Visibility != "private" || len(participants) != 0 || !stored.InterestedAt.Equal(private.InterestedAt) {
+		t.Fatalf("omitted visibility overwrote newer explicit privacy: returned=%q stored=%q public_participants=%d; want private/private/0", item.Visibility, stored.Visibility, len(participants))
 	}
 }

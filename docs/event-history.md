@@ -30,8 +30,9 @@ title from `events`. Only the requested page's snapshots and omission states are
 loaded after `ORDER BY ... LIMIT`. First-page reads that do not overflow `limit`
 establish `total` directly from the returned page without a separate `COUNT(*)`
 query; multi-page searches cache exact counts by canonical filter predicates and
-coverage/catalog state and carry `total` in continuation cursors, recomputing
-`COUNT(*)` whenever stored events or collection receipts change. Cursors are not
+coverage/catalog state, recomputing `COUNT(*)` on a cache miss (including a
+continuation after restart; the cursor's carried `total` is not trusted) and
+whenever stored events or collection receipts change. Cursors are not
 snapshot cursors: changes between requests may shift pages; cursors issued by
 the previous offset encoding are rejected and require starting a new search.
 
@@ -67,6 +68,7 @@ establish complete coverage. Interrupted/capped/shifted collections remain parti
 previous complete success is retained. Failed requests retry after an hour or the
 longer provider reset, partial/capped attempts after the freshness interval. Long
 on-demand ranges may hit the cap; shorten dates or configure one-day scheduling.
+A capped enclosing range's retry delay does not block collecting a shorter range.
 On-demand scopes refresh when requested, not through a permanent new city schedule.
 Failed ingestion also finalizes the scope as failed/partial with a separate
 five-second cleanup deadline, releasing ownership rather than leaving it running

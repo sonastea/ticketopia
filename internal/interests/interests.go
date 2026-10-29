@@ -54,6 +54,9 @@ type Query struct {
 type Repository interface {
 	Get(context.Context, string, string) (Item, error)
 	Set(context.Context, string, models.EventDetail, string) (Item, bool, error)
+	// Add creates a choice with a default visibility, preserving any choice
+	// committed concurrently instead of overwriting its visibility.
+	Add(context.Context, string, models.EventDetail, string) (Item, bool, error)
 	Remove(context.Context, string, string) error
 	States(context.Context, string, []string) (map[string]State, error)
 	List(context.Context, string, bool, Query) ([]Item, error)
@@ -133,6 +136,9 @@ func (s *Service) Set(ctx context.Context, owner, id string, visibility *string,
 	}
 	if detail.Item.ID != id {
 		return Item{}, false, ErrUnavailable
+	}
+	if visibility == nil {
+		return s.repo.Add(ctx, owner, detail, value)
 	}
 	return s.repo.Set(ctx, owner, detail, value)
 }

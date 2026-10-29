@@ -48,6 +48,17 @@ func (r *InterestRepository) Get(ctx context.Context, owner, id string) (interes
 	return scanInterest(r.db.QueryRowContext(ctx, `SELECT `+interestColumns+` FROM event_interests i JOIN event_snapshots e ON e.event_id=i.event_id WHERE i.account_id=? AND i.event_id=?`, owner, id))
 }
 func (r *InterestRepository) Set(ctx context.Context, owner string, detail models.EventDetail, visibility string) (interests.Item, bool, error) {
+	return r.set(ctx, owner, detail, visibility, false)
+}
+
+// Add applies a default visibility only to a new choice. The existence check
+// happens under the row lock, so an explicit choice committed after the
+// caller's read keeps its visibility.
+func (r *InterestRepository) Add(ctx context.Context, owner string, detail models.EventDetail, visibility string) (interests.Item, bool, error) {
+	return r.set(ctx, owner, detail, visibility, true)
+}
+
+func (r *InterestRepository) set(ctx context.Context, owner string, detail models.EventDetail, visibility string, preserve bool) (interests.Item, bool, error) {
 	if err := interests.Visibility(visibility); err != nil {
 		return interests.Item{}, false, err
 	}
@@ -58,7 +69,7 @@ func (r *InterestRepository) Set(ctx context.Context, owner string, detail model
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	for attempt := range 3 {
-		item, created, retry, err := r.setOnce(ctx, owner, detail, visibility, args, data)
+		item, created, retry, err := r.setOnce(ctx, owner, detail, visibility, preserve, args, data)
 		if err == nil {
 			if created {
 				notifyActivityMembership(r.db, owner)
@@ -78,7 +89,7 @@ func (r *InterestRepository) Set(ctx context.Context, owner string, detail model
 	}
 	panic("unreachable")
 }
-func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail models.EventDetail, visibility string, args []any, data []byte) (interests.Item, bool, bool, error) {
+func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail models.EventDetail, visibility string, preserve bool, args []any, data []byte) (interests.Item, bool, bool, error) {
 	defer trace.StartRegion(ctx, "sql.tx").End()
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
@@ -94,7 +105,7 @@ func (r *InterestRepository) setOnce(ctx context.Context, owner string, detail m
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_interests WHERE account_id=? AND event_id=? FOR UPDATE`, owner, detail.Item.ID).Scan(&count); err != nil {
 		return interests.Item{}, false, retryable(err), err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,?) ON DUPLICATE KEY UPDATE visibility=VALUES(visibility)`, owner, detail.Item.ID, visibility)
+	_, err = tx.ExecContext(ctx, `INSERT INTO event_interests (account_id,event_id,visibility) VALUES (?,?,?) ON DUPLICATE KEY UPDATE visibility=IF(?,visibility,VALUES(visibility))`, owner, detail.Item.ID, visibility, preserve)
 	if err != nil {
 		return interests.Item{}, false, retryable(err), err
 	}

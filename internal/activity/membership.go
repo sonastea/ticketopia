@@ -252,7 +252,7 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 			for _, id := range chunk {
 				s.members[id].valid = false
 				// The refresh's own deadline time-boxes work; only errors stall.
-				s.members[id].stalled = ctx.Err() == nil
+				s.members[id].stalled = s.members[id].stalled || ctx.Err() == nil
 			}
 			continue
 		}
@@ -346,8 +346,9 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 						}
 						m.dirty[slot/64] &^= 1 << (slot % 64)
 					}
+					// Progress keeps any SQL error since the rebuild began; only
+					// a complete, rechecked view clears it.
 					progressed[o.ID] = true
-					m.stalled = false
 				}
 			}
 		}
@@ -360,6 +361,9 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 			<-s.jobs
 			for _, o := range work {
 				m := s.members[o.ID]
+				if err != nil {
+					m.stalled = m.stalled || ctx.Err() == nil
+				}
 				if err == nil && final[o.ID] != revisions[o.ID] {
 					m.partial = 0
 				}

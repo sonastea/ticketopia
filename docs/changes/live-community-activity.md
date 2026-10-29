@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-10-28 — Membership SQL failures close held streams
+
+- An SQL error during a private membership rebuild now always ends the
+  10-second hold of the last complete view: a later successful batch, a
+  time-boxed revision read, or a failed final revision check no longer clears
+  or skips it. See [private connections](../live-community-activity.md#private-connections-part-4).
+
 ### 2026-10-27 — Preserve pending filter edits and fresh previews
 
 - Preserve unapplied live-filter drafts across background refreshes and Apply
@@ -76,23 +83,5 @@
 - Measure the soak's ordinary-traffic gate in an interleaved ABBA×2 phase (live
   clients stopped/restarted per period, writers unchanged), retain timestamped raw
   samples, and report a seeded paired-period block-bootstrap interval.
-
-### 2026-10-20 — Part 5: operational measurement and deployment fixture
-
-- Add bounded, identity-free metrics for caches, work, SQL statements, timing,
-  failures and delivery; reuse fresh counts for joining tabs and bound count reads.
-- Bound the aggregate delivery cycle and fix inactive-account membership rebuilds
-  after coalesced invalidation, retaining per-account failed-read backoff.
-- Enforce the unreferenced-cohort cap across private membership revisions too.
-- Profile warm reads, cache complete-window expiry, and reuse revision-matched
-  facets without reusing attribution; improve contended warm stream delivery.
-- Add a production-image three-replica/nginx load and SQL-recovery/drain fixture.
-- Pass the rich 1,000-group/256-account/768-stream scenario. Profiling showed the
-  10,000-group write "regression" was host-probe placement, not DB/app contention;
-  probe in-network and pass the full 10,000-group gate (1.040×/1.053×).
-- Add a real-MariaDB resilience/privacy stress test; fix expiry closing all streams,
-  stale worker failures after recovery and private rebuild livelock under corrections.
-- Record measurements and outstanding gates in the [rollout record](../live-activity-rollout.md).
-  Part 5 remains in progress; production remains explicitly off.
 
 Older entries: [archive](archive/live-community-activity/).

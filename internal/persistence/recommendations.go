@@ -180,6 +180,43 @@ func (r *RecommendationRepository) Count(ctx context.Context, id string) (int, e
 func (r *RecommendationRepository) List(ctx context.Context, owner, event string, q recommendations.Query) ([]recommendations.Item, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
+	return listRecommendations(ctx, r.db, owner, event, q)
+}
+
+// EventList reads an event's page and its total from one committed state, so
+// a concurrent withdrawal cannot leave the total smaller than the page.
+func (r *RecommendationRepository) EventList(ctx context.Context, event string, q recommendations.Query) ([]recommendations.Item, int, error) {
+	return r.eventList(ctx, event, q, nil)
+}
+
+// afterPage, when set, runs between the page and count reads.
+func (r *RecommendationRepository) eventList(ctx context.Context, event string, q recommendations.Query, afterPage func(context.Context) error) ([]recommendations.Item, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return nil, 0, safeError("recommendation collection", err)
+	}
+	defer tx.Rollback()
+	items, err := listRecommendations(ctx, tx, "", event, q)
+	if err != nil {
+		return nil, 0, err
+	}
+	if afterPage != nil {
+		if err := afterPage(ctx); err != nil {
+			return nil, 0, err
+		}
+	}
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_recommendations WHERE event_id=? AND withdrawn_at IS NULL`, event).Scan(&count); err != nil {
+		return nil, 0, safeError("recommendation count", err)
+	}
+	return items, count, nil
+}
+
+func listRecommendations(ctx context.Context, db interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, owner, event string, q recommendations.Query) ([]recommendations.Item, error) {
 	query := `SELECT ` + recommendationColumns + recommendationJoin + ` WHERE r.withdrawn_at IS NULL`
 	args := []any{}
 	if owner != "" {
@@ -199,7 +236,7 @@ func (r *RecommendationRepository) List(ctx context.Context, owner, event string
 	}
 	query += ` ORDER BY r.recommended_at DESC,r.event_id DESC,r.account_id DESC LIMIT ?`
 	args = append(args, q.Limit+1)
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, safeError("recommendation collection", err)
 	}

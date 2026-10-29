@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### 2026-10-28 — Concurrent interest and recommendation reads
+
+- A PUT that omits visibility applies the account default only when it inserts
+  the choice. An explicit choice committed while that request fetched event
+  details keeps its visibility, so a delayed default can no longer publish it.
+- An event's recommendation page and total count share one read snapshot, so a
+  concurrent withdrawal can no longer report fewer recommendations than it lists.
+
 ### 2026-10-23 — Community cards and typographic empty states
 
 - Community recommendations and conversations are flat bordered cards in an

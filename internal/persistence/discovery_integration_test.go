@@ -650,3 +650,234 @@ func TestMariaDBDiscoverKeysetSortOrdersAndEdgeCases(t *testing.T) {
 		t.Fatalf("recounted total not propagated to next cursor: %+v %v", nextUpdated, err)
 	}
 }
+
+// docs/discovery.md requires older retained evidence to be stale.
+// A successful empty day is collection evidence even when a second requested
+// day has never been collected. Aging that evidence must still mark it stale.
+func TestMariaDBDiscoverScheduledPartialStaleness(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	task := history.NewTask(history.Scope{City: "Berlin", Country: "DE"}, "2026-10-08")
+	if err := p.History().Schedule(t.Context(), []history.Task{task}); err != nil {
+		t.Fatal(err)
+	}
+	claim := collectionClaim(t, p.History(), task.ID)
+	at := time.Now().UTC().Add(-8 * time.Hour).Truncate(time.Microsecond)
+	if err := p.History().Page(t.Context(), claim, 0, models.EventList{Meta: models.Freshness{DataAsOf: at}}); err != nil {
+		t.Fatal(err)
+	}
+	if status, err := p.History().Finish(t.Context(), claim, "complete", "", time.Hour); err != nil || status.Status != "complete" {
+		t.Fatalf("finish: %+v %v", status, err)
+	}
+	// Finish timestamps last_success with the DB completion clock. Age the
+	// completed receipt as well as its page to model a genuinely old attempt.
+	execSQL(t, f.admin, `UPDATE `+f.runtime.Database+`.collection_tasks SET last_success=?,last_attempt=? WHERE task_id=?`, at, at, task.ID)
+	q := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-09")
+	read, err := p.Discovery().Search(t.Context(), q, 6*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if read.List.Meta.Coverage.Status != "partial" || read.List.Meta.Coverage.CollectedDays != 1 || !read.List.Meta.DataAsOf.Equal(at) {
+		t.Fatalf("unexpected fixture coverage: %+v %+v", read.List.Meta, read.List.Meta.Coverage)
+	}
+	if !read.List.Meta.Stale {
+		t.Fatalf("8-hour-old scheduled evidence advertised as fresh: stale=%v coverage=%+v age=%s", read.List.Meta.Stale, read.List.Meta.Coverage, time.Since(read.List.Meta.DataAsOf).Round(time.Second))
+	}
+}
+
+// docs/event-history.md requires recounting when stored events change.
+// The cursor's count was correct when minted. A later accepted snapshot moves
+// one event out of the result set, then a new process (empty count cache) reads
+// the continuation. The cursor's unversioned count must not override SQL truth.
+func TestMariaDBDiscoverColdContinuationRecountsChangedCatalog(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	r := p.Discovery()
+	at := time.Now().UTC().Add(-2 * time.Minute)
+	var last models.Event
+	for i := range 4 {
+		e := sampleEvent(fmt.Sprintf("audit-count-%d", i))
+		date := "2026-10-08"
+		e.Start.LocalDate = &date
+		e.Name = fmt.Sprintf("Audit %d", i)
+		e.Venues[0].City, e.Venues[0].CountryCode = "Berlin", "DE"
+		if err := r.Observe(t.Context(), models.EventDetail{Item: e, Meta: models.Freshness{DataAsOf: at}}); err != nil {
+			t.Fatal(err)
+		}
+		last = e
+	}
+	q := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-10&limit=1")
+	first, err := r.Search(t.Context(), q, 6*time.Hour)
+	if err != nil || first.List.Total != 4 || first.List.NextCursor == nil {
+		t.Fatalf("first page: %+v %v", first, err)
+	}
+	values := q.Values()
+	values.Set("cursor", *first.List.NextCursor)
+	continuation, err := discovery.ParseQuery(values, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last.Venues[0].City = "Paris"
+	if err := r.Observe(t.Context(), models.EventDetail{Item: last, Meta: models.Freshness{DataAsOf: at.Add(time.Second)}}); err != nil {
+		t.Fatal(err)
+	}
+	// Eviction/restart loses the invalidated entry; only this fixture's key is
+	// removed, leaving independent tests' count entries alone.
+	discoverCountsMu.Lock()
+	delete(discoverCounts, r.countCacheKey(q))
+	discoverCountsMu.Unlock()
+	read, err := f.open(t).Discovery().Search(t.Context(), continuation, 6*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query, args := discoverCountQuery(q)
+	var actual int
+	if err := p.db.QueryRowContext(t.Context(), query, args...).Scan(&actual); err != nil {
+		t.Fatal(err)
+	}
+	if read.List.Total != actual {
+		t.Fatalf("cold continuation resurrected stale cursor total: got=%d SQL=%d cursor=%d", read.List.Total, actual, continuation.Cursor.Total)
+	}
+}
+
+// ucoverage counts complete local dates, not matching task identities.
+// City matching uses utf8mb4_unicode_ci, but task IDs hash the original city
+// spelling. Changing a configured city's accent can retain two successful
+// receipts for one local date; those do not cover a second date.
+func TestMariaDBDiscoverScheduledCoverageCountsDistinctDates(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	for _, city := range []string{"Munchen", "München"} {
+		task := history.NewTask(history.Scope{City: city, Country: "DE"}, "2026-10-08")
+		if err := p.History().Schedule(t.Context(), []history.Task{task}); err != nil {
+			t.Fatal(err)
+		}
+		claim := collectionClaim(t, p.History(), task.ID)
+		if err := p.History().Page(t.Context(), claim, 0, models.EventList{Meta: models.Freshness{DataAsOf: time.Now().UTC()}}); err != nil {
+			t.Fatal(err)
+		}
+		if outcome, err := p.History().Finish(t.Context(), claim, "complete", "", time.Hour); err != nil || outcome.Status != "complete" {
+			t.Fatalf("finish: %+v %v", outcome, err)
+		}
+	}
+	q := catalogQuery(t, "city=Munchen&country=DE&start_date=2026-10-08&end_date=2026-10-09")
+	read, err := p.Discovery().Search(t.Context(), q, 6*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if read.List.Meta.Coverage.CollectedDays != 1 || read.List.Meta.Coverage.Status != "partial" || !read.Refresh {
+		t.Fatalf("duplicate receipts fabricated a collected day: coverage=%+v refresh=%v; want partial 1/2 and refresh=true", read.List.Meta.Coverage, read.Refresh)
+	}
+}
+
+// ua coverage label must not hide receipt changes from count validation.
+// A second application process does not increment this process's writeGen.
+// Its newly committed partial receipt must still change the count signature,
+// even if an older complete enclosing scope supplies the coverage label. This
+// can happen when narrow and broad collections overlap: the narrow collection
+// starts first, but finishes after the broad collection establishes coverage.
+func TestMariaDBDiscoverCompleteScopeDoesNotHideRemoteCountChanges(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	r := p.Discovery()
+	q := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-09&limit=1")
+	at := time.Now().UTC().Add(-2 * time.Minute).Truncate(time.Microsecond)
+	for i := range 3 {
+		e := sampleEvent(fmt.Sprintf("audit-remote-%d", i))
+		date := q.StartDate
+		e.Start.LocalDate = &date
+		e.Name = fmt.Sprintf("Remote %d", i)
+		e.Venues[0].CountryCode = "DE"
+		if err := r.Observe(t.Context(), models.EventDetail{Item: e, Meta: models.Freshness{DataAsOf: at}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db := f.runtime.Database
+	broad := q.WithDates("2026-10-01", "2026-10-20")
+	execSQL(t, f.admin, `INSERT INTO `+db+`.discovery_scopes (scope_id,city,country,start_date,end_date,artist_id,venue_id,last_success,data_as_of,next_refresh,status) VALUES (?,?,?,?,?,'','',?,?,?,'complete')`, broad.ScopeID(), broad.City, broad.Country, broad.StartDate, broad.EndDate, at, at, at.Add(6*time.Hour))
+	first, err := r.Search(t.Context(), q, 6*time.Hour)
+	if err != nil || first.List.Total != 3 || first.List.Meta.Coverage.Status != "complete" {
+		t.Fatalf("initial cached count: %+v %v", first, err)
+	}
+	// Apply the public snapshot/projection result directly, simulating an
+	// independent process without touching the process-local generation.
+	id := "ticketmaster:audit-remote-2"
+	execSQL(t, f.admin, `UPDATE `+db+`.events SET venues=JSON_SET(venues,'$[0].city','Paris') WHERE event_id=?`, id)
+	execSQL(t, f.admin, `UPDATE `+db+`.event_snapshots SET snapshot=JSON_SET(snapshot,'$.venues[0].city','Paris'),data_as_of=? WHERE event_id=?`, at.Add(time.Minute), id)
+	execSQL(t, f.admin, `UPDATE `+db+`.event_search_places SET city='Paris' WHERE event_id=?`, id)
+	execSQL(t, f.admin, `INSERT INTO `+db+`.discovery_scopes (scope_id,city,country,start_date,end_date,artist_id,venue_id,data_as_of,last_attempt,next_refresh,status) VALUES (?,?,?,?,?,'','',?,?,?,'partial')`, q.ScopeID(), q.City, q.Country, q.StartDate, q.EndDate, at.Add(time.Minute), at.Add(-time.Minute), at.Add(time.Hour))
+	read, err := r.Search(t.Context(), q, 6*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query, args := discoverCountQuery(q)
+	var actual int
+	if err := p.db.QueryRowContext(t.Context(), query, args...).Scan(&actual); err != nil {
+		t.Fatal(err)
+	}
+	if read.List.Total != actual {
+		t.Fatalf("complete scope hid a newer replica receipt: total=%d SQL=%d coverage=%+v", read.List.Total, actual, read.List.Meta.Coverage)
+	}
+}
+
+// uthe documented keyset ordering must survive the snapshot lookup.
+// A derived table's ORDER BY chooses the page but does not order the outer
+// snapshot join. Batched key access may fetch that page in primary-key order.
+func TestMariaDBDiscoverPageOrderSurvivesBatchedSnapshotJoin(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	p.db.SetMaxOpenConns(1)
+	execSQL(t, p.db, `SET SESSION join_cache_level=6`)
+	execSQL(t, p.db, `SET SESSION optimizer_switch='mrr=on,mrr_cost_based=off,mrr_sort_keys=on,join_cache_bka=on'`)
+	r := p.Discovery()
+	for i := range 30 {
+		e := sampleEvent(fmt.Sprintf("audit-order-%02d", 29-i))
+		e.Name = fmt.Sprintf("Sorted %02d", i)
+		if err := r.Observe(t.Context(), models.EventDetail{Item: e, Meta: models.Freshness{DataAsOf: time.Now().UTC()}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	q := catalogQuery(t, "start_date=2026-10-06&end_date=2026-10-06&sort=name_asc&limit=10")
+	read, err := r.Search(t.Context(), q, 6*time.Hour)
+	if err != nil || len(read.List.Items) != q.Limit {
+		t.Fatalf("page: %+v %v", read, err)
+	}
+	for i, event := range read.List.Items {
+		if want := fmt.Sprintf("Sorted %02d", i); event.Name != want {
+			t.Fatalf("snapshot join reordered a sorted page: item %d=%q, want %q (last row also becomes the next cursor)", i, event.Name, want)
+		}
+	}
+}
+
+// uthe documented shorter-range remedy must permit a new collection.
+// A broad collection can reach the provider cap before reaching the date the
+// visitor actually wants. Shortening the range is the documented remedy
+// (event-history.md), so its cooldown must not block an independent narrow scope.
+func TestMariaDBDiscoverNarrowSearchAfterLimitedEnclosingScope(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	r := p.Discovery()
+	broad := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-10").CollectionScope()
+	// Only the completed receipt affects the narrower empty date. Represent a
+	// capped ten-page collection on the first date without ingesting 1,000
+	// irrelevant event snapshots in this coverage-policy reproducer.
+	at := time.Now().UTC().Add(-time.Minute)
+	execSQL(t, f.admin, `INSERT INTO `+f.runtime.Database+`.discovery_scopes (scope_id,city,country,start_date,end_date,artist_id,venue_id,data_as_of,last_attempt,next_refresh,status,pages,low_total,high_total) VALUES (?,?,?,?,?,'','',?,?,?,'limited',10,1001,1001)`, broad.ScopeID(), broad.City, broad.Country, broad.StartDate, broad.EndDate, at, at, at.Add(6*time.Hour))
+	narrow := broad.WithDates("2026-10-09", "2026-10-09")
+	read, err := r.Search(t.Context(), narrow, 6*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(read.List.Items) != 0 || read.List.Meta.Coverage.Status != "partial" {
+		t.Fatalf("unexpected fixture: %+v", read)
+	}
+	if !read.Refresh {
+		t.Fatalf("uncollected narrow date inherited enclosing limited scope's cooldown: coverage=%+v refresh=%v", read.List.Meta.Coverage, read.Refresh)
+	}
+}

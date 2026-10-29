@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-10-28 — Coverage evidence, count reuse and page order
+
+- Order stored Discover pages after the snapshot join too, so batched joins cannot
+  reorder a page or anchor its continuation cursor on the wrong event.
+- Count scheduled coverage by distinct local dates (accent variants of one city no
+  longer cover a second date) and mark partially collected old days stale.
+- Recount continuations on a count-cache miss instead of trusting the cursor's
+  carried total; a newer receipt after a complete enclosing scope still
+  invalidates cached totals.
+- A capped (`limited`) enclosing scope's retry cooldown no longer blocks
+  collecting a shorter range. See
+  [stored Discover](../event-history.md#stored-discover-and-coverage-aware-reads).
+
 ### 2026-10-14 — Keyset Discover pagination and count reuse
 
 - Replace stored Discover `OFFSET` paging with filter/limit/sort-bound keyset

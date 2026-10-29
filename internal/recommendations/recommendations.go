@@ -85,7 +85,8 @@ type Repository interface {
 	Set(context.Context, string, models.EventDetail, string) (Item, bool, error)
 	Remove(context.Context, string, string) error
 	List(context.Context, string, string, Query) ([]Item, error)
-	Count(context.Context, string) (int, error)
+	// EventList returns an event's page and total from one committed state.
+	EventList(context.Context, string, Query) ([]Item, int, error)
 	Community(context.Context, Query) ([]EventGroup, error)
 }
 type Details interface {
@@ -229,15 +230,18 @@ func queryScope(scope string, q Query) string {
 	data, _ := json.Marshal([]string{scope, strings.ToLower(q.City), q.Country, q.CategoryID})
 	return fmt.Sprintf("%x", sha256.Sum256(data))
 }
-func (s *Service) list(ctx context.Context, owner, event, scope string, community bool, values url.Values) (List, error) {
+func (s *Service) list(ctx context.Context, owner, scope string, community bool, values url.Values) (List, error) {
 	q, err := ParseQuery(values, scope, community)
 	if err != nil {
 		return List{}, err
 	}
-	items, err := s.repo.List(ctx, owner, event, q)
+	items, err := s.repo.List(ctx, owner, "", q)
 	if err != nil {
 		return List{}, err
 	}
+	return page(items, scope, q), nil
+}
+func page(items []Item, scope string, q Query) List {
 	result := List{Items: items}
 	if items == nil {
 		result.Items = []Item{}
@@ -249,37 +253,39 @@ func (s *Service) list(ctx context.Context, owner, event, scope string, communit
 		next := base64.RawURLEncoding.EncodeToString(data)
 		result.NextCursor = &next
 	}
-	return result, nil
+	return result
 }
 func (s *Service) Own(ctx context.Context, owner string, values url.Values) (List, error) {
 	if err := ownerID(owner); err != nil {
 		return List{}, err
 	}
-	return s.list(ctx, owner, "", "own:"+owner, false, values)
+	return s.list(ctx, owner, "own:"+owner, false, values)
 }
 func (s *Service) Public(ctx context.Context, owner string, values url.Values) (List, error) {
 	if err := ownerID(owner); err != nil {
 		return List{}, err
 	}
-	return s.list(ctx, owner, "", "public:"+owner, false, values)
+	return s.list(ctx, owner, "public:"+owner, false, values)
 }
 func (s *Service) Event(ctx context.Context, id string, values url.Values) (List, error) {
 	if err := saved.ValidateID(id); err != nil {
 		return List{}, err
 	}
-	list, err := s.list(ctx, "", id, "event:"+id, false, values)
+	scope := "event:" + id
+	q, err := ParseQuery(values, scope, false)
 	if err != nil {
 		return List{}, err
 	}
-	count, err := s.repo.Count(ctx, id)
+	items, count, err := s.repo.EventList(ctx, id, q)
 	if err != nil {
 		return List{}, err
 	}
+	list := page(items, scope, q)
 	list.Count = &count
 	return list, nil
 }
 func (s *Service) Recent(ctx context.Context, values url.Values) (List, error) {
-	return s.list(ctx, "", "", "community", true, values)
+	return s.list(ctx, "", "community", true, values)
 }
 func ParseFeedQuery(values url.Values) (Query, error) {
 	filters := url.Values{}

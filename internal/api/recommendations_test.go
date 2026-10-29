@@ -65,14 +65,18 @@ func (r *recommendationStub) Remove(_ context.Context, owner, id string) error {
 	delete(r.items[owner], id)
 	return nil
 }
-func (r *recommendationStub) Count(_ context.Context, id string) (int, error) {
+func (r *recommendationStub) EventList(ctx context.Context, id string, q recommendations.Query) ([]recommendations.Item, int, error) {
+	items, err := r.List(ctx, "", id, q)
+	if err != nil {
+		return nil, 0, err
+	}
 	count := 0
 	for _, items := range r.items {
 		if _, ok := items[id]; ok {
 			count++
 		}
 	}
-	return count, nil
+	return items, count, nil
 }
 func (r *recommendationStub) List(_ context.Context, owner, event string, q recommendations.Query) ([]recommendations.Item, error) {
 	r.listCalls++

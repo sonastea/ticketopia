@@ -49,7 +49,10 @@ func (r *repositoryFixture) List(_ context.Context, _, _ string, q Query) ([]Ite
 	r.query = q
 	return r.items, r.err
 }
-func (r *repositoryFixture) Count(context.Context, string) (int, error) { return len(r.items), r.err }
+func (r *repositoryFixture) EventList(ctx context.Context, event string, q Query) ([]Item, int, error) {
+	items, err := r.List(ctx, "", event, q)
+	return items, len(r.items), err
+}
 func (r *repositoryFixture) Community(_ context.Context, q Query) ([]EventGroup, error) {
 	r.query = q
 	return r.groups, r.err

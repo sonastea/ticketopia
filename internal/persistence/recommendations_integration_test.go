@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -284,5 +285,30 @@ func TestMariaDBRecommendationMigrationPreservesExistingActivity(t *testing.T) {
 	}
 	if count, err := p.Recommendations().Count(t.Context(), detail.Item.ID); err != nil || count != 0 {
 		t.Fatal("migration published existing activity", count, err)
+	}
+}
+
+// uthe documented event total cannot be smaller than its returned page.
+// A withdrawal between the event endpoint's page and count reads must not
+// yield the only endorsement in items with a total count of zero.
+// The hook only arranges the interleaving; all reads/writes use real MariaDB.
+func TestMariaDBRecommendationEventListCountSharesSnapshot(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p, other := f.open(t), f.open(t)
+	auth := accounts.New(p.Accounts(), accountProviderFixture{})
+	owner, _ := loginAccount(t, auth, "audit-recommendation-count-race")
+	detail := savedDetail("AuditRecommendationCountRace")
+	if _, _, err := p.Recommendations().Set(t.Context(), owner.ID, detail, "The only endorsement"); err != nil {
+		t.Fatal(err)
+	}
+	items, count, err := p.Recommendations().eventList(t.Context(), detail.Item.ID, recommendations.Query{Limit: 20}, func(ctx context.Context) error {
+		return other.Recommendations().Remove(ctx, owner.ID, detail.Item.ID)
+	})
+	if err != nil {
+		t.Fatalf("event list: err=%v", err)
+	}
+	if count < len(items) {
+		t.Fatalf("mixed committed states: returned %d endorsements but total count=%d", len(items), count)
 	}
 }

@@ -41,6 +41,12 @@ func (r *interestStub) Set(_ context.Context, owner string, detail models.EventD
 	r.items[owner][detail.Item.ID] = item
 	return item, !exists, nil
 }
+func (r *interestStub) Add(ctx context.Context, owner string, detail models.EventDetail, visibility string) (interests.Item, bool, error) {
+	if item, ok := r.items[owner][detail.Item.ID]; ok {
+		return item, false, nil
+	}
+	return r.Set(ctx, owner, detail, visibility)
+}
 func (r *interestStub) Remove(_ context.Context, owner, id string) error {
 	delete(r.items[owner], id)
 	return nil

@@ -2,6 +2,7 @@ package activity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -560,4 +561,94 @@ func TestMembershipNotificationReachesOnlyOwnerStreams(t *testing.T) {
 		t.Fatalf("owner index not maintained on release: a indexed=%v, b=%d", indexed, remaining)
 	}
 	r.notify("a") // no streams left for a
+}
+
+type finalRevisionFailure struct {
+	*membershipFixture
+	calls int
+}
+
+func (r *finalRevisionFailure) MembershipRevisions(ctx context.Context, ids []string) (map[string]uint64, error) {
+	r.mu.Lock()
+	r.calls++
+	fail := r.calls == 4 // Initial assembly succeeds; the second assembly's final check fails.
+	r.mu.Unlock()
+	if fail {
+		return nil, ErrUnavailable
+	}
+	return r.membershipFixture.MembershipRevisions(ctx, ids)
+}
+
+// SQL errors must end a private stream, not select the progressing-rebuild hold
+// that lets the worker retain the previous view for up to ten seconds.
+func TestFinalRevisionFailureDoesNotHoldStaleMembership(t *testing.T) {
+	r := &finalRevisionFailure{membershipFixture: &membershipFixture{
+		candidateRepository: candidateRepository{data: candidateFixture(1)},
+		revisions:           map[string]uint64{"owner": 1},
+		matches:             map[string]map[string]uint8{"owner": {"ticketmaster:0": SourceBit("saved")}},
+	}}
+	s := New(t.Context(), r, 2)
+	defer s.Close()
+	f := DefaultPreferences().Filters
+	f.Connections = Connections{Mode: "any", Sources: []string{"saved"}}
+	if view, err := s.OwnerSnapshot(t.Context(), "owner", f); err != nil || len(view.Items) != 1 {
+		t.Fatalf("initial membership: %+v, %v", view, err)
+	}
+	// A remote unsave starts a newer-revision rebuild; its final SQL revision
+	// check fails after the membership query itself succeeds.
+	r.mu.Lock()
+	r.revisions["owner"]++
+	delete(r.matches["owner"], "ticketmaster:0")
+	r.mu.Unlock()
+	s.projection <- struct{}{}
+	s.memberAt = time.Time{}
+	<-s.projection
+	_, err := s.OwnerSnapshot(t.Context(), "owner", f)
+	if !errors.Is(err, ErrUnavailable) || errors.Is(err, errRebuilding) {
+		t.Fatalf("final revision SQL failure must fail closed, not hold the old saved view: %v", err)
+	}
+}
+
+type siblingMembershipFailure struct {
+	*membershipFixture
+	failFirst bool
+}
+
+func (r *siblingMembershipFailure) Memberships(ctx context.Context, owners []MembershipOwner, candidates []MembershipCandidate) (map[string]Membership, error) {
+	r.mu.Lock()
+	fail := r.failFirst && candidates[0].ID == "ticketmaster:0"
+	r.mu.Unlock()
+	if fail {
+		return nil, ErrUnavailable
+	}
+	return r.membershipFixture.Memberships(ctx, owners, candidates)
+}
+
+func TestSuccessfulSiblingDoesNotEraseMembershipFailure(t *testing.T) {
+	r := &siblingMembershipFailure{membershipFixture: &membershipFixture{
+		candidateRepository: candidateRepository{data: candidateFixture(257)},
+		revisions:           map[string]uint64{"owner": 1},
+		matches:             map[string]map[string]uint8{"owner": {"ticketmaster:0": SourceBit("saved")}},
+	}}
+	s := New(t.Context(), r, 2)
+	defer s.Close()
+	f := DefaultPreferences().Filters
+	f.Connections = Connections{Mode: "any", Sources: []string{"saved"}}
+	if view, err := s.OwnerSnapshot(t.Context(), "owner", f); err != nil || len(view.Items) != 1 {
+		t.Fatalf("initial membership: %+v, %v", view, err)
+	}
+	// A remote unsave needs two batches. The first SQL query fails, while the
+	// second succeeds; unrelated progress cannot make the failed read safe.
+	r.mu.Lock()
+	r.revisions["owner"]++
+	delete(r.matches["owner"], "ticketmaster:0")
+	r.failFirst = true
+	r.mu.Unlock()
+	s.projection <- struct{}{}
+	s.memberAt = time.Time{}
+	<-s.projection
+	_, err := s.OwnerSnapshot(t.Context(), "owner", f)
+	if !errors.Is(err, ErrUnavailable) || errors.Is(err, errRebuilding) {
+		t.Fatalf("a successful sibling erased the SQL failure and retained the old saved view: %v", err)
+	}
 }
