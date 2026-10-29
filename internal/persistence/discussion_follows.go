@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
@@ -107,33 +109,41 @@ func (r *DiscussionFollowRepository) List(ctx context.Context, who string, q dis
 		where += ` AND (f.created_at<? OR (f.created_at=? AND f.thread_id<?))`
 		args = append(args, q.Cursor.At, q.Cursor.At, q.Cursor.ID)
 	}
-	args = append(args, q.Limit+1)
-	rows, err := r.db.QueryContext(ctx, `SELECT p.event_id,f.thread_id,f.frequency,f.created_at FROM discussion_follows f JOIN discussion_posts p ON p.post_id=f.thread_id`+where+` ORDER BY f.created_at DESC,f.thread_id DESC LIMIT ?`, args...)
+	// The viewer argument fills postColumns' Helpful placeholder.
+	args = append([]any{who}, append(args, q.Limit+1)...)
+	// Roots load with the page, using the same projection as readPost.
+	rows, err := r.db.QueryContext(ctx, `SELECT f.frequency,f.created_at,`+postColumns+` FROM discussion_follows f JOIN discussion_posts p ON p.post_id=f.thread_id JOIN accounts a ON a.account_id=p.account_id JOIN event_snapshots e ON e.event_id=p.event_id`+where+` ORDER BY f.created_at DESC,f.thread_id DESC LIMIT ?`, args...)
 	if err != nil {
 		return nil, safeError("discussion follow collection", err)
 	}
+	defer rows.Close()
 	items := []discussionfollows.Follow{}
 	for rows.Next() {
 		var f discussionfollows.Follow
-		if err = rows.Scan(&f.EventID, &f.ThreadID, &f.Frequency, &f.CreatedAt); err != nil {
-			rows.Close()
-			return nil, safeError("discussion follow collection", err)
-		}
-		items = append(items, f)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil {
-		return nil, safeError("discussion follow collection", err)
-	}
-	for i := range items {
-		items[i].Root, err = readPost(ctx, r.db, who, items[i].ThreadID)
-		if err != nil {
+		if f.Root, err = scanPost(prefixedRow{rows, []any{&f.Frequency, &f.CreatedAt}}); err != nil {
 			return nil, err
 		}
+		f.EventID, f.ThreadID = f.Root.EventID, f.Root.ID
+		items = append(items, f)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, safeError("discussion follow collection", err)
 	}
 	return items, nil
 }
+
+// prefixedRow scans leading columns ahead of a shared projection.
+type prefixedRow struct {
+	row    interface{ Scan(...any) error }
+	prefix []any
+}
+
+func (r prefixedRow) Scan(dest ...any) error {
+	return r.row.Scan(slices.Concat(r.prefix, dest)...)
+}
+
+// enqueueChunk bounds recipients per multi-row statement (five placeholders each).
+const enqueueChunk = 500
 
 // enqueueDiscussionReply runs in the publication transaction, after the root
 // lock, so a retry or rollback can neither duplicate nor lose notifications.
@@ -141,7 +151,8 @@ func enqueueDiscussionReply(ctx context.Context, tx *sql.Tx, post discussions.Po
 	if post.ID == post.ThreadID {
 		return nil
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT f.account_id,f.frequency FROM discussion_follows f JOIN accounts a ON a.account_id=f.account_id JOIN discussion_posts root ON root.post_id=f.thread_id WHERE f.thread_id=? AND f.account_id<>? AND f.frequency<>'muted' AND a.notifications_paused=FALSE AND root.hidden_at IS NULL AND root.removed_at IS NULL`, post.ThreadID, author)
+	// Account order gives concurrent writers a consistent row-lock order.
+	rows, err := tx.QueryContext(ctx, `SELECT f.account_id,f.frequency FROM discussion_follows f JOIN accounts a ON a.account_id=f.account_id JOIN discussion_posts root ON root.post_id=f.thread_id WHERE f.thread_id=? AND f.account_id<>? AND f.frequency<>'muted' AND a.notifications_paused=FALSE AND root.hidden_at IS NULL AND root.removed_at IS NULL ORDER BY f.account_id`, post.ThreadID, author)
 	if err != nil {
 		return err
 	}
@@ -160,21 +171,25 @@ func enqueueDiscussionReply(ctx context.Context, tx *sql.Tx, post discussions.Po
 	if err != nil {
 		return err
 	}
-	for _, r := range recipients {
-		at := discussionfollows.DeliveryAt(r.frequency, post.CreatedAt)
-		batch := post.ID
-		if r.frequency != "immediate" {
-			batch = r.frequency + ":" + at.Format("2006-01-02")
-		}
-		id := accounts.ID()
-		if _, err = tx.ExecContext(ctx, `INSERT INTO discussion_notifications (notification_id,account_id,thread_id,batch_key,available_at) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE notification_id=notification_id`, id, r.who, post.ThreadID, batch, at); err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO discussion_notification_posts (notification_id,post_id) SELECT notification_id,? FROM discussion_notifications WHERE account_id=? AND thread_id=? AND batch_key=?`, post.ID, r.who, post.ThreadID, batch); err != nil {
-			return err
+	batches := map[string]string{"immediate": post.ID}
+	for _, frequency := range []string{"daily", "weekly"} {
+		batches[frequency] = frequency + ":" + discussionfollows.DeliveryAt(frequency, post.CreatedAt).Format("2006-01-02")
+	}
+	for chunk := range slices.Chunk(recipients, enqueueChunk) {
+		envelopes := make([]any, 0, 5*len(chunk))
+		who := make([]any, 0, len(chunk))
+		for _, r := range chunk {
+			envelopes = append(envelopes, accounts.ID(), r.who, post.ThreadID, batches[r.frequency], discussionfollows.DeliveryAt(r.frequency, post.CreatedAt))
+			who = append(who, r.who)
 		}
 		// A reply committed after its digest window was read is still unseen.
-		if _, err = tx.ExecContext(ctx, `UPDATE discussion_notifications SET read_at=NULL WHERE account_id=? AND thread_id=? AND batch_key=? AND read_at IS NOT NULL`, r.who, post.ThreadID, batch); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO discussion_notifications (notification_id,account_id,thread_id,batch_key,available_at) VALUES `+strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(chunk)), ",")+` ON DUPLICATE KEY UPDATE read_at=NULL`, envelopes...); err != nil {
+			return err
+		}
+		// The root lock also serializes frequency changes, so each recipient's
+		// current frequency still names the envelope written above.
+		links := append([]any{post.ID, post.ThreadID, batches["immediate"], batches["daily"], batches["weekly"]}, who...)
+		if _, err = tx.ExecContext(ctx, `INSERT INTO discussion_notification_posts (notification_id,post_id) SELECT n.notification_id,? FROM discussion_notifications n JOIN discussion_follows f ON f.account_id=n.account_id AND f.thread_id=n.thread_id WHERE n.thread_id=? AND n.batch_key=CASE f.frequency WHEN 'immediate' THEN ? WHEN 'daily' THEN ? WHEN 'weekly' THEN ? END AND n.account_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(chunk)), ",")+`)`, links...); err != nil {
 			return err
 		}
 	}

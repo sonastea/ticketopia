@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-10-29 — Batched reply fan-out and followed-conversation pages
+
+- Enqueue reply notifications with one recipient read plus two multi-row writes per
+  500 followers, replacing three writes per follower inside the root-locked
+  transaction; reopening read digests now happens in the envelope upsert.
+- Load each followed-conversations page, roots included, in one query using the
+  shared post projection (visibility, reply counts and Helpful state unchanged).
+- Add real-MariaDB statement caps (1,000 followers: at most 11 statements, was
+  2,107; a 100-follow page: 1, was 101) and a 1/100/1,000-follower publish
+  benchmark: local M1 medians fell from 8.1/191/1,864 ms to 7.6/11.7/41 ms.
+
 ### 2026-10-12 — Scannable conversations and reply updates
 
 - Share Updates navigation; lead followed records with event context, actual

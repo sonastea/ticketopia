@@ -80,7 +80,10 @@ idempotent; not-due/hidden/paused/muted or another owner's IDs return 404.
 Schema 12 adds `discussion_follows`, `discussion_notifications` and
 `discussion_notification_posts`. Reply publication and notification enqueue commit
 in the same transaction. Root locking serializes subscription changes/publication;
-durable envelope uniqueness coalesces UTC summary windows. Delivery happens on
+durable envelope uniqueness coalesces UTC summary windows. Fan-out is set-based:
+one recipient read and two multi-row writes per 500 followers, so lock time grows
+with chunks rather than per-follower statements. Followed-conversation pages load
+their roots in the same query. Delivery happens on
 inbox reads after the due time; no background worker, external transport, live
 polling, retention job or high-fanout capacity certification is included.
 
@@ -93,6 +96,8 @@ start schema-12 apps. Do not run `make db-setup` against a shared service. See
 Tests cover reply/queue atomic rollback, concurrent retry uniqueness, schema-11
 preservation, restart, owner/collection-scoped pagination, frequencies, pause/mute,
 own-reply suppression, ancestry, unfollow cleanup and delivery-time moderation.
+Statement-cap tests bound 1,000-follower publication and followed-conversation
+pages; `BenchmarkMariaDBDiscussionReplyFanout` measures 1/100/1,000 followers.
 HTTP tests cover strict inputs, credentials, CSRF, private projections and redirects.
 The synthetic browser journey checks native follow/read/unfollow, exact off-page
 reply navigation, compact/enlarged text layouts and automated accessibility:
