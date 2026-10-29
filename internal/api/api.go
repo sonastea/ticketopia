@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime/trace"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/a-h/templ"
@@ -160,7 +161,12 @@ func (a *api) Server(port int) *http.Server {
 		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           a.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       time.Minute,
+		// ReadTimeout bounds headers plus body, so a trickling body cannot hold a
+		// handler open. net/http clears it once the body is consumed, so it never
+		// cancels slow handlers or the live stream. Leave WriteTimeout unset: the
+		// stream sets its own deadline per frame.
+		ReadTimeout: 15 * time.Second,
+		IdleTimeout: time.Minute,
 	}
 }
 
@@ -221,11 +227,26 @@ func traceRequests(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+// renderBuffers reuses page output buffers; a full results page is over
+// 100 KiB, so a fresh buffer regrows several times on every request.
+var renderBuffers = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+
+// maxPooledRenderBuffer drops buffers grown by unusually large pages so the
+// pool cannot pin their memory for every later small page.
+const maxPooledRenderBuffer = 1 << 20
+
 func render(ctx echo.Context, status int, t templ.Component) error {
+	body := renderBuffers.Get().(*bytes.Buffer)
+	defer func() {
+		if body.Cap() <= maxPooledRenderBuffer {
+			body.Reset()
+			renderBuffers.Put(body)
+		}
+	}()
 	// Do not commit partial HTML when rendering fails (including cancellation).
 	// Let Echo track the successful write so its error handler cannot write twice.
-	var body bytes.Buffer
-	if err := t.Render(ctx.Request().Context(), &body); err != nil {
+	// The writer copies the bytes before Blob returns, so reuse is safe.
+	if err := t.Render(ctx.Request().Context(), body); err != nil {
 		return err
 	}
 	return ctx.Blob(status, echo.MIMETextHTMLCharsetUTF8, body.Bytes())
