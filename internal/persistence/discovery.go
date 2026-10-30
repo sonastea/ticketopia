@@ -107,33 +107,6 @@ func storeDiscoverCount(key string, total int, writeGen uint64, coverage coverag
 var _ discovery.Catalog = (*DiscoveryRepository)(nil)
 var _ discovery.SnapshotReader = (*DiscoveryRepository)(nil)
 
-// Projections are replaced only with the winning public snapshot, in the same
-// transaction. Activity tables are deliberately absent from discovery queries.
-func projectSearchTx(ctx context.Context, tx *sql.Tx, e models.Event) error {
-	for _, table := range []string{"event_search_places", "event_search_facets"} {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE event_id=?`, e.ID); err != nil {
-			return err
-		}
-	}
-	for _, p := range searchPlaces(e) {
-		if len(p.City) > 120 || len(p.CountryCode) > 2 {
-			continue
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_search_places (event_id,city,country) VALUES (?,?,?)`, e.ID, p.City, strings.ToUpper(p.CountryCode)); err != nil {
-			return err
-		}
-	}
-	for _, f := range searchFacets(e) {
-		if f.value == "" || len(f.value) > 300 {
-			continue
-		}
-		if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_search_facets (event_id,kind,value) VALUES (?,?,?)`, e.ID, f.kind, f.value); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func searchPlaces(e models.Event) []models.Place {
 	places := []models.Place{}
 	if e.Place != nil {

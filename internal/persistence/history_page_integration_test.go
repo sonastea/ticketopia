@@ -16,7 +16,7 @@ import (
 )
 
 // Batched collection pages must leave exactly the rows that sequential
-// upsertSnapshotTx calls leave, including duplicates, backdated pages,
+// sequentialSnapshotTx calls leave, including duplicates, backdated pages,
 // sparse updates and statements split by the payload bound.
 func TestMariaDBCollectionPageMatchesSequentialWrites(t *testing.T) {
 	f := newMaria(t)
@@ -55,52 +55,8 @@ func TestMariaDBCollectionPageMatchesSequentialWrites(t *testing.T) {
 		{Items: []models.Event{sparse, b}, Meta: models.Freshness{DataAsOf: at.Add(time.Hour)}},
 		{Items: []models.Event{cancelled, b}, Meta: models.Freshness{DataAsOf: at.Add(2 * time.Hour)}},
 	}
-	read := func(db *sql.DB, query string, args ...any) string {
-		t.Helper()
-		rows, err := db.QueryContext(t.Context(), query, args...)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer rows.Close()
-		cols, err := rows.Columns()
-		if err != nil {
-			t.Fatal(err)
-		}
-		result := [][]any{}
-		for rows.Next() {
-			v, ptr := make([]any, len(cols)), make([]any, len(cols))
-			for i := range v {
-				ptr[i] = &v[i]
-			}
-			if err := rows.Scan(ptr...); err != nil {
-				t.Fatal(err)
-			}
-			for i, x := range v {
-				if b, ok := x.([]byte); ok {
-					v[i] = string(b)
-				}
-			}
-			result = append(result, v)
-		}
-		if err := rows.Err(); err != nil {
-			t.Fatal(err)
-		}
-		encoded, _ := json.Marshal(result)
-		return string(encoded)
-	}
-	tables := []string{
-		`SELECT ` + eventColumns + ` FROM events ORDER BY event_id`,
-		`SELECT provider,source_id,event_id FROM event_providers ORDER BY provider,source_id`,
-		`SELECT event_id,snapshot,data_as_of FROM event_snapshots ORDER BY event_id`,
-		`SELECT event_id,observed_at,snapshot,changes FROM event_observations ORDER BY event_id,observed_at`,
-		`SELECT event_id,first_seen,last_seen,last_changed,snapshot FROM event_history_state ORDER BY event_id`,
-		`SELECT event_id,city,country FROM event_search_places ORDER BY event_id,city,country`,
-		`SELECT event_id,kind,value FROM event_search_facets ORDER BY event_id,kind,value`,
-		`SELECT artist_id,snapshot,first_seen,last_seen FROM artists ORDER BY artist_id`,
-		`SELECT provider,source_id,artist_id FROM artist_providers ORDER BY provider,source_id`,
-		`SELECT venue_id,snapshot,first_seen,last_seen FROM venues ORDER BY venue_id`,
-		`SELECT provider,source_id,venue_id FROM venue_providers ORDER BY provider,source_id`,
-	}
+	read := func(db *sql.DB, query string, args ...any) string { return readRows(t, db, query, args...) }
+	tables := snapshotTables
 	// Compare after every page: later newer pages would mask earlier drift.
 	for n, list := range pages {
 		if err := p.History().Page(t.Context(), claim, n, list); err != nil {
@@ -113,7 +69,7 @@ func TestMariaDBCollectionPageMatchesSequentialWrites(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if err := upsertSnapshotTx(ctx, tx, d, args, data); err != nil {
+				if err := sequentialSnapshotTx(ctx, tx, d, args, data); err != nil {
 					return err
 				}
 			}
@@ -226,6 +182,100 @@ func TestMariaDBCollectionPagesConcurrentWriters(t *testing.T) {
 			got, err := p.Saved().Snapshot(t.Context(), e.ID)
 			if err != nil || got.Item.Status != "cancelled" {
 				t.Fatalf("round %d: newer single writer lost for %s: %v", round, e.ID, err)
+			}
+		}
+	}
+}
+
+// readRows encodes a query's rows for exact cross-database comparison.
+func readRows(t *testing.T, db *sql.DB, query string, args ...any) string {
+	t.Helper()
+	rows, err := db.QueryContext(t.Context(), query, args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := [][]any{}
+	for rows.Next() {
+		v, ptr := make([]any, len(cols)), make([]any, len(cols))
+		for i := range v {
+			ptr[i] = &v[i]
+		}
+		if err := rows.Scan(ptr...); err != nil {
+			t.Fatal(err)
+		}
+		for i, x := range v {
+			if b, ok := x.([]byte); ok {
+				v[i] = string(b)
+			}
+		}
+		result = append(result, v)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := json.Marshal(result)
+	return string(encoded)
+}
+
+// snapshotTables are every table a snapshot write touches, in stable order.
+var snapshotTables = []string{
+	`SELECT ` + eventColumns + ` FROM events ORDER BY event_id`,
+	`SELECT provider,source_id,event_id FROM event_providers ORDER BY provider,source_id`,
+	`SELECT event_id,snapshot,data_as_of FROM event_snapshots ORDER BY event_id`,
+	`SELECT event_id,observed_at,snapshot,changes FROM event_observations ORDER BY event_id,observed_at`,
+	`SELECT event_id,first_seen,last_seen,last_changed,snapshot FROM event_history_state ORDER BY event_id`,
+	`SELECT event_id,city,country FROM event_search_places ORDER BY event_id,city,country`,
+	`SELECT event_id,kind,value FROM event_search_facets ORDER BY event_id,kind,value`,
+	`SELECT artist_id,snapshot,first_seen,last_seen FROM artists ORDER BY artist_id`,
+	`SELECT provider,source_id,artist_id FROM artist_providers ORDER BY provider,source_id`,
+	`SELECT venue_id,snapshot,first_seen,last_seen FROM venues ORDER BY venue_id`,
+	`SELECT provider,source_id,venue_id FROM venue_providers ORDER BY provider,source_id`,
+}
+
+// Single-event writes share the set-based writer and must leave exactly the
+// rows sequentialSnapshotTx leaves, including stale reads (snapshot without an
+// observation), equal-timestamp retries, backdated facts and repeated artists.
+func TestMariaDBSnapshotMatchesSequentialWrite(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	g := newMaria(t)
+	g.migrate(t)
+	q := g.open(t)
+	at := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+	e := sampleEvent("single")
+	e.Artists = []models.Artist{{ID: "ticketmaster:b", Name: "B"}, {ID: "ticketmaster:a", Name: "A"}, {ID: "ticketmaster:b", Name: "Repeated B"}}
+	renamed := e
+	renamed.Name = "Renamed"
+	renamed.Venues = []models.Venue{{ID: "ticketmaster:new-venue", Place: models.Place{Name: "New venue", City: "Köln", CountryCode: "de"}}}
+	cancelled := renamed
+	cancelled.Status = "cancelled"
+	details := []models.EventDetail{
+		{Item: e, Meta: models.Freshness{DataAsOf: at}},
+		{Item: e, Meta: models.Freshness{DataAsOf: at}},
+		{Item: renamed, Meta: models.Freshness{DataAsOf: at.Add(time.Hour)}},
+		{Item: e, Meta: models.Freshness{DataAsOf: at.Add(-time.Hour)}},
+		{Item: cancelled, Meta: models.Freshness{DataAsOf: at.Add(2 * time.Hour), Stale: true}},
+		{Item: renamed, Meta: models.Freshness{DataAsOf: at.Add(3 * time.Hour)}},
+	}
+	for n, d := range details {
+		args, data, err := prepareSnapshot(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for db, write := range map[*sql.DB]func(context.Context, *sql.Tx, models.EventDetail, []any, []byte) error{p.db: upsertSnapshotTx, q.db: sequentialSnapshotTx} {
+			if err := historyTransaction(t.Context(), db, time.Minute, "snapshot", func(ctx context.Context, tx *sql.Tx) error { return write(ctx, tx, d, args, data) }); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, query := range snapshotTables {
+			if got, want := readRows(t, p.db, query), readRows(t, q.db, query); got != want {
+				t.Fatalf("write %d: %s\n got %.2000s\nwant %.2000s", n, query, got, want)
 			}
 		}
 	}

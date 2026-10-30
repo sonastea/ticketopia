@@ -10,6 +10,8 @@
 - Discover scope pages share the same snapshot writes and batch their scope
   receipts: a 100-event page runs 26 statements instead of 2,502 (about 2.3 s to
   66 ms over the host-to-Docker TLS connection, not the in-network benchmark).
+- Single-event writes (saves, interests, posts, reminders, detail refreshes) use
+  the same writer: 20 statements regardless of lineup, instead of 220 for 50 artists.
 - A 100-event page fell from 561 ms to 43 ms, with 65% fewer allocations, on the
   in-network Docker MariaDB benchmark. Regression tests compare every table with
   sequential writes after each page, bound the statement count and race

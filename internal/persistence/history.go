@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime/trace"
-	"slices"
 	"strings"
 	"time"
 
@@ -65,91 +64,6 @@ func historyTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, 
 		}
 	}
 	panic("unreachable")
-}
-
-// observeTx runs under the event's lock. Backdated records are retained, but do
-// not replace the current baseline or generate retrospective notifications.
-func observeTx(ctx context.Context, tx *sql.Tx, detail models.EventDetail, data []byte) error {
-	at := detail.Meta.DataAsOf.UTC().Truncate(time.Microsecond)
-	var last time.Time
-	var previous []byte
-	err := tx.QueryRowContext(ctx, `SELECT last_seen,snapshot FROM event_history_state WHERE event_id=? FOR UPDATE`, detail.Item.ID).Scan(&last, &previous)
-	changes := []history.Change{}
-	baseline := data
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	if err == nil && at.After(last) {
-		var before models.Event
-		if err := json.Unmarshal(previous, &before); err != nil {
-			return err
-		}
-		changes = history.Changes(before, detail.Item)
-		baseline, err = json.Marshal(history.KnownFacts(before, detail.Item))
-		if err != nil {
-			return err
-		}
-	}
-	encoded, err := json.Marshal(changes)
-	if err != nil {
-		return err
-	}
-	// INSERT-only permissions keep observations immutable, even on retries.
-	var exists int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM event_observations WHERE event_id=? AND observed_at=?`, detail.Item.ID, at).Scan(&exists); err != nil {
-		return err
-	}
-	if exists != 0 {
-		return nil
-	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO event_observations (event_id,observed_at,snapshot,changes) VALUES (?,?,?,?)`, detail.Item.ID, at, string(data), string(encoded)); err != nil {
-		return err
-	}
-	var changed any
-	if len(changes) > 0 {
-		changed = at
-	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO event_history_state (event_id,first_seen,last_seen,last_changed,snapshot) VALUES (?,?,?,?,?)
-ON DUPLICATE KEY UPDATE first_seen=LEAST(first_seen,VALUES(first_seen)),
-snapshot=IF(VALUES(last_seen)>last_seen,VALUES(snapshot),snapshot),
-last_changed=IF(VALUES(last_seen)>last_seen AND VALUES(last_changed) IS NOT NULL,VALUES(last_changed),last_changed),
-last_seen=GREATEST(last_seen,VALUES(last_seen))`, detail.Item.ID, at, at, changed, string(baseline)); err != nil {
-		return err
-	}
-	// Lock reference catalogs in stable order to avoid cross-event lock cycles.
-	type reference struct {
-		kind, id string
-		source   models.Source
-		value    any
-	}
-	references := []reference{}
-	for _, a := range detail.Item.Artists {
-		references = append(references, reference{"artist", a.ID, a.Source, a})
-	}
-	for _, v := range detail.Item.Venues {
-		references = append(references, reference{"venue", v.ID, v.Source, v})
-	}
-	slices.SortFunc(references, func(a, b reference) int { return strings.Compare(a.kind+":"+a.id, b.kind+":"+b.id) })
-	for _, ref := range references {
-		// Older local snapshots may contain only the public ID. The ID itself
-		// still supplies a case-sensitive provider mapping; unnamed places with
-		// no provider identity remain in the observation, not the catalog.
-		provider, source, ok := strings.Cut(ref.id, ":")
-		if !ok || !providerIdentity.MatchString(provider) || !sourceIdentity.MatchString(source) {
-			continue
-		}
-		if ref.source.Provider != "" && (ref.source.Provider != provider || ref.source.ID != source) {
-			return fmt.Errorf("reference provider identity does not match")
-		}
-		data, err := json.Marshal(ref.value)
-		if err != nil {
-			return err
-		}
-		if err := upsertReferenceTx(ctx, tx, ref.kind, ref.id, provider, source, data, at); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (r *HistoryRepository) Schedule(ctx context.Context, tasks []history.Task) error {

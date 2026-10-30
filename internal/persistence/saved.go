@@ -114,31 +114,11 @@ func prepareSnapshot(detail models.EventDetail) ([]any, []byte, error) {
 	}
 	return args, data, nil
 }
+
+// upsertSnapshotTx writes one event detail through the set-based page writer,
+// so its statement count does not grow with the lineup.
 func upsertSnapshotTx(ctx context.Context, tx *sql.Tx, detail models.EventDetail, args []any, data []byte) error {
-	// Consistent event-first locking coordinates independent activity writers.
-	if err := writeEventTx(ctx, tx, detail.Item, args, false); err != nil {
-		return err
-	}
-	var last time.Time
-	err := tx.QueryRowContext(ctx, `SELECT data_as_of FROM event_snapshots WHERE event_id=? FOR UPDATE`, detail.Item.ID).Scan(&last)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	if errors.Is(err, sql.ErrNoRows) || detail.Meta.DataAsOf.UTC().Truncate(time.Microsecond).After(last) {
-		if err := upsertEventTx(ctx, tx, detail.Item, args); err != nil {
-			return err
-		}
-		if err := projectSearchTx(ctx, tx, detail.Item); err != nil {
-			return err
-		}
-	}
-	if !detail.Meta.Stale {
-		if err := observeTx(ctx, tx, detail, data); err != nil {
-			return err
-		}
-	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO event_snapshots (event_id,snapshot,data_as_of) VALUES (?,?,?) ON DUPLICATE KEY UPDATE snapshot=IF(VALUES(data_as_of)>data_as_of,VALUES(snapshot),snapshot), data_as_of=GREATEST(data_as_of,VALUES(data_as_of))`, detail.Item.ID, string(data), detail.Meta.DataAsOf.UTC().Truncate(time.Microsecond))
-	invalidateDiscoverCounts()
+	_, err := upsertSnapshotsTx(ctx, tx, detail.Meta, []pageEvent{{detail.Item, args, data}})
 	return err
 }
 func (r *SavedRepository) saveOnce(ctx context.Context, owner string, detail models.EventDetail, args []any, data []byte) (saved.Item, bool, bool, error) {

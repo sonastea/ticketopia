@@ -102,14 +102,12 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 	return insertRowsTx(ctx, tx, `INSERT INTO collection_run_events (run_id,event_id,observed_at) VALUES `, "", receipts)
 }
 
-// upsertPageSnapshotsTx is the set-based equivalent of applying
-// upsertSnapshotTx to each event in page order: repeated events are
+// upsertPageSnapshotsTx is the set-based equivalent of writing each event
+// sequentially in page order: repeated events are
 // first-writer-wins at one data_as_of. Parent rows are locked in event-ID order
 // before dependent tables, keeping the shared event-first ordering
 // deadlock-safe across pages. It returns the distinct event IDs in that order.
 func upsertPageSnapshotsTx(ctx context.Context, tx *sql.Tx, list models.EventList) ([]any, error) {
-	invalidateDiscoverCounts()
-	at := list.Meta.DataAsOf.UTC().Truncate(time.Microsecond)
 	page, seen := []pageEvent{}, map[string]bool{}
 	for _, e := range list.Items {
 		args, data, err := prepareSnapshot(models.EventDetail{Item: e, Meta: list.Meta})
@@ -121,6 +119,15 @@ func upsertPageSnapshotsTx(ctx context.Context, tx *sql.Tx, list models.EventLis
 			page = append(page, pageEvent{e, args, data})
 		}
 	}
+	return upsertSnapshotsTx(ctx, tx, list.Meta, page)
+}
+
+// upsertSnapshotsTx writes distinct, prepared events (in page order) observed
+// at meta.DataAsOf. A stale read still offers its snapshot, but is not an
+// observation.
+func upsertSnapshotsTx(ctx context.Context, tx *sql.Tx, meta models.Freshness, page []pageEvent) ([]any, error) {
+	invalidateDiscoverCounts()
+	at := meta.DataAsOf.UTC().Truncate(time.Microsecond)
 	if len(page) == 0 {
 		return nil, nil
 	}
@@ -200,8 +207,10 @@ func upsertPageSnapshotsTx(ctx context.Context, tx *sql.Tx, list models.EventLis
 	if err := insertRowsTx(ctx, tx, `INSERT IGNORE INTO event_search_facets (event_id,kind,value) VALUES `, "", facets); err != nil {
 		return nil, err
 	}
-	if err := observePageTx(ctx, tx, at, page, ids); err != nil {
-		return nil, err
+	if !meta.Stale {
+		if err := observePageTx(ctx, tx, at, page, ids); err != nil {
+			return nil, err
+		}
 	}
 	snapshots := [][]any{}
 	for _, e := range sorted {

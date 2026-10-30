@@ -138,7 +138,7 @@ func TestMariaDBFollowKeysetsAndMigrationPreservation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
-	if err := observeTx(t.Context(), tx, detail, data); err != nil {
+	if err := sequentialObserveTx(t.Context(), tx, detail, data); err != nil {
 		t.Fatal(err)
 	}
 	if err := tx.Commit(); err != nil {
