@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-10-29 — Set-based collection page writes
+
+- Write each collection page with about 30 multi-row statements instead of ~26
+  per event (2,604 for 100 events), sharing the per-event search-projection and
+  event-update rules. Receipts stay strict `INSERT`s, without `IGNORE`.
+- A 100-event page fell from 561 ms to 43 ms, with 65% fewer allocations, on the
+  in-network Docker MariaDB benchmark. Regression tests compare every table with
+  sequential writes after each page, bound the statement count and race
+  overlapping pages against newer single-event writes. See
+  [collection](../event-history.md#stored-discover-and-coverage-aware-reads).
+
 ### 2026-10-28 — Coverage evidence, count reuse and page order
 
 - Order stored Discover pages after the snapshot join too, so batched joins cannot

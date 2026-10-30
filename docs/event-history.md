@@ -61,7 +61,9 @@ not the collection. Collection uses the service lifecycle, not the initiating
 browser's context: a disconnected/timed-out visitor cannot roll back ingestion
 shared by other visitors. Shutdown drains collection before closing SQL/cache.
 Each page commits public metadata/history and distinct-event
-evidence atomically. Page transactions allow at least ten seconds (or the longer
+evidence atomically, using a bounded number of multi-row statements rather than
+statements per event. Repeated events within a page keep the first occurrence, rows
+are locked in event-ID order and newer snapshots still win. Page transactions allow at least ten seconds (or the longer
 configured SQL timeout), clipped by that page's deadline; ordinary
 reads retain the configured query timeout. Only stable totals matching contiguous pages/distinct events
 establish complete coverage. Interrupted/capped/shifted collections remain partial;

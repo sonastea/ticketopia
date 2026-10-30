@@ -115,14 +115,7 @@ func projectSearchTx(ctx context.Context, tx *sql.Tx, e models.Event) error {
 			return err
 		}
 	}
-	places := []models.Place{}
-	if e.Place != nil {
-		places = append(places, *e.Place)
-	}
-	for _, v := range e.Venues {
-		places = append(places, v.Place)
-	}
-	for _, p := range places {
+	for _, p := range searchPlaces(e) {
 		if len(p.City) > 120 || len(p.CountryCode) > 2 {
 			continue
 		}
@@ -130,23 +123,7 @@ func projectSearchTx(ctx context.Context, tx *sql.Tx, e models.Event) error {
 			return err
 		}
 	}
-	type facet struct{ kind, value string }
-	facets := []facet{}
-	for _, a := range e.Artists {
-		facets = append(facets, facet{"artist", a.ID})
-	}
-	for _, v := range e.Venues {
-		facets = append(facets, facet{"venue", v.ID})
-	}
-	for _, c := range e.Classifications {
-		if c.Segment != nil {
-			facets = append(facets, facet{"category", c.Segment.ID})
-		}
-		if c.Genre != nil {
-			facets = append(facets, facet{"genre", c.Genre.ID})
-		}
-	}
-	for _, f := range facets {
+	for _, f := range searchFacets(e) {
 		if f.value == "" || len(f.value) > 300 {
 			continue
 		}
@@ -155,6 +132,38 @@ func projectSearchTx(ctx context.Context, tx *sql.Tx, e models.Event) error {
 		}
 	}
 	return nil
+}
+
+func searchPlaces(e models.Event) []models.Place {
+	places := []models.Place{}
+	if e.Place != nil {
+		places = append(places, *e.Place)
+	}
+	for _, v := range e.Venues {
+		places = append(places, v.Place)
+	}
+	return places
+}
+
+type searchFacet struct{ kind, value string }
+
+func searchFacets(e models.Event) []searchFacet {
+	facets := []searchFacet{}
+	for _, a := range e.Artists {
+		facets = append(facets, searchFacet{"artist", a.ID})
+	}
+	for _, v := range e.Venues {
+		facets = append(facets, searchFacet{"venue", v.ID})
+	}
+	for _, c := range e.Classifications {
+		if c.Segment != nil {
+			facets = append(facets, searchFacet{"category", c.Segment.ID})
+		}
+		if c.Genre != nil {
+			facets = append(facets, searchFacet{"genre", c.Genre.ID})
+		}
+	}
+	return facets
 }
 
 func searchWhere(q discovery.Query) (string, []any) {

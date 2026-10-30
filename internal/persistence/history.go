@@ -276,24 +276,8 @@ func (r *HistoryRepository) Page(ctx context.Context, claim history.Claim, page 
 		if count != 0 {
 			return nil
 		}
-		for _, e := range list.Items {
-			detail := models.EventDetail{Item: e, Meta: list.Meta}
-			args, data, err := prepareSnapshot(detail)
-			if err != nil {
-				return err
-			}
-			if err := upsertSnapshotTx(ctx, tx, detail, args, data); err != nil {
-				return err
-			}
-			var exists int
-			if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_run_events WHERE run_id=? AND event_id=?`, claim.RunID, e.ID).Scan(&exists); err != nil {
-				return err
-			}
-			if exists == 0 {
-				if _, err := tx.ExecContext(ctx, `INSERT INTO collection_run_events (run_id,event_id,observed_at) VALUES (?,?,?)`, claim.RunID, e.ID, list.Meta.DataAsOf.UTC().Truncate(time.Microsecond)); err != nil {
-					return err
-				}
-			}
+		if err := writePageTx(ctx, tx, claim.RunID, list); err != nil {
+			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO collection_pages (run_id,page_number,collected_at,event_count,reported_total,limited) VALUES (?,?,?,?,?,?)`, claim.RunID, page, list.Meta.DataAsOf.UTC(), len(list.Items), list.Total, list.Limited); err != nil {
 			return err
