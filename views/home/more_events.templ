@@ -69,8 +69,8 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 						if featuringLabel(event) != "" {
 							<p><strong>Featuring</strong> { featuringLabel(event) }</p>
 						}
-						if saleLabel(event) != "" {
-							<p class="sale-date">{ saleLabel(event) }</p>
+						if sale := saleLabel(event); sale != "" {
+							<p class="sale-date">{ sale }</p>
 						}
 					</div>
 					@EventRowActivity(event.ID, activity[event.ID], returnURL)
@@ -86,8 +86,8 @@ templ EventRowTools(event models.Event, returnURL string, saves SaveView, action
 		if featuringLabel(event) != "" {
 			<p>{ featuringLabel(event) }</p>
 		}
-		if saleLabel(event) != "" {
-			<p>{ saleLabel(event) }</p>
+		if sale := saleLabel(event); sale != "" {
+			<p>{ sale }</p>
 		}
 	}
 	@EventActionControls(event.ID, event.Name, saves, actionReturnURL, false) {

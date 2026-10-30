@@ -470,15 +470,15 @@ func EventRowsContent(events []models.Event, returnURL string, selectedID string
 						return templ_7745c5c3_Err
 					}
 				}
-				if saleLabel(event) != "" {
+				if sale := saleLabel(event); sale != "" {
 					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<p class=\"sale-date\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var23 string
-					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(saleLabel(event))
+					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(sale)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/more_events.templ`, Line: 73, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/more_events.templ`, Line: 73, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 					if templ_7745c5c3_Err != nil {
@@ -560,15 +560,15 @@ func EventRowTools(event models.Event, returnURL string, saves SaveView, actionR
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if saleLabel(event) != "" {
+			if sale := saleLabel(event); sale != "" {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var26 string
-				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(saleLabel(event))
+				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(sale)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/more_events.templ`, Line: 90, Col: 24}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/more_events.templ`, Line: 90, Col: 12}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {

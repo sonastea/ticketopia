@@ -163,8 +163,8 @@ templ EventSectionRegion(page EventPage, panel bool) {
 
 templ EventPrimaryActions(page EventPage) {
 	<div class="event-primary-actions">
-		if saleLabel(page.Detail.Item) != "" {
-			<p class="sale-date">{ saleLabel(page.Detail.Item) }</p>
+		if sale := saleLabel(page.Detail.Item); sale != "" {
+			<p class="sale-date">{ sale }</p>
 		}
 		@EventActionControls(page.Detail.Item.ID, page.Detail.Item.Name, page.Saves, page.ActionReturnURL, false) {
 			@TicketAction(page.Detail.Item)
@@ -311,8 +311,8 @@ templ TicketDetails(event models.Event) {
 		<div class="ticket-price">
 			<strong>{ priceLabel(event.PriceRanges) }</strong>@EventStatus(event.Status)
 		</div>
-		if saleLabel(event) != "" {
-			<p class="sale-date">{ saleLabel(event) }</p>
+		if sale := saleLabel(event); sale != "" {
+			<p class="sale-date">{ sale }</p>
 		}
 		@TicketAction(event)
 	</div>

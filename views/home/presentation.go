@@ -743,7 +743,7 @@ func saleLabel(event models.Event) string {
 	}
 	date := event.PublicSale.Start.UTC()
 	if event.Start.Timezone != nil {
-		if zone, err := time.LoadLocation(*event.Start.Timezone); err == nil {
+		if zone, ok := discovery.LoadZone(*event.Start.Timezone); ok {
 			date = date.In(zone)
 		}
 	}

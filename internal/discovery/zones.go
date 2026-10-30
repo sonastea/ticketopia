@@ -23,7 +23,8 @@ type cityZones struct {
 // so the map is bounded by the tz database rather than by provider input.
 var loadedZones sync.Map
 
-func loadZone(name string) (*time.Location, bool) {
+// LoadZone is a memoized time.LoadLocation; ok is false for unloadable names.
+func LoadZone(name string) (*time.Location, bool) {
 	if loc, ok := loadedZones.Load(name); ok {
 		return loc.(*time.Location), true
 	}
@@ -56,7 +57,7 @@ func eventsZone(events []models.Event) (*time.Location, bool) {
 		if zone == "" {
 			continue
 		}
-		if loc, ok := loadZone(zone); ok {
+		if loc, ok := LoadZone(zone); ok {
 			return loc, true
 		}
 	}

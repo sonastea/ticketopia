@@ -994,15 +994,15 @@ func EventPrimaryActions(page EventPage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if saleLabel(page.Detail.Item) != "" {
+		if sale := saleLabel(page.Detail.Item); sale != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<p class=\"sale-date\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var43 string
-			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(saleLabel(page.Detail.Item))
+			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(sale)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/event.templ`, Line: 167, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/event.templ`, Line: 167, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
@@ -1864,15 +1864,15 @@ func TicketDetails(event models.Event) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if saleLabel(event) != "" {
+		if sale := saleLabel(event); sale != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "<p class=\"sale-date\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var77 string
-			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(saleLabel(event))
+			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(sale)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/event.templ`, Line: 315, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/event.templ`, Line: 315, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 			if templ_7745c5c3_Err != nil {
