@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-10-29 — No validator work for uncacheable responses
+
+- Private and `no-store` JSON and calendar responses no longer hash their body for
+  an ETag they never send. A 20-event JSON page fell from about 108 µs to 87 µs
+  (24 -> 20 allocs); bytes, headers and public validators are unchanged.
+
+See [public HTTP caching](../cache.md#public-http-caching).
+
 ### 2026-10-29 — Content-versioned browser assets
 
 - Link the stylesheet and scripts as `/assets/<file>?v=<content hash>` and serve

@@ -41,7 +41,7 @@ func (a *api) eventCalendarHandler(c echo.Context) error {
 		return problem(c, err)
 	}
 	c.Response().Header().Set(echo.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="%s.ics"`, calendarFilename(data.Item.Name)))
-	return a.publicBytes(c, calendarMIME, body, representationETag(calendarMIME, body), policy)
+	return a.publicBytes(c, calendarMIME, body, "", policy)
 }
 
 // calendarFilename is an ASCII slug of the event name, so the header needs no

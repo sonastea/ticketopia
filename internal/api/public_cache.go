@@ -85,10 +85,10 @@ func (a *api) publicJSON(c echo.Context, data any, policy string) error {
 	if err != nil {
 		return err
 	}
-	body := w.Bytes()
-	return a.publicBytes(c, echo.MIMEApplicationJSON, body, representationETag(echo.MIMEApplicationJSON, body), policy)
+	return a.publicBytes(c, echo.MIMEApplicationJSON, w.Bytes(), "", policy)
 }
 
+// An empty tag is derived from kind and body, only when the response may carry it.
 func (a *api) publicBytes(c echo.Context, kind string, body []byte, tag, policy string) error {
 	if a.privatePublicRead(c) {
 		policy = "private, no-store"
@@ -98,6 +98,9 @@ func (a *api) publicBytes(c echo.Context, kind string, body []byte, tag, policy 
 	if strings.Contains(policy, "no-store") {
 		h.Del("ETag")
 	} else {
+		if tag == "" {
+			tag = representationETag(kind, body)
+		}
 		h.Set("ETag", tag)
 		if matchesIfNoneMatch(c.Request().Header.Values("If-None-Match"), tag) {
 			return c.NoContent(http.StatusNotModified)

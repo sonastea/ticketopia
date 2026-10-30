@@ -130,6 +130,35 @@ func TestPublicRepresentationAndEligibility(t *testing.T) {
 	}
 }
 
+// Uncacheable responses skip the validator, never its bytes: a private or
+// no-store body equals the public 200 body for the same data and query.
+func TestUncacheableRepresentationOmitsETag(t *testing.T) {
+	a := &api{}
+	e := echo.New()
+	policy := "public, no-cache"
+	data := models.EventList{Items: []models.Event{{ID: "ticketmaster:example", Name: "<A & B>"}}, Meta: models.Freshness{DataAsOf: time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)}}
+	e.GET("/", func(c echo.Context) error { return a.publicJSON(c, data, policy) }, a.publicCacheBoundary)
+	for _, path := range []string{"/", "/?pretty"} {
+		public := publicRequest(e, path, "")
+		if public.Code != 200 || public.Header().Get("ETag") == "" {
+			t.Fatalf("public %s: %v", path, public)
+		}
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		r.Header.Set("Authorization", "Bearer invalid")
+		r.Header.Set("If-None-Match", "*")
+		private := httptest.NewRecorder()
+		e.ServeHTTP(private, r)
+		policy = "no-store"
+		stale := publicRequest(e, path, "*")
+		policy = "public, no-cache"
+		for name, w := range map[string]*httptest.ResponseRecorder{"private": private, "no-store": stale} {
+			if w.Code != 200 || w.Header().Get("ETag") != "" || w.Body.String() != public.Body.String() || w.Header().Get("Content-Type") != public.Header().Get("Content-Type") {
+				t.Fatalf("%s %s: %v", name, path, w)
+			}
+		}
+	}
+}
+
 func TestTaxonomyLifetime(t *testing.T) {
 	now := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
