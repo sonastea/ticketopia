@@ -53,7 +53,9 @@ func insertRowsTx(ctx context.Context, tx *sql.Tx, prefix, suffix string, rows [
 	return nil
 }
 
-func queryRowsTx(ctx context.Context, tx *sql.Tx, query string, args []any, scan func(*sql.Rows) error) error {
+func queryRowsTx(ctx context.Context, tx interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, query string, args []any, scan func(*sql.Rows) error) error {
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return err

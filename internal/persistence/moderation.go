@@ -209,11 +209,16 @@ func (r *ModerationRepository) Queue(ctx context.Context, who string, q moderati
 	if err != nil {
 		return nil, safeError("moderation queue", err)
 	}
+	ids := make([]any, len(items))
+	for i, item := range items {
+		ids[i] = item.Post.ID
+	}
+	posts, err := readPosts(ctx, r.db, "", ids)
+	if err != nil {
+		return nil, err
+	}
 	for i := range items {
-		items[i].Post, err = readPost(ctx, r.db, "", items[i].Post.ID)
-		if err != nil {
-			return nil, err
-		}
+		items[i].Post = posts[items[i].Post.ID]
 	}
 	return items, nil
 }

@@ -73,8 +73,40 @@ type postReader interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+const postSelect = `SELECT ` + postColumns + postJoin
+
 func readPost(ctx context.Context, db postReader, viewer, id string) (discussions.Post, error) {
-	return scanPost(db.QueryRowContext(ctx, `SELECT `+postColumns+postJoin+` WHERE p.post_id=?`, viewer, id))
+	return scanPost(db.QueryRowContext(ctx, postSelect+` WHERE p.post_id=?`, viewer, id))
+}
+
+// readPosts is readPost for a bounded set of IDs in one statement, keyed by ID.
+// A missing post is ErrNotFound, as it would be for readPost.
+func readPosts(ctx context.Context, db interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, viewer string, ids []any) (map[string]discussions.Post, error) {
+	posts := make(map[string]discussions.Post, len(ids))
+	if len(ids) == 0 {
+		return posts, nil
+	}
+	var scanErr error
+	err := queryRowsTx(ctx, db, postSelect+` WHERE p.post_id IN (`+placeholders(len(ids))+`)`, append([]any{viewer}, ids...), func(rows *sql.Rows) error {
+		p, err := scanPost(rows)
+		scanErr = err
+		posts[p.ID] = p
+		return err
+	})
+	if scanErr != nil {
+		return nil, scanErr
+	}
+	if err != nil {
+		return nil, safeError("discussion read", err)
+	}
+	for _, id := range ids {
+		if _, ok := posts[id.(string)]; !ok {
+			return nil, discussions.ErrNotFound
+		}
+	}
+	return posts, nil
 }
 func (r *DiscussionRepository) Get(ctx context.Context, viewer, id string) (discussions.Post, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)

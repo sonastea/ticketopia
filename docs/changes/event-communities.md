@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### 2026-10-29 — Batched moderation queue reads
+
+- The moderator review queue reads a page's public post projections in one query
+  instead of one per row (default page: 22 statements -> 2, about 23 ms -> 3.5 ms
+  locally). Order, cursors, pending counts, own-case exclusion and redaction are
+  unchanged. See [moderation](../moderation.md).
+
 ### 2026-10-29 — Optional category filters wait at most one second
 
 - Community, discussions, Happening Now and interest pages give the optional
@@ -82,19 +89,3 @@
   stable event-section DOM/document-request and collection-return regressions.
   See [recommendations](../event-recommendations.md), [discussions](../event-discussions.md)
   and the [phase-3 record](../../.impeccable/surfaces/views-layouts-account-nav-templ.md).
-
-### 2026-10-10 — Inline event-context activity
-
-- Show questions/tips, public recommendations, and public interest together below
-  event details without preview tabs; retain full-page sections and thread expansion.
-- Load activity for every preview entry point and reload, including retained threads;
-  keep private interest identities hidden and community failures local.
-- Use wide-screen space for a larger selected context and parallel discussion/community;
-  stack when space is limited and keep Overview prose in the details disclosure.
-  Preserve native forms, navigation thresholds, and scrolling for longer content.
-- Extend Discover rows with supplied descriptions/performers/sale facts and compact
-  public activity, spanning the row width; keep desktop selection viewport-height.
-  Batch visible-root/active-endorsement reads per results page and preserve safe
-  attribution, canonical conversation links, empty rows, and local failure handling.
-  See [discovery](../discovery.md); the JSON event API is unchanged.
-  See [responsive UX](../design-guidelines.md) and [discussions](../event-discussions.md).
