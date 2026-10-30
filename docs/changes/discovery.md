@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-10-29 — Shared event-detail refreshes
+
+- Concurrent readers of an expired or missing stored event share one provider
+  read and one durable observation instead of each writing it (16 readers: 16
+  write transactions -> 1). A write failure reaches every waiting reader and is
+  never replayed. See [discovery](../discovery.md#loading-performance).
+
 ### 2026-10-27 — Touch-safe preview prefetch and clearer partial results
 
 - A touch press starts its preview request only after a 100ms hold or on
@@ -78,21 +85,6 @@
   result list's container layout. A highlight sweeps across them only without a
   reduced-motion preference; the "Loading events…" label stays the announced state.
   See [discovery](../discovery.md#web-ui).
-
-### 2026-10-23 — Command bar, date chips, display face and artwork tints
-
-- Merge location and search into one Discover command bar (**Events in {city}** ·
-  search). Add sideways-scrolling **Tonight / This weekend / Next 7 days** links
-  that set only `start_date`/`end_date` for the browsed city's day. Tests parse
-  every chip URL.
-- Add Bricolage Grotesque (OFL, self-hosted 65 KB Latin subset, `--font-display`)
-  for page titles, the event title and date numbers only.
-- Derive each event header's tint from artwork once, when events are cached or
-  stored. The fetch is bounded and Ticketmaster-CDN-only; the value is normalized
-  to OKLCH L .66 / C ≤ .12, stored as `tint` in the snapshot JSON (no migration)
-  and documented in OpenAPI. The header mixes it 18% into white, which tests show
-  stays AA for every hue, with a brand-hue fallback.
-  See [discovery](../discovery.md#responsive-navigation-and-event-details).
 
 Older entries: [discovery archive](archive/discovery/).
 

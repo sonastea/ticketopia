@@ -154,7 +154,8 @@ func (s *Service) storedEvent(ctx context.Context, id string) (models.EventDetai
 	stored, storedErr := s.catalog.Snapshot(ctx, id)
 	detail := stored
 	if storedErr != nil || s.now().Sub(stored.Meta.DataAsOf) >= s.freshFor {
-		fresh, err := s.providerEvent(ctx, id)
+		refresh, err := s.refreshStored(ctx, id)
+		fresh := refresh.detail
 		if err != nil {
 			if storedErr != nil {
 				return models.EventDetail{}, err
@@ -164,12 +165,10 @@ func (s *Service) storedEvent(ctx context.Context, id string) (models.EventDetai
 			// A retained cache fallback must not rewind newer durable facts.
 			detail.Meta.Stale = true
 		} else {
-			detail = fresh
-			if !fresh.Meta.Stale {
-				if err := s.catalog.Observe(ctx, fresh); err != nil {
-					return models.EventDetail{}, err
-				}
+			if refresh.observeErr != nil {
+				return models.EventDetail{}, refresh.observeErr
 			}
+			detail = fresh
 		}
 	} else {
 		detail.Meta.Stale = stored.Meta.Stale
@@ -180,6 +179,37 @@ func (s *Service) storedEvent(ctx context.Context, id string) (models.EventDetai
 	}
 	detail.History = h
 	return detail, nil
+}
+
+type storedRefresh struct {
+	detail     models.EventDetail
+	observeErr error
+}
+
+// refreshStored shares one provider read and its durable observation among
+// concurrent readers of an event. The write runs on the service lifecycle, so a
+// cancelled reader cannot abandon an observation others wait for; its error
+// reaches every reader and an uncertain commit is never replayed. A stale cache
+// fallback is not observed.
+func (s *Service) refreshStored(ctx context.Context, id string) (storedRefresh, error) {
+	result := s.flights.DoChan("observe:"+id, func() (any, error) {
+		s.refreshes.Add(1)
+		defer s.refreshes.Done()
+		fresh, err := s.providerEvent(s.ctx, id)
+		if err != nil || fresh.Meta.Stale {
+			return storedRefresh{detail: fresh}, err
+		}
+		observeCtx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		defer cancel()
+		return storedRefresh{fresh, s.catalog.Observe(observeCtx, fresh)}, nil
+	})
+	select {
+	case <-ctx.Done():
+		return storedRefresh{}, ctx.Err()
+	case r := <-result:
+		refresh, _ := r.Val.(storedRefresh)
+		return refresh, r.Err
+	}
 }
 
 // MaxSnapshotBatch bounds StoredEvents reads.
