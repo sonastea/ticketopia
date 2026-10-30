@@ -576,18 +576,16 @@ func (r *DiscoveryRepository) SearchPage(ctx context.Context, q discovery.Query,
 		if page != pages {
 			return fmt.Errorf("noncontiguous discover page")
 		}
-		for _, e := range list.Items {
-			d := models.EventDetail{Item: e, Meta: list.Meta}
-			args, data, err := prepareSnapshot(d)
-			if err != nil {
-				return err
-			}
-			if err := upsertSnapshotTx(ctx, tx, d, args, data); err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO discovery_scope_events (scope_id,event_id,token) VALUES (?,?,?) ON DUPLICATE KEY UPDATE token=VALUES(token)`, q.ScopeID(), e.ID, token); err != nil {
-				return err
-			}
+		ids, err := upsertPageSnapshotsTx(ctx, tx, list)
+		if err != nil {
+			return err
+		}
+		receipts := make([][]any, len(ids))
+		for i, id := range ids {
+			receipts[i] = []any{q.ScopeID(), id, token}
+		}
+		if err := insertRowsTx(ctx, tx, `INSERT INTO discovery_scope_events (scope_id,event_id,token) VALUES `, ` ON DUPLICATE KEY UPDATE token=VALUES(token)`, receipts); err != nil {
+			return err
 		}
 		_, err = tx.ExecContext(ctx, `UPDATE discovery_scopes SET data_as_of=?,low_total=IF(pages=0,?,LEAST(low_total,?)),high_total=GREATEST(high_total,?),pages=pages+1,lease_until=TIMESTAMPADD(SECOND,30,UTC_TIMESTAMP(6)) WHERE scope_id=?`, list.Meta.DataAsOf.UTC(), list.Total, list.Total, list.Total, q.ScopeID())
 		return err

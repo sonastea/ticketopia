@@ -74,17 +74,47 @@ type pageEvent struct {
 }
 
 // writePageTx is the set-based equivalent of applying upsertSnapshotTx and a
-// run receipt to each event in page order: repeated events are first-writer-wins
-// at one data_as_of. Parent rows are locked in event-ID order before dependent
-// tables, keeping the shared event-first ordering deadlock-safe across pages.
+// run receipt to each event in page order.
 func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.EventList) error {
+	at := list.Meta.DataAsOf.UTC().Truncate(time.Microsecond)
+	ids, err := upsertPageSnapshotsTx(ctx, tx, list)
+	if err != nil || len(ids) == 0 {
+		return err
+	}
+	// Receipts are INSERT-only and keep their first observation; the claim lock
+	// serializes writers of one run, so read-then-insert cannot race.
+	received := map[string]bool{}
+	err = queryRowsTx(ctx, tx, `SELECT event_id FROM collection_run_events WHERE run_id=? AND event_id IN (`+placeholders(len(ids))+`)`, append([]any{runID}, ids...), func(rows *sql.Rows) error {
+		var id string
+		err := rows.Scan(&id)
+		received[id] = true
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	receipts := [][]any{}
+	for _, id := range ids {
+		if !received[id.(string)] {
+			receipts = append(receipts, []any{runID, id, at})
+		}
+	}
+	return insertRowsTx(ctx, tx, `INSERT INTO collection_run_events (run_id,event_id,observed_at) VALUES `, "", receipts)
+}
+
+// upsertPageSnapshotsTx is the set-based equivalent of applying
+// upsertSnapshotTx to each event in page order: repeated events are
+// first-writer-wins at one data_as_of. Parent rows are locked in event-ID order
+// before dependent tables, keeping the shared event-first ordering
+// deadlock-safe across pages. It returns the distinct event IDs in that order.
+func upsertPageSnapshotsTx(ctx context.Context, tx *sql.Tx, list models.EventList) ([]any, error) {
 	invalidateDiscoverCounts()
 	at := list.Meta.DataAsOf.UTC().Truncate(time.Microsecond)
 	page, seen := []pageEvent{}, map[string]bool{}
 	for _, e := range list.Items {
 		args, data, err := prepareSnapshot(models.EventDetail{Item: e, Meta: list.Meta})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !seen[e.ID] {
 			seen[e.ID] = true
@@ -92,7 +122,7 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 		}
 	}
 	if len(page) == 0 {
-		return nil
+		return nil, nil
 	}
 	sorted := slices.Clone(page)
 	slices.SortFunc(sorted, func(a, b pageEvent) int { return strings.Compare(a.ID, b.ID) })
@@ -104,10 +134,10 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 		keys = append(keys, e.Source.Provider, e.Source.ID)
 	}
 	if err := insertRowsTx(ctx, tx, `INSERT INTO events (`+eventColumns+`) VALUES `, ` ON DUPLICATE KEY UPDATE event_id=event_id`, events); err != nil {
-		return err
+		return nil, err
 	}
 	if err := insertRowsTx(ctx, tx, `INSERT INTO event_providers (provider,source_id,event_id) VALUES `, ` ON DUPLICATE KEY UPDATE event_id=event_id`, providers); err != nil {
-		return err
+		return nil, err
 	}
 	mapped := map[string]string{}
 	err := queryRowsTx(ctx, tx, `SELECT provider,source_id,event_id FROM event_providers WHERE (provider,source_id) IN (`+strings.TrimSuffix(strings.Repeat("(?,?),", len(sorted)), ",")+`)`, keys, func(rows *sql.Rows) error {
@@ -117,11 +147,11 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 		return err
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, e := range sorted {
 		if mapped[e.Source.Provider+":"+e.Source.ID] != e.ID {
-			return fmt.Errorf("provider mapping cannot change identity")
+			return nil, fmt.Errorf("provider mapping cannot change identity")
 		}
 	}
 	last := map[string]time.Time{}
@@ -133,7 +163,7 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 		return err
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Only a newer public snapshot replaces event metadata and its projection.
 	winners, winnerIDs, places, facets := [][]any{}, []any{}, [][]any{}, [][]any{}
@@ -155,50 +185,32 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 		}
 	}
 	if err := insertRowsTx(ctx, tx, `INSERT INTO events (`+eventColumns+`) VALUES `, ` ON DUPLICATE KEY UPDATE `+eventUpdate, winners); err != nil {
-		return err
+		return nil, err
 	}
 	if len(winnerIDs) > 0 {
 		for _, table := range []string{"event_search_places", "event_search_facets"} {
 			if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE event_id IN (`+placeholders(len(winnerIDs))+`)`, winnerIDs...); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 	if err := insertRowsTx(ctx, tx, `INSERT IGNORE INTO event_search_places (event_id,city,country) VALUES `, "", places); err != nil {
-		return err
+		return nil, err
 	}
 	if err := insertRowsTx(ctx, tx, `INSERT IGNORE INTO event_search_facets (event_id,kind,value) VALUES `, "", facets); err != nil {
-		return err
+		return nil, err
 	}
 	if err := observePageTx(ctx, tx, at, page, ids); err != nil {
-		return err
+		return nil, err
 	}
 	snapshots := [][]any{}
 	for _, e := range sorted {
 		snapshots = append(snapshots, []any{e.ID, string(e.data), at})
 	}
 	if err := insertRowsTx(ctx, tx, `INSERT INTO event_snapshots (event_id,snapshot,data_as_of) VALUES `, ` ON DUPLICATE KEY UPDATE snapshot=IF(VALUES(data_as_of)>data_as_of,VALUES(snapshot),snapshot), data_as_of=GREATEST(data_as_of,VALUES(data_as_of))`, snapshots); err != nil {
-		return err
+		return nil, err
 	}
-	// Receipts are INSERT-only and keep their first observation; the claim lock
-	// serializes writers of one run, so read-then-insert cannot race.
-	received := map[string]bool{}
-	err = queryRowsTx(ctx, tx, `SELECT event_id FROM collection_run_events WHERE run_id=? AND event_id IN (`+placeholders(len(ids))+`)`, append([]any{runID}, ids...), func(rows *sql.Rows) error {
-		var id string
-		err := rows.Scan(&id)
-		received[id] = true
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	receipts := [][]any{}
-	for _, e := range sorted {
-		if !received[e.ID] {
-			receipts = append(receipts, []any{runID, e.ID, at})
-		}
-	}
-	return insertRowsTx(ctx, tx, `INSERT INTO collection_run_events (run_id,event_id,observed_at) VALUES `, "", receipts)
+	return ids, nil
 }
 
 // observePageTx is the set-based observeTx for distinct page events (page order)
