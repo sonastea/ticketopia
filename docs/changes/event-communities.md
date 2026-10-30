@@ -12,10 +12,10 @@
   unchanged. See [moderation](../moderation.md).
 - Discussion and recommendation pages send and decode each event snapshot once
   per page instead of once per row, still in one statement. With 64 KB snapshots
-  a 21-row thread page fell from about 9.3 to 3.7 ms and a recommendation page
-  from 3.2 to 1.4 ms (2.9 MB -> 0.2 MB). At the 2.6 KB fixture size,
-  recommendation pages are about 7% faster; thread pages showed no significant
-  change. Both allocate about half the bytes.
+  a 21-row page fell by 43–56% (thread 3.8 -> 2.2 ms, community 5.8 -> 2.5 ms,
+  recommendations 3.3 -> 1.5 ms; 3.0 MB -> 0.2 MB). At the 2.6 KB fixture size,
+  community pages are 37% faster and recommendations 4% faster, while thread
+  pages are about 5% (0.09 ms) slower. All allocate about half the bytes.
 
 ### 2026-10-29 — Optional category filters wait at most one second
 
