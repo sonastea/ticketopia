@@ -718,7 +718,7 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 		page.EventInterests.Saves = a.saveView(c, ids)
 		page.EventInterests.Interests = a.interestView(c, ids)
 		if a.events != nil {
-			catalog, err := a.events.Categories(c.Request().Context())
+			catalog, err := a.optionalCategories(c.Request().Context())
 			page.Categories = catalog.Items
 			page.CategoriesUnavailable = err != nil
 		} else {

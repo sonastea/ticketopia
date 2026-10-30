@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+### 2026-10-29 — Optional category filters wait at most one second
+
+- Community, discussions, Happening Now and interest pages give the optional
+  category catalog Discover's one-second budget instead of the ten-second refresh.
+
 ### 2026-10-28 — Concurrent interest and recommendation reads
 
 - A PUT that omits visibility applies the account default only when it inserts

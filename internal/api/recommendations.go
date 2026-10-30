@@ -221,7 +221,7 @@ func (a *api) communityPage(c echo.Context) error {
 	}
 	// Catalog failure never blocks durable community reads or clears the filter.
 	if p.Enabled && a.events != nil {
-		catalog, catalogErr := a.events.Categories(c.Request().Context())
+		catalog, catalogErr := a.optionalCategories(c.Request().Context())
 		p.Categories = catalog.Items
 		p.CategoriesUnavailable = catalogErr != nil
 	}

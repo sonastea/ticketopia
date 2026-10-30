@@ -152,12 +152,8 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			}
 		}
 		if !partial {
-			// Taxonomy is optional. Its shared cache refresh can continue, but it
-			// must not hold an otherwise usable page behind a slow provider.
-			catalogCtx, cancel := context.WithTimeout(c.Request().Context(), time.Second)
 			var catalogErr error
-			page.Categories, catalogErr = a.events.Categories(catalogCtx)
-			cancel()
+			page.Categories, catalogErr = a.optionalCategories(c.Request().Context())
 			page.CategoriesUnavailable = catalogErr != nil
 		}
 	}
@@ -256,6 +252,15 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		}
 	}
 	return render(c, status, home.Index(page))
+}
+
+// optionalCategories reads the taxonomy for a page whose content does not
+// depend on it. Its shared cache refresh can continue, but it must not hold an
+// otherwise usable page behind a slow provider.
+func (a *api) optionalCategories(ctx context.Context) (models.CategoryList, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	return a.events.Categories(ctx)
 }
 
 // localizeDefaultDates moves an omitted start_date to the city's calendar day

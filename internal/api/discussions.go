@@ -301,7 +301,7 @@ func (a *api) discussionCommunityPage(c echo.Context) error {
 		status, _, p.Error, _ = accountError(err)
 	}
 	if a.events != nil {
-		catalog, e := a.events.Categories(c.Request().Context())
+		catalog, e := a.optionalCategories(c.Request().Context())
 		p.Categories = catalog.Items
 		p.CategoriesUnavailable = e != nil
 	}

@@ -79,7 +79,7 @@ func (a *api) happeningNowPage(c echo.Context) error {
 
 func (a *api) renderHappeningNow(c echo.Context, status int, p home.HappeningNowPage) error {
 	if a.events != nil {
-		catalog, _ := a.events.Categories(c.Request().Context())
+		catalog, _ := a.optionalCategories(c.Request().Context())
 		p.Categories = catalog.Items
 	}
 	if p.Enabled && !p.Paused && p.Error == "" {
