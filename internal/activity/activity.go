@@ -658,6 +658,7 @@ func (s *Service) run(ctx context.Context) {
 			if len(s.members) == 0 {
 				clear(s.memberFacts)
 				clear(s.memberSlots)
+				s.memberIndex = nil
 			}
 			s.mu.Lock()
 			idle := len(s.subs) == 0
@@ -670,6 +671,7 @@ func (s *Service) run(ctx context.Context) {
 				clear(s.members)
 				clear(s.memberFacts)
 				clear(s.memberSlots)
+				s.memberIndex = nil
 			}
 			s.accountMetrics()
 			<-s.projection

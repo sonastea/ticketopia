@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-10-29 — Reconcile membership once per candidate generation
+
+- Private deliveries skip membership reconciliation when the candidate generation
+  is unchanged, instead of rescanning the whole window for every tab each second.
+  With 256 tabs on one account, a warm tick at 10,000 candidates fell from about
+  139 ms to 1.6 ms and no longer grows with the window. See
+  [private connections](../live-community-activity.md#private-connections-part-4).
+
 ### 2026-10-28 — Membership SQL failures close held streams
 
 - An SQL error during a private membership rebuild now always ends the

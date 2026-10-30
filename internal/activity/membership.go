@@ -384,8 +384,13 @@ func (s *Service) refreshMembership(ctx context.Context, owner string, f Filters
 // reconcileMembers aligns membership bits with the current candidate
 // generation (under the projection gate, without SQL): a removed or reused
 // slot is cleared and a new or revised candidate marks every account dirty.
-// It reports whether any membership became incomplete.
+// It reports whether any membership became incomplete. Generations are
+// immutable, so facts already reconciled with this one are unchanged; each
+// tab's delivery skips the O(candidates) pass until the next generation.
 func (s *Service) reconcileMembers() bool {
+	if s.memberIndex == s.index {
+		return false
+	}
 	changed := false
 	for id := range s.memberFacts {
 		slot, exists := s.index.slots[id]
