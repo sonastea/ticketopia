@@ -27,8 +27,8 @@ func communityFilters(city, country, category string) (string, []any) {
 }
 
 // firstOfEvent flags one row per event of a bounded key page, which must
-// select event_id. The window sees only the limited keys, never snapshots, so
-// the page's joined statement sends each event's snapshot once.
+// select event_id. The window sees only the limited rows, never snapshots, so
+// the page's statement sends each event's snapshot once.
 func firstOfEvent(keys, columns string) string {
 	return `SELECT ` + columns + `,ROW_NUMBER() OVER (PARTITION BY event_id)=1 AS first FROM (` + keys + `) k`
 }

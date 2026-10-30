@@ -27,9 +27,10 @@ func (r *RecommendationRepository) EnableLiveActivity(enabled bool) { r.liveActi
 
 const recommendationColumns = `e.snapshot,` + recommendationFields
 
-// recommendationPageColumns send each page event's snapshot once, plus the
-// event ID; see firstOfEvent.
-const recommendationPageColumns = `IF(page.first,e.snapshot,NULL),` + recommendationFields + `,r.event_id`
+// recommendationPageColumns read page rows carried through the limited keys,
+// plus the event ID. Only one row per event looks up its snapshot (see
+// firstOfEvent), so neither the sort nor the result repeats it.
+const recommendationPageColumns = `IF(page.first,(SELECT s.snapshot FROM event_snapshots s WHERE s.event_id=page.event_id),NULL),page.data_as_of,page.account_id,page.display_name,page.bio,page.reason,page.recommended_at,page.updated_at,page.event_id`
 const recommendationFields = `e.data_as_of,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at`
 const recommendationJoin = ` FROM event_recommendations r JOIN event_snapshots e ON e.event_id=r.event_id JOIN accounts a ON a.account_id=r.account_id`
 
@@ -232,7 +233,7 @@ func (r *RecommendationRepository) eventList(ctx context.Context, event string, 
 func listRecommendations(ctx context.Context, db interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, owner, event string, q recommendations.Query) ([]recommendations.Item, error) {
-	query := `SELECT r.account_id,r.event_id` + recommendationJoin + ` WHERE r.withdrawn_at IS NULL`
+	query := `SELECT ` + recommendationFields + `,r.event_id` + recommendationJoin + ` WHERE r.withdrawn_at IS NULL`
 	args := []any{}
 	if owner != "" {
 		query += ` AND r.account_id=?`
@@ -249,8 +250,7 @@ func listRecommendations(ctx context.Context, db interface {
 		query += ` AND (r.recommended_at<? OR (r.recommended_at=? AND (r.event_id<? OR (r.event_id=? AND r.account_id<?))))`
 		args = append(args, q.Cursor.Before.UTC(), q.Cursor.Before.UTC(), q.Cursor.EventID, q.Cursor.EventID, q.Cursor.AccountID)
 	}
-	const ordering = ` ORDER BY r.recommended_at DESC,r.event_id DESC,r.account_id DESC`
-	query = `SELECT ` + recommendationPageColumns + ` FROM (` + firstOfEvent(query+ordering+` LIMIT ?`, "account_id,event_id") + `) page JOIN event_recommendations r ON r.account_id=page.account_id AND r.event_id=page.event_id JOIN event_snapshots e ON e.event_id=r.event_id JOIN accounts a ON a.account_id=r.account_id` + ordering
+	query = `SELECT ` + recommendationPageColumns + ` FROM (` + firstOfEvent(query+` ORDER BY r.recommended_at DESC,r.event_id DESC,r.account_id DESC LIMIT ?`, "k.*") + `) page ORDER BY page.recommended_at DESC,page.event_id DESC,page.account_id DESC`
 	args = append(args, q.Limit+1)
 	items, ids, snapshots := []recommendations.Item{}, []string{}, [][]byte{}
 	var scanErr error
