@@ -33,7 +33,12 @@ func (r *DiscussionRepository) Snapshot(ctx context.Context) (time.Time, error) 
 	return at, nil
 }
 
-const postColumns = `p.post_id,p.event_id,COALESCE(p.root_id,p.post_id),COALESCE(p.parent_id,''),a.account_id,a.display_name,a.bio,p.body,p.created_at,p.updated_at,p.removed_at IS NOT NULL,p.hidden_at IS NOT NULL,e.snapshot,e.data_as_of,
+const postColumns = postHead + `e.snapshot` + postTail
+
+// postPageColumns send each page event's snapshot once; see firstOfEvent.
+const postPageColumns = postHead + `IF(page.first,e.snapshot,NULL)` + postTail
+const postHead = `p.post_id,p.event_id,COALESCE(p.root_id,p.post_id),COALESCE(p.parent_id,''),a.account_id,a.display_name,a.bio,p.body,p.created_at,p.updated_at,p.removed_at IS NOT NULL,p.hidden_at IS NOT NULL,`
+const postTail = `,e.data_as_of,
  (SELECT COUNT(*) FROM discussion_posts replies WHERE replies.root_id=p.post_id AND replies.removed_at IS NULL AND replies.hidden_at IS NULL),
  (SELECT COUNT(*) FROM post_helpful h WHERE h.post_id=p.post_id),
  EXISTS(SELECT 1 FROM post_helpful h WHERE h.post_id=p.post_id AND h.account_id=?),
@@ -42,17 +47,26 @@ const postJoin = ` FROM discussion_posts p JOIN accounts a ON a.account_id=p.acc
 
 func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
 	var p discussions.Post
+	data, err := scanPostRow(row, &p)
+	if err != nil {
+		return p, err
+	}
+	if json.Unmarshal(data, &p.Event) != nil {
+		return p, discussions.ErrUnavailable
+	}
+	return p, nil
+}
+
+// scanPostRow scans and redacts a post into p, returning its undecoded snapshot.
+func scanPostRow(row interface{ Scan(...any) error }, p *discussions.Post) ([]byte, error) {
 	var profile accounts.PublicProfile
 	var data []byte
 	err := row.Scan(&p.ID, &p.EventID, &p.ThreadID, &p.ParentID, &profile.ID, &profile.DisplayName, &profile.Bio, &p.Body, &p.CreatedAt, &p.UpdatedAt, &p.Removed, &p.Hidden, &data, &p.Meta.DataAsOf, &p.ReplyCount, &p.HelpfulCount, &p.Helpful, &p.ParentName)
 	if errors.Is(err, sql.ErrNoRows) {
-		return p, discussions.ErrNotFound
+		return nil, discussions.ErrNotFound
 	}
 	if err != nil {
-		return p, safeError("discussion read", err)
-	}
-	if json.Unmarshal(data, &p.Event) != nil {
-		return p, discussions.ErrUnavailable
+		return nil, safeError("discussion read", err)
 	}
 	p.Meta.Stale = true
 	if p.Removed || p.Hidden {
@@ -66,7 +80,7 @@ func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
 	} else {
 		p.Profile = &profile
 	}
-	return p, nil
+	return data, nil
 }
 
 type postReader interface {
@@ -339,7 +353,9 @@ func discussionQueries(viewer, event, thread string, q discussions.Query) (strin
 	}
 	args = append([]any{viewer}, args...)
 	args = append(args, q.Limit+1)
-	return `SELECT ` + postColumns + postJoin + where + ` ORDER BY p.created_at ` + order + `,p.post_id ` + order + ` LIMIT ?`, args, countSQL, countArgs
+	ordering := ` ORDER BY p.created_at ` + order + `,p.post_id ` + order
+	keys := `SELECT p.post_id,p.event_id` + postJoin + where + ordering + ` LIMIT ?`
+	return `SELECT ` + postPageColumns + ` FROM (` + firstOfEvent(keys, "post_id") + `) page JOIN discussion_posts p ON p.post_id=page.post_id JOIN accounts a ON a.account_id=p.account_id JOIN event_snapshots e ON e.event_id=p.event_id` + ordering, args, countSQL, countArgs
 }
 
 func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread string, q discussions.Query) ([]discussions.Post, int, error) {
@@ -350,21 +366,27 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 	if err := r.db.QueryRowContext(ctx, countSQL, countArgs...).Scan(&count); err != nil {
 		return nil, 0, safeError("discussion count", err)
 	}
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	items, ids, snapshots := []discussions.Post{}, []string{}, [][]byte{}
+	var scanErr error
+	err := queryRowsTx(ctx, r.db, query, args, func(rows *sql.Rows) error {
+		var p discussions.Post
+		data, err := scanPostRow(rows, &p)
+		scanErr = err
+		items, ids, snapshots = append(items, p), append(ids, p.EventID), append(snapshots, data)
+		return err
+	})
+	if scanErr != nil {
+		return nil, 0, scanErr
+	}
 	if err != nil {
 		return nil, 0, safeError("discussion collection", err)
 	}
-	defer rows.Close()
-	items := []discussions.Post{}
-	for rows.Next() {
-		p, err := scanPost(rows)
-		if err != nil {
-			return nil, 0, err
-		}
-		items = append(items, p)
+	events, ok := pageEvents(ids, snapshots)
+	if !ok {
+		return nil, 0, discussions.ErrUnavailable
 	}
-	if err = rows.Err(); err != nil {
-		return nil, 0, safeError("discussion collection", err)
+	for i := range items {
+		items[i].Event = events[items[i].EventID]
 	}
 	return items, count, nil
 }

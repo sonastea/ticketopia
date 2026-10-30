@@ -25,24 +25,39 @@ func (p *Pool) Recommendations() *RecommendationRepository {
 
 func (r *RecommendationRepository) EnableLiveActivity(enabled bool) { r.liveActivity = enabled }
 
-const recommendationColumns = `e.snapshot,e.data_as_of,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at`
+const recommendationColumns = `e.snapshot,` + recommendationFields
+
+// recommendationPageColumns send each page event's snapshot once, plus the
+// event ID; see firstOfEvent.
+const recommendationPageColumns = `IF(page.first,e.snapshot,NULL),` + recommendationFields + `,r.event_id`
+const recommendationFields = `e.data_as_of,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at`
 const recommendationJoin = ` FROM event_recommendations r JOIN event_snapshots e ON e.event_id=r.event_id JOIN accounts a ON a.account_id=r.account_id`
 
 func scanRecommendation(row interface{ Scan(...any) error }) (recommendations.Item, error) {
 	var item recommendations.Item
-	var snapshot []byte
-	err := row.Scan(&snapshot, &item.Meta.DataAsOf, &item.Profile.ID, &item.Profile.DisplayName, &item.Profile.Bio, &item.Reason, &item.RecommendedAt, &item.UpdatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return item, recommendations.ErrNotFound
-	}
+	snapshot, err := scanRecommendationRow(row, &item)
 	if err != nil {
-		return item, safeError("recommendation read", err)
+		return item, err
 	}
 	if json.Unmarshal(snapshot, &item.Event) != nil {
 		return item, recommendations.ErrUnavailable
 	}
-	item.Meta.Stale = true
 	return item, nil
+}
+
+// scanRecommendationRow scans into item, returning the snapshot undecoded, and
+// scans any columns after recommendationFields into extra.
+func scanRecommendationRow(row interface{ Scan(...any) error }, item *recommendations.Item, extra ...any) ([]byte, error) {
+	var snapshot []byte
+	err := row.Scan(append([]any{&snapshot, &item.Meta.DataAsOf, &item.Profile.ID, &item.Profile.DisplayName, &item.Profile.Bio, &item.Reason, &item.RecommendedAt, &item.UpdatedAt}, extra...)...)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, recommendations.ErrNotFound
+	}
+	if err != nil {
+		return nil, safeError("recommendation read", err)
+	}
+	item.Meta.Stale = true
+	return snapshot, nil
 }
 func (r *RecommendationRepository) Get(ctx context.Context, owner, id string) (recommendations.Item, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -217,7 +232,7 @@ func (r *RecommendationRepository) eventList(ctx context.Context, event string, 
 func listRecommendations(ctx context.Context, db interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }, owner, event string, q recommendations.Query) ([]recommendations.Item, error) {
-	query := `SELECT ` + recommendationColumns + recommendationJoin + ` WHERE r.withdrawn_at IS NULL`
+	query := `SELECT r.account_id,r.event_id` + recommendationJoin + ` WHERE r.withdrawn_at IS NULL`
 	args := []any{}
 	if owner != "" {
 		query += ` AND r.account_id=?`
@@ -234,23 +249,31 @@ func listRecommendations(ctx context.Context, db interface {
 		query += ` AND (r.recommended_at<? OR (r.recommended_at=? AND (r.event_id<? OR (r.event_id=? AND r.account_id<?))))`
 		args = append(args, q.Cursor.Before.UTC(), q.Cursor.Before.UTC(), q.Cursor.EventID, q.Cursor.EventID, q.Cursor.AccountID)
 	}
-	query += ` ORDER BY r.recommended_at DESC,r.event_id DESC,r.account_id DESC LIMIT ?`
+	const ordering = ` ORDER BY r.recommended_at DESC,r.event_id DESC,r.account_id DESC`
+	query = `SELECT ` + recommendationPageColumns + ` FROM (` + firstOfEvent(query+ordering+` LIMIT ?`, "account_id,event_id") + `) page JOIN event_recommendations r ON r.account_id=page.account_id AND r.event_id=page.event_id JOIN event_snapshots e ON e.event_id=r.event_id JOIN accounts a ON a.account_id=r.account_id` + ordering
 	args = append(args, q.Limit+1)
-	rows, err := db.QueryContext(ctx, query, args...)
+	items, ids, snapshots := []recommendations.Item{}, []string{}, [][]byte{}
+	var scanErr error
+	err := queryRowsTx(ctx, db, query, args, func(rows *sql.Rows) error {
+		var id string
+		var item recommendations.Item
+		data, err := scanRecommendationRow(rows, &item, &id)
+		scanErr = err
+		items, ids, snapshots = append(items, item), append(ids, id), append(snapshots, data)
+		return err
+	})
+	if scanErr != nil {
+		return nil, scanErr
+	}
 	if err != nil {
 		return nil, safeError("recommendation collection", err)
 	}
-	defer rows.Close()
-	items := []recommendations.Item{}
-	for rows.Next() {
-		item, err := scanRecommendation(rows)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
+	events, ok := pageEvents(ids, snapshots)
+	if !ok {
+		return nil, recommendations.ErrUnavailable
 	}
-	if err := rows.Err(); err != nil {
-		return nil, safeError("recommendation collection", err)
+	for i := range items {
+		items[i].Event = events[ids[i]]
 	}
 	return items, nil
 }

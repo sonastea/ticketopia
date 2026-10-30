@@ -4,12 +4,16 @@
 
 ## Unreleased
 
-### 2026-10-29 — Batched moderation queue reads
+### 2026-10-29 — Batched moderation and community page reads
 
 - The moderator review queue reads a page's public post projections in one query
   instead of one per row (default page: 22 statements -> 2, about 23 ms -> 3.5 ms
   locally). Order, cursors, pending counts, own-case exclusion and redaction are
   unchanged. See [moderation](../moderation.md).
+- Discussion and recommendation pages send and decode each event snapshot once
+  per page instead of once per row, still in one statement. With 64 KB snapshots
+  a 21-row page fell from about 9.3 ms/2.9 MB to 3.7–4.5 ms/0.2 MB; at the 2.6 KB
+  fixture size time is unchanged to 6% slower, with half the allocated bytes.
 
 ### 2026-10-29 — Optional category filters wait at most one second
 
