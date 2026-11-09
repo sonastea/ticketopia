@@ -173,7 +173,8 @@ creation POST creates another token, so don't refresh/resubmit its response.
 API tokens cannot manage credentials. Revoke individually or use **Sign out
 everywhere & revoke API tokens**; ordinary Sign out revokes only the current session
 and does not sign out of Google. Tokens can revoke themselves through
-`DELETE /api/v1/me/session`.
+`DELETE /api/v1/me/session`. The same tokens sign agents in to the
+[agent tools](app-mcp.md#signing-in) at `/mcp`.
 
 The [OpenAPI contract](openapi.md) documents `/api/v1/me`, own profile/preferences,
 public `/api/v1/users/{id}`, token management, and current-credential revocation.

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### 2026-11-09 — Signed-in saves and reminders with API tokens
+
+- Add `my_saved_events`, `save_event`, `unsave_event`, `my_reminders`,
+  `set_reminder` and `stop_reminder`, acting only for the account behind an
+  `Authorization: Bearer` API token, through the same services and error
+  wording as `/api/v1/me`. Without a token they return sign-in guidance.
+- Verify tokens at the boundary inside the concurrency bound (401 with
+  `WWW-Authenticate` when invalid, 503 when accounts are unavailable), limit
+  each account like each IP, never accept session cookies, and annotate reads
+  and destructive writes.
+- Review-fixture accounts carry API tokens in the manifest; a MariaDB test
+  checks per-account isolation, idempotent saves, reminder rules and refusal of
+  cookies and invalid tokens.
+
 ### 2026-11-09 — Read-only public event tools at /mcp
 
 - Serve `find_events`, `list_categories` and `event_details` over stateless

@@ -62,6 +62,8 @@ type Account struct {
 	DisplayName  string `json:"display_name"`
 	Email        string `json:"email"`
 	StorageState string `json:"storage_state"`
+	// APIToken authenticates as this account with Authorization: Bearer.
+	APIToken string `json:"api_token"`
 }
 
 // Server is a running review server. Close stops it and removes everything it
@@ -256,7 +258,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		}}}); err != nil {
 			return nil, err
 		}
-		s.manifest.Accounts[key] = Account{ID: a.ID, DisplayName: a.DisplayName, Email: a.Email, StorageState: state}
+		s.manifest.Accounts[key] = Account{ID: a.ID, DisplayName: a.DisplayName, Email: a.Email, StorageState: state, APIToken: f.apiTokens[key]}
 	}
 	// Publish the manifest last so a present manifest always describes a ready server.
 	manifest := filepath.Join(o.StateDir, "manifest.json")

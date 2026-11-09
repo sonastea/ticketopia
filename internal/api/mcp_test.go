@@ -151,7 +151,7 @@ func TestMCPBoundsConcurrentRequests(t *testing.T) {
 	app := mcpAPI(t)
 	inFlight := make(chan struct{}, 1)
 	release, entered := make(chan struct{}), make(chan struct{})
-	handler := app.mcpBoundary(newIPLimiter(600, time.Now), inFlight)(func(c echo.Context) error {
+	handler := app.mcpBoundary(newIPLimiter(600, time.Now), newIPLimiter(600, time.Now), inFlight)(func(c echo.Context) error {
 		entered <- struct{}{}
 		<-release
 		return c.NoContent(http.StatusOK)
@@ -236,5 +236,20 @@ func TestMCPConfigFromEnv(t *testing.T) {
 				t.Fatalf("%s=%s accepted", name, value)
 			}
 		})
+	}
+}
+
+// A sent token must be valid: with accounts disabled none can be, and only
+// the Bearer scheme is accepted. No token keeps the public tools.
+func TestMCPRejectsUnusableTokens(t *testing.T) {
+	routes := mcpRoutesFor(t, enabledMCP(600))
+	for _, header := range []string{"Bearer not-a-real-token", "Basic dXNlcjpwYXNz", "bearer lowercase"} {
+		response := mcpPost(t, routes, mcpInvalidSearch, map[string]string{"Authorization": header})
+		if response.Code != http.StatusUnauthorized || !strings.HasPrefix(response.Header().Get("WWW-Authenticate"), "Bearer") {
+			t.Errorf("%q: %d %q", header, response.Code, response.Header().Get("WWW-Authenticate"))
+		}
+	}
+	if code := mcpRequest(t, routes, "").Code; code != http.StatusOK {
+		t.Fatalf("anonymous public call: %d", code)
 	}
 }

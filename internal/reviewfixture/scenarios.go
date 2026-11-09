@@ -88,6 +88,7 @@ type fixture struct {
 	now           time.Time
 	people        map[string]accounts.Account
 	tokens        map[string]string
+	apiTokens     map[string]string
 	details       []models.EventDetail
 	entries       []models.Event
 	follows       *discussionfollows.Service
@@ -147,7 +148,7 @@ func (f *fixture) newEvent(chicago *time.Location, i int, name string) models.Ev
 // seed creates accounts, events, caches and baseline state, then the scenario.
 func (f *fixture) seed(sc scenario) error {
 	ctx, p := f.ctx, f.p
-	f.people, f.tokens = map[string]accounts.Account{}, map[string]string{}
+	f.people, f.tokens, f.apiTokens = map[string]accounts.Account{}, map[string]string{}, map[string]string{}
 	for _, who := range []struct{ key, name, first string }{
 		{"owner", "Riley Review", "Riley"},
 		{"other", "Sam Second-Account", "Sam"},
@@ -162,7 +163,12 @@ func (f *fixture) seed(sc scenario) error {
 			return err
 		}
 		a.DisplayName = who.name
-		f.people[who.key], f.tokens[who.key] = a, raw
+		// An API token, as a user creates under API access, for /mcp and /api/v1.
+		_, token, err := f.auth.CreateToken(ctx, a.ID, "review fixture")
+		if err != nil {
+			return fmt.Errorf("fixture API token: %w", err)
+		}
+		f.people[who.key], f.tokens[who.key], f.apiTokens[who.key] = a, raw, token
 	}
 	owner, other, moderator := f.people["owner"].ID, f.people["other"].ID, f.people["moderator"].ID
 	c, ct, z := city, country, zone

@@ -40,6 +40,11 @@ type Deps struct {
 	// Describe turns a service error into the user-facing message the JSON API
 	// uses for it, including any retry delay, so agents see the same wording.
 	Describe func(error) string
+	// Saved and Reminders enable the signed-in tools; nil leaves them out.
+	Saved     Saved
+	Reminders Reminders
+	// DescribePrivate words signed-in tool errors as the account API does.
+	DescribePrivate func(error) string
 }
 
 // NewServer returns the MCP server with the public tools registered.
@@ -52,7 +57,8 @@ func NewServer(d Deps) *mcp.Server {
 			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy.",
 	})
 	server.AddReceivingMiddleware(observe(d.Logger))
-	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[models.EventList](),
+	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
+	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[models.EventList](), Annotations: readOnly,
 		Description: "Search events by city and country (ISO code such as US), dates, category, or keyword. " +
 			"Dates are YYYY-MM-DD and match each event's local date; start_date defaults to today in UTC and end_date to 90 days after it, at most 366 days. " +
 			"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
@@ -63,16 +69,17 @@ func NewServer(d Deps) *mcp.Server {
 			}
 			return d.Events.Events(ctx, q)
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "list_categories", Title: "List categories", OutputSchema: outputSchema[models.CategoryList](),
+	mcp.AddTool(server, &mcp.Tool{Name: "list_categories", Title: "List categories", OutputSchema: outputSchema[models.CategoryList](), Annotations: readOnly,
 		Description: "Event categories (such as Music, Sports, Arts & Theatre) and their genres, with the IDs find_events accepts as category_id."},
 		toolErrors(d, func(ctx context.Context, _ struct{}) (models.CategoryList, error) {
 			return d.Events.Categories(ctx)
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "event_details", Title: "Event details", OutputSchema: outputSchema[models.EventDetail](),
+	mcp.AddTool(server, &mcp.Tool{Name: "event_details", Title: "Event details", OutputSchema: outputSchema[models.EventDetail](), Annotations: readOnly,
 		Description: "Details for one event by its ID from find_events (for example ticketmaster:G5v...), including prices, sale dates, venue, freshness and recent changes."},
 		toolErrors(d, func(ctx context.Context, in detailsInput) (models.EventDetail, error) {
 			return d.Details.Detail(ctx, in.EventID)
 		}))
+	addPrivateTools(server, d)
 	return server
 }
 
@@ -149,7 +156,7 @@ func toolErrors[In, Out any](d Deps, call func(context.Context, In) (Out, error)
 				message = d.Describe(err)
 			}
 			var zero Out
-			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: message}}}, zero, nil
+			return toolError(message), zero, nil
 		}
 		return nil, out, nil
 	}

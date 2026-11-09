@@ -2,6 +2,8 @@ package api
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -9,10 +11,13 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/appmcp"
 	"golang.org/x/time/rate"
 )
@@ -40,8 +45,41 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 	if inFlight < 1 {
 		inFlight = appmcp.DefaultMaxInFlight
 	}
-	handler := appmcp.Handler(appmcp.Deps{Events: a.events, Details: interestDetails{a}, Now: a.clock, Logger: a.logger, Describe: describeForAgents})
-	e.Any("/mcp", echo.WrapHandler(handler), a.mcpBoundary(newIPLimiter(rate, a.clock), make(chan struct{}, inFlight)))
+	deps := appmcp.Deps{Events: a.events, Details: interestDetails{a}, Now: a.clock, Logger: a.logger, Describe: describeForAgents,
+		DescribePrivate: func(err error) string { _, _, detail, _ := accountError(err); return detail }}
+	// Signed-in tools need accounts; assign only real services, never typed nils.
+	if a.enabled() && a.saved != nil {
+		deps.Saved = a.saved
+		if a.reminders != nil {
+			deps.Reminders = a.reminders
+		}
+	}
+	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight))
+	e.Any("/mcp", echo.WrapHandler(mcpAuthenticated(appmcp.Handler(deps))), boundary)
+}
+
+type mcpPrincipalKey struct{}
+
+// mcpAuthenticated hands the account the boundary verified to the tools as
+// MCP token info. The SDK middleware only runs for requests carrying a token,
+// so anonymous agents keep the public tools. The boundary's account check is
+// the only token check, including expiry: the SDK's own would answer 401
+// without the Bearer challenge for a token expiring mid-request.
+func mcpAuthenticated(handler http.Handler) http.Handler {
+	bearer := auth.RequireBearerToken(func(_ context.Context, _ string, r *http.Request) (*auth.TokenInfo, error) {
+		p, ok := r.Context().Value(mcpPrincipalKey{}).(accounts.Principal)
+		if !ok {
+			return nil, auth.ErrInvalidToken
+		}
+		return &auth.TokenInfo{UserID: p.Account.ID}, nil
+	}, &auth.RequireBearerTokenOptions{AllowMissingExpiration: true})(handler)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			bearer.ServeHTTP(w, r)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 // describeForAgents is the JSON API's error wording plus its Retry-After
@@ -66,9 +104,12 @@ func mcpError(c echo.Context, status int, retry int, message string) error {
 //     requires Origin validation against DNS rebinding; CORS stays disabled);
 //   - each client IP is rate limited on this replica, and one request is one
 //     call: JSON-RPC batches are rejected so a request cannot carry many;
+//   - a bearer API token, if sent, must be valid, and its account is limited
+//     too; cookies are never used, so browsers cannot act with ambient
+//     sign-in;
 //   - concurrent requests are bounded and excess is refused, not queued;
 //   - bodies are capped and responses kept out of caches.
-func (a *api) mcpBoundary(limiter *ipLimiter, inFlight chan struct{}) echo.MiddlewareFunc {
+func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan struct{}) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Applied as headers are written: the transport sets its own no-cache,
@@ -86,6 +127,21 @@ func (a *api) mcpBoundary(limiter *ipLimiter, inFlight chan struct{}) echo.Middl
 			default:
 				return mcpError(c, http.StatusServiceUnavailable, 1, "busy; retry shortly")
 			}
+			// Token checks read the database, so they run inside the concurrency bound.
+			if header := c.Request().Header.Get("Authorization"); header != "" {
+				p, err := a.mcpPrincipal(c, header)
+				if err != nil {
+					if errors.Is(err, accounts.ErrUnauthenticated) {
+						c.Response().Header().Set("WWW-Authenticate", `Bearer realm="ticketopia"`)
+						return mcpError(c, http.StatusUnauthorized, 0, "invalid, expired or revoked API token")
+					}
+					return mcpError(c, http.StatusServiceUnavailable, 30, "accounts are unavailable; retry shortly")
+				}
+				if ok, wait := accountLimiter.allow(p.Account.ID); !ok {
+					return mcpError(c, http.StatusTooManyRequests, max(1, int(math.Ceil(wait.Seconds()))), "too many requests for this account; retry after the Retry-After delay")
+				}
+				c.SetRequest(c.Request().WithContext(context.WithValue(c.Request().Context(), mcpPrincipalKey{}, p)))
+			}
 			if c.Request().Body != nil {
 				body, err := io.ReadAll(http.MaxBytesReader(c.Response(), c.Request().Body, mcpBodyLimit))
 				if err != nil {
@@ -99,6 +155,17 @@ func (a *api) mcpBoundary(limiter *ipLimiter, inFlight chan struct{}) echo.Middl
 			return next(c)
 		}
 	}
+}
+
+// mcpPrincipal verifies a bearer API token through the account service, as
+// /api/v1 does. Accounts being off means no token can be valid.
+func (a *api) mcpPrincipal(c echo.Context, header string) (accounts.Principal, error) {
+	// The scheme is case-insensitive, as the MCP SDK parses it.
+	fields := strings.Fields(header)
+	if len(fields) != 2 || !strings.EqualFold(fields[0], "bearer") || !a.enabled() || a.accounts == nil {
+		return accounts.Principal{}, accounts.ErrUnauthenticated
+	}
+	return a.authenticateRequest(c, fields[1], "api")
 }
 
 // allowedOrigin accepts configured origins (MCP_ALLOWED_ORIGINS, default
