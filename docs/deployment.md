@@ -140,7 +140,11 @@ production, use runtime secret/environment storage, not build arguments:
    The empty template value deliberately trusts no forwarded client IPs.
 6. Optionally enable the [agent tools endpoint](app-mcp.md) with
    **`MCP_ENABLED=true`**; **`MCP_RATE_PER_MINUTE`** (default 60, 1–6000) limits
-   each trusted client IP per replica. It relies on the same trusted-proxy setting.
+   each trusted client IP per replica, and **`MCP_MAX_IN_FLIGHT`** (default 8,
+   1–256) bounds concurrent requests per replica; keep it below `DB_MAX_OPEN`.
+   It relies on the same trusted-proxy setting, and accepts browser origins only
+   from **`MCP_ALLOWED_ORIGINS`** (default `AUTH_BASE_URL`, even without
+   accounts) or loopback.
 7. Optionally set **`KV_URL`** to one shared cache endpoint; URL credentials are
    secrets. An empty value uses memory without losing user-facing features. See
    [cache configuration](cache.md) for backend requirements and fallback behavior.

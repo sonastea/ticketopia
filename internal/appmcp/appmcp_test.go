@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/models"
 )
@@ -47,8 +48,13 @@ func (f *fakeEvents) Detail(_ context.Context, id string) (models.EventDetail, e
 
 func session(t *testing.T, f *fakeEvents) *mcp.ClientSession {
 	t.Helper()
+	return sessionWith(t, f, zerolog.Nop())
+}
+
+func sessionWith(t *testing.T, f *fakeEvents, logger zerolog.Logger) *mcp.ClientSession {
+	t.Helper()
 	server := NewServer(Deps{Events: f, Details: f, Now: func() time.Time { return time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC) },
-		Describe: func(err error) string { return "described: " + err.Error() }})
+		Describe: func(err error) string { return "described: " + err.Error() }, Logger: logger})
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
 	if _, err := server.Connect(t.Context(), serverTransport, nil); err != nil {
 		t.Fatal(err)
@@ -99,6 +105,13 @@ func TestToolsAreReadOnlyPublicSet(t *testing.T) {
 	if !slices.Equal(names, []string{"event_details", "find_events", "list_categories"}) {
 		t.Fatalf("tools: %v", names)
 	}
+	// Agents can discover result shapes; freshness allows an unknown time.
+	for _, tool := range tools.Tools {
+		schema, _ := json.Marshal(tool.OutputSchema)
+		if tool.OutputSchema == nil || !strings.Contains(string(schema), `"data_as_of":{"format":"date-time","type":["string","null"]}`) {
+			t.Errorf("%s output schema: %s", tool.Name, schema)
+		}
+	}
 }
 
 // find_events applies Discover's own parsing, and keeps list and per-event
@@ -129,6 +142,10 @@ func TestToolErrorsAreDescribedForAgents(t *testing.T) {
 	if f.query.Limit != 0 {
 		t.Fatal("an invalid query reached the event service")
 	}
+	// An explicit 0 is invalid, as in /api/v1, not the default page size.
+	if result, _ := call(t, s, "find_events", map[string]any{"limit": 0}); !result.IsError || !strings.Contains(text(result), "limit") {
+		t.Fatalf("limit 0: %q", text(result))
+	}
 	f.err = &discovery.UnavailableError{RetryAfter: 30 * time.Second}
 	if result, _ := call(t, s, "find_events", map[string]any{"city": "Chicago"}); !result.IsError || !strings.HasPrefix(text(result), "described: ") {
 		t.Fatalf("unavailable: %q", text(result))
@@ -138,8 +155,13 @@ func TestToolErrorsAreDescribedForAgents(t *testing.T) {
 	}
 }
 
+// Real details pass output validation: an unknown data_as_of is null, and
+// history changes carry arbitrary JSON before/after values.
 func TestEventDetailsReturnsDetail(t *testing.T) {
-	f := &fakeEvents{detail: map[string]models.EventDetail{"ticketmaster:one": {Item: models.Event{ID: "ticketmaster:one", Name: "One"}}}}
+	seen := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	history := &models.EventHistory{FirstSeen: seen, LastSeen: seen, Changes: []models.EventChange{{ObservedAt: seen, Kind: "price",
+		Summary: "Price changed", Before: json.RawMessage(`{"min":"25.00"}`), After: json.RawMessage(`null`)}}}
+	f := &fakeEvents{detail: map[string]models.EventDetail{"ticketmaster:one": {Item: models.Event{ID: "ticketmaster:one", Name: "One"}, History: history}}}
 	result, out := call(t, session(t, f), "event_details", map[string]any{"event_id": "ticketmaster:one"})
 	if result.IsError || out["item"].(map[string]any)["name"] != "One" {
 		t.Fatalf("%+v %q", out, text(result))
@@ -165,5 +187,21 @@ func TestStatelessHTTPToolCallWithoutInitialize(t *testing.T) {
 	if response.StatusCode != http.StatusOK || !strings.HasPrefix(response.Header.Get("Content-Type"), "application/json") ||
 		response.Header.Get("Mcp-Session-Id") != "" || !strings.Contains(string(data), "KZFzniwnSyZfZ7v7nJ") {
 		t.Fatalf("status %d type %q session %q body %s", response.StatusCode, response.Header.Get("Content-Type"), response.Header.Get("Mcp-Session-Id"), data)
+	}
+}
+
+// Calls the SDK rejects before a tool runs (wrong argument types) are logged
+// too, with tool and outcome but never arguments.
+func TestEveryToolCallIsLoggedWithoutArguments(t *testing.T) {
+	var logs strings.Builder
+	s := sessionWith(t, &fakeEvents{}, zerolog.New(&logs))
+	if result, _ := call(t, s, "find_events", map[string]any{"limit": "lots", "keyword": "secret-search-term"}); !result.IsError {
+		t.Fatal("wrong argument type accepted")
+	}
+	call(t, s, "list_categories", map[string]any{})
+	out := logs.String()
+	if !strings.Contains(out, `"tool":"find_events","outcome":"tool_error"`) || !strings.Contains(out, `"tool":"list_categories","outcome":"ok"`) ||
+		strings.Contains(out, "secret-search-term") || strings.Contains(out, "lots") {
+		t.Fatalf("logs: %s", out)
 	}
 }

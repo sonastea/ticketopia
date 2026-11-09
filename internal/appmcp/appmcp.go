@@ -6,12 +6,14 @@ package appmcp
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"time"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -36,7 +38,7 @@ type Deps struct {
 	Now     func() time.Time
 	Logger  zerolog.Logger
 	// Describe turns a service error into the user-facing message the JSON API
-	// uses for it, so agents see the same wording.
+	// uses for it, including any retry delay, so agents see the same wording.
 	Describe func(error) string
 }
 
@@ -49,35 +51,40 @@ func NewServer(d Deps) *mcp.Server {
 		Instructions: "Ticketopia finds live events (music, sports, arts and more) from Ticketmaster data. " +
 			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy.",
 	})
-	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events",
-		Description: "Search upcoming events by city and country (ISO code such as US), dates, category, or keyword. " +
-			"Dates default to the next 90 days. Use next_cursor from a result to fetch the next page."},
-		logged(d, "find_events", func(ctx context.Context, in findInput) (any, error) {
+	server.AddReceivingMiddleware(observe(d.Logger))
+	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[models.EventList](),
+		Description: "Search events by city and country (ISO code such as US), dates, category, or keyword. " +
+			"Dates are YYYY-MM-DD and match each event's local date; start_date defaults to today in UTC and end_date to 90 days after it, at most 366 days. " +
+			"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
+		toolErrors(d, func(ctx context.Context, in findInput) (models.EventList, error) {
 			q, err := discovery.ParseQuery(in.values(), d.Now())
 			if err != nil {
-				return nil, err
+				return models.EventList{}, err
 			}
 			return d.Events.Events(ctx, q)
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "list_categories", Title: "List categories",
-		Description: "Event categories (such as Music, Sports, Arts & Theatre) with their IDs for find_events category_id."},
-		logged(d, "list_categories", func(ctx context.Context, _ struct{}) (any, error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "list_categories", Title: "List categories", OutputSchema: outputSchema[models.CategoryList](),
+		Description: "Event categories (such as Music, Sports, Arts & Theatre) and their genres, with the IDs find_events accepts as category_id."},
+		toolErrors(d, func(ctx context.Context, _ struct{}) (models.CategoryList, error) {
 			return d.Events.Categories(ctx)
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "event_details", Title: "Event details",
+	mcp.AddTool(server, &mcp.Tool{Name: "event_details", Title: "Event details", OutputSchema: outputSchema[models.EventDetail](),
 		Description: "Details for one event by its ID from find_events (for example ticketmaster:G5v...), including prices, sale dates, venue, freshness and recent changes."},
-		logged(d, "event_details", func(ctx context.Context, in detailsInput) (any, error) {
+		toolErrors(d, func(ctx context.Context, in detailsInput) (models.EventDetail, error) {
 			return d.Details.Detail(ctx, in.EventID)
 		}))
 	return server
 }
 
 // Handler serves the tools statelessly: every request stands alone, so any
-// replica can answer it and nothing is retained between calls.
+// replica can answer it and nothing is retained between calls. The SDK's
+// loopback DNS-rebinding check is off because the HTTP boundary validates
+// Origin against configured origins instead; the check would otherwise
+// reject public-host requests from a reverse proxy connecting over loopback.
 func Handler(d Deps) http.Handler {
 	server := NewServer(d)
 	return mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server },
-		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
+		&mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true, DisableLocalhostProtection: true})
 }
 
 type findInput struct {
@@ -85,11 +92,11 @@ type findInput struct {
 	Country    string `json:"country,omitempty" jsonschema:"two-letter country code, for example US"`
 	Keyword    string `json:"keyword,omitempty" jsonschema:"artist, team, venue or event words"`
 	CategoryID string `json:"category_id,omitempty" jsonschema:"category ID from list_categories"`
-	StartDate  string `json:"start_date,omitempty" jsonschema:"first date, YYYY-MM-DD"`
-	EndDate    string `json:"end_date,omitempty" jsonschema:"last date, YYYY-MM-DD, at most 366 days after start_date"`
+	StartDate  string `json:"start_date,omitempty" jsonschema:"first event-local date, YYYY-MM-DD, default today in UTC"`
+	EndDate    string `json:"end_date,omitempty" jsonschema:"last event-local date, YYYY-MM-DD, default 90 days after start_date, at most 366 days after it"`
 	Sort       string `json:"sort,omitempty" jsonschema:"date_asc (default), date_desc, or name_asc"`
-	Limit      int    `json:"limit,omitempty" jsonschema:"results per page, default 20"`
-	Cursor     string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page"`
+	Limit      *int   `json:"limit,omitempty" jsonschema:"results per page, 1 to 100, default 20"`
+	Cursor     string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page; repeat the same other arguments"`
 }
 
 // values renders the input as Discover query parameters, so ParseQuery
@@ -102,8 +109,8 @@ func (in findInput) values() url.Values {
 			v.Set(key, value)
 		}
 	}
-	if in.Limit != 0 {
-		v.Set("limit", strconv.Itoa(in.Limit))
+	if in.Limit != nil {
+		v.Set("limit", strconv.Itoa(*in.Limit))
 	}
 	return v
 }
@@ -112,36 +119,61 @@ type detailsInput struct {
 	EventID string `json:"event_id" jsonschema:"event ID from find_events"`
 }
 
-// logged records each call's tool, outcome and duration, never its arguments,
-// and reports service errors as tool errors the agent can act on.
-func logged[In any](d Deps, name string, call func(context.Context, In) (any, error)) mcp.ToolHandlerFor[In, any] {
-	return func(ctx context.Context, _ *mcp.CallToolRequest, in In) (*mcp.CallToolResult, any, error) {
-		start := time.Now()
+// outputSchema describes a tool's structured result, overriding inference for
+// custom JSON: Freshness serializes an unknown data_as_of as null, and history
+// changes carry raw JSON values, not byte arrays.
+func outputSchema[T any]() *jsonschema.Schema {
+	s, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: map[reflect.Type]*jsonschema.Schema{
+		reflect.TypeFor[json.RawMessage](): {},
+		reflect.TypeFor[models.Freshness](): {Type: "object", Properties: map[string]*jsonschema.Schema{
+			"data_as_of": {Types: []string{"string", "null"}, Format: "date-time"},
+			"stale":      {Type: "boolean"},
+			"coverage": {Type: "object", Properties: map[string]*jsonschema.Schema{
+				"status": {Type: "string"}, "collected_days": {Type: "integer"}, "total_days": {Type: "integer"},
+			}},
+		}, Required: []string{"data_as_of", "stale"}},
+	}})
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+// toolErrors reports service errors as tool errors the agent can act on.
+func toolErrors[In, Out any](d Deps, call func(context.Context, In) (Out, error)) mcp.ToolHandlerFor[In, Out] {
+	return func(ctx context.Context, _ *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
 		out, err := call(ctx, in)
-		outcome := "ok"
-		if err != nil {
-			outcome = errorKind(err)
-		}
-		d.Logger.Info().Str("tool", name).Str("outcome", outcome).Dur("duration", time.Since(start)).Msg("MCP tool call")
 		if err != nil {
 			message := err.Error()
 			if d.Describe != nil {
 				message = d.Describe(err)
 			}
-			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: message}}}, nil, nil
+			var zero Out
+			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: message}}}, zero, nil
 		}
 		return nil, out, nil
 	}
 }
 
-func errorKind(err error) string {
-	var invalid *discovery.ValidationError
-	switch {
-	case errors.As(err, &invalid):
-		return "invalid"
-	case errors.Is(err, discovery.ErrNotFound):
-		return "not_found"
-	default:
-		return "unavailable"
+// observe logs every tools/call with its tool, outcome and duration, never
+// its arguments, including calls the SDK rejects before a tool runs.
+func observe(logger zerolog.Logger) mcp.Middleware {
+	return func(next mcp.MethodHandler) mcp.MethodHandler {
+		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+			call, ok := req.(*mcp.CallToolRequest)
+			if !ok {
+				return next(ctx, method, req)
+			}
+			start := time.Now()
+			result, err := next(ctx, method, req)
+			outcome := "ok"
+			if err != nil {
+				outcome = "error"
+			} else if r, ok := result.(*mcp.CallToolResult); ok && r.IsError {
+				outcome = "tool_error"
+			}
+			logger.Info().Str("tool", call.Params.Name).Str("outcome", outcome).Dur("duration", time.Since(start)).Msg("MCP tool call")
+			return result, err
+		}
 	}
 }

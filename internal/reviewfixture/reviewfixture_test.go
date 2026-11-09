@@ -77,6 +77,17 @@ func TestMariaDBScenarios(t *testing.T) {
 						t.Errorf("find_events item %q meta %+v", item.Name, item.Meta)
 					}
 				}
+				// Real stored details, with collection history, pass output validation.
+				var detail struct {
+					Item    struct{ Name string }
+					History *struct {
+						FirstSeen string `json:"first_seen"`
+					}
+				}
+				if err := json.Unmarshal(mcpCall(t, m.BaseURL, "event_details", map[string]any{"event_id": "ticketmaster:Review_0"}), &detail); err != nil ||
+					detail.Item.Name == "" || detail.History == nil {
+					t.Fatalf("event_details: %v %+v", err, detail)
+				}
 				// Opening the removed event (provider 404) keeps it last-known.
 				label := regexp.MustCompile(`Last-known as of [^<]+`).FindString(body)
 				get(t, m, "owner", m.ScenarioPaths["removed_event"])
@@ -258,8 +269,10 @@ func mcpCall(t *testing.T, base, tool string, args map[string]any) json.RawMessa
 			IsError           bool            `json:"isError"`
 			StructuredContent json.RawMessage `json:"structuredContent"`
 		}
+		Error json.RawMessage
 	}
-	if err := json.NewDecoder(response.Body).Decode(&reply); err != nil || response.StatusCode != http.StatusOK || reply.Result.IsError {
+	if err := json.NewDecoder(response.Body).Decode(&reply); err != nil || response.StatusCode != http.StatusOK || reply.Result.IsError ||
+		reply.Error != nil || len(reply.Result.StructuredContent) == 0 {
 		t.Fatalf("%s: status %d %v %+v", tool, response.StatusCode, err, reply)
 	}
 	return reply.Result.StructuredContent

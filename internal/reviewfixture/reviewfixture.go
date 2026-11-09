@@ -205,7 +205,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()),
 		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth),
 		// The app's agent tools, so reviews and load scripts can call /mcp too.
-		api.WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 6000})}, options...)...)
+		api.WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 6000, MaxInFlight: 64})}, options...)...)
 	if err != nil {
 		listener.Close()
 		return nil, err
