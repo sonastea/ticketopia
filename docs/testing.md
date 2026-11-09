@@ -162,12 +162,19 @@ to include `reminder-email`.
 ### Review fixtures over MCP
 
 `make review-mcp` builds `bin/ticketopia-review-mcp` and serves the same
-fixtures to an MCP client over stdio. Register it with the repository root as the
-working directory, for example:
+fixtures to an MCP client over stdio. OpenCode picks it up from the repository's
+`opencode.json` as `ticketopia-review`; it connects without touching the
+database until `scenario_apply`. For other clients, register a stdio server
+running from any directory:
 
 ```json
-{ "command": "make", "args": ["-s", "review-mcp"] }
+{ "command": "make", "args": ["-s", "-C", "/path/to/ticketopia", "review-mcp"] }
 ```
+
+The client's process must find `go` on its `PATH`. Version managers that only
+activate in interactive shells (for example `mise activate` in `.zshrc`) leave
+background services without it; add the manager's shims to a file every shell
+reads (such as `.zshenv`), or launch through it (`mise exec -- make ...`).
 
 - `scenario_list`: scenario names and descriptions.
 - `scenario_apply {"name": ...}`: starts the review server on a fresh schema
