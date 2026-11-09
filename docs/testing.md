@@ -83,10 +83,27 @@ Seeded state covers six Chicago events (including long names), saves, public and
 private interest, recommendations, on-sale reminders, a followed discussion
 with replies, Helpful reactions and unread reply notifications, and a reported
 post in the moderator queue. Ticketmaster and IP lookup stay off; events come
-from cache fixtures.
+from cache fixtures. `MARIADB_TEST_ADDR` must be a loopback address because the
+server creates a schema and users.
+
+Add a named scenario to seed extra states on top of that baseline:
+
+```sh
+make review-server scenario=event-edge-cases
+```
+
+- `baseline` (default): the state above.
+- `event-edge-cases`: two more saved events, which also appear in Discover. One is
+  rescheduled, with a long title and no price or presale details. The other is
+  canceled. The rescheduled event has a busy discussion that the owner follows:
+  nested replies, Helpful reactions, unread replies and a long post.
+
+An unknown scenario name fails before any schema is created. Scenarios are fixed;
+to start over, stop the server and run it again.
 
 `REVIEW_SERVER_STATE_DIR` (default `$TMPDIR/ticketopia-review`) receives
-`manifest.json` (base URL, account IDs, routes, event and thread IDs) and one
+`manifest.json` (base URL, account IDs, routes, event and thread IDs, plus
+`scenario` and its `scenario_paths`) and one
 Playwright storage-state file per account, for example
 `browser.newContext({ storageState: manifest.accounts.owner.storage_state })`.
 Writes go to the throwaway schema, so reviewers may save, post and report. Stop

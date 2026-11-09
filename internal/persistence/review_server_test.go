@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -29,6 +32,45 @@ import (
 	"github.com/sonastea/ticketopia/internal/saved"
 )
 
+var reviewScenarioName = flag.String("review.scenario", "baseline", "TestMariaDBReviewServer fixture scenario")
+
+// reviewFixture is the seeded baseline that scenarios add to.
+type reviewFixture struct {
+	t       *testing.T
+	p       *Pool
+	people  map[string]accounts.Account
+	follows *discussionfollows.Service
+	post    func(who, event, thread, parent, body string) discussions.Post
+}
+
+// A reviewScenario adds to the baseline. events receives a builder for
+// Chicago fixture events and returns extra events for the Discover results
+// and event cache; seed adds persisted state and returns manifest paths.
+type reviewScenario struct {
+	events func(newEvent func(name string) models.EventDetail) []models.EventDetail
+	seed   func(f reviewFixture, events []models.EventDetail) map[string]string
+}
+
+var reviewScenarios = map[string]reviewScenario{
+	"baseline":         {},
+	"event-edge-cases": {events: edgeCaseEvents, seed: seedEdgeCases},
+}
+
+func reviewScenarioNames() string {
+	names := make([]string, 0, len(reviewScenarios))
+	for name := range reviewScenarios {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return strings.Join(names, ", ")
+}
+
+func loopbackAddr(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	ip := net.ParseIP(host)
+	return err == nil && ip != nil && ip.IsLoopback()
+}
+
 // Interactive manual-review server: production handlers over an isolated schema
 // with fixture accounts signed in through the real login service. Credentials
 // reach the browser only as Playwright storage-state files; there is no runtime
@@ -38,9 +80,17 @@ func TestMariaDBReviewServer(t *testing.T) {
 	if addr == "" {
 		t.Skip("set REVIEW_SERVER_ADDR (for example 127.0.0.1:8090) to serve signed-in review fixtures")
 	}
-	host, _, err := net.SplitHostPort(addr)
-	if ip := net.ParseIP(host); err != nil || ip == nil || !ip.IsLoopback() {
+	if !loopbackAddr(addr) {
 		t.Fatal("REVIEW_SERVER_ADDR must be a loopback IP and port")
+	}
+	host, _, _ := net.SplitHostPort(addr)
+	// The review server creates schemas and users; keep it on a local database.
+	if !loopbackAddr(os.Getenv("MARIADB_TEST_ADDR")) {
+		t.Fatal("MARIADB_TEST_ADDR must be a loopback IP and port for the review server")
+	}
+	scenario, ok := reviewScenarios[*reviewScenarioName]
+	if !ok {
+		t.Fatalf("unknown review scenario %q; choose one of: %s", *reviewScenarioName, reviewScenarioNames())
 	}
 	stateDir := os.Getenv("REVIEW_SERVER_STATE_DIR")
 	if stateDir == "" {
@@ -120,9 +170,7 @@ func TestMariaDBReviewServer(t *testing.T) {
 		"Late show at the club",
 		"Season opener",
 	}
-	details := []models.EventDetail{}
-	entries := []models.Event{}
-	for i, name := range names {
+	newEvent := func(i int, name string) models.EventDetail {
 		d := savedDetail(fmt.Sprintf("Review_%d", i))
 		start := time.Date(now.Year(), now.Month(), now.Day()+3+i*4, 19, 30, 0, 0, chicago)
 		date, clock := start.Format(time.DateOnly), start.Format(time.TimeOnly)
@@ -133,7 +181,23 @@ func TestMariaDBReviewServer(t *testing.T) {
 		d.Item.PublicSale.Start = &sale
 		d.Item.Venues = []models.Venue{{ID: fmt.Sprintf("ticketmaster:review-venue-%d", i%2), Place: models.Place{Name: []string{"The Riverside Hall", "A Venue With An Unusually Long Name On The Near West Side"}[i%2], Address: "123 W Example St", City: city, State: "IL", Country: "United States Of America", CountryCode: country}}}
 		d.Meta.DataAsOf = now
-		details, entries = append(details, d), append(entries, d.Item)
+		return d
+	}
+	details := []models.EventDetail{}
+	for i, name := range names {
+		details = append(details, newEvent(i, name))
+	}
+	var extra []models.EventDetail
+	if scenario.events != nil {
+		next := len(details)
+		extra = scenario.events(func(name string) models.EventDetail {
+			next++
+			return newEvent(next-1, name)
+		})
+	}
+	entries := []models.Event{}
+	for _, d := range slices.Concat(details, extra) {
+		entries = append(entries, d.Item)
 		seed("ticketmaster:v1:event:"+d.Item.ID, d.Item)
 	}
 	// Match the owner's account-derived city AND country defaults. ParseQuery
@@ -181,13 +245,17 @@ func TestMariaDBReviewServer(t *testing.T) {
 	talk := discussions.New(p.Discussions(), saved.New(p.Saved(), nil))
 	follows := discussionfollows.New(p.DiscussionFollows())
 	event := details[0].Item.ID
-	post := func(who, thread, parent, body string) discussions.Post {
+	postTo := func(who, event, thread, parent, body string) discussions.Post {
 		t.Helper()
 		created, _, err := talk.Create(ctx, who, event, thread, parent, body, accounts.ID())
 		if err != nil {
 			t.Fatal(err)
 		}
 		return created
+	}
+	post := func(who, thread, parent, body string) discussions.Post {
+		t.Helper()
+		return postTo(who, event, thread, parent, body)
 	}
 	root := post(other, "", "", "Anyone know whether the balcony has a good view of the stage?")
 	must(follows.Set(ctx, owner, event, root.ID, "immediate"))
@@ -198,6 +266,10 @@ func TestMariaDBReviewServer(t *testing.T) {
 	must(p.Discussions().React(ctx, moderator, second.ID, true))
 	reported := post(other, root.ID, root.ID, "DM me for cheap tickets!!! (fixture post for the moderation queue)")
 	must3(p.Moderation().Report(ctx, owner, reported.ID, "spam", "Looks like a ticket scam."))
+	scenarioPaths := map[string]string{}
+	if scenario.seed != nil {
+		scenarioPaths = scenario.seed(reviewFixture{t: t, p: p, people: people, follows: follows, post: postTo}, extra)
+	}
 
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -267,14 +339,19 @@ func TestMariaDBReviewServer(t *testing.T) {
 		},
 		"event_ids": func() []string {
 			ids := []string{}
-			for _, d := range details {
-				ids = append(ids, d.Item.ID)
+			for _, e := range entries {
+				ids = append(ids, e.ID)
 			}
 			return ids
 		}(),
 		"discussion_thread_id": root.ID,
+		"scenario":             *reviewScenarioName,
+		"scenario_paths":       scenarioPaths,
 	})
-	t.Logf("review server listening on %s", base)
+	t.Logf("review server listening on %s (scenario %s)", base, *reviewScenarioName)
+	for _, name := range slices.Sorted(maps.Keys(scenarioPaths)) {
+		t.Logf("scenario %s: %s%s", name, base, scenarioPaths[name])
+	}
 	t.Logf("storage states and manifest: %s", stateDir)
 	t.Logf("signed-in discussion example (owner): %s", discussion)
 	t.Log("press Ctrl-C to stop and drop the isolated schema")
@@ -292,4 +369,68 @@ func TestMariaDBReviewServer(t *testing.T) {
 		_ = os.Remove(filepath.Join(stateDir, key+".json"))
 	}
 	_ = os.Remove(filepath.Join(stateDir, "manifest.json"))
+}
+
+// edgeCaseEvents covers event-page states the baseline lacks: a long title with
+// no price or presale details while rescheduled, and a canceled event.
+func edgeCaseEvents(newEvent func(name string) models.EventDetail) []models.EventDetail {
+	rescheduled := newEvent("Rescheduled: an evening of extended orchestral suites, three encores, and a surprise guest whose name has not been announced yet")
+	rescheduled.Item.Status = "rescheduled"
+	rescheduled.Item.PriceRanges, rescheduled.Item.Presales = nil, nil
+	rescheduled.Item.Info = strings.Repeat("The original date moved after a venue scheduling conflict; existing tickets remain valid for the new date. ", 4)
+	canceled := newEvent("Canceled acoustic set")
+	canceled.Item.Status = "canceled"
+	return []models.EventDetail{rescheduled, canceled}
+}
+
+// seedEdgeCases saves both events and gives the rescheduled one a busy
+// discussion the owner follows, so replies from others arrive unread.
+func seedEdgeCases(f reviewFixture, events []models.EventDetail) map[string]string {
+	t, ctx := f.t, f.t.Context()
+	owner, other, moderator := f.people["owner"].ID, f.people["other"].ID, f.people["moderator"].ID
+	for _, d := range events {
+		if _, _, err := f.p.Saved().Save(ctx, owner, d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	busy, canceled := events[0].Item.ID, events[1].Item.ID
+	react := func(who, id string) {
+		t.Helper()
+		if _, err := f.p.Discussions().React(ctx, who, id, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := f.post(other, busy, "", "", "Does anyone know if tickets from the original date carry over automatically, or do we need to exchange them?")
+	if _, err := f.follows.Set(ctx, owner, busy, root.ID, "immediate"); err != nil {
+		t.Fatal(err)
+	}
+	answer := f.post(moderator, busy, root.ID, root.ID, "They carry over. The venue emailed everyone; check spam if you didn't see it.")
+	react(owner, answer.ID)
+	react(other, answer.ID)
+	f.post(owner, busy, root.ID, answer.ID, "Mine carried over, but my seat section changed. Did anyone else see that?")
+	for i, body := range []string{
+		"Same here, moved from the floor to the lower balcony.",
+		"Mine stayed the same. Maybe it depends on when you bought?",
+		"The box office said section changes were only for the front rows because the stage is bigger now.",
+		"Thanks all, that explains it. I'll call them Monday to confirm.",
+	} {
+		who := []string{other, moderator}[i%2]
+		f.post(who, busy, root.ID, root.ID, body)
+	}
+	for i, body := range []string{
+		"Is the surprise guest likely to be announced before the show?",
+		"Any recommendations for dinner nearby that won't make us late?",
+		strings.Repeat("Long post check: parking was a mess at the original date, so plan for extra time. ", 6),
+	} {
+		who := []string{other, moderator, other}[i]
+		post := f.post(who, busy, "", "", body)
+		if i == 1 {
+			react(owner, post.ID)
+		}
+	}
+	return map[string]string{
+		"edge_event":      "/events/" + url.PathEscape(busy),
+		"canceled_event":  "/events/" + url.PathEscape(canceled),
+		"busy_discussion": "/events/" + url.PathEscape(busy) + "/discussions/" + root.ID,
+	}
 }
