@@ -11,7 +11,7 @@ help:
 		'make ses-setup Start local SES emulation in MiniStack and seed the test sender.' \
 		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
-		'                   Add scenario=event-edge-cases for edge-case event pages and a busy discussion.'
+		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, reminder-states).'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -38,3 +38,4 @@ review-server:
 	@MARIADB_TEST_ADDR=$${MARIADB_TEST_ADDR:-127.0.0.1:3307} REVIEW_SERVER_ADDR=$(REVIEW_SERVER_ADDR) \
 		go test -count=1 -timeout 0 -run '^TestMariaDBReviewServer$$' -v ./internal/persistence \
 		-args '-review.scenario=$(scenario)'
+

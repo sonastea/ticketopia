@@ -97,6 +97,17 @@ make review-server scenario=event-edge-cases
   rescheduled, with a long title and no price or presale details. The other is
   canceled. The rescheduled event has a busy discussion that the owner follows:
   nested replies, Helpful reactions, unread replies and a long post.
+- `event-data-gaps`: a saved event with no image or venue, last refreshed a week
+  ago. Its detail cache entry is omitted, so the page falls back to the durable
+  snapshot and shows its age. `unavailable_event` is neither cached nor saved and
+  returns 503 while the provider is off.
+- `reminder-states`: the owner gets a reminder due in about 30 minutes and a
+  stopped reminder (its event page shows no reminder). `other` has notifications
+  paused, so its reminder shows Paused. The real reminder worker schedules them;
+  every due time is in the future, and any send attempt fails the scenario.
+
+For the signed-out view, open any path in a browser context without storage
+state; use `paths.discover`, since `/` without an account asks for a location.
 
 An unknown scenario name fails before any schema is created. Scenarios are fixed;
 to start over, stop the server and run it again.
@@ -109,3 +120,9 @@ Playwright storage-state file per account, for example
 Writes go to the throwaway schema, so reviewers may save, post and report. Stop
 with Ctrl-C to drop the schema and users and remove the state files. A killed
 process leaves its `ticketopia_test_*` schema behind.
+
+The fixtures live in `internal/reviewfixture`; disposable schemas, users and
+runtime grants come from `internal/persistence/persistencetest`, shared with the
+opt-in MariaDB suite. Neither is imported by `cmd/ticketopia`.
+`MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./internal/reviewfixture` starts every
+scenario and checks its paths for each account and signed out.

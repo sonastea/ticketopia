@@ -79,6 +79,11 @@ func WithDiscovery(service *discovery.Service) Option {
 	return func(a *api) { a.events = service }
 }
 
+// WithLocation replaces the environment-configured IP location resolver.
+func WithLocation(resolver *location.Resolver) Option {
+	return func(a *api) { a.locations = resolver }
+}
+
 type interestDetails struct{ a *api }
 
 func (d interestDetails) Detail(ctx context.Context, id string) (models.EventDetail, error) {
