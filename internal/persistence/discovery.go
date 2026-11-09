@@ -273,6 +273,10 @@ func (r *DiscoveryRepository) searchAt(ctx context.Context, q discovery.Query, f
 		return read, safeError("discover coverage", err)
 	}
 	read.List.Meta, read.Refresh = meta, refresh
+	// Fresh complete coverage dates the list itself. Retained events it omitted
+	// (cancelled, moved or removed upstream) carry their own last-known meta
+	// instead, so one unverifiable event cannot mark every page stale.
+	covered := meta.Coverage != nil && meta.Coverage.Status == "complete" && !meta.Stale && !meta.DataAsOf.IsZero()
 	pageSQL, pageArgs := discoverPageQuery(q, cursor)
 	rows, err := tx.QueryContext(ctx, pageSQL, pageArgs...)
 	if err != nil {
@@ -294,11 +298,16 @@ func (r *DiscoveryRepository) searchAt(ctx context.Context, q discovery.Query, f
 		if err = json.Unmarshal(data, &event); err != nil {
 			break
 		}
+		item := models.Freshness{DataAsOf: at, Stale: now.Sub(at) > freshFor || unconfirmed}
+		event.Meta = &item
 		read.List.Items = append(read.List.Items, event)
+		if covered {
+			continue
+		}
 		if read.List.Meta.DataAsOf.IsZero() || at.Before(read.List.Meta.DataAsOf) {
 			read.List.Meta.DataAsOf = at
 		}
-		if now.Sub(at) > freshFor || unconfirmed {
+		if item.Stale {
 			read.List.Meta.Stale = true
 		}
 	}

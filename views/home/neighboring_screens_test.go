@@ -214,6 +214,20 @@ func TestResultsFreshnessIsOneQuietLine(t *testing.T) {
 	}
 }
 
+// An event omitted by fresh complete collection is labeled on its own row.
+func TestEventRowsLabelLastKnownEvents(t *testing.T) {
+	at := time.Date(2026, 10, 29, 11, 7, 0, 0, time.UTC)
+	events := []models.Event{
+		{ID: "ticketmaster:old", Name: "Old", Status: "onsale", Meta: &models.Freshness{DataAsOf: at, Stale: true}},
+		{ID: "ticketmaster:fresh", Name: "Fresh", Status: "onsale", Meta: &models.Freshness{DataAsOf: time.Now().UTC()}},
+		{ID: "ticketmaster:plain", Name: "Plain", Status: "onsale"},
+	}
+	body := renderNeighbor(t, EventRows(events, "/", "", SaveView{}, "/", InterestView{}))
+	if strings.Count(body, `class="event-last-known"`) != 1 || !strings.Contains(body, "Last-known as of Oct 29, 11:07 UTC") || strings.Index(body, "event-last-known") > strings.Index(body, "ticketmaster:fresh") {
+		t.Fatal("only the stale row must carry a last-known label", body)
+	}
+}
+
 func TestFollowSearchDisclosureStates(t *testing.T) {
 	collection := follows.List{Items: []follows.Item{{}}}
 	for _, tc := range []struct {

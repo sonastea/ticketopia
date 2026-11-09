@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-11-08 — Per-event freshness on stored lists, contract v1.21.0
+
+- Add optional `Event.meta` (`Freshness`) to stored (MariaDB) event list items;
+  `stale` marks older or omitted events awaiting verification. Fresh complete
+  coverage no longer makes the list `meta` stale for them. See
+  [event history](../event-history.md#stored-discover-and-coverage-aware-reads).
+
 ### 2026-10-26 — Event calendar file, contract v1.20.0
 
 - Add `GET /api/v1/events/{event_id}/calendar.ics`: one public `text/calendar`

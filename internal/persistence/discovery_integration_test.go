@@ -344,6 +344,72 @@ func TestMariaDBDiscoverPartialCoverageReportsNewestAttempt(t *testing.T) {
 	}
 }
 
+// A retained event the provider stops returning (cancelled, moved or removed,
+// whose detail read 404s indefinitely) is labeled on its own row; it must not
+// mark fresh complete coverage stale or date the whole list.
+func TestMariaDBDiscoverOmittedEventLabelsOnlyItsRow(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	var omit atomic.Bool
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/events.json" {
+			w.WriteHeader(404)
+			return
+		}
+		if !omit.Load() {
+			fixtureCatalog(w, r, 3)
+			return
+		}
+		rec := httptest.NewRecorder()
+		fixtureCatalog(rec, r, 3)
+		var body map[string]any
+		_ = json.Unmarshal(rec.Body.Bytes(), &body)
+		events := body["_embedded"].(map[string]any)["events"].([]any)
+		body["_embedded"] = map[string]any{"events": events[1:]}
+		body["page"] = map[string]int{"number": 0, "totalElements": 2, "totalPages": 1}
+		_ = json.NewEncoder(w).Encode(body)
+	}))
+	defer upstream.Close()
+	db := f.runtime.Database
+	s := catalogService(t, p, upstream.URL, 10)
+	q := catalogQuery(t, "city=Berlin&country=DE&start_date=2026-10-08&end_date=2026-10-10")
+	if list, err := s.Events(t.Context(), q); err != nil || len(list.Items) != 3 || list.Meta.Stale {
+		t.Fatalf("initial collection %+v %v", list.Meta, err)
+	}
+	old := time.Now().Add(-10 * 24 * time.Hour).UTC().Truncate(time.Microsecond)
+	execSQL(t, f.admin, `UPDATE `+db+`.event_snapshots SET data_as_of=?`, old)
+	execSQL(t, f.admin, `UPDATE `+db+`.discovery_scopes SET last_success=TIMESTAMPADD(HOUR,-8,UTC_TIMESTAMP(6)),next_refresh=UTC_TIMESTAMP(6)`)
+	omit.Store(true)
+	if _, err := s.Events(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	s.WaitRefreshes()
+	check := func(stage string) {
+		t.Helper()
+		list, err := s.Events(t.Context(), q)
+		if err != nil || list.Meta.Coverage.Status != "complete" || list.Meta.Stale || time.Since(list.Meta.DataAsOf) > time.Minute || len(list.Items) != 3 {
+			t.Fatalf("%s: list meta %+v coverage %+v items %d %v", stage, list.Meta, list.Meta.Coverage, len(list.Items), err)
+		}
+		for _, e := range list.Items {
+			omitted := e.ID == "ticketmaster:catalog-000"
+			if e.Meta == nil || e.Meta.Stale != omitted || (omitted && !e.Meta.DataAsOf.Equal(old)) {
+				t.Fatalf("%s: %s item meta %+v", stage, e.ID, e.Meta)
+			}
+		}
+	}
+	check("after omission")
+	worked, err := history.RefreshMissing(t.Context(), p.History(), s)
+	if !worked || err != nil {
+		t.Fatal("detail retry", worked, err)
+	}
+	check("after 404 detail")
+	var leaked int
+	if err := f.admin.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+db+`.event_snapshots WHERE JSON_EXISTS(snapshot,'$.meta')`).Scan(&leaked); err != nil || leaked != 0 {
+		t.Fatal("read-time meta persisted", leaked, err)
+	}
+}
+
 func TestMariaDBMissingEventDetailAndPublicHistory(t *testing.T) {
 	f := newMaria(t)
 	f.migrate(t)

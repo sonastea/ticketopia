@@ -1511,6 +1511,12 @@ html:has(.filter-sheet:modal) {
   color: var(--warning);
 }
 
+.event-last-known {
+  font-weight: 650;
+  color: var(--warning);
+  font-variant-numeric: tabular-nums;
+}
+
 .extra-metadata {
   font-size: .75rem;
   color: var(--muted-warm);

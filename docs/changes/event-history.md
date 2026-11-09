@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-11-08 — Label omitted Discover events per row
+
+- Fresh complete coverage now dates and freshens the stored Discover list. Events
+  it omitted (cancelled, moved, or removed upstream and 404 on every detail retry)
+  no longer mark every page "Showing last-known results" with their old time.
+- Each stored list item carries `meta`; stale rows show "Last-known as of …".
+  Partial/stale/uncollected coverage keeps the oldest-event list freshness.
+- MariaDB regression covers omission plus a 404 detail retry. See
+  [stored Discover](../event-history.md#stored-discover-and-coverage-aware-reads).
+
 ### 2026-10-29 — Set-based collection and Discover page writes
 
 - Write each collection page with about 30 multi-row statements instead of ~26
@@ -64,35 +74,4 @@
   shutdown, slow optional metadata and response tracking.
 - See [stored Discover behavior](../event-history.md#stored-discover-and-coverage-aware-reads).
 
-### 2026-10-08 — Durable observations and budgeted city/date collection
-
-- Finish the website integration in schema 11: existing Discover/event-list API
-  use indexed SQL filters, sorting and pagination, fresh coverage reuse and
-  durable partial/stale/outage/quota fallback, including on-demand unconfigured cities.
-- Show truthful collection/empty states and first/last-seen plus dated changes
-  on event Overview; share detail/history API reads without private activity.
-- Queue budgeted, fenced detail refreshes for omitted events; retain good facts
-  through absence/404 without inferring cancellation. Add operator coverage,
-  backlog, failure/cooldown and quota aggregate logs.
-- Verify isolated MariaDB SQL/API/restart/quota/partial coverage and Chromium
-  keyword/sort/pagination/history/empty states, 320px/200%-text and accessibility.
-- Check all schema-11 Discover write permissions during local database setup;
-  regression-test missing grants individually and use least-privilege Discover
-  grants in SQL fixtures. Document [1142 recovery](../event-history.md#missing-runtime-grants).
-- Refuse application startup when runtime writes are missing; see shared
-  [permission validation](../persistence.md#startup-permission-validation).
-
-- Persist independent artists/venues/provider mappings and immutable dated event
-  observations with first/last seen and meaningful-change evidence in schema 9.
-- Add opt-in one-day city refreshes, fenced expiring claims, restart-safe shared
-  Ticketmaster accounting/pacing/cooldowns, and complete/partial/capped/failed receipts.
-- Preserve last-good data through failure/absence/older samples; detect dates,
-  venues, public/presale timing and explicit cancellation/postponement without
-  false sparse-data changes. Keep public snapshot fallback independent of accounts.
-- Initially preserve the event-detail contract with account-independent retained
-  metadata; the integration above now extends shared read metadata/history.
-- Verify real-MariaDB concurrency, atomic rollback/retries, quotas/cooldowns,
-  restart/upgrade retention, changed paging coverage and fixture-based collection.
-  No live quota, running-schema migration or deployment was performed.
-- See [feature/setup](../event-history.md), [persistence](../persistence.md) and
-  [delivery goals](../goals/delivery.md#2-keep-reliable-event-and-application-history).
+Older entries: [event history archive](archive/event-history/).

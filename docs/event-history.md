@@ -44,6 +44,10 @@ restarts. Older individual snapshots are still labeled older even if collection
 coverage is complete; omission does not remove events or assert live availability.
 Known omitted events awaiting targeted verification are labeled older/last-known
 even when their previous observation is still within the normal freshness interval.
+Each stored list item carries its own `meta`, and those rows read "Last-known as
+of …". Fresh complete coverage alone dates the list, so omitted events (including
+removed ones whose detail read keeps returning 404) do not mark every page stale;
+partial, stale and uncollected coverage still take the oldest listed event's time.
 
 Missing/due coverage triggers one broadly scoped on-demand collection, independent
 of the configured city list. It clears category/genre/keyword filters and, for city

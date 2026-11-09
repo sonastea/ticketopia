@@ -25,6 +25,9 @@ type Event struct {
 	// Tint is an artwork-derived "#rrggbb" header colour, computed once when the
 	// event is cached or stored. Empty means no usable colour; use the brand.
 	Tint string `json:"tint,omitempty"`
+	// Meta is a stored list read's per-event freshness. It is attached at read
+	// time and never persisted with the snapshot.
+	Meta *Freshness `json:"meta,omitempty"`
 }
 
 type Source struct {

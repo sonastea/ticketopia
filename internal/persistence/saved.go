@@ -94,6 +94,7 @@ func (r *SavedRepository) Save(ctx context.Context, owner string, detail models.
 // Saves and interest share durable event metadata, never personal activity.
 func prepareSnapshot(detail models.EventDetail) ([]any, []byte, error) {
 	e := detail.Item
+	e.Meta = nil
 	if err := validateEvent(e); err != nil {
 		return nil, nil, err
 	}
