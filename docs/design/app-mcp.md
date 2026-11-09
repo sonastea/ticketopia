@@ -1,7 +1,8 @@
 # App MCP endpoint
 
-Status: **Proposed.** Nothing here is implemented. It describes an MCP server
-for Ticketopia users' own agents. The separate, implemented
+Status: **Step 1 implemented** (read-only public tools behind `MCP_ENABLED`; see
+[agent tools](../app-mcp.md)). Later steps remain proposed. It describes an MCP
+server for Ticketopia users' own agents. The separate, implemented
 [review MCP server](../testing.md#review-fixtures-over-mcp) is a local
 development tool over throwaway fixture data and is unaffected by this plan.
 
@@ -36,6 +37,7 @@ agent context):
 | Tool | Access | Behavior |
 |---|---|---|
 | `find_events` | public | city/country, dates, category, keyword; same validation, limits and caching as Discover |
+| `list_categories` | public | category IDs and names for `find_events` (added in step 1) |
 | `event_details` | public | one event with freshness and history summary |
 | `my_saved_events` | signed in | the caller's saves, paginated |
 | `save_event` / `unsave_event` | signed in | same rules and idempotency as the saved-events API |
@@ -104,8 +106,8 @@ for privacy (owner versus other account), validation, idempotency and limits.
 
 **Load: k6, not LLMs.** Load needs high, repeatable request rates with
 latency thresholds. k6 scripts can mix page views, `/api/v1` calls and `/mcp`
-JSON-RPC POSTs (stateless mode makes each a plain request; confirm whether a
-client must send `initialize` first), with arrival-rate scenarios and
+JSON-RPC POSTs (stateless mode makes each a plain request; no `initialize` is
+needed first, as tested), with arrival-rate scenarios and
 thresholds such as p95 latency, error rate and database pool saturation.
 
 **Realism: LLM agents as users.** Agents driving the web app (browser tools)

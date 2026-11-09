@@ -138,7 +138,10 @@ production, use runtime secret/environment storage, not build arguments:
 5. Behind a reverse proxy, set **`TRUSTED_PROXY_CIDRS`** to its actual connecting
    ranges and configure forwarded headers as described in [location setup](location.md#configuration).
    The empty template value deliberately trusts no forwarded client IPs.
-6. Optionally set **`KV_URL`** to one shared cache endpoint; URL credentials are
+6. Optionally enable the [agent tools endpoint](app-mcp.md) with
+   **`MCP_ENABLED=true`**; **`MCP_RATE_PER_MINUTE`** (default 60, 1–6000) limits
+   each trusted client IP per replica. It relies on the same trusted-proxy setting.
+7. Optionally set **`KV_URL`** to one shared cache endpoint; URL credentials are
    secrets. An empty value uses memory without losing user-facing features. See
    [cache configuration](cache.md) for backend requirements and fallback behavior.
 

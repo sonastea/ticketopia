@@ -4,6 +4,7 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-11-09 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-08 — [Reliable event history](changes/event-history.md)
 - 2026-11-08 — [OpenAPI contract](changes/openapi.md)
 - 2026-11-08 — [Local development services](changes/local-development.md)
