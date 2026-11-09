@@ -3,9 +3,14 @@
 set -eu
 dir="$(dirname "$0")/../.local/mariadb/certs"
 mkdir -p "$dir"
-if [ -e "$dir/ca.crt" ] && [ -e "$dir/server.crt" ] && [ -e "$dir/server.key" ]; then
+# Keep fixtures with at least 7 days left; otherwise reissue the CA and server
+# pair together so an expired or replaced CA never signs a surviving server key.
+if [ -e "$dir/ca.crt" ] && [ -e "$dir/server.crt" ] && [ -e "$dir/server.key" ] &&
+  openssl x509 -checkend 604800 -noout -in "$dir/ca.crt" >/dev/null &&
+  openssl x509 -checkend 604800 -noout -in "$dir/server.crt" >/dev/null; then
   exit 0
 fi
+echo "Issuing local MariaDB TLS fixtures (valid 30 days)..."
 umask 077
 openssl req -x509 -newkey rsa:2048 -nodes -days 30 -sha256 \
   -keyout "$dir/ca.key" -out "$dir/ca.crt" -subj /CN=ticketopia-local-ca

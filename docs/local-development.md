@@ -26,7 +26,8 @@ It uses the same SESv2 client as production, but captures messages locally.
 
 Docker with Compose is required; database setup also needs Go and OpenSSL.
 Stop the app before applying schema-changing migrations. Existing database volumes
-and certificates are retained. Targets can be rerun; an existing SES identity is
+are retained; local TLS certificates are kept until they near expiry, then reissued
+(see [persistence](persistence.md#repeatable-local-development)). Targets can be rerun; an existing SES identity is
 checked rather than recreated. MiniStack captures are intentionally ephemeral:
 container recreation loses captured messages/identities; rerun `make ses-setup`.
 

@@ -88,7 +88,7 @@ func TestLocalDatabaseSetupWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	steps := []string{"tls", "database", "users", "migrations", "grants", "runtime-check"}
+	steps := []string{"tls", "database", "tls-reload", "users", "migrations", "grants", "runtime-check"}
 	for _, failure := range append([]string{""}, steps...) {
 		name := failure
 		if name == "" {
@@ -123,6 +123,7 @@ func TestLocalDatabaseSetupWorkflow(t *testing.T) {
 set -eu
 case "$*" in
   *"up -d --wait --wait-timeout 60 mariadb") step=database ;;
+  *"--skip-ssl -e \"FLUSH SSL\""*) step=tls-reload ;;
   *"exec -T mariadb sh -c"*) step=$(cat) ;;
   *"--host=localhost --protocol=tcp --user=ticketopia_runtime"*) step=$(cat) ;;
   *) echo "unexpected Docker invocation" >&2; exit 1 ;;

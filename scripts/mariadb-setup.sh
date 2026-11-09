@@ -21,6 +21,9 @@ admin_sql() {
 echo "Preparing the local MariaDB database (localhost:3307/ticketopia)..."
 sh scripts/mariadb-certs.sh
 compose up -d --wait --wait-timeout 60 mariadb
+# A running server keeps the certificates it started with; reload any renewal.
+# The in-container socket skips TLS so an expired server certificate can't block it.
+compose exec -T mariadb sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" exec mariadb --user=root --skip-ssl -e "FLUSH SSL"'
 admin_sql < deploy/mariadb/init.sql
 
 # Explicit values take precedence over inherited settings and godotenv's .env

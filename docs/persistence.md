@@ -193,7 +193,7 @@ The combined `db-setup` target is deliberately pinned to `localhost:3307/ticketo
 and the public Compose credentials, overriding inherited and `.env` database
 connection settings for migrations. It is **local development only**, not a
 production deployment tool.
-It does not reset data, rotate existing credentials/certificates, stop the app, or
+It does not reset data, rotate credentials or certificates with at least seven days remaining, stop the app, or
 configure the app's runtime environment. Stop/drain the app before schema-changing
 migrations; follow [upgrade compatibility](#rolling-update-compatibility). Rerunning
 the target is safe on a clean schema and repairs missing grants even when no
@@ -212,8 +212,10 @@ without user administration or grant option.
 Repeat `make db-setup` safely. It can recreate the container when Compose changes,
 but retains the configured volume. `docker compose ... stop` keeps data; do
 not use `down -v` unless you deliberately want to erase this local database.
-Certificates last 30 days. To renew local fixtures, replace the three generated
-certificate/key files intentionally, rerun the script, and restart MariaDB/apps.
+Certificates last 30 days. `make db-setup` reissues the local CA and server pair
+when either has fewer than 7 days left, then reloads them in the running MariaDB
+with `FLUSH SSL`. After a renewal, restart apps and review servers that already
+loaded the old `ca.crt`.
 Only `ca.crt`, never CA private keys, belongs in application mounts.
 
 ## Server-version upgrades
