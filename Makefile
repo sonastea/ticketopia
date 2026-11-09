@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -11,7 +11,8 @@ help:
 		'make ses-setup Start local SES emulation in MiniStack and seed the test sender.' \
 		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
-		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, reminder-states).'
+		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, reminder-states).' \
+		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -39,3 +40,8 @@ review-server:
 		go test -count=1 -timeout 0 -run '^TestMariaDBReviewServer$$' -v ./internal/persistence \
 		-args '-review.scenario=$(scenario)'
 
+# Local manual review only: MCP stdio server for review scenarios. Stdout is the
+# protocol, so the build stays quiet and the binary replaces this process.
+review-mcp:
+	@go build -o bin/ticketopia-review-mcp ./cmd/ticketopia-review-mcp
+	@exec bin/ticketopia-review-mcp -addr $(REVIEW_SERVER_ADDR)

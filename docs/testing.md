@@ -126,3 +126,31 @@ runtime grants come from `internal/persistence/persistencetest`, shared with the
 opt-in MariaDB suite. Neither is imported by `cmd/ticketopia`.
 `MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./internal/reviewfixture` starts every
 scenario and checks its paths for each account and signed out.
+
+### Review fixtures over MCP
+
+`make review-mcp` builds `bin/ticketopia-review-mcp` and serves the same
+fixtures to an MCP client over stdio. Register it with the repository root as the
+working directory, for example:
+
+```json
+{ "command": "make", "args": ["-s", "review-mcp"] }
+```
+
+- `scenario_list`: scenario names and descriptions.
+- `scenario_apply {"name": ...}`: starts the review server on a fresh schema
+  seeded with that scenario and returns the manifest. It replaces any running
+  server, so applying the same name resets it. Earlier sessions, storage states
+  and IDs become invalid.
+- `manifest`: the running server's manifest, or `running: false`.
+
+The server starts only on `scenario_apply`. Flags (defaults in parentheses):
+`-addr` (`127.0.0.1:8090`; `make review-mcp` passes `REVIEW_SERVER_ADDR`), `-state-dir`
+(`$TMPDIR/ticketopia-review-mcp`), `-db-addr` (`127.0.0.1:3307`) and `-db-ca`
+(`.local/mariadb/certs/ca.crt`). Both addresses must be loopback IPs.
+`MARIADB_TEST_ADMIN_USER`/`_PASSWORD` override the local administrator as in the
+opt-in suite. Stdout carries only the protocol; diagnostics go to stderr. Closing
+the client (stdin EOF), SIGINT or SIGTERM stops the review server, drops its
+schema and users and removes the state files; a killed process leaves its schema
+behind. `MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./cmd/ticketopia-review-mcp`
+covers apply, reset and disconnect cleanup.

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### 2026-11-08 — Review scenarios, shared fixtures and MCP access
+
+- Select review fixtures with `make review-server scenario=<name>`:
+  `event-edge-cases`, `event-data-gaps` and `reminder-states` add to the baseline.
+  Signed-out review uses the baseline without storage state.
+- Move the review server into `internal/reviewfixture` and disposable schema,
+  user and grant setup into `internal/persistence/persistencetest`, shared with
+  the opt-in MariaDB suite. Review servers refuse non-loopback database addresses.
+- Add `make review-mcp`, an MCP stdio server with `scenario_list`,
+  `scenario_apply` and `manifest`. It cleans up on client disconnect or signal.
+- `make db-setup` reissues local MariaDB TLS fixtures before they expire and
+  reloads them in the running server.
+  See [testing](../testing.md#review-fixtures-over-mcp).
+
 ### 2026-10-27 — Signed-in manual review server
 
 - `make review-server` serves production handlers over an isolated MariaDB
