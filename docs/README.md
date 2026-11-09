@@ -36,6 +36,8 @@ their status; they describe intended work rather than available features.
   implemented discussion notifications and optional later attendance goals.
 - [Radar API](design/radar-api.md): a proposed shared backend for web, mobile,
   and other clients, including community participation.
+- [App MCP endpoint](design/app-mcp.md): a proposed `/mcp` endpoint in the Go app
+  for users' agents, with tools, authentication, scaling, and k6/agent load testing.
 - [Database plan](design/database.md): MariaDB foundation and broader planned
   shared application state with `mariadb-operator` in Kubernetes.
 - [Venue insights](ideas/venue-insights-and-discovery.md): exploratory uses of
