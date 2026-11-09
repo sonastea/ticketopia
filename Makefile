@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-clean
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -12,7 +12,8 @@ help:
 		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
 		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, reminder-states, reminder-email).' \
-		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).'
+		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
+		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -45,3 +46,7 @@ review-server:
 review-mcp:
 	@go build -o bin/ticketopia-review-mcp ./cmd/ticketopia-review-mcp
 	@exec bin/ticketopia-review-mcp -addr $(REVIEW_SERVER_ADDR)
+
+# Local only: running fixtures hold a lock and are kept.
+review-clean:
+	@go run ./cmd/ticketopia-review-mcp -clean-stale

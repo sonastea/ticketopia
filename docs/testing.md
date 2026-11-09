@@ -129,7 +129,19 @@ Playwright storage-state file per account, for example
 `browser.newContext({ storageState: manifest.accounts.owner.storage_state })`.
 Writes go to the throwaway schema, so reviewers may save, post and report. Stop
 with Ctrl-C to drop the schema and users and remove the state files. A killed
-process leaves its `ticketopia_test_*` schema behind.
+process leaves its `ticketopia_test_*` schema and users behind; remove them with:
+
+```sh
+make review-clean
+```
+
+Fixture schemas carry a marker comment, and each running fixture (review
+server, MCP server or opt-in test) holds a MariaDB named lock on a dedicated
+connection, pinged every minute so the server's idle timeout cannot release it.
+Cleanup drops only marked schemas, with their users, whose lock has been
+released, so running fixtures are safe. It reports look-alike
+`ticketopia_test_*` schemas without the marker (from older code or other tools)
+and leaves them for you to drop manually.
 
 The fixtures live in `internal/reviewfixture`; disposable schemas, users and
 runtime grants come from `internal/persistence/persistencetest`, shared with the
@@ -164,10 +176,10 @@ The server starts only on `scenario_apply`. Flags (defaults in parentheses):
 (`$TMPDIR/ticketopia-review-mcp`), `-db-addr` (`127.0.0.1:3307`), `-db-ca`
 (`.local/mariadb/certs/ca.crt`) and `-ses-endpoint` (`http://localhost:4566`).
 The listener and database addresses must be loopback IPs, and the SES endpoint
-a loopback origin.
+a loopback origin. `-clean-stale` runs the `make review-clean` cleanup and exits.
 `MARIADB_TEST_ADMIN_USER`/`_PASSWORD` override the local administrator as in the
 opt-in suite. Stdout carries only the protocol; diagnostics go to stderr. Closing
 the client (stdin EOF), SIGINT or SIGTERM stops the review server, drops its
 schema and users and removes the state files; a killed process leaves its schema
-behind. `MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./cmd/ticketopia-review-mcp`
+behind for `make review-clean`. `MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./cmd/ticketopia-review-mcp`
 covers apply, reset and disconnect cleanup.

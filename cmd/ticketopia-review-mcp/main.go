@@ -43,6 +43,7 @@ func run(args []string, transport mcp.Transport) error {
 	dbAddr := flags.String("db-addr", "127.0.0.1:3307", "loopback address of the local MariaDB (make db-setup)")
 	dbCA := flags.String("db-ca", filepath.Join(".local", "mariadb", "certs", "ca.crt"), "local MariaDB CA certificate")
 	ses := flags.String("ses-endpoint", reviewfixture.DefaultSESEndpoint, "local SES emulator (make ses-setup) for email scenarios and ses_messages")
+	cleanStale := flags.Bool("clean-stale", false, "drop fixture schemas and users left by killed processes, then exit")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -53,6 +54,9 @@ func run(args []string, transport mcp.Transport) error {
 	// Administrator overrides reuse the opt-in suite's MARIADB_TEST_ADMIN_* settings.
 	database, _ := persistencetest.OptionsFromEnv(ca)
 	database.Addr, database.CAFile = *dbAddr, ca
+	if *cleanStale {
+		return clean(database)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	r := &reviews{ctx: ctx, options: reviewfixture.Options{Addr: *addr, StateDir: *stateDir, Database: database, SESEndpoint: *ses}}
@@ -64,6 +68,27 @@ func run(args []string, transport mcp.Transport) error {
 	err = newServer(r).Run(ctx, transport)
 	if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
 		return nil
+	}
+	return err
+}
+
+// clean drops leftovers of killed fixture processes. Running fixtures, from
+// any process, hold a lock and are kept.
+func clean(database persistencetest.Options) error {
+	if !reviewfixture.LoopbackAddr(database.Addr) {
+		return fmt.Errorf("-db-addr must be a loopback IP and port")
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	c, err := persistencetest.DropStale(ctx, database)
+	for _, name := range c.Dropped {
+		log.Printf("dropped %s", name)
+	}
+	for _, name := range c.Unmarked {
+		log.Printf("kept %s: not marked as a fixture (older code or another tool); drop it manually if it is yours", name)
+	}
+	if err == nil {
+		log.Printf("dropped %d stale fixture schemas", len(c.Dropped))
 	}
 	return err
 }

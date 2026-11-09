@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -45,6 +46,9 @@ type Database struct {
 	RuntimeUser, MigrationUser string
 	Password                   string
 	admin                      *sql.DB
+	lock                       *sql.Conn
+	stopKeepalive              context.CancelFunc
+	keepaliveDone              chan struct{}
 	closeOnce                  sync.Once
 	drops                      []string
 	closeErr                   error
@@ -53,34 +57,39 @@ type Database struct {
 // Create connects with verified TLS and provisions a fresh schema and users.
 // Every created object is dropped again if a later step fails.
 func Create(ctx context.Context, o Options) (_ *Database, err error) {
-	if o.AdminUser == "" {
-		o.AdminUser = "root"
+	var entropy [8]byte
+	if _, err := rand.Read(entropy[:]); err != nil {
+		return nil, err
 	}
-	if o.AdminPassword == "" {
-		o.AdminPassword = "local-root-only"
-	}
-	host, port, splitErr := net.SplitHostPort(o.Addr)
-	if splitErr != nil {
-		return nil, fmt.Errorf("invalid MariaDB address %q", o.Addr)
-	}
-	admin, err := connect(ctx, host, port, o.CAFile, o.AdminUser, o.AdminPassword)
+	d, err := adminOnly(ctx, o)
 	if err != nil {
 		return nil, err
 	}
-	var entropy [8]byte
-	if _, err := rand.Read(entropy[:]); err != nil {
-		admin.Close()
-		return nil, err
-	}
 	suffix := hex.EncodeToString(entropy[:])
-	d := &Database{Host: host, Port: port, Name: "ticketopia_test_" + suffix, CAFile: o.CAFile,
-		RuntimeUser: "runtime_" + suffix, MigrationUser: "migration_" + suffix, Password: "fixture-" + suffix, admin: admin}
+	d.Name, d.RuntimeUser, d.MigrationUser, d.Password = "ticketopia_test_"+suffix, "runtime_"+suffix, "migration_"+suffix, "fixture-"+suffix
 	defer func() {
 		if err != nil {
 			err = errors.Join(err, d.Close())
 		}
 	}()
-	if err := d.Exec(ctx, "CREATE DATABASE "+d.Name+" CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"); err != nil {
+	// Hold a named lock for the fixture's lifetime, taken before any object
+	// exists, so DropStale can tell live fixtures from ones left by killed
+	// processes: the server releases the lock when its connection drops.
+	if d.lock, err = d.admin.Conn(ctx); err != nil {
+		return nil, fmt.Errorf("fixture lock: %w", sanitize(err))
+	}
+	var held sql.NullInt64
+	if err := d.lock.QueryRowContext(ctx, "SELECT GET_LOCK(?, 0)", lockName(suffix)).Scan(&held); err != nil || held.Int64 != 1 {
+		return nil, fmt.Errorf("fixture lock unavailable")
+	}
+	// The server closes idle sessions after wait_timeout, which would release
+	// the lock while the fixture is still in use; keep the session active.
+	keepaliveCtx, stop := context.WithCancel(context.WithoutCancel(ctx))
+	d.stopKeepalive, d.keepaliveDone = stop, make(chan struct{})
+	go d.keepalive(keepaliveCtx)
+	// The comment marks the schema as this package's, so DropStale never
+	// removes look-alike schemas created by anything else.
+	if err := d.Exec(ctx, "CREATE DATABASE "+d.Name+" CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '"+fixtureMarker+"'"); err != nil {
 		return nil, err
 	}
 	d.drops = append(d.drops, "DROP DATABASE "+d.Name)
@@ -97,6 +106,106 @@ func Create(ctx context.Context, o Options) (_ *Database, err error) {
 		return nil, err
 	}
 	return d, nil
+}
+
+func lockName(suffix string) string { return "ticketopia_fixture_" + suffix }
+
+const fixtureMarker = "ticketopia persistencetest fixture"
+
+// keepaliveInterval stays well below MariaDB's default 8-hour wait_timeout.
+var keepaliveInterval = time.Minute
+
+func (d *Database) keepalive(ctx context.Context) {
+	defer close(d.keepaliveDone)
+	ticker := time.NewTicker(keepaliveInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ping, cancel := context.WithTimeout(ctx, 5*time.Second)
+			_ = d.lock.PingContext(ping)
+			cancel()
+		}
+	}
+}
+
+var fixtureSuffix = regexp.MustCompile(`^ticketopia_test_([0-9a-f]{16})$`)
+
+// Cleanup reports what DropStale removed and which look-alike schemas it left
+// because they lack this package's marker (created by older code or other
+// tools); drop those manually if they are yours.
+type Cleanup struct {
+	Dropped, Unmarked []string
+}
+
+// DropStale drops marked fixture schemas, with their users, whose creating
+// process is gone, identified by a released fixture lock. Live fixtures,
+// including idle review servers, keep their lock and are skipped.
+func DropStale(ctx context.Context, o Options) (Cleanup, error) {
+	var c Cleanup
+	d, err := adminOnly(ctx, o)
+	if err != nil {
+		return c, err
+	}
+	defer d.admin.Close()
+	rows, err := d.admin.QueryContext(ctx, `SELECT schema_name, schema_comment FROM information_schema.schemata WHERE schema_name LIKE 'ticketopia\_test\_%' ORDER BY schema_name`)
+	if err != nil {
+		return c, fmt.Errorf("listing fixtures: %w", sanitize(err))
+	}
+	var suffixes []string
+	for rows.Next() {
+		var name, comment string
+		if err := rows.Scan(&name, &comment); err != nil {
+			rows.Close()
+			return c, fmt.Errorf("listing fixtures: %w", sanitize(err))
+		}
+		if m := fixtureSuffix.FindStringSubmatch(name); m != nil && comment == fixtureMarker {
+			suffixes = append(suffixes, m[1])
+		} else {
+			c.Unmarked = append(c.Unmarked, name)
+		}
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return c, fmt.Errorf("listing fixtures: %w", sanitize(err))
+	}
+	for _, suffix := range suffixes {
+		var holder sql.NullInt64
+		if err := d.admin.QueryRowContext(ctx, "SELECT IS_USED_LOCK(?)", lockName(suffix)).Scan(&holder); err != nil {
+			return c, fmt.Errorf("checking fixture lock: %w", sanitize(err))
+		}
+		if holder.Valid {
+			continue
+		}
+		name := "ticketopia_test_" + suffix
+		for _, q := range []string{"DROP DATABASE IF EXISTS " + name,
+			fmt.Sprintf("DROP USER IF EXISTS 'runtime_%s'@'%%', 'migration_%s'@'%%'", suffix, suffix)} {
+			if err := d.Exec(ctx, q); err != nil {
+				return c, err
+			}
+		}
+		c.Dropped = append(c.Dropped, name)
+	}
+	return c, nil
+}
+
+func adminOnly(ctx context.Context, o Options) (*Database, error) {
+	if o.AdminUser == "" {
+		o.AdminUser = "root"
+	}
+	if o.AdminPassword == "" {
+		o.AdminPassword = "local-root-only"
+	}
+	host, port, err := net.SplitHostPort(o.Addr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid MariaDB address %q", o.Addr)
+	}
+	admin, err := connect(ctx, host, port, o.CAFile, o.AdminUser, o.AdminPassword)
+	if err != nil {
+		return nil, err
+	}
+	return &Database{Host: host, Port: port, CAFile: o.CAFile, admin: admin}, nil
 }
 
 func connect(ctx context.Context, host, port, caFile, user, password string) (*sql.DB, error) {
@@ -189,6 +298,13 @@ func (d *Database) Close() error {
 			if _, err := d.admin.ExecContext(ctx, q); err != nil {
 				errs = append(errs, fmt.Errorf("fixture cleanup: %w", sanitize(err)))
 			}
+		}
+		if d.stopKeepalive != nil {
+			d.stopKeepalive()
+			<-d.keepaliveDone
+		}
+		if d.lock != nil {
+			errs = append(errs, d.lock.Close())
 		}
 		errs = append(errs, d.admin.Close())
 		d.closeErr = errors.Join(errs...)

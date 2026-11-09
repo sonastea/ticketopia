@@ -14,8 +14,10 @@
   `scenario_apply` and `manifest`. It cleans up on client disconnect or signal.
 - `reminder-states` now covers every reminder state, and `reminder-email` sends
   one reminder through MiniStack, readable with the MCP `ses_messages` tool.
-- A test confirms fixtures make no non-loopback requests even with provider
-  settings exported.
+- `make review-clean` drops marked fixture schemas left by killed processes;
+  running fixtures hold a kept-alive MariaDB named lock and are kept, and
+  unmarked look-alikes are only reported. A test confirms fixtures make
+  no non-loopback requests even with provider settings exported.
 - `make db-setup` reissues local MariaDB TLS fixtures before they expire and
   reloads them in the running server.
   See [testing](../testing.md#review-fixtures-over-mcp).
