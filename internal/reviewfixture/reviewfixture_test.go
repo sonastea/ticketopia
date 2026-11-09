@@ -60,6 +60,23 @@ func TestMariaDBScenarios(t *testing.T) {
 				if strings.Count(body, `class="event-last-known"`) != 1 || strings.Contains(body, "Showing last-known results") {
 					t.Error("stored Discover must label only the removed row and show no last-known banner")
 				}
+				// The app MCP tool returns the same stored rows, with per-event meta.
+				result := mcpCall(t, m.BaseURL, "find_events", map[string]any{"city": "Chicago", "country": "US"})
+				var list struct {
+					Items []struct {
+						Name string
+						Meta *struct{ Stale bool }
+					}
+					Meta struct{ Stale bool }
+				}
+				if err := json.Unmarshal(result, &list); err != nil || list.Meta.Stale || len(list.Items) != 7 {
+					t.Fatalf("find_events: %v %s", err, result)
+				}
+				for _, item := range list.Items {
+					if (item.Meta != nil && item.Meta.Stale) != (item.Name == removedUpstream) {
+						t.Errorf("find_events item %q meta %+v", item.Name, item.Meta)
+					}
+				}
 				// Opening the removed event (provider 404) keeps it last-known.
 				label := regexp.MustCompile(`Last-known as of [^<]+`).FindString(body)
 				get(t, m, "owner", m.ScenarioPaths["removed_event"])
@@ -221,4 +238,29 @@ func TestMariaDBFixturesMakeNoExternalRequests(t *testing.T) {
 	if len(external) != 0 {
 		t.Fatalf("external requests: %v", external)
 	}
+}
+
+// mcpCall posts one stateless tools/call to the review server's /mcp and
+// returns the tool's structured content.
+func mcpCall(t *testing.T, base, tool string, args map[string]any) json.RawMessage {
+	t.Helper()
+	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": map[string]any{"name": tool, "arguments": args}})
+	request, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/mcp", strings.NewReader(string(body)))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var reply struct {
+		Result struct {
+			IsError           bool            `json:"isError"`
+			StructuredContent json.RawMessage `json:"structuredContent"`
+		}
+	}
+	if err := json.NewDecoder(response.Body).Decode(&reply); err != nil || response.StatusCode != http.StatusOK || reply.Result.IsError {
+		t.Fatalf("%s: status %d %v %+v", tool, response.StatusCode, err, reply)
+	}
+	return reply.Result.StructuredContent
 }

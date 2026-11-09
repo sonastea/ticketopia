@@ -25,6 +25,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
@@ -202,7 +203,9 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		api.WithSavedEvents(p.Saved()), api.WithReminders(p.Reminders()), api.WithRadar(p.Radar(), time.Hour),
 		api.WithFollows(p.Follows()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(recommendations),
 		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()),
-		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth)}, options...)...)
+		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth),
+		// The app's agent tools, so reviews and load scripts can call /mcp too.
+		api.WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 6000})}, options...)...)
 	if err != nil {
 		listener.Close()
 		return nil, err

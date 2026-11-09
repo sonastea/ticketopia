@@ -305,7 +305,7 @@ func (f *fixture) seed(sc scenario) error {
 	}
 	f.threadID = root.ID
 	f.paths = map[string]string{
-		"discover": "/?" + q.Values().Encode(), "event": "/events/" + url.PathEscape(event),
+		"discover": "/?" + q.Values().Encode(), "event": "/events/" + url.PathEscape(event), "mcp": "/mcp",
 		"discussion": "/events/" + url.PathEscape(event) + "/discussions/" + root.ID,
 		"saved":      "/saved", "radar": "/radar", "me": "/me", "preferences": "/me/preferences",
 		"interests": "/me/interests", "reminders": "/me/reminders", "discussions": "/me/discussions",
