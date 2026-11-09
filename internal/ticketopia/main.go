@@ -12,6 +12,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/history"
@@ -75,6 +76,14 @@ func Execute(ctx context.Context) int {
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid live activity configuration")
 		return 1
+	}
+	mcpConfig, err := appmcp.ConfigFromEnv()
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid MCP configuration")
+		return 1
+	}
+	if mcpConfig.Enabled {
+		options = append(options, api.WithMCP(mcpConfig))
 	}
 	if reminderConfig.Enabled && (!config.Enabled || !authConfig.Enabled || providerConfig.APIKey == "") {
 		logger.Error().Msg("Email reminders require MariaDB, accounts, and a Ticketmaster key")

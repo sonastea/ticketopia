@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
+	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
@@ -61,6 +62,7 @@ type api struct {
 	discussionFollows *discussionfollows.Service
 	moderation        *moderation.Service
 	reminders         *reminders.Service
+	mcp               appmcp.Config
 }
 
 type Option func(*api)
@@ -198,6 +200,7 @@ func (a *api) Routes() *echo.Echo {
 	a.moderationRoutes(e)
 	a.accountRoutes(e)
 	a.liveActivityRoutes(e)
+	a.mcpRoutes(e)
 	offlineRoutes(e)
 	e.GET("/assets/*", assetHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assets.Files)))))
 	e.GET("/api/v1/events", a.eventsHandler, a.publicCacheBoundary)
