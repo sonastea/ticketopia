@@ -12,6 +12,8 @@
   the opt-in MariaDB suite. Review servers refuse non-loopback database addresses.
 - Add `make review-mcp`, an MCP stdio server with `scenario_list`,
   `scenario_apply` and `manifest`. It cleans up on client disconnect or signal.
+- `discover-last-known` shows the stored-Discover omitted-event labeling: fresh
+  complete coverage, one removed event labeled on its row, no list banner.
 - `reminder-states` now covers every reminder state, and `reminder-email` sends
   one reminder through MiniStack, readable with the MCP `ses_messages` tool.
 - `make review-clean` drops marked fixture schemas left by killed processes;

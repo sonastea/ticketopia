@@ -26,6 +26,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/api"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/location"
 	"github.com/sonastea/ticketopia/internal/persistence"
@@ -170,7 +171,21 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 	}
 	base := "http://" + listener.Addr().String()
 	auth := accounts.New(p.Accounts(), providerFixture{run})
-	f := &fixture{ctx: ctx, p: p, operator: operator, auth: auth, cache: cache, now: time.Now().UTC(), base: base, ses: ses}
+	f := &fixture{ctx: ctx, p: p, operator: operator, auth: auth, cache: cache, now: time.Now().UTC(), base: base, ses: ses, db: db}
+	// Fixtures are deterministic regardless of the environment: Ticketmaster and
+	// IP lookup are off (an empty key disables provider requests), so events come
+	// only from cache fixtures and durable snapshots. Stored-Discover scenarios
+	// instead collect from a loopback stand-in for the provider.
+	f.discovery = discovery.New(runCtx, cache, zerolog.Nop(), discovery.Config{})
+	options := []api.Option{}
+	if sc.stored {
+		f.upstream = newUpstream()
+		s.onClose(func() error { f.upstream.server.Close(); return nil })
+		f.discovery = discovery.New(runCtx, cache, zerolog.Nop(), discovery.Config{APIKey: "review-fixture", BaseURL: f.upstream.server.URL,
+			Catalog: p.Discovery(), Coordinator: p.ProviderBudget("review-fixture", 1000), DailyBudget: 1000})
+		options = append(options, api.WithPersistence(p.Ready, events.New(p.Events())))
+	}
+	s.onClose(func() error { f.discovery.WaitRefreshes(); return nil })
 	if err := f.seed(sc); err != nil {
 		listener.Close()
 		return nil, err
@@ -181,16 +196,13 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 	s.onClose(func() error { live.Close(); return nil })
 	recommendations := p.Recommendations()
 	recommendations.EnableLiveActivity(true)
-	// Fixtures are deterministic regardless of the environment: Ticketmaster and
-	// IP lookup are off (an empty key disables provider requests), so events come
-	// only from cache fixtures and durable snapshots.
-	app, err := api.NewAPI(runCtx, zerolog.Nop(), cache,
-		api.WithDiscovery(discovery.New(runCtx, cache, zerolog.Nop(), discovery.Config{})),
+	app, err := api.NewAPI(runCtx, zerolog.Nop(), cache, append([]api.Option{
+		api.WithDiscovery(f.discovery),
 		api.WithLocation(location.New(runCtx, cache, zerolog.Nop(), location.Config{Disabled: true})),
 		api.WithSavedEvents(p.Saved()), api.WithReminders(p.Reminders()), api.WithRadar(p.Radar(), time.Hour),
 		api.WithFollows(p.Follows()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(recommendations),
 		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()),
-		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth))
+		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth)}, options...)...)
 	if err != nil {
 		listener.Close()
 		return nil, err

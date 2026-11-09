@@ -19,6 +19,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/persistence"
+	"github.com/sonastea/ticketopia/internal/persistence/persistencetest"
 	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
@@ -28,8 +29,11 @@ import (
 // persisted state and returns manifest paths for the screens it targets.
 type scenario struct {
 	description string
-	events      func(newEvent func(name string) models.EventDetail) []fixtureEvent
-	seed        func(f *fixture, events []models.EventDetail) (map[string]string, error)
+	// stored serves Discover from the MariaDB catalog, collected from a
+	// loopback provider stand-in, instead of seeded provider cache entries.
+	stored bool
+	events func(newEvent func(name string) models.EventDetail) []fixtureEvent
+	seed   func(f *fixture, events []models.EventDetail) (map[string]string, error)
 }
 
 // fixtureEvent omits the detail-cache entry when uncached, so event pages fall
@@ -43,6 +47,8 @@ var scenarios = map[string]scenario{
 	"baseline": {description: "Six Chicago events, saves, interest, recommendations, reminders, a followed discussion with unread replies, and a reported post. Open paths without storage state for the signed-out view."},
 	"event-edge-cases": {description: "Adds a rescheduled long-title event without prices, a canceled event, and a busy followed discussion with unread replies.",
 		events: edgeCaseEvents, seed: seedEdgeCases},
+	"discover-last-known": {description: "Serves Discover from the stored MariaDB catalog with fresh complete coverage, where one saved event was removed upstream: only its row reads \"Last-known as of\", and the list has no last-known banner.",
+		stored: true, events: removedEvents, seed: seedLastKnown},
 	"event-data-gaps": {description: "Adds a saved event last refreshed a week ago with no image or venue, served from its durable snapshot, and an unknown event while the provider is off.",
 		events: dataGapEvents, seed: seedDataGaps},
 	"reminder-email": {description: "Sends one real on-sale reminder for the owner through the local SES emulator (MiniStack, make ses-setup); read it with the MCP ses_messages tool. The reminder shows SES accepted.",
@@ -90,6 +96,10 @@ type fixture struct {
 	scenarioPaths map[string]string
 	threadID      string
 	base, ses     string
+	db            *persistencetest.Database
+	discovery     *discovery.Service
+	upstream      *upstream
+	queries       []discovery.Query
 }
 
 const (
@@ -232,6 +242,13 @@ func (f *fixture) seed(sc scenario) error {
 	if err := errors.Join(seedResults(q), seedResults(localQuery)); err != nil {
 		return err
 	}
+	f.queries = []discovery.Query{q}
+	if localQuery.Values().Encode() != q.Values().Encode() {
+		f.queries = append(f.queries, localQuery)
+	}
+	if f.upstream != nil {
+		f.upstream.set(f.entries)
+	}
 
 	var errs []error
 	check := func(_ any, err error) { errs = append(errs, err) }
@@ -302,6 +319,75 @@ func (f *fixture) seed(sc scenario) error {
 		}
 	}
 	return nil
+}
+
+const removedUpstream = "Removed upstream: harbor jazz night"
+
+// removedEvents adds the event the provider later stops returning. It has no
+// detail cache entry, so its page reads the provider (404) and then falls back
+// to the durable snapshot, as for a real removal.
+func removedEvents(newEvent func(name string) models.EventDetail) []fixtureEvent {
+	return []fixtureEvent{{detail: newEvent(removedUpstream), uncached: true}}
+}
+
+// seedLastKnown reproduces the omitted-event regression through the real
+// collection path: collect every default Discover query, age the removed
+// event's snapshot, make the scopes due, then recollect without it.
+func seedLastKnown(f *fixture, events []models.EventDetail) (map[string]string, error) {
+	removed := events[0]
+	if err := f.save(f.people["owner"].ID, removed); err != nil {
+		return nil, err
+	}
+	for _, q := range f.queries {
+		if _, err := f.discovery.Events(f.ctx, q); err != nil {
+			return nil, fmt.Errorf("initial collection: %w", err)
+		}
+	}
+	f.discovery.WaitRefreshes()
+	// Age the event's provider cache record with its snapshot: collection
+	// cached its detail, and an aged snapshot beside a fresh cache record would
+	// be re-observed as new on the event page.
+	old := f.now.Add(-10 * 24 * time.Hour)
+	if err := errors.Join(
+		f.cacheSeed("ticketmaster:v1:event:"+removed.Item.ID, removed.Item, old),
+		f.db.Exec(f.ctx, "UPDATE "+f.db.Name+".event_snapshots SET data_as_of=? WHERE event_id=?", old, removed.Item.ID),
+		f.db.Exec(f.ctx, "UPDATE "+f.db.Name+".discovery_scopes SET last_success=TIMESTAMPADD(HOUR,-8,UTC_TIMESTAMP(6)),next_refresh=UTC_TIMESTAMP(6)"),
+	); err != nil {
+		return nil, err
+	}
+	f.upstream.omit(removed.Item.ID)
+	for _, q := range f.queries {
+		if _, err := f.discovery.Events(f.ctx, q); err != nil {
+			return nil, fmt.Errorf("recollection: %w", err)
+		}
+	}
+	f.discovery.WaitRefreshes()
+	// Fail the scenario rather than serve a misleading screen.
+	for _, q := range f.queries {
+		list, err := f.discovery.Events(f.ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		if list.Meta.Coverage == nil || list.Meta.Coverage.Status != "complete" || list.Meta.Stale {
+			return nil, fmt.Errorf("stored Discover coverage is not fresh and complete: %+v", list.Meta)
+		}
+		stale := 0
+		for _, e := range list.Items {
+			if e.Meta != nil && e.Meta.Stale {
+				stale++
+				if e.ID != removed.Item.ID {
+					return nil, fmt.Errorf("unexpected last-known row %s", e.ID)
+				}
+			}
+		}
+		if stale != 1 {
+			return nil, fmt.Errorf("removed event is not the one last-known row (%d stale rows)", stale)
+		}
+	}
+	return map[string]string{
+		"discover":      f.paths["discover"],
+		"removed_event": eventPath(removed.Item.ID),
+	}, nil
 }
 
 func (f *fixture) post(who, event, thread, parent, body string) (discussions.Post, error) {

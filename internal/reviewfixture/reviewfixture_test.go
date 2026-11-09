@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -52,6 +53,20 @@ func TestMariaDBScenarios(t *testing.T) {
 			}
 			t.Cleanup(func() { s.Close() })
 			m := s.Manifest()
+			if name == "discover-last-known" {
+				// Before other page visits: only the removed event's row is
+				// last-known, and the list itself is fresh.
+				body := get(t, m, "owner", m.Paths["discover"])
+				if strings.Count(body, `class="event-last-known"`) != 1 || strings.Contains(body, "Showing last-known results") {
+					t.Error("stored Discover must label only the removed row and show no last-known banner")
+				}
+				// Opening the removed event (provider 404) keeps it last-known.
+				label := regexp.MustCompile(`Last-known as of [^<]+`).FindString(body)
+				get(t, m, "owner", m.ScenarioPaths["removed_event"])
+				if after := regexp.MustCompile(`Last-known as of [^<]+`).FindString(get(t, m, "owner", m.Paths["discover"])); label == "" || after != label {
+					t.Errorf("removed row label changed after opening the event: %q -> %q", label, after)
+				}
+			}
 			paths := map[string]string{"discover": m.Paths["discover"], "event": m.Paths["event"], "discussion": m.Paths["discussion"]}
 			for key, path := range m.ScenarioPaths {
 				paths[key] = path

@@ -83,7 +83,7 @@ Seeded state covers six Chicago events (including long names), saves, public and
 private interest, recommendations, on-sale reminders, a followed discussion
 with replies, Helpful reactions and unread reply notifications, and a reported
 post in the moderator queue. Ticketmaster and IP lookup stay off; events come
-from cache fixtures. `MARIADB_TEST_ADDR` must be a loopback address because the
+from cache fixtures (`discover-last-known` uses a loopback provider stand-in). `MARIADB_TEST_ADDR` must be a loopback address because the
 server creates a schema and users.
 
 Add a named scenario to seed extra states on top of that baseline:
@@ -97,6 +97,13 @@ make review-server scenario=event-edge-cases
   rescheduled, with a long title and no price or presale details. The other is
   canceled. The rescheduled event has a busy discussion that the owner follows:
   nested replies, Helpful reactions, unread replies and a long post.
+- `discover-last-known`: serves Discover from the stored MariaDB catalog, as with
+  persistence enabled, collected from an in-process loopback stand-in for
+  Ticketmaster that serves the fixture events. One saved event is then removed
+  upstream and its snapshot aged ten days. Coverage stays fresh and complete, so
+  only that row reads "Last-known as of …" and the list shows no last-known
+  banner. Its event page gets a provider 404 and falls back to the snapshot. The
+  scenario fails to start if the stored read does not match this.
 - `event-data-gaps`: a saved event with no image or venue, last refreshed a week
   ago. Its detail cache entry is omitted, so the page falls back to the durable
   snapshot and shows its age. `unavailable_event` is neither cached nor saved and
