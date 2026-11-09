@@ -7,13 +7,11 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -30,72 +28,38 @@ import (
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/persistence/persistencetest"
 )
 
 // Opt-in real MariaDB suite. Each test owns and removes its random schema/users;
 // never point these admin credentials at a shared or production database.
 type mariaFixture struct {
 	admin              *sql.DB
+	db                 *persistencetest.Database
 	migration, runtime Config
 }
 
 func newMaria(t testing.TB) mariaFixture {
 	t.Helper()
-	address := os.Getenv("MARIADB_TEST_ADDR")
-	if address == "" {
+	o, ok := persistencetest.OptionsFromEnv(filepath.Join("..", "..", ".local", "mariadb", "certs", "ca.crt"))
+	if !ok {
 		t.Skip("set MARIADB_TEST_ADDR to run real MariaDB tests")
 	}
-	c := envConfig(t)
-	var err error
-	c.Host, c.Port, err = net.SplitHostPort(address)
-	if err != nil {
-		t.Fatal("invalid MARIADB_TEST_ADDR")
-	}
-	c.TLSMode = "verify-full"
-	c.CAFile = os.Getenv("MARIADB_TEST_CA")
-	if c.CAFile == "" {
-		c.CAFile, err = filepath.Abs("../../.local/mariadb/certs/ca.crt")
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	c.Database, c.User, c.Password = "mysql", "root", "local-root-only"
-	if v := os.Getenv("MARIADB_TEST_ADMIN_USER"); v != "" {
-		c.User = v
-	}
-	if v := os.Getenv("MARIADB_TEST_ADMIN_PASSWORD"); v != "" {
-		c.Password = v
-	}
-	admin, err := connect(t.Context(), c)
+	d, err := persistencetest.Create(t.Context(), o)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var entropy [8]byte
-	if _, err := rand.Read(entropy[:]); err != nil {
-		t.Fatal(err)
-	}
-	suffix := hex.EncodeToString(entropy[:])
-	name, runtimeUser, migrationUser := "ticketopia_test_"+suffix, "runtime_"+suffix, "migration_"+suffix
-	execSQL(t, admin, "CREATE DATABASE "+name+" CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-	for _, user := range []string{runtimeUser, migrationUser} {
-		execSQL(t, admin, fmt.Sprintf("CREATE USER '%s'@'%%' IDENTIFIED BY 'fixture-%s' REQUIRE SSL", user, suffix))
-	}
-	execSQL(t, admin, fmt.Sprintf("GRANT SELECT ON %s.* TO '%s'@'%%'", name, runtimeUser))
-	execSQL(t, admin, fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES ON %s.* TO '%s'@'%%'", name, migrationUser))
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		for _, q := range []string{"DROP DATABASE " + name, fmt.Sprintf("DROP USER '%s'@'%%', '%s'@'%%'", runtimeUser, migrationUser)} {
-			if _, err := admin.ExecContext(ctx, q); err != nil {
-				t.Error(safeError("fixture cleanup", err))
-			}
+		if err := d.Close(); err != nil {
+			t.Error(err)
 		}
-		admin.Close()
 	})
-	c.Database, c.User, c.Password = name, runtimeUser, "fixture-"+suffix
+	c := envConfig(t)
+	c.Host, c.Port, c.TLSMode, c.CAFile = d.Host, d.Port, "verify-full", d.CAFile
+	c.Database, c.User, c.Password = d.Name, d.RuntimeUser, d.Password
 	m := c
-	m.User = migrationUser
-	return mariaFixture{admin: admin, migration: m, runtime: c}
+	m.User = d.MigrationUser
+	return mariaFixture{admin: d.Admin(), db: d, migration: m, runtime: c}
 }
 
 func execSQL(t testing.TB, db *sql.DB, query string, args ...any) {
@@ -143,30 +107,8 @@ func (f mariaFixture) migrate(t testing.TB) {
 	if err := Migrate(t.Context(), f.migration); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"events", "event_providers"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
-	}
-	execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, DELETE ON %s.live_recommendation_activity TO '%s'@'%%'", f.runtime.Database, f.runtime.User))
-	for _, table := range []string{"event_reminders", "reminder_jobs", "reminder_dispatch"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, UPDATE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
-	}
-	for table, privileges := range map[string]string{"accounts": "INSERT, UPDATE", "account_identities": "INSERT", "account_credentials": "INSERT, DELETE", "auth_flows": "INSERT, DELETE", "auth_rate_limits": "INSERT, UPDATE, DELETE", "event_snapshots": "INSERT, UPDATE", "saved_events": "INSERT, DELETE", "event_interests": "INSERT, UPDATE, DELETE", "event_recommendations": "INSERT, UPDATE, DELETE", "discussion_posts": "INSERT, UPDATE", "post_helpful": "INSERT, UPDATE, DELETE", "recommendation_feed_events": "INSERT, UPDATE", "recommendation_activity": "INSERT, UPDATE"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
-	}
-	for table, privileges := range map[string]string{"moderation_reports": "INSERT, UPDATE", "moderation_decisions": "INSERT", "moderation_appeals": "INSERT, UPDATE"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
-	}
-	for table, privileges := range map[string]string{"discussion_follows": "INSERT, UPDATE, DELETE", "discussion_notifications": "INSERT, UPDATE, DELETE", "discussion_notification_posts": "INSERT"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
-	}
-	for table, privileges := range map[string]string{"artists": "INSERT, UPDATE", "artist_providers": "INSERT, UPDATE", "venues": "INSERT, UPDATE", "venue_providers": "INSERT, UPDATE", "event_history_state": "INSERT, UPDATE", "event_observations": "INSERT", "collection_tasks": "INSERT, UPDATE", "collection_runs": "INSERT, UPDATE", "collection_pages": "INSERT", "collection_run_events": "INSERT", "provider_budgets": "INSERT, UPDATE"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
-	}
-	for _, table := range []string{"artist_follows", "venue_follows"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT INSERT, DELETE ON %s.%s TO '%s'@'%%'", f.runtime.Database, table, f.runtime.User))
-	}
-	for table, privileges := range map[string]string{"event_search_places": "INSERT, DELETE", "event_search_facets": "INSERT, DELETE", "discovery_scopes": "INSERT, UPDATE", "discovery_scope_events": "INSERT, UPDATE", "event_detail_tasks": "INSERT, UPDATE, DELETE"} {
-		execSQL(t, f.admin, fmt.Sprintf("GRANT %s ON %s.%s TO '%s'@'%%'", privileges, f.runtime.Database, table, f.runtime.User))
+	if err := f.db.GrantRuntime(t.Context()); err != nil {
+		t.Fatal(err)
 	}
 }
 
