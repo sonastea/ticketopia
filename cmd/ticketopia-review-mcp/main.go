@@ -42,6 +42,7 @@ func run(args []string, transport mcp.Transport) error {
 	stateDir := flags.String("state-dir", filepath.Join(os.TempDir(), "ticketopia-review-mcp"), "directory for manifest.json and storage states")
 	dbAddr := flags.String("db-addr", "127.0.0.1:3307", "loopback address of the local MariaDB (make db-setup)")
 	dbCA := flags.String("db-ca", filepath.Join(".local", "mariadb", "certs", "ca.crt"), "local MariaDB CA certificate")
+	ses := flags.String("ses-endpoint", reviewfixture.DefaultSESEndpoint, "local SES emulator (make ses-setup) for email scenarios and ses_messages")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func run(args []string, transport mcp.Transport) error {
 	database.Addr, database.CAFile = *dbAddr, ca
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	r := &reviews{ctx: ctx, options: reviewfixture.Options{Addr: *addr, StateDir: *stateDir, Database: database}}
+	r := &reviews{ctx: ctx, options: reviewfixture.Options{Addr: *addr, StateDir: *stateDir, Database: database, SESEndpoint: *ses}}
 	defer func() {
 		if err := r.close(); err != nil {
 			log.Printf("review server cleanup: %v", err)
@@ -134,6 +135,18 @@ func (r *reviews) closeLocked() error {
 	return err
 }
 
+func (r *reviews) messages(ctx context.Context) ([]reviewfixture.Message, error) {
+	m := r.manifest()
+	if m == nil {
+		return nil, fmt.Errorf("no review server is running; call scenario_apply")
+	}
+	return reviewfixture.Messages(ctx, r.options.SESEndpoint, m.Run)
+}
+
+type messagesOutput struct {
+	Messages []reviewfixture.Message `json:"messages"`
+}
+
 type listOutput struct {
 	Scenarios []reviewfixture.ScenarioInfo `json:"scenarios"`
 }
@@ -166,6 +179,15 @@ func newServer(r *reviews) *mcp.Server {
 		func(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, manifestOutput, error) {
 			m := r.manifest()
 			return nil, manifestOutput{Running: m != nil, Manifest: m}, nil
+		})
+	mcp.AddTool(server, &mcp.Tool{Name: "ses_messages",
+		Description: "Return emails the local SES emulator (MiniStack) captured for the running scenario's fixture accounts, oldest first. reminder-email sends one; other scenarios send none. Captures from other runs are excluded."},
+		func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, messagesOutput, error) {
+			messages, err := r.messages(ctx)
+			if err != nil {
+				return nil, messagesOutput{}, err
+			}
+			return nil, messagesOutput{messages}, nil
 		})
 	return server
 }

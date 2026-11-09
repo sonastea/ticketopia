@@ -14,7 +14,10 @@ import (
 	"github.com/sonastea/ticketopia/internal/reviewfixture"
 )
 
-var reviewScenario = flag.String("review.scenario", "baseline", "TestMariaDBReviewServer fixture scenario")
+var (
+	reviewScenario = flag.String("review.scenario", "baseline", "TestMariaDBReviewServer fixture scenario")
+	reviewSES      = flag.String("review.ses-endpoint", reviewfixture.DefaultSESEndpoint, "local SES emulator for email scenarios")
+)
 
 // Interactive manual-review server (make review-server); see reviewfixture.
 // Stop with Ctrl-C so the schema, users and state files are removed.
@@ -29,7 +32,7 @@ func TestMariaDBReviewServer(t *testing.T) {
 	}
 	database, _ := persistencetest.OptionsFromEnv(filepath.Join("..", "..", ".local", "mariadb", "certs", "ca.crt"))
 	server, err := reviewfixture.Start(t.Context(), reviewfixture.Options{
-		Scenario: *reviewScenario, Addr: addr, StateDir: stateDir, Database: database})
+		Scenario: *reviewScenario, Addr: addr, StateDir: stateDir, Database: database, SESEndpoint: *reviewSES})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,6 +47,9 @@ func TestMariaDBReviewServer(t *testing.T) {
 		t.Logf("scenario %s: %s%s", name, m.BaseURL, m.ScenarioPaths[name])
 	}
 	t.Logf("storage states and manifest: %s", stateDir)
+	if m.Scenario == "reminder-email" {
+		t.Logf("captured email: %s/_ministack/ses/messages (fixture addresses contain +%s@)", *reviewSES, m.Run)
+	}
 	t.Logf("signed-in discussion example (owner): %s%s", m.BaseURL, m.Paths["discussion"])
 	t.Log("press Ctrl-C to stop and drop the isolated schema")
 

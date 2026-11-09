@@ -12,6 +12,10 @@
   the opt-in MariaDB suite. Review servers refuse non-loopback database addresses.
 - Add `make review-mcp`, an MCP stdio server with `scenario_list`,
   `scenario_apply` and `manifest`. It cleans up on client disconnect or signal.
+- `reminder-states` now covers every reminder state, and `reminder-email` sends
+  one reminder through MiniStack, readable with the MCP `ses_messages` tool.
+- A test confirms fixtures make no non-loopback requests even with provider
+  settings exported.
 - `make db-setup` reissues local MariaDB TLS fixtures before they expire and
   reloads them in the running server.
   See [testing](../testing.md#review-fixtures-over-mcp).

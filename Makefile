@@ -11,7 +11,7 @@ help:
 		'make ses-setup Start local SES emulation in MiniStack and seed the test sender.' \
 		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
-		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, reminder-states).' \
+		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, reminder-states, reminder-email).' \
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).'
 
 # Validate the current working tree before committing, using the publishing checks.

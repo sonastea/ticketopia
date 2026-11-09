@@ -33,18 +33,21 @@ import (
 )
 
 // Options configures one review server. Addr and Database.Addr must be
-// loopback IP addresses with ports.
+// loopback IP addresses with ports. SESEndpoint is the local SES emulator
+// used only by scenarios that send email (DefaultSESEndpoint when empty).
 type Options struct {
-	Scenario string
-	Addr     string
-	StateDir string
-	Database persistencetest.Options
+	Scenario    string
+	Addr        string
+	StateDir    string
+	Database    persistencetest.Options
+	SESEndpoint string
 }
 
 // Manifest describes a running server; its JSON is written to manifest.json.
 type Manifest struct {
 	BaseURL            string             `json:"base_url"`
 	Scenario           string             `json:"scenario"`
+	Run                string             `json:"run"`
 	Accounts           map[string]Account `json:"accounts"`
 	Paths              map[string]string  `json:"paths"`
 	ScenarioPaths      map[string]string  `json:"scenario_paths"`
@@ -55,6 +58,7 @@ type Manifest struct {
 type Account struct {
 	ID           string `json:"id"`
 	DisplayName  string `json:"display_name"`
+	Email        string `json:"email"`
 	StorageState string `json:"storage_state"`
 }
 
@@ -110,6 +114,14 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 	if o.StateDir == "" {
 		return nil, fmt.Errorf("review state directory is required")
 	}
+	if o.SESEndpoint == "" {
+		o.SESEndpoint = DefaultSESEndpoint
+	}
+	ses, err := sesEndpoint(o.SESEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	run := accounts.ID()[:12]
 	s := &Server{done: make(chan error, 1)}
 	defer func() {
 		if err != nil {
@@ -157,8 +169,8 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		return nil, err
 	}
 	base := "http://" + listener.Addr().String()
-	auth := accounts.New(p.Accounts(), providerFixture{})
-	f := &fixture{ctx: ctx, p: p, operator: operator, auth: auth, cache: cache, now: time.Now().UTC()}
+	auth := accounts.New(p.Accounts(), providerFixture{run})
+	f := &fixture{ctx: ctx, p: p, operator: operator, auth: auth, cache: cache, now: time.Now().UTC(), base: base, ses: ses}
 	if err := f.seed(sc); err != nil {
 		listener.Close()
 		return nil, err
@@ -214,7 +226,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		return nil, err
 	}
 	host, _, _ := net.SplitHostPort(o.Addr)
-	s.manifest = Manifest{BaseURL: base, Scenario: o.Scenario, Accounts: map[string]Account{},
+	s.manifest = Manifest{BaseURL: base, Scenario: o.Scenario, Run: run, Accounts: map[string]Account{},
 		Paths: f.paths, ScenarioPaths: f.scenarioPaths, DiscussionThreadID: f.threadID}
 	for _, e := range f.entries {
 		s.manifest.EventIDs = append(s.manifest.EventIDs, e.ID)
@@ -229,7 +241,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		}}}); err != nil {
 			return nil, err
 		}
-		s.manifest.Accounts[key] = Account{ID: a.ID, DisplayName: a.DisplayName, StorageState: state}
+		s.manifest.Accounts[key] = Account{ID: a.ID, DisplayName: a.DisplayName, Email: a.Email, StorageState: state}
 	}
 	// Publish the manifest last so a present manifest always describes a ready server.
 	manifest := filepath.Join(o.StateDir, "manifest.json")
@@ -255,11 +267,13 @@ func removeIfExists(path string) error {
 	return nil
 }
 
-type providerFixture struct{}
+// providerFixture signs in fixture accounts without Google. Addresses embed
+// the run token so captured email can be matched to this run.
+type providerFixture struct{ run string }
 
 func (providerFixture) AuthorizationURL(l accounts.Login) string {
 	return "https://accounts.example/authorize?state=" + l.State
 }
-func (providerFixture) Verify(_ context.Context, code string, _ accounts.Flow) (accounts.Identity, error) {
-	return accounts.Identity{Issuer: accounts.GoogleIssuer, Subject: code, Email: code + "@review.example"}, nil
+func (p providerFixture) Verify(_ context.Context, code string, _ accounts.Flow) (accounts.Identity, error) {
+	return accounts.Identity{Issuer: accounts.GoogleIssuer, Subject: code, Email: code + "+" + p.run + "@review.example"}, nil
 }

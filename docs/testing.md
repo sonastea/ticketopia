@@ -101,10 +101,20 @@ make review-server scenario=event-edge-cases
   ago. Its detail cache entry is omitted, so the page falls back to the durable
   snapshot and shows its age. `unavailable_event` is neither cached nor saved and
   returns 503 while the provider is off.
-- `reminder-states`: the owner gets a reminder due in about 30 minutes and a
-  stopped reminder (its event page shows no reminder). `other` has notifications
-  paused, so its reminder shows Paused. The real reminder worker schedules them;
-  every due time is in the future, and any send attempt fails the scenario.
+- `reminder-states`: the owner's reminders page shows every state the reminder
+  worker can reach: scheduled (due in about 30 minutes), sending, waiting to
+  retry, SES accepted, failed, uncertain, expired, awaiting a sale date, stopped
+  for a canceled event, and refresh failed. One more reminder is stopped, so its
+  event page shows none. `other` has notifications paused, so its reminder shows
+  Paused. The real worker produces these states without a clock override; a
+  fixture sender returns each outcome, and no email is sent.
+- `reminder-email`: sends one real on-sale reminder for the owner through the
+  production SES sender in local emulator mode (MiniStack from `make ses-setup`;
+  dummy credentials, never the AWS credential chain). The reminder shows SES
+  accepted. Fixture email addresses contain the manifest's `run` token, so this
+  run's message can be told apart from others in the capture endpoint. Override
+  the emulator with `-args -review.ses-endpoint=...` on `go test`; the default is
+  `http://localhost:4566`.
 
 For the signed-out view, open any path in a browser context without storage
 state; use `paths.discover`, since `/` without an account asks for a location.
@@ -113,8 +123,8 @@ An unknown scenario name fails before any schema is created. Scenarios are fixed
 to start over, stop the server and run it again.
 
 `REVIEW_SERVER_STATE_DIR` (default `$TMPDIR/ticketopia-review`) receives
-`manifest.json` (base URL, account IDs, routes, event and thread IDs, plus
-`scenario` and its `scenario_paths`) and one
+`manifest.json` (base URL, account IDs and emails, routes, event and thread IDs,
+plus `scenario`, `run` and the `scenario_paths`) and one
 Playwright storage-state file per account, for example
 `browser.newContext({ storageState: manifest.accounts.owner.storage_state })`.
 Writes go to the throwaway schema, so reviewers may save, post and report. Stop
@@ -125,7 +135,10 @@ The fixtures live in `internal/reviewfixture`; disposable schemas, users and
 runtime grants come from `internal/persistence/persistencetest`, shared with the
 opt-in MariaDB suite. Neither is imported by `cmd/ticketopia`.
 `MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./internal/reviewfixture` starts every
-scenario and checks its paths for each account and signed out.
+scenario and checks its paths for each account and signed out. It also checks
+that every reminder state renders, and that no request leaves loopback even with
+`TICKETMASTER_KEY` and IP lookup enabled. Add `SES_TEST_ENDPOINT=http://localhost:4566`
+to include `reminder-email`.
 
 ### Review fixtures over MCP
 
@@ -143,11 +156,15 @@ working directory, for example:
   server, so applying the same name resets it. Earlier sessions, storage states
   and IDs become invalid.
 - `manifest`: the running server's manifest, or `running: false`.
+- `ses_messages`: emails MiniStack captured for the running scenario's accounts,
+  oldest first. Only `reminder-email` sends one.
 
 The server starts only on `scenario_apply`. Flags (defaults in parentheses):
 `-addr` (`127.0.0.1:8090`; `make review-mcp` passes `REVIEW_SERVER_ADDR`), `-state-dir`
-(`$TMPDIR/ticketopia-review-mcp`), `-db-addr` (`127.0.0.1:3307`) and `-db-ca`
-(`.local/mariadb/certs/ca.crt`). Both addresses must be loopback IPs.
+(`$TMPDIR/ticketopia-review-mcp`), `-db-addr` (`127.0.0.1:3307`), `-db-ca`
+(`.local/mariadb/certs/ca.crt`) and `-ses-endpoint` (`http://localhost:4566`).
+The listener and database addresses must be loopback IPs, and the SES endpoint
+a loopback origin.
 `MARIADB_TEST_ADMIN_USER`/`_PASSWORD` override the local administrator as in the
 opt-in suite. Stdout carries only the protocol; diagnostics go to stderr. Closing
 the client (stdin EOF), SIGINT or SIGTERM stops the review server, drops its

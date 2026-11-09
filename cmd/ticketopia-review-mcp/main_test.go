@@ -48,11 +48,14 @@ func call[T any](t *testing.T, s *mcp.ClientSession, name string, args any) (T, 
 func TestScenarioToolsWithoutDatabase(t *testing.T) {
 	session, done := connect(t, "-state-dir", t.TempDir())
 	list, _ := call[listOutput](t, session, "scenario_list", map[string]any{})
-	if len(list.Scenarios) < 4 || list.Scenarios[0].Name != "baseline" {
+	if len(list.Scenarios) < 5 || list.Scenarios[0].Name != "baseline" {
 		t.Fatalf("scenarios: %+v", list.Scenarios)
 	}
 	if m, _ := call[manifestOutput](t, session, "manifest", map[string]any{}); m.Running {
 		t.Fatal("manifest reported a server before scenario_apply")
+	}
+	if _, result := call[messagesOutput](t, session, "ses_messages", map[string]any{}); !result.IsError {
+		t.Fatal("ses_messages answered without a running server")
 	}
 	// Unknown names are rejected before any database work.
 	if _, result := call[manifestOutput](t, session, "scenario_apply", map[string]any{"name": "nope"}); !result.IsError {

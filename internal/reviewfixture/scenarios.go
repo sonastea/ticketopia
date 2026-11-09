@@ -45,7 +45,9 @@ var scenarios = map[string]scenario{
 		events: edgeCaseEvents, seed: seedEdgeCases},
 	"event-data-gaps": {description: "Adds a saved event last refreshed a week ago with no image or venue, served from its durable snapshot, and an unknown event while the provider is off.",
 		events: dataGapEvents, seed: seedDataGaps},
-	"reminder-states": {description: "Adds a reminder due in about 30 minutes, a stopped reminder, and a reminder for an account with notifications paused (other). No email is sent.",
+	"reminder-email": {description: "Sends one real on-sale reminder for the owner through the local SES emulator (MiniStack, make ses-setup); read it with the MCP ses_messages tool. The reminder shows SES accepted.",
+		events: reminderEmailEvents, seed: seedReminderEmail},
+	"reminder-states": {description: "Adds owner reminders in every state (scheduled, sending, pending, accepted, failed, uncertain, expired, pending date, cancelled, refresh failed), a stopped reminder, and a paused reminder for other. A fixture sender returns outcomes; no email is sent.",
 		events: reminderEvents, seed: seedReminderStates},
 }
 
@@ -87,6 +89,7 @@ type fixture struct {
 	paths         map[string]string
 	scenarioPaths map[string]string
 	threadID      string
+	base, ses     string
 }
 
 const (
@@ -405,17 +408,54 @@ func seedDataGaps(f *fixture, events []models.EventDetail) (map[string]string, e
 	}, nil
 }
 
-// reminderEvents adds an event whose public sale starts in 90 minutes.
+// Reminder fixture events, by the state the worker gives their reminders.
+// Sends go to the fixture sender, which returns each event's outcome.
+const (
+	reminderSoon      = "On sale soon: late-night jazz trio"
+	reminderStarted   = "Sale already started: harbor fireworks cruise"
+	reminderUndated   = "Sale date to be announced: rooftop film night"
+	reminderCanceled  = "Called off: street food festival"
+	reminderStale     = "Needs a refresh: indie showcase"
+	reminderAccepted  = "Reminder sent: comedy late show"
+	reminderFailed    = "Reminder rejected: brass band parade"
+	reminderUncertain = "Reminder outcome unknown: drag brunch"
+	reminderSending   = "Reminder in progress: chamber quartet"
+	reminderRetry     = "Reminder retrying: roller derby double-header"
+)
+
+// sendOutcomes are the fixture sender's results; "" leaves the job sending,
+// as if the process stopped mid-send.
+var sendOutcomes = map[string]string{reminderAccepted: "accepted", reminderFailed: "failed",
+	reminderUncertain: "uncertain", reminderRetry: "retry", reminderSending: ""}
+
 func reminderEvents(newEvent func(name string) models.EventDetail) []fixtureEvent {
-	soon := newEvent("On sale soon: late-night jazz trio")
-	sale := soon.Meta.DataAsOf.Add(90 * time.Minute)
-	soon.Item.PublicSale.Start = &sale
-	return []fixtureEvent{{detail: soon}}
+	at := func(d models.EventDetail, offset time.Duration) models.EventDetail {
+		sale := d.Meta.DataAsOf.Add(offset)
+		d.Item.PublicSale.Start = &sale
+		return d
+	}
+	// Due 30 minutes from now with a 60-minute lead.
+	events := []fixtureEvent{{detail: at(newEvent(reminderSoon), 90*time.Minute)}}
+	events = append(events, fixtureEvent{detail: at(newEvent(reminderStarted), -time.Hour)})
+	undated := newEvent(reminderUndated)
+	undated.Item.PublicSale.Start = nil
+	canceled := newEvent(reminderCanceled)
+	canceled.Item.Status = "canceled"
+	// Older than the worker's five-minute freshness window, so it must refresh.
+	stale := newEvent(reminderStale)
+	stale.Meta.DataAsOf = stale.Meta.DataAsOf.Add(-time.Hour)
+	events = append(events, fixtureEvent{detail: undated}, fixtureEvent{detail: canceled}, fixtureEvent{detail: stale})
+	// A 60-minute lead on a sale 30 minutes away is due on enrollment.
+	for _, name := range []string{reminderAccepted, reminderFailed, reminderUncertain, reminderSending, reminderRetry} {
+		events = append(events, fixtureEvent{detail: at(newEvent(name), 30*time.Minute)})
+	}
+	return events
 }
 
-// seedReminderStates schedules reminders through the real worker without a
-// clock override: fresh snapshots skip provider refreshes, and every due time
-// is in the future, so nothing is sent. A send attempt fails the scenario.
+// seedReminderStates drives every reminder state through the real worker
+// without a clock override, using fixture provider and sender implementations.
+// No email leaves the process. The retry outcome is configured last because
+// it starts a one-minute send cooldown.
 func seedReminderStates(f *fixture, events []models.EventDetail) (map[string]string, error) {
 	ctx, owner, other := f.ctx, f.people["owner"].ID, f.people["other"].ID
 	on, off := true, false
@@ -425,50 +465,127 @@ func seedReminderStates(f *fixture, events []models.EventDetail) (map[string]str
 	if _, err := f.auth.UpdatePreferences(ctx, other, accounts.PreferencesPatch{EmailReminders: &on, NotificationsPaused: &on}); err != nil {
 		return nil, err
 	}
-	soon, stopped := events[0], f.details[2]
-	if err := errors.Join(f.save(owner, soon), f.save(other, f.details[0])); err != nil {
+	stopped := f.details[2]
+	if err := errors.Join(f.save(owner, events...), f.save(other, f.details[0])); err != nil {
 		return nil, err
 	}
+	repo := f.p.Reminders()
+	repo.SetSendInterval(0)
 	var errs []error
 	set := func(who, event string, lead int) {
-		_, err := f.p.Reminders().Set(ctx, who, event, lead)
+		_, err := repo.Set(ctx, who, event, lead)
 		errs = append(errs, err)
 	}
-	set(owner, soon.Item.ID, 60)
+	for _, d := range events {
+		set(owner, d.Item.ID, 60)
+	}
 	set(other, f.details[0].Item.ID, 60)
 	set(owner, stopped.Item.ID, 60)
-	errs = append(errs, f.p.Reminders().Remove(ctx, owner, stopped.Item.ID))
+	errs = append(errs, repo.Remove(ctx, owner, stopped.Item.ID))
 	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
-	sender := &refusingSender{}
-	worker := reminders.NewWorker(f.p.Reminders(), refusingProvider{}, sender, zerolog.Nop(), time.Minute)
-	// Each active reminder is claimed once; its next check is its future due time.
-	for range 10 {
+	sender := &outcomeSender{held: map[string]bool{}, sent: map[string]bool{}}
+	worker := reminders.NewWorker(holdingRepository{repo, sender.held}, refusingProvider{}, sender, zerolog.Nop(), time.Minute)
+	for range len(events) + 6 {
 		if err := worker.Step(ctx); err != nil {
 			return nil, fmt.Errorf("reminder scheduling: %w", err)
 		}
 	}
-	if sender.attempts > 0 {
-		return nil, fmt.Errorf("reminder scenario attempted %d email sends", sender.attempts)
+	for name := range sendOutcomes {
+		if !sender.sent[name] {
+			return nil, fmt.Errorf("reminder scenario did not attempt %q", name)
+		}
+	}
+	if len(sender.sent) != len(sendOutcomes) {
+		return nil, fmt.Errorf("reminder scenario attempted unexpected sends: %v", sender.sent)
 	}
 	return map[string]string{
 		"reminders":              "/me/reminders",
-		"due_soon_event":         eventPath(soon.Item.ID),
+		"due_soon_event":         eventPath(events[0].Item.ID),
 		"stopped_reminder_event": eventPath(stopped.Item.ID),
 		"paused_reminders_other": "/me/reminders",
 	}, nil
+}
+
+// outcomeSender returns each fixture event's outcome without sending email.
+type outcomeSender struct{ held, sent map[string]bool }
+
+func (s *outcomeSender) Send(_ context.Context, d reminders.Delivery) (string, string) {
+	s.sent[d.Name] = true
+	outcome, ok := sendOutcomes[d.Name]
+	if !ok {
+		return "failed", ""
+	}
+	if outcome == "" {
+		s.held[d.JobID] = true
+		return "accepted", ""
+	}
+	if outcome == "accepted" {
+		return outcome, "fixture-" + d.JobID
+	}
+	return outcome, ""
+}
+
+// holdingRepository skips Finish for held jobs, leaving them sending.
+type holdingRepository struct {
+	reminders.Repository
+	held map[string]bool
+}
+
+func (r holdingRepository) Finish(ctx context.Context, id, state, messageID string) error {
+	if r.held[id] {
+		return nil
+	}
+	return r.Repository.Finish(ctx, id, state, messageID)
+}
+
+const reminderEmail = "Reminder email: open-air orchestra"
+
+func reminderEmailEvents(newEvent func(name string) models.EventDetail) []fixtureEvent {
+	d := newEvent(reminderEmail)
+	sale := d.Meta.DataAsOf.Add(30 * time.Minute)
+	d.Item.PublicSale.Start = &sale
+	return []fixtureEvent{{detail: d}}
+}
+
+// seedReminderEmail sends one reminder that is due on enrollment through the
+// production SES sender in local emulator mode, which uses dummy credentials
+// and never the AWS credential chain.
+func seedReminderEmail(f *fixture, events []models.EventDetail) (map[string]string, error) {
+	ctx, owner := f.ctx, f.people["owner"].ID
+	on, off := true, false
+	if _, err := f.auth.UpdatePreferences(ctx, owner, accounts.PreferencesPatch{EmailReminders: &on, NotificationsPaused: &off}); err != nil {
+		return nil, err
+	}
+	if err := f.save(owner, events...); err != nil {
+		return nil, err
+	}
+	repo := f.p.Reminders()
+	repo.SetSendInterval(0)
+	event := events[0].Item.ID
+	if _, err := repo.Set(ctx, owner, event, 60); err != nil {
+		return nil, err
+	}
+	sender, err := reminders.NewSES(ctx, reminders.Config{Enabled: true, Region: "us-east-1",
+		From: "Ticketopia DEV <notifications-dev@ticketopia.sonastea.com>", BaseURL: f.base, EndpointURL: f.ses})
+	if err != nil {
+		return nil, err
+	}
+	worker := reminders.NewWorker(repo, refusingProvider{}, sender, zerolog.Nop(), time.Minute)
+	for range 4 {
+		if err := worker.Step(ctx); err != nil {
+			return nil, fmt.Errorf("reminder delivery: %w", err)
+		}
+	}
+	if item, err := repo.Get(ctx, owner, event); err != nil || item.State != "accepted" {
+		return nil, fmt.Errorf("local SES did not accept the reminder (state %q, %v); is MiniStack running (make ses-setup)?", item.State, err)
+	}
+	return map[string]string{"reminders": "/me/reminders", "reminder_email_event": eventPath(event)}, nil
 }
 
 type refusingProvider struct{}
 
 func (refusingProvider) RefreshEvent(context.Context, string) (models.EventDetail, error) {
 	return models.EventDetail{}, errors.New("review fixture: provider disabled")
-}
-
-type refusingSender struct{ attempts int }
-
-func (s *refusingSender) Send(context.Context, reminders.Delivery) (string, string) {
-	s.attempts++
-	return "failed", ""
 }
