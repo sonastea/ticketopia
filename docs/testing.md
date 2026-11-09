@@ -161,14 +161,33 @@ to include `reminder-email`.
 
 ### Review fixtures over MCP
 
+Quick start, after `make local-setup` (the dev app and `air` are not needed):
+
+1. Make sure `go` is on the `PATH` of the process your editor or agent starts
+   (see the version-manager note below).
+2. Register the server: OpenCode needs nothing (`opencode.json`); for Claude
+   Code run `claude mcp add ticketopia-review -- make -s -C "$(pwd)" review-mcp`
+   from the repository root; for any other client paste the stdio JSON from
+   `make review-mcp-config`.
+3. Ask the agent to apply a scenario. `scenario_apply` serves it on
+   `127.0.0.1:8090`; your dev app on `:8080` and its data are untouched.
+
+The server compiles once when the client connects: reconnect after Go changes,
+and run `npm run generate`/`npm run css` first after templ or CSS changes.
+`reminder-email` and `ses_messages` need MiniStack (`make ses-setup`). If
+MariaDB is down or its certificate expired, start Docker and rerun
+`make db-setup`.
+
 `make review-mcp` builds `bin/ticketopia-review-mcp` and serves the same
 fixtures to an MCP client over stdio. OpenCode picks it up from the repository's
 `opencode.json` as `ticketopia-review`; it connects without touching the
-database until `scenario_apply`. For other clients, register a stdio server
-running from any directory:
+database until `scenario_apply`. Other clients need this checkout's absolute
+path, because many do not start servers in the project directory.
+`make review-mcp-config` prints ready-to-use setup with the path filled in, or
+let the shell expand it when registering:
 
-```json
-{ "command": "make", "args": ["-s", "-C", "/path/to/ticketopia", "review-mcp"] }
+```sh
+claude mcp add ticketopia-review -- make -s -C "$(pwd)" review-mcp
 ```
 
 The client's process must find `go` on its `PATH`. Version managers that only

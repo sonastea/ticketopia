@@ -25,6 +25,8 @@ It uses the same SESv2 client as production, but captures messages locally.
   fail before touching the database. Services already started remain available.
 
 Docker with Compose is required; database setup also needs Go and OpenSSL.
+After setup, agents and editors can review seeded app states through the
+[review MCP server](testing.md#review-fixtures-over-mcp), independent of `air`.
 Stop the app before applying schema-changing migrations. Existing database volumes
 are retained; local TLS certificates are kept until they near expiry, then reissued
 (see [persistence](persistence.md#repeatable-local-development)). Targets can be rerun; an existing SES identity is

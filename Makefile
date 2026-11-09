@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-clean
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -13,6 +13,7 @@ help:
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
 		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email).' \
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
+		'make review-mcp-config Print MCP client setup for this checkout.' \
 		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).'
 
 # Validate the current working tree before committing, using the publishing checks.
@@ -46,6 +47,17 @@ review-server:
 review-mcp:
 	@go build -o bin/ticketopia-review-mcp ./cmd/ticketopia-review-mcp
 	@exec bin/ticketopia-review-mcp -addr $(REVIEW_SERVER_ADDR)
+
+# Print MCP client setup with this checkout's path filled in; changes nothing.
+review-mcp-config:
+	@printf '%s\n' \
+		'OpenCode: opencode.json in this checkout already registers ticketopia-review.' \
+		'' \
+		'Claude Code:' \
+		'  claude mcp add ticketopia-review -- make -s -C "$(CURDIR)" review-mcp' \
+		'' \
+		'Other MCP clients (stdio server JSON):' \
+		'  "ticketopia-review": {"command": "make", "args": ["-s", "-C", "$(CURDIR)", "review-mcp"]}'
 
 # Local only: running fixtures hold a lock and are kept.
 review-clean:
