@@ -1,7 +1,10 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
+K6 ?= k6
+duration ?= 1m
+rate ?= 1
 
 help:
 	@printf '%s\n' \
@@ -14,7 +17,9 @@ help:
 		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email).' \
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
 		'make review-mcp-config Print MCP client setup for this checkout.' \
-		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).'
+		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).' \
+		'make load          Run the k6 web/API/MCP traffic mix against a running review server' \
+		'                   (scenario=discover-last-known). Add duration=<1m> rate=<scale>.'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -62,3 +67,10 @@ review-mcp-config:
 # Local only: running fixtures hold a lock and are kept.
 review-clean:
 	@go run ./cmd/ticketopia-review-mcp -clean-stale
+
+# Local only: the script refuses non-loopback targets. Summaries go to .local/load.
+load:
+	@mkdir -p .local/load
+	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
+		-e DURATION=$(duration) -e RATE=$(rate) \
+		--summary-export ".local/load/traffic-mix-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/traffic-mix.js
