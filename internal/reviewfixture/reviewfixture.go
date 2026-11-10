@@ -58,13 +58,13 @@ type Manifest struct {
 	// SessionCookie names the browser session cookie that Session values and
 	// storage states carry.
 	SessionCookie string `json:"session_cookie"`
-	// Crowd lists simulated users (the crowd scenario only).
-	Crowd []CrowdMember `json:"crowd,omitempty"`
+	// Members lists simulated users (the populated scenario only).
+	Members []Member `json:"members,omitempty"`
 }
 
-// CrowdMember is a signed-in simulated user; Session is its session cookie
+// Member is a signed-in simulated user; Session is its session cookie
 // value, as a browser would send it.
-type CrowdMember struct {
+type Member struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
 	Session     string `json:"session"`
@@ -257,7 +257,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 	}
 	host, _, _ := net.SplitHostPort(o.Addr)
 	s.manifest = Manifest{BaseURL: base, Scenario: o.Scenario, Run: run, Accounts: map[string]Account{},
-		Paths: f.paths, ScenarioPaths: f.scenarioPaths, DiscussionThreadID: f.threadID, SessionCookie: cookie, Crowd: f.crowd}
+		Paths: f.paths, ScenarioPaths: f.scenarioPaths, DiscussionThreadID: f.threadID, SessionCookie: cookie, Members: f.members}
 	for _, e := range f.entries {
 		s.manifest.EventIDs = append(s.manifest.EventIDs, e.ID)
 	}

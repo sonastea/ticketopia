@@ -119,17 +119,17 @@ wait a minute between runs, or a run inherits the previous one's limiting.
 
 `make simulate-users` simulates signed-in people using the site: browsing,
 saving, marking interest, recommending, following venues and threads, and
-discussing. It runs only against a local review server with the `crowd`
+discussing. It runs only against a local review server with the `populated`
 scenario, because it writes; everything it creates is dropped with the
 server's schema.
 
 ```sh
-make review-server scenario=crowd               # terminal 1, until Ctrl-C
+make review-server scenario=populated           # terminal 1, until Ctrl-C
 make simulate-users                             # 20 users, 3s think time, 30s ramp + 2m
 make simulate-users users=40 think=0.5 duration=5m
 ```
 
-Each k6 VU is one crowd member (`users`, at most 40) with its own session.
+Each k6 VU is one member (`users`, at most 40) with its own session.
 Like the browser's scripts, it takes the session's CSRF token and sends
 same-origin form posts with `Accept: application/json`, pausing `think`
 seconds (varied ±50%) between steps. A visit opens Discover (and the batched
@@ -187,7 +187,7 @@ about 48 seconds at `rate=8`).
 
 ### 2026-11-09 — Simulated users (same machine)
 
-Fresh `crowd` review server; `posts_limited` appears only after earlier runs.
+Fresh `populated` review server; `posts_limited` appears only after earlier runs.
 
 | Run | Requests/s | Actions/s | p95 page / action / read | Result |
 |---|---|---|---|---|

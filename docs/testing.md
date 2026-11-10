@@ -104,9 +104,9 @@ make review-server scenario=event-edge-cases
   only that row reads "Last-known as of …" and the list shows no last-known
   banner. Its event page gets a provider 404 and falls back to the snapshot. The
   scenario fails to start if the stored read does not match this.
-- `crowd`: stored Discover as in `discover-last-known` (without the removed
-  event), plus 40 signed-in crowd members whose session cookies are in the
-  manifest (`crowd`, `session_cookie`), for
+- `populated`: stored Discover as in `discover-last-known` (without the removed
+  event), plus 40 signed-in members whose session cookies are in the manifest
+  (`members`, `session_cookie`), for
   [simulated users](load-testing.md#simulated-users).
 - `event-data-gaps`: a saved event with no image or venue, last refreshed a week
   ago. Its detail cache entry is omitted, so the page falls back to the durable

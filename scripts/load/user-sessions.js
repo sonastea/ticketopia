@@ -1,27 +1,27 @@
-// Simulated signed-in users against a local crowd review server
-// (make review-server scenario=crowd, then make simulate-users). See
-// docs/load-testing.md. Each VU is one crowd member with its own browser
+// Simulated signed-in users against a local populated review server
+// (make review-server scenario=populated, then make simulate-users). See
+// docs/load-testing.md. Each VU is one member with its own browser
 // session; visits browse and act through the same form posts the browser's
 // scripts send (session cookie, CSRF token, same-origin headers), with think
 // time between steps. It writes, so it refuses anything but a loopback
-// crowd review server.
+// populated review server.
 import http from 'k6/http';
 import { check, fail, sleep } from 'k6';
 import exec from 'k6/execution';
 import { Counter, Rate } from 'k6/metrics';
 
-const manifest = JSON.parse(open(__ENV.MANIFEST || fail('set MANIFEST to a crowd review server manifest.json')));
+const manifest = JSON.parse(open(__ENV.MANIFEST || fail('set MANIFEST to a populated review server manifest.json')));
 const base = manifest.base_url;
 if (!/^http:\/\/(127\.0\.0\.1|\[::1\]):\d+$/.test(base)) {
 	fail(`refusing non-loopback target ${base}: simulated users write`);
 }
-if (manifest.scenario !== 'crowd' || !Array.isArray(manifest.crowd) || manifest.crowd.length === 0) {
-	fail(`start the review server with scenario=crowd, not ${manifest.scenario}`);
+if (manifest.scenario !== 'populated' || !Array.isArray(manifest.members) || manifest.members.length === 0) {
+	fail(`start the review server with scenario=populated, not ${manifest.scenario}`);
 }
-const crowd = manifest.crowd;
+const members = manifest.members;
 const users = Number(__ENV.USERS || 20);
-if (!Number.isInteger(users) || users < 1 || users > crowd.length) {
-	fail(`USERS must be an integer from 1 to ${crowd.length}, the crowd size`);
+if (!Number.isInteger(users) || users < 1 || users > members.length) {
+	fail(`USERS must be an integer from 1 to ${members.length}, the number of members`);
 }
 // Think time between steps, in seconds, varied from half to one and a half times.
 const think = Number(__ENV.THINK || 3);
@@ -62,9 +62,9 @@ const postsLimited = new Counter('posts_limited');
 const postsRefused = new Rate('posts_refused');
 const postStatuses = http.expectedStatuses(200, 429);
 
-// Per-VU state: the crowd member, their CSRF token, and their recent posts,
+// Per-VU state: the member, their CSRF token, and their recent posts,
 // kept under the server's 20 contributions per 10 minutes per account.
-const me = () => crowd[(exec.vu.idInTest - 1) % crowd.length];
+const me = () => members[(exec.vu.idInTest - 1) % members.length];
 let csrf = '';
 const posted = [];
 const postBudget = { count: 15, window: 10 * 60 * 1000 };

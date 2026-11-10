@@ -9,9 +9,9 @@
   with per-scenario latency, error, tool-error and dropped-iteration thresholds
   and refusals counted as 429 or 503. It refuses non-loopback targets. See
   [load testing](../load-testing.md), including the first local baseline.
-- `make simulate-users` (k6) simulates signed-in crowd members browsing,
+- `make simulate-users` (k6) simulates signed-in members browsing,
   saving, marking interest, recommending, following and discussing through the
-  browser's form posts with think time, against a new `crowd` review scenario
+  browser's form posts with think time, against a new `populated` review scenario
   of 40 members with sessions in the manifest.
 - `target=` (`TARGET`) aims the same script at a dev or production server:
   read-only cached searches and details, signed-in reads only with `TOKEN`,

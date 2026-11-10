@@ -97,8 +97,8 @@ func TestMariaDBScenarios(t *testing.T) {
 					t.Errorf("removed row label changed after opening the event: %q -> %q", label, after)
 				}
 			}
-			if name == "crowd" {
-				checkCrowd(t, m)
+			if name == "populated" {
+				checkMembers(t, m)
 			}
 			paths := map[string]string{"discover": m.Paths["discover"], "event": m.Paths["event"], "discussion": m.Paths["discussion"]}
 			for key, path := range m.ScenarioPaths {
@@ -418,15 +418,15 @@ func TestMariaDBPrivateToolsArePerAccount(t *testing.T) {
 	}
 }
 
-// Each crowd member's session signs in as that member alone, and can act
+// Each member's session signs in as that member alone, and can act
 // through the browser's form posts, as make simulate-users does.
-func checkCrowd(t *testing.T, m Manifest) {
+func checkMembers(t *testing.T, m Manifest) {
 	t.Helper()
-	if len(m.Crowd) != crowdSize || m.SessionCookie == "" {
-		t.Fatalf("crowd: %d members, cookie %q", len(m.Crowd), m.SessionCookie)
+	if len(m.Members) != memberCount || m.SessionCookie == "" {
+		t.Fatalf("populated: %d members, cookie %q", len(m.Members), m.SessionCookie)
 	}
 	csrf := ""
-	for _, member := range m.Crowd {
+	for _, member := range m.Members {
 		request, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, m.BaseURL+"/api/v1/me", nil)
 		request.AddCookie(&http.Cookie{Name: m.SessionCookie, Value: member.Session})
 		response, err := http.DefaultClient.Do(request)
@@ -451,13 +451,13 @@ func checkCrowd(t *testing.T, m Manifest) {
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Origin", m.BaseURL)
-	request.AddCookie(&http.Cookie{Name: m.SessionCookie, Value: m.Crowd[0].Session})
+	request.AddCookie(&http.Cookie{Name: m.SessionCookie, Value: m.Members[0].Session})
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		t.Fatalf("crowd save form: %d", response.StatusCode)
+		t.Fatalf("member save form: %d", response.StatusCode)
 	}
 }

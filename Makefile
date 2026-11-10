@@ -14,7 +14,7 @@ help:
 		'make ses-setup Start local SES emulation in MiniStack and seed the test sender.' \
 		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
-		'                   Add scenario=<name> (crowd, event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email).' \
+		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email, populated).' \
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
 		'make review-mcp-config Print MCP client setup for this checkout.' \
 		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).' \
@@ -22,7 +22,7 @@ help:
 		'                   (scenario=discover-last-known). Add duration=<1m> rate=<scale>, or' \
 		'                   target=<https://host> for a read-only run against a dev or production server.' \
 		'make simulate-users Simulate signed-in users browsing, saving, following and discussing against a running' \
-		'                   review server (scenario=crowd). Add users=<20> duration=<2m> think=<3>.'
+		'                   review server (scenario=populated). Add users=<20> duration=<2m> think=<3>.'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -80,7 +80,7 @@ load-test:
 		$(if $(target),-e TARGET=$(target)) -e DURATION=$(duration) -e RATE=$(rate) \
 		--summary-export ".local/load/traffic-mix-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/traffic-mix.js
 
-# Local only: crowd members write to the review server's disposable schema.
+# Local only: simulated members write to the review server's disposable schema.
 users ?= 20
 think ?= 3
 simulate-users:
