@@ -69,8 +69,9 @@ let csrf = '';
 const posted = [];
 const postBudget = { count: 15, window: 10 * 60 * 1000 };
 
+// As a browser sends them, asking for compressed responses (k6 decompresses).
 function headers(extra = {}) {
-	return { Cookie: `${manifest.session_cookie}=${me().session}`, ...extra };
+	return { Cookie: `${manifest.session_cookie}=${me().session}`, 'Accept-Encoding': 'gzip, deflate, br, zstd', ...extra };
 }
 
 function page(path, name) {
@@ -159,7 +160,7 @@ const lines = [
 export function setup() {
 	const venues = {};
 	for (const id of manifest.event_ids) {
-		const res = http.get(`${base}/api/v1/events/${encodeURIComponent(id)}`);
+		const res = http.get(`${base}/api/v1/events/${encodeURIComponent(id)}`, { headers: { 'Accept-Encoding': 'gzip, deflate, br, zstd' } });
 		try {
 			const venue = res.json().item.venues[0];
 			if (venue && venue.id) venues[id] = venue.id;

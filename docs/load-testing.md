@@ -104,7 +104,9 @@ an event, save it, set a reminder):
 | `mcp_public` | 10/s | `find_events`, then `event_details` for a result |
 | `mcp_signed_in` | 2/s | `my_saved_events` (owner); `save_event`, `set_reminder`, `my_reminders` (other) |
 
-MCP requests are stateless `tools/call` POSTs without `initialize`; a call
+Every request asks for compressed responses, as browsers do (k6 decompresses
+them); otherwise pages arrive about 20 times larger and remote runs measure
+bandwidth. MCP requests are stateless `tools/call` POSTs without `initialize`; a call
 passes only with a JSON-RPC result whose structured content has the expected
 shape (for example, search results with items). Signed-in writes repeat one save
 and reminder, which are idempotent, so concurrent iterations cannot conflict.
@@ -204,3 +206,26 @@ Fresh `populated` review server; `posts_limited` appears only after earlier runs
 Even without think time, 40 users acting continuously stay within the
 thresholds. Where the ceiling lies, and whether the app or the shared machine
 sets it, was not measured.
+
+### 2026-11-10 — Production on the resource profile
+
+`topia.sonastea.com` behind Cloudflare, on a Ryzen 9 5900X with Coolify and the
+[resource profile](deployment.md#resource-profile) (app 1 CPU and 256 MiB,
+MariaDB 2 CPUs, Redis 0.5 CPU). Remote mode from a Mac, 20-second ramp then one minute held. A first public-only
+check (web, API and public tools) ran before compression was requested; the
+step-ups used `SCENARIOS=web,api` with compressed responses.
+
+| Run | Held rate | Run average | p95 web / api | Result |
+|---|---|---|---|---|
+| `rate=1`, public mix, uncompressed | 2/s | 2/s | 113 / 76 ms (tools 110 ms) | all pass |
+| `rate=120` | 240/s | 209/s | 66 / 60 ms | all pass |
+| `rate=240` | 480/s | 419/s | 192 / 122 ms | pass; 2 client connection timeouts |
+| `rate=400` | ramping to 800/s | 463/s until abort | 3.8 / 3.1 s | aborted: 46% failed |
+
+Latency includes the Cloudflare round trip (about 50 ms). The site held 480
+requests a second for a minute and failed while ramping toward 800: requests
+queued and timed out at the app, which answered its own 503s (the API's
+`provider_unavailable` code also covers these overload timeouts). It recovered
+within seconds once load stopped. Server resource use was not recorded, so the
+exact ceiling between 480 and 800 is unmeasured.
+

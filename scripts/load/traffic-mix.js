@@ -135,15 +135,19 @@ const hasEvents = (c) => hasItems(c) && c.items.every((e) => typeof e.id === 'st
 // An account may have nothing saved remotely; the list must still be a list.
 const isList = (c) => Array.isArray(c.items) && c.items.every(isObject);
 
+// Browsers ask for compressed responses; k6 decompresses them. Without this,
+// pages arrive about 20 times larger and remote runs measure bandwidth.
+const compressed = { 'Accept-Encoding': 'gzip, deflate, br, zstd' };
+
 function get(path, name, token) {
-	const headers = token ? { Authorization: `Bearer ${token}` } : {};
+	const headers = token ? { ...compressed, Authorization: `Bearer ${token}` } : { ...compressed };
 	const res = http.get(base + path, { headers, tags: { name } });
 	check(res, { [`${name} 200`]: (r) => r.status === 200 });
 	return res;
 }
 
 function rpc(method, params, token, name, id) {
-	const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
+	const headers = { ...compressed, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
 	if (token) headers.Authorization = `Bearer ${token}`;
 	const body = JSON.stringify({ jsonrpc: '2.0', id, method, params });
 	return http.post(base + mcpPath, body, { headers, tags: { name } });
@@ -198,7 +202,7 @@ export function setup() {
 		}
 	}
 	if (reader && (chosen.includes('mcp_signed_in') || chosen.includes('api'))) {
-		const res = http.get(`${base}/api/v1/me/saved-events`, { headers: { Authorization: `Bearer ${reader}` }, tags: { name: 'setup' } });
+		const res = http.get(`${base}/api/v1/me/saved-events`, { headers: { ...compressed, Authorization: `Bearer ${reader}` }, tags: { name: 'setup' } });
 		if (res.status !== 200) {
 			fail(`${status(res)}; check TOKEN`);
 		}
@@ -210,7 +214,7 @@ export function setup() {
 	if (!chosen.some((name) => name !== 'mcp_signed_in')) {
 		return { events: [], reminders, search };
 	}
-	const res = http.get(`${base}/api/v1/events?${queryOf(search)}`, { tags: { name: 'setup' } });
+	const res = http.get(`${base}/api/v1/events?${queryOf(search)}`, { headers: compressed, tags: { name: 'setup' } });
 	let events = [];
 	try {
 		events = res.json().items.map((e) => e.id).filter((id) => typeof id === 'string' && id !== '');
