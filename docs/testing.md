@@ -104,6 +104,10 @@ make review-server scenario=event-edge-cases
   only that row reads "Last-known as of …" and the list shows no last-known
   banner. Its event page gets a provider 404 and falls back to the snapshot. The
   scenario fails to start if the stored read does not match this.
+- `populated`: stored Discover as in `discover-last-known` (without the removed
+  event), plus 40 signed-in members whose session cookies are in the manifest
+  (`members`, `session_cookie`), for
+  [simulated users](load-testing.md#simulated-users).
 - `event-data-gaps`: a saved event with no image or venue, last refreshed a week
   ago. Its detail cache entry is omitted, so the page falls back to the durable
   snapshot and shows its age. `unavailable_event` is neither cached nor saved and
@@ -134,6 +138,10 @@ to start over, stop the server and run it again.
 plus `scenario`, `run` and the `scenario_paths`) and one
 Playwright storage-state file per account, for example
 `browser.newContext({ storageState: manifest.accounts.owner.storage_state })`.
+Review servers also serve the [agent tools](app-mcp.md) at `paths.mcp` over the
+fixture data, with a high rate limit for local tooling and
+[load scripts](load-testing.md). Each
+account's `api_token` authenticates its signed-in tools (and `/api/v1`).
 Writes go to the throwaway schema, so reviewers may save, post and report. Stop
 with Ctrl-C to drop the schema and users and remove the state files. A killed
 process leaves its `ticketopia_test_*` schema and users behind; remove them with:

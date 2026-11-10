@@ -376,12 +376,22 @@ func errorMessage(err error) (int, string) {
 }
 
 func setRetryAfter(c echo.Context, err error) {
+	if seconds, ok := retryAfterSeconds(err); ok {
+		c.Response().Header().Set("Retry-After", strconv.Itoa(seconds))
+	}
+}
+
+// retryAfterSeconds is the provider cooldown or timeout backoff an error
+// implies, as sent in Retry-After.
+func retryAfterSeconds(err error) (int, bool) {
 	var unavailable *discovery.UnavailableError
 	if errors.As(err, &unavailable) {
-		c.Response().Header().Set("Retry-After", strconv.Itoa(max(1, int(math.Ceil(unavailable.RetryAfter.Seconds())))))
-	} else if errors.Is(err, context.DeadlineExceeded) {
-		c.Response().Header().Set("Retry-After", "30")
+		return max(1, int(math.Ceil(unavailable.RetryAfter.Seconds()))), true
 	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return 30, true
+	}
+	return 0, false
 }
 
 func problem(c echo.Context, err error) error {

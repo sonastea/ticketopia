@@ -6,9 +6,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -60,12 +62,43 @@ func TestMariaDBScenarios(t *testing.T) {
 				if strings.Count(body, `class="event-last-known"`) != 1 || strings.Contains(body, "Showing last-known results") {
 					t.Error("stored Discover must label only the removed row and show no last-known banner")
 				}
+				// The app MCP tool returns the same stored rows, with per-event meta.
+				result := mcpCall(t, m.BaseURL, "find_events", map[string]any{"city": "Chicago", "country": "US"})
+				var list struct {
+					Items []struct {
+						Name string
+						Meta *struct{ Stale bool }
+					}
+					Meta struct{ Stale bool }
+				}
+				if err := json.Unmarshal(result, &list); err != nil || list.Meta.Stale || len(list.Items) != 7 {
+					t.Fatalf("find_events: %v %s", err, result)
+				}
+				for _, item := range list.Items {
+					if (item.Meta != nil && item.Meta.Stale) != (item.Name == removedUpstream) {
+						t.Errorf("find_events item %q meta %+v", item.Name, item.Meta)
+					}
+				}
+				// Real stored details, with collection history, pass output validation.
+				var detail struct {
+					Item    struct{ Name string }
+					History *struct {
+						FirstSeen string `json:"first_seen"`
+					}
+				}
+				if err := json.Unmarshal(mcpCall(t, m.BaseURL, "event_details", map[string]any{"event_id": "ticketmaster:Review_0"}), &detail); err != nil ||
+					detail.Item.Name == "" || detail.History == nil {
+					t.Fatalf("event_details: %v %+v", err, detail)
+				}
 				// Opening the removed event (provider 404) keeps it last-known.
 				label := regexp.MustCompile(`Last-known as of [^<]+`).FindString(body)
 				get(t, m, "owner", m.ScenarioPaths["removed_event"])
 				if after := regexp.MustCompile(`Last-known as of [^<]+`).FindString(get(t, m, "owner", m.Paths["discover"])); label == "" || after != label {
 					t.Errorf("removed row label changed after opening the event: %q -> %q", label, after)
 				}
+			}
+			if name == "populated" {
+				checkMembers(t, m)
 			}
 			paths := map[string]string{"discover": m.Paths["discover"], "event": m.Paths["event"], "discussion": m.Paths["discussion"]}
 			for key, path := range m.ScenarioPaths {
@@ -220,5 +253,211 @@ func TestMariaDBFixturesMakeNoExternalRequests(t *testing.T) {
 	defer mu.Unlock()
 	if len(external) != 0 {
 		t.Fatalf("external requests: %v", external)
+	}
+}
+
+// mcpCall posts one stateless tools/call to the review server's /mcp and
+// returns the tool's structured content.
+func mcpCall(t *testing.T, base, tool string, args map[string]any) json.RawMessage {
+	t.Helper()
+	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": map[string]any{"name": tool, "arguments": args}})
+	request, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/mcp", strings.NewReader(string(body)))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var reply struct {
+		Result struct {
+			IsError           bool            `json:"isError"`
+			StructuredContent json.RawMessage `json:"structuredContent"`
+		}
+		Error json.RawMessage
+	}
+	if err := json.NewDecoder(response.Body).Decode(&reply); err != nil || response.StatusCode != http.StatusOK || reply.Result.IsError ||
+		reply.Error != nil || len(reply.Result.StructuredContent) == 0 {
+		t.Fatalf("%s: status %d %v %+v", tool, response.StatusCode, err, reply)
+	}
+	return reply.Result.StructuredContent
+}
+
+type mcpReply struct {
+	Status  int
+	IsError bool
+	Text    string
+	Content json.RawMessage
+}
+
+// mcpTool posts one stateless tools/call with an optional bearer token and
+// optional extra headers.
+func mcpTool(t *testing.T, base, token, tool string, args map[string]any, headers ...string) mcpReply {
+	t.Helper()
+	body, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": map[string]any{"name": tool, "arguments": args}})
+	request, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/mcp", strings.NewReader(string(body)))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/event-stream")
+	if token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
+	for i := 0; i+1 < len(headers); i += 2 {
+		request.Header.Set(headers[i], headers[i+1])
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var reply struct {
+		Result struct {
+			IsError           bool            `json:"isError"`
+			StructuredContent json.RawMessage `json:"structuredContent"`
+			Content           []struct{ Text string }
+		}
+	}
+	_ = json.NewDecoder(response.Body).Decode(&reply)
+	r := mcpReply{Status: response.StatusCode, IsError: reply.Result.IsError, Content: reply.Result.StructuredContent}
+	if len(reply.Result.Content) > 0 {
+		r.Text = reply.Result.Content[0].Text
+	}
+	return r
+}
+
+func savedIDs(t *testing.T, r mcpReply) []string {
+	t.Helper()
+	var list struct {
+		Items []struct{ Event struct{ ID string } }
+	}
+	if r.Status != http.StatusOK || r.IsError || json.Unmarshal(r.Content, &list) != nil {
+		t.Fatalf("saved list: %+v", r)
+	}
+	ids := []string{}
+	for _, item := range list.Items {
+		ids = append(ids, item.Event.ID)
+	}
+	return ids
+}
+
+// Signed-in tools act only on the token's account: each account sees and
+// changes only its own saves and reminders, cookies are never accepted, and
+// invalid tokens are refused.
+func TestMariaDBPrivateToolsArePerAccount(t *testing.T) {
+	database, ok := persistencetest.OptionsFromEnv(filepath.Join("..", "..", ".local", "mariadb", "certs", "ca.crt"))
+	if !ok {
+		t.Skip("set MARIADB_TEST_ADDR to run real MariaDB tests")
+	}
+	s, err := Start(t.Context(), Options{Scenario: "baseline", Addr: "127.0.0.1:0", StateDir: t.TempDir(), Database: database})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	m := s.Manifest()
+	base, owner, other := m.BaseURL, m.Accounts["owner"].APIToken, m.Accounts["other"].APIToken
+	unsaved, alsoUnsaved := m.EventIDs[4], m.EventIDs[5]
+
+	if ids := savedIDs(t, mcpTool(t, base, owner, "my_saved_events", map[string]any{})); len(ids) != 4 {
+		t.Fatalf("owner saves: %v", ids)
+	}
+	if ids := savedIDs(t, mcpTool(t, base, other, "my_saved_events", map[string]any{})); len(ids) != 0 {
+		t.Fatalf("other sees saves: %v", ids)
+	}
+	if r := mcpTool(t, base, other, "save_event", map[string]any{"event_id": unsaved}); r.IsError || !strings.Contains(string(r.Content), `"created":true`) {
+		t.Fatalf("other save: %+v", r)
+	}
+	if r := mcpTool(t, base, other, "save_event", map[string]any{"event_id": unsaved}); r.IsError || !strings.Contains(string(r.Content), `"created":false`) {
+		t.Fatalf("repeat save is not idempotent: %+v", r)
+	}
+	if ids := savedIDs(t, mcpTool(t, base, owner, "my_saved_events", map[string]any{})); len(ids) != 4 || slices.Contains(ids, unsaved) {
+		t.Fatalf("other's save reached owner: %v", ids)
+	}
+
+	// Reminders follow the account API's rules: the event must be saved first.
+	if r := mcpTool(t, base, other, "set_reminder", map[string]any{"event_id": alsoUnsaved, "lead_minutes": 60}); !r.IsError {
+		t.Fatalf("reminder on an unsaved event: %+v", r)
+	}
+	if r := mcpTool(t, base, other, "set_reminder", map[string]any{"event_id": unsaved, "lead_minutes": 60}); r.IsError || !strings.Contains(string(r.Content), `"lead_minutes":60`) {
+		t.Fatalf("set reminder: %+v", r)
+	}
+	reminders := func(token string) string {
+		return string(mcpTool(t, base, token, "my_reminders", map[string]any{}).Content)
+	}
+	if !strings.Contains(reminders(other), unsaved) || strings.Contains(reminders(owner), unsaved) {
+		t.Fatal("reminder not limited to its account")
+	}
+	if r := mcpTool(t, base, other, "stop_reminder", map[string]any{"event_id": unsaved}); r.IsError || strings.Contains(reminders(other), unsaved) {
+		t.Fatalf("stop reminder: %+v", r)
+	}
+	if r := mcpTool(t, base, other, "unsave_event", map[string]any{"event_id": unsaved}); r.IsError || len(savedIDs(t, mcpTool(t, base, other, "my_saved_events", map[string]any{}))) != 0 {
+		t.Fatalf("unsave: %+v", r)
+	}
+
+	// The scheme is case-insensitive; an explicitly empty cursor is invalid, as
+	// in the account API, rather than a silent first page.
+	if r := mcpTool(t, base, "", "my_saved_events", map[string]any{}, "Authorization", "bearer "+owner); r.Status != http.StatusOK || r.IsError {
+		t.Fatalf("lowercase bearer: %+v", r)
+	}
+	for _, name := range []string{"my_saved_events", "my_reminders"} {
+		if r := mcpTool(t, base, owner, name, map[string]any{"cursor": ""}); !r.IsError || !strings.Contains(r.Text, "cursor") {
+			t.Fatalf("%s empty cursor: %+v", name, r)
+		}
+	}
+
+	// A browser session cookie is not a credential for /mcp.
+	var state struct {
+		Cookies []struct{ Name, Value string }
+	}
+	data, _ := os.ReadFile(m.Accounts["owner"].StorageState)
+	_ = json.Unmarshal(data, &state)
+	cookie := state.Cookies[0].Name + "=" + state.Cookies[0].Value
+	if r := mcpTool(t, base, "", "my_saved_events", map[string]any{}, "Cookie", cookie); !r.IsError || !strings.Contains(r.Text, "Authorization: Bearer") {
+		t.Fatalf("cookie accepted: %+v", r)
+	}
+	if r := mcpTool(t, base, "not-a-valid-token-but-long-enough-to-check-0123456789", "my_saved_events", map[string]any{}); r.Status != http.StatusUnauthorized {
+		t.Fatalf("invalid token: %+v", r)
+	}
+}
+
+// Each member's session signs in as that member alone, and can act
+// through the browser's form posts, as make simulate-users does.
+func checkMembers(t *testing.T, m Manifest) {
+	t.Helper()
+	if len(m.Members) != memberCount || m.SessionCookie == "" {
+		t.Fatalf("populated: %d members, cookie %q", len(m.Members), m.SessionCookie)
+	}
+	csrf := ""
+	for _, member := range m.Members {
+		request, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, m.BaseURL+"/api/v1/me", nil)
+		request.AddCookie(&http.Cookie{Name: m.SessionCookie, Value: member.Session})
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var me struct {
+			Item struct{ ID string }
+			CSRF string `json:"csrf_token"`
+		}
+		err = json.NewDecoder(response.Body).Decode(&me)
+		response.Body.Close()
+		if err != nil || me.Item.ID != member.ID || me.CSRF == "" {
+			t.Fatalf("%s session: %v %+v", member.DisplayName, err, me.Item)
+		}
+		if csrf == "" {
+			csrf = me.CSRF
+		}
+	}
+	form := url.Values{"action": {"save"}, "csrf_token": {csrf}}
+	request, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, m.BaseURL+"/saved/"+url.PathEscape(m.EventIDs[0]), strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Origin", m.BaseURL)
+	request.AddCookie(&http.Cookie{Name: m.SessionCookie, Value: m.Members[0].Session})
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("member save form: %d", response.StatusCode)
 	}
 }

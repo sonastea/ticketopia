@@ -1,7 +1,10 @@
 # App MCP endpoint
 
-Status: **Proposed.** Nothing here is implemented. It describes an MCP server
-for Ticketopia users' own agents. The separate, implemented
+Status: **Steps 1–3 implemented** (public tools behind `MCP_ENABLED`, signed-in
+saves and reminders with API-token bearer auth, and a local k6 baseline; see
+[agent tools](../app-mcp.md) and [load testing](../load-testing.md)). Later
+steps remain proposed. It describes an MCP
+server for Ticketopia users' own agents. The separate, implemented
 [review MCP server](../testing.md#review-fixtures-over-mcp) is a local
 development tool over throwaway fixture data and is unaffected by this plan.
 
@@ -36,6 +39,7 @@ agent context):
 | Tool | Access | Behavior |
 |---|---|---|
 | `find_events` | public | city/country, dates, category, keyword; same validation, limits and caching as Discover |
+| `list_categories` | public | category IDs and names for `find_events` (added in step 1) |
 | `event_details` | public | one event with freshness and history summary |
 | `my_saved_events` | signed in | the caller's saves, paginated |
 | `save_event` / `unsave_event` | signed in | same rules and idempotency as the saved-events API |
@@ -104,8 +108,8 @@ for privacy (owner versus other account), validation, idempotency and limits.
 
 **Load: k6, not LLMs.** Load needs high, repeatable request rates with
 latency thresholds. k6 scripts can mix page views, `/api/v1` calls and `/mcp`
-JSON-RPC POSTs (stateless mode makes each a plain request; confirm whether a
-client must send `initialize` first), with arrival-rate scenarios and
+JSON-RPC POSTs (stateless mode makes each a plain request; no `initialize` is
+needed first, as tested), with arrival-rate scenarios and
 thresholds such as p95 latency, error rate and database pool saturation.
 
 **Realism: LLM agents as users.** Agents driving the web app (browser tools)
@@ -117,11 +121,14 @@ the system sustains.
 
 **Environment rules:**
 
-- Never load-test against real Ticketmaster: the provider budget is not
-  coordinated across replicas and would be exhausted. Use the provider off, or
-  a loopback stand-in like `reviewfixture`'s `discover-last-known` upstream.
-- Use an isolated database and staging deployment shaped like production
-  (replica count, pool sizes), never production.
+- Never drive provider requests with load: the Ticketmaster budget is not
+  coordinated across replicas and would be exhausted. Push limits with the
+  provider off or a loopback stand-in like `reviewfixture`'s
+  `discover-last-known` upstream, on an isolated database and a staging
+  deployment shaped like production (replica count, pool sizes).
+- Against a dev or production server, run only the gentle, read-only, mostly
+  cached remote profile of [load testing](../load-testing.md#remote-servers),
+  which ramps, stays under the default `/mcp` limit and aborts itself.
 - Follow the existing [live-activity soak](../live-activity-rollout.md) gate
   practice: fixed durations, recorded samples, and pass/fail thresholds.
 

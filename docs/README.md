@@ -36,8 +36,9 @@ their status; they describe intended work rather than available features.
   implemented discussion notifications and optional later attendance goals.
 - [Radar API](design/radar-api.md): a proposed shared backend for web, mobile,
   and other clients, including community participation.
-- [App MCP endpoint](design/app-mcp.md): a proposed `/mcp` endpoint in the Go app
-  for users' agents, with tools, authentication, scaling, and k6/agent load testing.
+- [App MCP endpoint](design/app-mcp.md): the `/mcp` endpoint in the Go app for
+  users' agents (steps 1–3 implemented; OAuth and a separate deployment proposed),
+  with tools, authentication, scaling, and k6/agent load testing.
 - [Database plan](design/database.md): MariaDB foundation and broader planned
   shared application state with `mariadb-operator` in Kubernetes.
 - [Venue insights](ideas/venue-insights-and-discovery.md): exploratory uses of
@@ -47,6 +48,13 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
+- [Agent tools (MCP)](app-mcp.md): opt-in event search, categories and details,
+  plus API-token saves and reminders, for AI agents at `/mcp`, with stateless HTTP
+  and per-IP and per-account limits.
+- [Load testing](load-testing.md): the k6 web, API and `/mcp` traffic mix against
+  a review server (`make load-test`) or, read-only, a dev or production server
+  (`target=`), simulated signed-in users (`make simulate-users`), thresholds
+  and recorded local baselines.
 - [Live community activity](live-community-activity.md): dependency-aware default-on SSE recommendations,
   explicit first-name attribution, private-safe totals, grouping and pause controls.
 - [Live activity performance and rollout](live-activity-rollout.md): operational

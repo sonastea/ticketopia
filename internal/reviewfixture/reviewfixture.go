@@ -25,6 +25,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/api"
+	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
@@ -54,6 +55,19 @@ type Manifest struct {
 	ScenarioPaths      map[string]string  `json:"scenario_paths"`
 	EventIDs           []string           `json:"event_ids"`
 	DiscussionThreadID string             `json:"discussion_thread_id"`
+	// SessionCookie names the browser session cookie that Session values and
+	// storage states carry.
+	SessionCookie string `json:"session_cookie"`
+	// Members lists simulated users (the populated scenario only).
+	Members []Member `json:"members,omitempty"`
+}
+
+// Member is a signed-in simulated user; Session is its session cookie
+// value, as a browser would send it.
+type Member struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	Session     string `json:"session"`
 }
 
 type Account struct {
@@ -61,6 +75,8 @@ type Account struct {
 	DisplayName  string `json:"display_name"`
 	Email        string `json:"email"`
 	StorageState string `json:"storage_state"`
+	// APIToken authenticates as this account with Authorization: Bearer.
+	APIToken string `json:"api_token"`
 }
 
 // Server is a running review server. Close stops it and removes everything it
@@ -202,7 +218,9 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		api.WithSavedEvents(p.Saved()), api.WithReminders(p.Reminders()), api.WithRadar(p.Radar(), time.Hour),
 		api.WithFollows(p.Follows()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(recommendations),
 		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()),
-		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth)}, options...)...)
+		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth),
+		// The app's agent tools, so reviews and load scripts can call /mcp too.
+		api.WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 6000, MaxInFlight: 64})}, options...)...)
 	if err != nil {
 		listener.Close()
 		return nil, err
@@ -239,7 +257,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 	}
 	host, _, _ := net.SplitHostPort(o.Addr)
 	s.manifest = Manifest{BaseURL: base, Scenario: o.Scenario, Run: run, Accounts: map[string]Account{},
-		Paths: f.paths, ScenarioPaths: f.scenarioPaths, DiscussionThreadID: f.threadID}
+		Paths: f.paths, ScenarioPaths: f.scenarioPaths, DiscussionThreadID: f.threadID, SessionCookie: cookie, Members: f.members}
 	for _, e := range f.entries {
 		s.manifest.EventIDs = append(s.manifest.EventIDs, e.ID)
 	}
@@ -253,7 +271,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		}}}); err != nil {
 			return nil, err
 		}
-		s.manifest.Accounts[key] = Account{ID: a.ID, DisplayName: a.DisplayName, Email: a.Email, StorageState: state}
+		s.manifest.Accounts[key] = Account{ID: a.ID, DisplayName: a.DisplayName, Email: a.Email, StorageState: state, APIToken: f.apiTokens[key]}
 	}
 	// Publish the manifest last so a present manifest always describes a ready server.
 	manifest := filepath.Join(o.StateDir, "manifest.json")

@@ -53,6 +53,8 @@ var scenarios = map[string]scenario{
 		events: dataGapEvents, seed: seedDataGaps},
 	"reminder-email": {description: "Sends one real on-sale reminder for the owner through the local SES emulator (MiniStack, make ses-setup); read it with the MCP ses_messages tool. The reminder shows SES accepted.",
 		events: reminderEmailEvents, seed: seedReminderEmail},
+	"populated": {description: "Adds 40 signed-in members with browser sessions (manifest members) over stored Discover, for simulated-user load (make simulate-users). Their actions write to this disposable schema only.",
+		stored: true, seed: seedPopulated},
 	"reminder-states": {description: "Adds owner reminders in every state (scheduled, sending, pending, accepted, failed, uncertain, expired, pending date, cancelled, refresh failed), a stopped reminder, and a paused reminder for other. A fixture sender returns outcomes; no email is sent.",
 		events: reminderEvents, seed: seedReminderStates},
 }
@@ -88,6 +90,8 @@ type fixture struct {
 	now           time.Time
 	people        map[string]accounts.Account
 	tokens        map[string]string
+	apiTokens     map[string]string
+	members       []Member
 	details       []models.EventDetail
 	entries       []models.Event
 	follows       *discussionfollows.Service
@@ -147,7 +151,7 @@ func (f *fixture) newEvent(chicago *time.Location, i int, name string) models.Ev
 // seed creates accounts, events, caches and baseline state, then the scenario.
 func (f *fixture) seed(sc scenario) error {
 	ctx, p := f.ctx, f.p
-	f.people, f.tokens = map[string]accounts.Account{}, map[string]string{}
+	f.people, f.tokens, f.apiTokens = map[string]accounts.Account{}, map[string]string{}, map[string]string{}
 	for _, who := range []struct{ key, name, first string }{
 		{"owner", "Riley Review", "Riley"},
 		{"other", "Sam Second-Account", "Sam"},
@@ -162,7 +166,12 @@ func (f *fixture) seed(sc scenario) error {
 			return err
 		}
 		a.DisplayName = who.name
-		f.people[who.key], f.tokens[who.key] = a, raw
+		// An API token, as a user creates under API access, for /mcp and /api/v1.
+		_, token, err := f.auth.CreateToken(ctx, a.ID, "review fixture")
+		if err != nil {
+			return fmt.Errorf("fixture API token: %w", err)
+		}
+		f.people[who.key], f.tokens[who.key], f.apiTokens[who.key] = a, raw, token
 	}
 	owner, other, moderator := f.people["owner"].ID, f.people["other"].ID, f.people["moderator"].ID
 	c, ct, z := city, country, zone
@@ -305,7 +314,7 @@ func (f *fixture) seed(sc scenario) error {
 	}
 	f.threadID = root.ID
 	f.paths = map[string]string{
-		"discover": "/?" + q.Values().Encode(), "event": "/events/" + url.PathEscape(event),
+		"discover": "/?" + q.Values().Encode(), "event": "/events/" + url.PathEscape(event), "mcp": "/mcp",
 		"discussion": "/events/" + url.PathEscape(event) + "/discussions/" + root.ID,
 		"saved":      "/saved", "radar": "/radar", "me": "/me", "preferences": "/me/preferences",
 		"interests": "/me/interests", "reminders": "/me/reminders", "discussions": "/me/discussions",
@@ -388,6 +397,38 @@ func seedLastKnown(f *fixture, events []models.EventDetail) (map[string]string, 
 		"discover":      f.paths["discover"],
 		"removed_event": eventPath(removed.Item.ID),
 	}, nil
+}
+
+// memberCount is the number of simulated users; each has its own session, so
+// per-account limits (such as 20 contributions per 10 minutes) apply to each.
+const memberCount = 40
+
+// memberNames are the members' first names (activity names allow letters only).
+var memberNames = strings.Fields(`Ada Ben Cleo Dev Eli Fay Gus Hana Ian Jo Kai Lena Max Nia Omar Pia Quinn Rosa Sid Tess
+	Uma Vic Wren Xena Yuri Zoe Abe Bea Cal Dina Ezra Flo Gil Hugo Ira Jade Kit Lou Mia Ned`)
+
+// seedPopulated collects stored Discover, as members would find it, and
+// signs in the members.
+func seedPopulated(f *fixture, _ []models.EventDetail) (map[string]string, error) {
+	for _, q := range f.queries {
+		if _, err := f.discovery.Events(f.ctx, q); err != nil {
+			return nil, fmt.Errorf("collection: %w", err)
+		}
+	}
+	f.discovery.WaitRefreshes()
+	for i := 1; i <= memberCount; i++ {
+		a, raw, err := f.login(fmt.Sprintf("review-member-%02d", i))
+		if err != nil {
+			return nil, fmt.Errorf("member login: %w", err)
+		}
+		first := memberNames[i-1]
+		name := fmt.Sprintf("%s Member %02d", first, i)
+		if _, err := f.auth.UpdateProfile(f.ctx, a.ID, accounts.ProfilePatch{DisplayName: &name, ActivityFirstName: &first}); err != nil {
+			return nil, err
+		}
+		f.members = append(f.members, Member{ID: a.ID, DisplayName: name, Session: raw})
+	}
+	return map[string]string{"discover": f.paths["discover"]}, nil
 }
 
 func (f *fixture) post(who, event, thread, parent, body string) (discussions.Post, error) {
