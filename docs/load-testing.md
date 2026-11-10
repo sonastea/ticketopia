@@ -5,7 +5,10 @@ views, `/api/v1` calls and [agent tools](app-mcp.md) (`/mcp`), with latency and
 error thresholds. By default it targets a local review server, as a baseline
 for spotting regressions and limits rather than a capacity gate: k6, the app
 and MariaDB share one machine. With `target=` the same script makes a gentle,
-read-only run against a [dev or production server](#remote-servers). The design is in [app MCP: testing and load](design/app-mcp.md#testing-and-load).
+read-only run against a [dev or production server](#remote-servers).
+`make simulate-users` instead simulates [signed-in people](#simulated-users)
+browsing, saving, following and discussing on a local review server. The
+design is in [app MCP: testing and load](design/app-mcp.md#testing-and-load).
 
 ## Running it
 
@@ -112,6 +115,53 @@ IP, so sustained `/mcp` load above 100 requests a second is eventually limited;
 real clients are limited separately. The bucket takes a minute to refill, so
 wait a minute between runs, or a run inherits the previous one's limiting.
 
+## Simulated users
+
+`make simulate-users` simulates signed-in people using the site: browsing,
+saving, marking interest, recommending, following venues and threads, and
+discussing. It runs only against a local review server with the `crowd`
+scenario, because it writes; everything it creates is dropped with the
+server's schema.
+
+```sh
+make review-server scenario=crowd               # terminal 1, until Ctrl-C
+make simulate-users                             # 20 users, 3s think time, 30s ramp + 2m
+make simulate-users users=40 think=0.5 duration=5m
+```
+
+Each k6 VU is one crowd member (`users`, at most 40) with its own session.
+Like the browser's scripts, it takes the session's CSRF token and sends
+same-origin form posts with `Accept: application/json`, pausing `think`
+seconds (varied ±50%) between steps. A visit opens Discover (and the batched
+saved-state read) and an event, then takes two to five steps:
+
+| Step | Share | Requests |
+|---|---|---|
+| Save or remove | 20% | `POST /saved/{id}` |
+| Interest (public or private) or remove | 12% | `POST /interests/{id}` |
+| Recommend with a reason | 8% | `POST /recommendations/{id}` |
+| Follow or unfollow the venue | 7% | `POST /follows/venue/{id}` |
+| Discuss | 28% | Read the event's threads, then start a thread, reply, mark helpful, or follow the thread |
+| Account page | 10% | `/saved`, `/me/notifications`, `/follows` or `/community` |
+| Discussions page | 15% | `/events/{id}/discussions` |
+
+Each member keeps under the server's limit of 20 contributions per 10 minutes.
+That limit spans runs, so runs within ten minutes of each other may see posts
+refused; like a person, the member then stops posting for the window, and
+the refusal counts as `posts_limited` rather than a failure. Only the limit's
+own response (`rate_limited`) counts; any other refusal fails, and the run
+fails if half of all post attempts are refused (`posts_refused`). An action
+passes only when its response has the fields the browser reads (for example
+`saved` and `event_id` for a save). Other failed actions are logged with the
+member, status and message.
+
+Thresholds: p95 under 500 ms for pages and 300 ms for actions and reads,
+under 1% failed requests, over 99% passed checks and under half of post
+attempts refused. The summary counts each
+action (`user_actions`). Review servers run no background workers, so
+notification digests and reminder emails are not exercised, nor are the live
+activity streams (see the [live-activity soak](live-activity-rollout.md)).
+
 ## Results
 
 ### 2026-11-09 — Local baseline (Apple M1, 8 cores, 16 GB)
@@ -134,3 +184,17 @@ cap, and every failed request is an `/mcp` refusal; web and API requests slowed
 but did not fail. These runs are short; sustained `/mcp` load above 100 requests
 a second from one IP is limited once the 6000-request burst is spent (after
 about 48 seconds at `rate=8`).
+
+### 2026-11-09 — Simulated users (same machine)
+
+Fresh `crowd` review server; `posts_limited` appears only after earlier runs.
+
+| Run | Requests/s | Actions/s | p95 page / action / read | Result |
+|---|---|---|---|---|
+| default: 20 users, 3s think, 2m | 9 | 2.8 | 12 / 24 / 6 ms | all pass |
+| 40 users, 0.5s think, 1m | 96 | 30 | 17 / 27 / 9 ms | all pass |
+| 40 users, no think time, 1m | 622 | 193 | 132 / 109 / 74 ms | all pass, 0 failed |
+
+Even without think time, 40 users acting continuously stay within the
+thresholds. Where the ceiling lies, and whether the app or the shared machine
+sets it, was not measured.

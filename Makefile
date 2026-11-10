@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test simulate-users
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -14,13 +14,15 @@ help:
 		'make ses-setup Start local SES emulation in MiniStack and seed the test sender.' \
 		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
-		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email).' \
+		'                   Add scenario=<name> (crowd, event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email).' \
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
 		'make review-mcp-config Print MCP client setup for this checkout.' \
 		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).' \
 		'make load-test     Run the k6 web/API/MCP traffic mix against a running review server' \
 		'                   (scenario=discover-last-known). Add duration=<1m> rate=<scale>, or' \
-		'                   target=<https://host> for a read-only run against a dev or production server.'
+		'                   target=<https://host> for a read-only run against a dev or production server.' \
+		'make simulate-users Simulate signed-in users browsing, saving, following and discussing against a running' \
+		'                   review server (scenario=crowd). Add users=<20> duration=<2m> think=<3>.'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -77,3 +79,12 @@ load-test:
 	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
 		$(if $(target),-e TARGET=$(target)) -e DURATION=$(duration) -e RATE=$(rate) \
 		--summary-export ".local/load/traffic-mix-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/traffic-mix.js
+
+# Local only: crowd members write to the review server's disposable schema.
+users ?= 20
+think ?= 3
+simulate-users:
+	@mkdir -p .local/load
+	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
+		-e USERS=$(users) -e THINK=$(think) $(if $(filter command line,$(origin duration)),-e DURATION=$(duration)) \
+		--summary-export ".local/load/user-sessions-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/user-sessions.js
