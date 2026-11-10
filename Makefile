@@ -1,8 +1,10 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test simulate-users
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test simulate-users benchmark
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
 K6 ?= k6
+# The benchmark runs $K6 as a command prefix from the environment, unquoted by Make.
+export K6
 duration ?= 1m
 rate ?= 1
 
@@ -21,6 +23,8 @@ help:
 		'make load-test     Run the k6 web/API/MCP traffic mix against a running review server' \
 		'                   (scenario=discover-last-known). Add duration=<1m> rate=<scale>, or' \
 		'                   target=<https://host> for a read-only run against a dev or production server.' \
+		'make benchmark     Step each scenario (web, api, mcp_public) to its limit and write an HTML report;' \
+		'                   a running review server by default, or target=<https://host>.' \
 		'make simulate-users Simulate signed-in users browsing, saving, following and discussing against a running' \
 		'                   review server (scenario=populated). Add users=<20> duration=<2m> think=<3>.'
 
@@ -79,6 +83,13 @@ load-test:
 	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
 		$(if $(target),-e TARGET=$(target)) -e DURATION=$(duration) -e RATE=$(rate) \
 		--summary-export ".local/load/traffic-mix-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/traffic-mix.js
+
+# Each scenario alone at increasing request rates; the report and every step's
+# summary go to .local/load/benchmark-<UTC>/. Settings come from the
+# environment (docs/load-testing.md#benchmarks).
+benchmark:
+	@MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
+		$(if $(target),TARGET=$(target)) node scripts/load/benchmark.mjs
 
 # Local only: simulated members write to the review server's disposable schema.
 users ?= 20

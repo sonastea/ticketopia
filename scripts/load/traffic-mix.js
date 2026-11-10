@@ -82,23 +82,38 @@ for (const name of chosen) {
 }
 
 const duration = __ENV.DURATION || '1m';
-const ramp = __ENV.RAMP || (remote ? '1m' : '');
+// RAMP=0 starts at the full rate, so whole-run averages equal the held rate.
+const ramp = __ENV.RAMP === '0' ? '' : __ENV.RAMP || (remote ? '1m' : '');
 // RATE scales every scenario's arrival rate and its VU budget, so drops
 // reflect the server rather than too few generators.
 const scale = Number(__ENV.RATE || 1);
 if (!(scale > 0)) {
 	fail(`RATE must be a positive number, not ${__ENV.RATE}`);
 }
+// RPS instead holds each chosen scenario at that many requests a second (make
+// benchmark steps it). Iterations make this many requests in each scenario.
+const perIteration = { web: 2, api: reader ? 3 : 2, mcp_public: 2, mcp_signed_in: remote ? 2 : 4 };
+const rps = __ENV.RPS ? Number(__ENV.RPS) : 0;
+const p95 = Number(__ENV.P95 || (remote ? 1000 : 300));
+if (__ENV.RPS && !(rps > 0)) {
+	fail(`RPS must be a positive number, not ${__ENV.RPS}`);
+}
 function arrivals(name) {
-	const rate = Math.max(1, Math.round(rates[name] * scale));
-	const budget = { preAllocatedVUs: Math.ceil(vus[name] * scale), maxVUs: Math.ceil(vus[name] * 4 * scale), exec: exported[name] };
+	const perSecond = rps ? rps / perIteration[name] : (rates[name] * scale) / 60;
+	const rate = Math.max(1, Math.round(perSecond * 60));
+	// VUs ready for iterations whose every request takes the p95 limit, and
+	// allowed up to ten seconds each, so drops reflect the server rather than
+	// too few generators.
+	const passing = (perIteration[name] * p95) / 1000;
+	const budget = rps
+		? { preAllocatedVUs: Math.max(vus[name], Math.ceil(perSecond * passing)), maxVUs: Math.max(vus[name] * 4, Math.ceil(perSecond * Math.max(10, passing * 2))), exec: exported[name] }
+		: { preAllocatedVUs: Math.ceil(vus[name] * scale), maxVUs: Math.ceil(vus[name] * 4 * scale), exec: exported[name] };
 	if (!ramp) {
 		return { executor: 'constant-arrival-rate', rate, timeUnit: '1m', duration, ...budget };
 	}
 	return { executor: 'ramping-arrival-rate', startRate: 0, timeUnit: '1m', stages: [{ target: rate, duration: ramp }, { target: rate, duration }], ...budget };
 }
 
-const p95 = Number(__ENV.P95 || (remote ? 1000 : 300));
 const latency = remote
 	? [{ threshold: `p(95)<${p95}`, abortOnFail: true, delayAbortEval: '30s' }, `p(99)<${p95 * 3}`]
 	: [`p(95)<${p95}`, `p(99)<${p95 * 3}`];
@@ -113,6 +128,17 @@ const thresholds = {
 for (const name of chosen) {
 	thresholds[`http_req_duration{scenario:${name}}`] = latency;
 }
+// STATUS_BREAKDOWN=1 lists failed responses by status, and each scenario's
+// request count, in the summary; other statuses count as "other".
+const failureStatuses = ['0', '400', '401', '403', '404', '408', '429', '500', '502', '503', '504', '520', '521', '522', '523', '524', '525', 'other'];
+if (__ENV.STATUS_BREAKDOWN === '1') {
+	for (const status of failureStatuses) {
+		thresholds[`failed_status{status:${status}}`] = ['count>=0'];
+	}
+	for (const name of chosen) {
+		thresholds[`http_reqs{scenario:${name}}`] = ['count>=0'];
+	}
+}
 
 // Weights follow an agent session's flow: search, open, save, set a reminder.
 export const options = {
@@ -123,6 +149,15 @@ export const options = {
 };
 
 const toolErrors = new Counter('mcp_tool_errors');
+// Failed responses (no response, or 4xx/5xx) by status.
+const failedStatus = new Counter('failed_status');
+const track = (res) => {
+	if (res.status === 0 || res.status >= 400) {
+		const status = String(res.status);
+		failedStatus.add(1, { status: failureStatuses.includes(status) ? status : 'other' });
+	}
+	return res;
+};
 // /mcp admission refusals by cause, over /mcp requests only: 429 is a rate
 // limit, busy a 503 from the concurrency cap. Other failures are not refusals.
 const limited = new Rate('mcp_limited_429');
@@ -141,7 +176,7 @@ const compressed = { 'Accept-Encoding': 'gzip, deflate, br, zstd' };
 
 function get(path, name, token) {
 	const headers = token ? { ...compressed, Authorization: `Bearer ${token}` } : { ...compressed };
-	const res = http.get(base + path, { headers, tags: { name } });
+	const res = track(http.get(base + path, { headers, tags: { name } }));
 	check(res, { [`${name} 200`]: (r) => r.status === 200 });
 	return res;
 }
@@ -150,7 +185,7 @@ function rpc(method, params, token, name, id) {
 	const headers = { ...compressed, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
 	if (token) headers.Authorization = `Bearer ${token}`;
 	const body = JSON.stringify({ jsonrpc: '2.0', id, method, params });
-	return http.post(base + mcpPath, body, { headers, tags: { name } });
+	return track(http.post(base + mcpPath, body, { headers, tags: { name } }));
 }
 
 // Stateless MCP: each tools/call is one plain POST, without initialize. The
@@ -252,8 +287,11 @@ export function mcpPublic(data) {
 export function mcpSignedIn(data) {
 	tool('my_saved_events', {}, reader, remote ? isList : hasItems);
 	if (remote) {
+		// Two requests either way, as RPS assumes: reminders, or a short page.
 		if (data.reminders) {
 			tool('my_reminders', {}, reader, isList);
+		} else {
+			tool('my_saved_events', { limit: 5 }, reader, isList);
 		}
 		return;
 	}

@@ -123,6 +123,36 @@ IP, so sustained `/mcp` load above 100 requests a second is eventually limited;
 real clients are limited separately. The bucket takes a minute to refill, so
 wait a minute between runs, or a run inherits the previous one's limiting.
 
+## Benchmarks
+
+`make benchmark` measures each token-free scenario (`web`, `api`,
+`mcp_public`) on its own: it holds the scenario at increasing request rates,
+one short k6 run per step at full rate, stops that scenario at its first
+failing step, and writes a self-contained HTML report with a chart and a table
+per scenario (achieved requests/s, p50/p95/p99/max, failures by status, dropped
+iterations). The report and every step's k6 summary and log go to
+`.local/load/benchmark-<UTC>/`.
+
+```sh
+make benchmark                                      # a running review server
+make benchmark target=https://ticketopia.example    # remote, read-only
+STEPS=100,200,400 STEP=1m SCENARIOS=api make benchmark target=https://ticketopia.example
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SCENARIOS` | `web,api,mcp_public` | Scenarios to benchmark, one at a time |
+| `STEPS` | `25,50,100,200,300,400,500,600,800,1000` | Held requests/s per step |
+| `STEP` / `PAUSE` | `30s` / `30` | Each step's duration, and seconds between steps |
+
+A step passes under the same thresholds as `make load-test` (remote runs abort a
+failing step after about 30 seconds). `RPS`, which the benchmark sets, holds a
+`make load-test` scenario at that many requests a second; `RAMP=0` starts at the
+full rate. Against a remote server, raise `MCP_RATE_PER_MINUTE` for the window
+before benchmarking `mcp_public`, or it measures the per-IP limit; on a review
+server, steps above 100 requests a second exceed its limit once the burst is
+spent.
+
 ## Simulated users
 
 `make simulate-users` simulates signed-in people using the site: browsing,
