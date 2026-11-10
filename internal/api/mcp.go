@@ -22,7 +22,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// WithMCP serves the public agent tools at /mcp when config.Enabled.
+// WithMCP serves the agent tools at /mcp when config.Enabled: public tools,
+// and signed-in tools for requests with a valid API token.
 func WithMCP(config appmcp.Config) Option {
 	return func(a *api) { a.mcp = config }
 }

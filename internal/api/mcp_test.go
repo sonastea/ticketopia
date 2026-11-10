@@ -219,8 +219,23 @@ func TestMCPConfigFromEnv(t *testing.T) {
 	if c, err := appmcp.ConfigFromEnv(); err != nil || c.Enabled || c.RatePerMinute != 60 || c.MaxInFlight != 8 || len(c.AllowedOrigins) != 0 {
 		t.Fatalf("defaults %+v %v", c, err)
 	}
-	// AUTH_BASE_URL is read directly, so the public origin applies without accounts.
-	t.Setenv("AUTH_BASE_URL", "https://Ticketopia.example/")
+	// Disabled MCP reads nothing else, so its settings cannot stop startup.
+	for name, value := range map[string]string{"MCP_RATE_PER_MINUTE": "0", "MCP_ALLOWED_ORIGINS": "null", "AUTH_BASE_URL": "ftp://elsewhere/path"} {
+		t.Setenv(name, value)
+	}
+	if _, err := appmcp.ConfigFromEnv(); err != nil {
+		t.Fatalf("disabled MCP validated its settings: %v", err)
+	}
+	for _, name := range []string{"MCP_RATE_PER_MINUTE", "MCP_ALLOWED_ORIGINS"} {
+		t.Setenv(name, "")
+	}
+	t.Setenv("MCP_ENABLED", "true")
+	if c, err := appmcp.ConfigFromEnv(); err == nil {
+		t.Fatalf("invalid AUTH_BASE_URL origin accepted: %+v", c)
+	}
+	// AUTH_BASE_URL is read directly, so the public origin applies without
+	// accounts, with trailing slashes trimmed as accounts trim them.
+	t.Setenv("AUTH_BASE_URL", "https://Ticketopia.example///")
 	if c, _ := appmcp.ConfigFromEnv(); !slices.Equal(c.AllowedOrigins, []string{"https://ticketopia.example"}) {
 		t.Fatalf("AUTH_BASE_URL origin: %v", c.AllowedOrigins)
 	}
@@ -231,6 +246,7 @@ func TestMCPConfigFromEnv(t *testing.T) {
 	t.Setenv("MCP_ALLOWED_ORIGINS", "")
 	for name, value := range map[string]string{"MCP_ENABLED": "sometimes", "MCP_RATE_PER_MINUTE": "0", "MCP_MAX_IN_FLIGHT": "257", "MCP_ALLOWED_ORIGINS": "null"} {
 		t.Run(name, func(t *testing.T) {
+			t.Setenv("MCP_ENABLED", "true")
 			t.Setenv(name, value)
 			if _, err := appmcp.ConfigFromEnv(); err == nil {
 				t.Fatalf("%s=%s accepted", name, value)

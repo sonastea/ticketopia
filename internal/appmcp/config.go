@@ -27,7 +27,9 @@ const (
 )
 
 // ConfigFromEnv reads MCP_* settings. MCP_ALLOWED_ORIGINS (comma-separated)
-// defaults to AUTH_BASE_URL, read directly so it applies without accounts.
+// defaults to AUTH_BASE_URL, read directly so it applies without accounts and
+// trimmed of trailing slashes as accounts do. Nothing else is read or
+// validated while MCP is disabled, so it cannot affect startup.
 func ConfigFromEnv() (Config, error) {
 	c := Config{RatePerMinute: DefaultRatePerMinute, MaxInFlight: DefaultMaxInFlight}
 	if raw := os.Getenv("MCP_ENABLED"); raw != "" {
@@ -36,6 +38,9 @@ func ConfigFromEnv() (Config, error) {
 			return c, fmt.Errorf("MCP_ENABLED must be true or false")
 		}
 		c.Enabled = v
+	}
+	if !c.Enabled {
+		return c, nil
 	}
 	for _, setting := range []struct {
 		name   string
@@ -52,7 +57,7 @@ func ConfigFromEnv() (Config, error) {
 	}
 	raw, name := os.Getenv("MCP_ALLOWED_ORIGINS"), "MCP_ALLOWED_ORIGINS"
 	if raw == "" {
-		raw, name = os.Getenv("AUTH_BASE_URL"), "AUTH_BASE_URL"
+		raw, name = strings.TrimRight(strings.TrimSpace(os.Getenv("AUTH_BASE_URL")), "/"), "AUTH_BASE_URL"
 	}
 	for _, value := range strings.Split(raw, ",") {
 		if value = strings.TrimSpace(value); value == "" {

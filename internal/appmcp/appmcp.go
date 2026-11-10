@@ -1,4 +1,5 @@
-// Package appmcp serves Ticketopia's public event tools to users' agents over
+// Package appmcp serves Ticketopia's event tools, and with an API token the
+// caller's saves and reminders, to users' agents over
 // MCP (Streamable HTTP, stateless). Tools reuse the discovery services behind
 // the HTML pages and /api/v1, so validation, caching, freshness and errors
 // match. See docs/app-mcp.md and docs/design/app-mcp.md.
@@ -47,7 +48,8 @@ type Deps struct {
 	DescribePrivate func(error) string
 }
 
-// NewServer returns the MCP server with the public tools registered.
+// NewServer returns the MCP server with the public tools registered, plus the
+// signed-in tools whose services Deps provides.
 func NewServer(d Deps) *mcp.Server {
 	if d.Now == nil {
 		d.Now = time.Now

@@ -1,16 +1,22 @@
 # Load testing
 
-`make load-test` runs a [k6](https://grafana.com/docs/k6/) traffic mix of page
-views, `/api/v1` calls and [agent tools](app-mcp.md) (`/mcp`), with latency and
-error thresholds. By default it targets a local review server, as a baseline
-for spotting regressions and limits rather than a capacity gate: k6, the app
-and MariaDB share one machine. With `target=` the same script makes a gentle,
-read-only run against a [dev or production server](#remote-servers).
-`make simulate-users` instead simulates [signed-in people](#simulated-users)
-browsing, saving, following and discussing on a local review server. The
+Two [k6](https://grafana.com/docs/k6/) tests, with different jobs:
+
+| | `make load-test` (traffic load) | `make simulate-users` (simulated users) |
+|---|---|---|
+| Measures | Throughput and latency of read traffic: page views, `/api/v1` and [agent tools](app-mcp.md) (`/mcp`) | Signed-in people using the site: browsing, saving, interest, recommending, following and discussing |
+| Model | Fixed arrival rates (requests keep coming however fast the server answers) | One VU per member, each acting with think time, like a session |
+| Accounts | None for public traffic; the fixture's API tokens locally, or your `TOKEN` remotely, for signed-in reads | 40 members with browser sessions, from the review server |
+| Writes | Locally, one idempotent save and reminder; remotely never | Yes: saves, posts, follows and more |
+| Targets | Local review server (`scenario=discover-last-known`), or a [dev or production server](#remote-servers) with `target=` | Local review server only (`scenario=populated`) |
+| Script | `scripts/load/traffic-mix.js` | `scripts/load/user-sessions.js` |
+
+Both need the review server started first, in its own terminal, except a
+`target=` run. Locally, k6, the app and MariaDB share one machine, so results
+are baselines for spotting regressions and limits, not capacity gates. The
 design is in [app MCP: testing and load](design/app-mcp.md#testing-and-load).
 
-## Running it
+## Running the traffic load
 
 ```sh
 make review-server scenario=discover-last-known   # terminal 1, until Ctrl-C
@@ -87,7 +93,7 @@ watch the [deployment's](deployment.md) database pool and provider budget.
 
 ## Traffic mix
 
-Locally, each scenario has a constant arrival rate (iterations per second,
+In `make load-test`, locally, each scenario has a constant arrival rate (iterations per second,
 times `rate`, with VU budgets scaled alike); the agent-tool flows follow an agent session's sequence (search, open
 an event, save it, set a reminder):
 

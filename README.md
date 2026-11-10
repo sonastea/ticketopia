@@ -144,6 +144,8 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 - [x] Read personalized radar results through the API.
 - [ ] Manage personal and community activity from another client.
 - [x] Provide an OpenAPI description for implemented endpoints.
+- [x] Let users' AI agents search events and manage their saves and reminders
+  over [MCP](docs/app-mcp.md) (`/mcp`, opt-in, API-token sign-in).
 
 ### MariaDB persistence
 
