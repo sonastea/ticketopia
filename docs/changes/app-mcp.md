@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-11-09 — k6 load baseline
+
+- Add `make load`: a k6 mix of page views, `/api/v1` calls and public and
+  signed-in `/mcp` tool calls against a `discover-last-known` review server,
+  with per-scenario latency, error, tool-error and dropped-iteration thresholds
+  and refusals counted as 429 or 503. It refuses non-loopback targets. See
+  [load testing](../load-testing.md), including the first local baseline.
+
 ### 2026-11-09 — Signed-in saves and reminders with API tokens
 
 - Add `my_saved_events`, `save_event`, `unsave_event`, `my_reminders`,

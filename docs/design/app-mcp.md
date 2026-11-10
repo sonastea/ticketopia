@@ -1,8 +1,9 @@
 # App MCP endpoint
 
-Status: **Steps 1–2 implemented** (public tools behind `MCP_ENABLED`, and
-signed-in saves and reminders with API-token bearer auth; see
-[agent tools](../app-mcp.md)). Later steps remain proposed. It describes an MCP
+Status: **Steps 1–3 implemented** (public tools behind `MCP_ENABLED`, signed-in
+saves and reminders with API-token bearer auth, and a local k6 baseline; see
+[agent tools](../app-mcp.md) and [load testing](../load-testing.md)). Later
+steps remain proposed. It describes an MCP
 server for Ticketopia users' own agents. The separate, implemented
 [review MCP server](../testing.md#review-fixtures-over-mcp) is a local
 development tool over throwaway fixture data and is unaffected by this plan.

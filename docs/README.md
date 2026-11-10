@@ -47,8 +47,11 @@ their status; they describe intended work rather than available features.
 
 ## Current features
 
-- [Agent tools (MCP)](app-mcp.md): opt-in read-only event search, categories and
-  details for AI agents at `/mcp`, with stateless HTTP and per-IP limits.
+- [Agent tools (MCP)](app-mcp.md): opt-in event search, categories and details,
+  plus API-token saves and reminders, for AI agents at `/mcp`, with stateless HTTP
+  and per-IP and per-account limits.
+- [Load testing](load-testing.md): the k6 web, API and `/mcp` traffic mix against
+  a review server (`make load`), thresholds and recorded local baselines.
 - [Live community activity](live-community-activity.md): dependency-aware default-on SSE recommendations,
   explicit first-name attribution, private-safe totals, grouping and pause controls.
 - [Live activity performance and rollout](live-activity-rollout.md): operational

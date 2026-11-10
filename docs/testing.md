@@ -135,7 +135,8 @@ plus `scenario`, `run` and the `scenario_paths`) and one
 Playwright storage-state file per account, for example
 `browser.newContext({ storageState: manifest.accounts.owner.storage_state })`.
 Review servers also serve the [agent tools](app-mcp.md) at `paths.mcp` over the
-fixture data, with a high rate limit for local tooling and load scripts. Each
+fixture data, with a high rate limit for local tooling and
+[load scripts](load-testing.md). Each
 account's `api_token` authenticates its signed-in tools (and `/api/v1`).
 Writes go to the throwaway schema, so reviewers may save, post and report. Stop
 with Ctrl-C to drop the schema and users and remove the state files. A killed

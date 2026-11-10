@@ -4,7 +4,8 @@ Ticketopia serves event tools, and with an API token the caller's own saves and
 reminders, to people's AI agents and editors over the
 [Model Context Protocol](https://modelcontextprotocol.io/) at **`/mcp`**. It is
 off unless `MCP_ENABLED=true`. The [design](design/app-mcp.md) describes later
-steps (OAuth, load testing); this page covers what exists.
+steps (OAuth, a separate deployment); this page covers what exists.
+[Load testing](load-testing.md) covers `make load` and baselines.
 
 ## Tools
 
