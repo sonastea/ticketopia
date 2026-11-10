@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -18,8 +18,9 @@ help:
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
 		'make review-mcp-config Print MCP client setup for this checkout.' \
 		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).' \
-		'make load          Run the k6 web/API/MCP traffic mix against a running review server' \
-		'                   (scenario=discover-last-known). Add duration=<1m> rate=<scale>.'
+		'make load-test     Run the k6 web/API/MCP traffic mix against a running review server' \
+		'                   (scenario=discover-last-known). Add duration=<1m> rate=<scale>, or' \
+		'                   target=<https://host> for a read-only run against a dev or production server.'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -68,9 +69,11 @@ review-mcp-config:
 review-clean:
 	@go run ./cmd/ticketopia-review-mcp -clean-stale
 
-# Local only: the script refuses non-loopback targets. Summaries go to .local/load.
-load:
+# The local review server by default; target= switches to a read-only remote
+# run (TOKEN and other settings come from the environment; see
+# docs/load-testing.md). Summaries go to .local/load.
+load-test:
 	@mkdir -p .local/load
 	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
-		-e DURATION=$(duration) -e RATE=$(rate) \
+		$(if $(target),-e TARGET=$(target)) -e DURATION=$(duration) -e RATE=$(rate) \
 		--summary-export ".local/load/traffic-mix-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/traffic-mix.js

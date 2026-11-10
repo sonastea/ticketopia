@@ -5,7 +5,7 @@ reminders, to people's AI agents and editors over the
 [Model Context Protocol](https://modelcontextprotocol.io/) at **`/mcp`**. It is
 off unless `MCP_ENABLED=true`. The [design](design/app-mcp.md) describes later
 steps (OAuth, a separate deployment); this page covers what exists.
-[Load testing](load-testing.md) covers `make load` and baselines.
+[Load testing](load-testing.md) covers `make load-test` and baselines.
 
 ## Tools
 

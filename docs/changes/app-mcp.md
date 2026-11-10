@@ -4,11 +4,15 @@
 
 ### 2026-11-09 — k6 load baseline
 
-- Add `make load`: a k6 mix of page views, `/api/v1` calls and public and
+- Add `make load-test`: a k6 mix of page views, `/api/v1` calls and public and
   signed-in `/mcp` tool calls against a `discover-last-known` review server,
   with per-scenario latency, error, tool-error and dropped-iteration thresholds
   and refusals counted as 429 or 503. It refuses non-loopback targets. See
   [load testing](../load-testing.md), including the first local baseline.
+- `target=` (`TARGET`) aims the same script at a dev or production server:
+  read-only cached searches and details, signed-in reads only with `TOKEN`,
+  rates ramped under the default `/mcp` limit, setup checks, and automatic
+  abort on errors or slow responses.
 
 ### 2026-11-09 — Signed-in saves and reminders with API tokens
 

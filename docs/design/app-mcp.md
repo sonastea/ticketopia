@@ -121,11 +121,14 @@ the system sustains.
 
 **Environment rules:**
 
-- Never load-test against real Ticketmaster: the provider budget is not
-  coordinated across replicas and would be exhausted. Use the provider off, or
-  a loopback stand-in like `reviewfixture`'s `discover-last-known` upstream.
-- Use an isolated database and staging deployment shaped like production
-  (replica count, pool sizes), never production.
+- Never drive provider requests with load: the Ticketmaster budget is not
+  coordinated across replicas and would be exhausted. Push limits with the
+  provider off or a loopback stand-in like `reviewfixture`'s
+  `discover-last-known` upstream, on an isolated database and a staging
+  deployment shaped like production (replica count, pool sizes).
+- Against a dev or production server, run only the gentle, read-only, mostly
+  cached remote profile of [load testing](../load-testing.md#remote-servers),
+  which ramps, stays under the default `/mcp` limit and aborts itself.
 - Follow the existing [live-activity soak](../live-activity-rollout.md) gate
   practice: fixed durations, recorded samples, and pass/fail thresholds.
 
