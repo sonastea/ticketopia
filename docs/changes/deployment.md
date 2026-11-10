@@ -1,5 +1,16 @@
 # Container deployment changes
 
+[Older history](archive/deployment/).
+
+## 2026-11-10 — Unreleased
+
+- Add one [resource profile](../deployment.md#resource-profile) for Coolify,
+  Kubernetes and local Compose: the app at 1 CPU and 256 MiB with
+  `GOMEMLIMIT=200MiB`, MariaDB at 2 CPUs and 2 GiB (3 GiB in the three-replica
+  Kubernetes example) with a 1 GiB buffer pool, small per-session buffers and
+  16 MiB temporary tables, and Redis at 0.5 CPU and 256 MiB evicting least
+  recently used keys. Apply it to the Compose service and operator examples.
+
 ## 2026-10-08 — Unreleased
 
 - Complete schema-11 Discover operator grants and check parity in CI; provide
@@ -74,26 +85,3 @@
   outage/recovery probes, app restart, redaction, and graceful shutdown; see the
   [foundation guide](../persistence.md). Operator examples have not been deployed;
   three-pod operation, database HA, and backup/restore remain unverified.
-
-## 2026-10-04 — Unreleased
-
-- Added a multi-stage, non-root distroless container build with the full frontend
-  asset pipeline, a build-input allowlist, and a bundled Go health-check executable
-  at `/healthcheck`, built from root-level `healthcheck.go` and targeting the
-  internal `/healthz` endpoint for Coolify/Docker process liveness.
-- Align Docker builders and local toolchain declarations with Go 1.27 and Node.js
-  24; keep npm dependencies pinned and document the same versions for development.
-- Added dependency-free liveness/readiness endpoints, shutdown-aware readiness,
-  an OpenAPI description, and SIGTERM handling for graceful container termination.
-- Include runtime `SOURCE_COMMIT` in the structured `source_commit` startup log
-  field, with an `unknown` fallback and no commit-dependent Docker build inputs.
-- Added regression tests for probe responses, shutdown, checker failures, redirects,
-  and deadlines; documented Docker/Coolify setup and native Kubernetes liveness
-  (`/healthz`) and readiness (`/readyz`) probes without localhost-dependent behavior.
-- Verified the Docker build, race tests, vet, and container smoke checks: embedded
-  assets, checker exit statuses, Docker health, non-root/read-only operation,
-  runtime certificates/timezones, and SIGTERM shutdown with exit code 0.
-- Verified two runtime revisions using the same image, whitespace trimming, and
-  missing/blank revision fallbacks, with readiness and graceful shutdown in each case.
-- See the [container deployment guide](../deployment.md) for configuration and
-  verification.

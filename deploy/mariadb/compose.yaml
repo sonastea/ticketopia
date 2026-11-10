@@ -4,6 +4,9 @@ name: ticketopia-db
 services:
   mariadb:
     image: mariadb:12.3.3
+    # The shared resource profile (docs/deployment.md#resource-profile).
+    cpus: 2
+    mem_limit: 2g
     environment:
       MARIADB_ROOT_PASSWORD: local-root-only
     ports:
@@ -13,11 +16,11 @@ services:
       - --default-storage-engine=InnoDB
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-      - --innodb-buffer-pool-size=512M
+      - --innodb-buffer-pool-size=1G
       - --max-connections=60
-      - --key-buffer-size=102M
+      - --key-buffer-size=16M
       - --innodb-log-file-size=128M
-      - --tmp-table-size=51M
+      - --tmp-table-size=16M
       - --innodb-log-buffer-size=10M
       - --innodb-flush-log-at-trx-commit=1
       - --innodb-flush-method=O_DIRECT
@@ -25,10 +28,10 @@ services:
       - --innodb-io-capacity=100
       - --innodb-read-io-threads=4
       - --innodb-write-io-threads=4
-      - --sort-buffer-size=8M
-      - --read-buffer-size=4M
-      - --read-rnd-buffer-size=8M
-      - --join-buffer-size=4M
+      - --sort-buffer-size=2M
+      - --read-buffer-size=256K
+      - --read-rnd-buffer-size=512K
+      - --join-buffer-size=256K
       - --innodb-flush-neighbors=0
       - --ssl-ca=/certs/ca.crt
       - --ssl-cert=/certs/server.crt

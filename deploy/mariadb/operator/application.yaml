@@ -44,6 +44,9 @@ spec:
             # Keep production off until the coordinated live-filter Part 5 rollout.
             - name: LIVE_ACTIVITY_ENABLED
               value: "false"
+            # Below the memory limit, so Go collects harder before it is reached.
+            - name: GOMEMLIMIT
+              value: 200MiB
             - name: DB_USER
               value: ticketopia_runtime
             - name: DB_PASSWORD
@@ -56,6 +59,14 @@ spec:
                 secretKeyRef:
                   name: ticketopia-provider
                   key: ticketmaster-key
+          # The shared resource profile (docs/deployment.md#resource-profile).
+          resources:
+            requests:
+              cpu: "1"
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false

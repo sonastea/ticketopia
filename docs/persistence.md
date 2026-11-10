@@ -146,13 +146,15 @@ are disposable public development fixtures, **not** production secrets. The serv
 For an existing 11.8 or 13.0 database, read [server upgrades](#server-version-upgrades)
 before starting the updated Compose image.
 
-Compose sets a 512 MiB InnoDB buffer pool, 128 MiB redo log, 60-connection limit,
-and explicit buffer/I/O tuning in [`compose.yaml`](../deploy/mariadb/compose.yaml).
-MariaDB's `M` suffix means MiB. Key, temporary-table, and InnoDB log buffers use
-`102M`, `51M`, and `10M` respectively. Removed compatibility-only settings
-`innodb_buffer_pool_instances` and `innodb_thread_concurrency` are not passed.
-Per-session buffers can multiply across connections; these settings are **not**
-a total server memory cap.
+Compose applies the shared [resource profile](deployment.md#resource-profile):
+2 CPUs and 2 GiB for the container, a 1 GiB InnoDB buffer pool, 128 MiB redo log,
+60-connection limit, and explicit buffer/I/O tuning in
+[`compose.yaml`](../deploy/mariadb/compose.yaml). MariaDB's `M` suffix means MiB.
+Key, temporary-table, and InnoDB log buffers use `16M`, `16M`, and `10M`; the
+per-session sort, read, random-read and join buffers are `2M`, `256K`, `512K`
+and `256K`. Removed compatibility-only settings `innodb_buffer_pool_instances`
+and `innodb_thread_concurrency` are not passed. Per-session buffers multiply
+across connections, so they stay small under the container's memory limit.
 The standalone operator example retains its separate 100-connection budget.
 
 ```sh

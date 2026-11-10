@@ -350,8 +350,84 @@ docker exec ticketopia /healthcheck -url http://127.0.0.1:8080/readyz
 Docker health status alone does not restart an unhealthy container; recovery is
 the deployment platform's responsibility.
 
+## Resource profile
+
+One profile for every deployment (Coolify, Kubernetes and local Compose), so
+services cannot starve each other and results compare across environments:
+
+| Service | CPUs | Memory limit | Settings |
+|---|---|---|---|
+| Ticketopia (each replica) | 1 | 256 MiB | `GOMEMLIMIT=200MiB`, `DB_MAX_OPEN=10` |
+| MariaDB | 2 | 2 GiB (3 GiB for several replicas) | The MariaDB settings below |
+| Redis or Valkey | 0.5 | 256 MiB | The Redis settings below |
+
+The sizes follow [load testing](load-testing.md): the app used about 1.5–2 ms of
+CPU per request and under 100 MiB at 400 simulated users, and MariaDB about 1.3–1.8
+times the app's CPU, so two database CPUs keep up with one app CPU. One app CPU
+(about 500–650 requests a second on a fast desktop core, less on a cloud vCPU)
+matches what its 10-connection pool allows. `GOMEMLIMIT` makes Go collect harder
+before the memory limit instead of being stopped by it.
+
+MariaDB, in a configuration file or the platform's custom configuration (Coolify
+mounts it as a `.cnf` file, so keep the `[mariadb]` header):
+
+```ini
+[mariadb]
+innodb_buffer_pool_size=1G
+max_connections=60
+key_buffer_size=16M
+innodb_log_file_size=128M
+tmp_table_size=16M
+innodb_log_buffer_size=10M
+innodb_flush_log_at_trx_commit=1
+innodb_io_capacity=100
+innodb_read_io_threads=4
+innodb_write_io_threads=4
+sort_buffer_size=2M
+read_buffer_size=256K
+read_rnd_buffer_size=512K
+join_buffer_size=256K
+innodb_flush_neighbors=0
+```
+
+Memory is budgeted by the connections the app actually opens, not
+`max_connections`: each replica's pool holds at most `DB_MAX_OPEN` (10). The
+buffer pool, log and key buffers and server overhead come to about 1.4 GiB.
+Each active connection adds a few MiB of session buffers and, for queries that
+need one, an in-memory temporary table of up to 16 MiB (`tmp_table_size` and the
+default `max_heap_table_size`; larger ones spill to disk). One replica's 10
+connections therefore peak near 1.6 GiB, under the 2 GiB limit. With several
+replicas, raise `max_connections` to cover each pool (see the
+[connection budget](persistence.md)) and budget memory for every connection that
+can be open at once, including a surge pod and draining pods: the Kubernetes
+example (three replicas, `max_connections=100`, up to about 70 application
+connections during a rollout) needs about 2.7 GiB, so it gives MariaDB 3 GiB. With less memory overall, use 1.5 GiB and a 768 MiB buffer
+pool.
+
+Redis holds only expiring cache entries (discovery, event details, city hints),
+and the app treats an evicted key as a miss, so it may evict the least recently
+used keys under its `maxmemory`. Turn persistence off: a snapshot can briefly
+need memory beyond `maxmemory`, and the cache can be lost on restart.
+
+```conf
+maxmemory 192mb
+maxmemory-policy allkeys-lru
+save ""
+appendonly no
+```
+
+Confirm the profile with a stepped `make load-test target=…` while watching the
+containers. With one app replica, the app should reach its CPU first, with
+MariaDB below two CPUs. With several replicas, MariaDB is the limit: at the
+measured ratio, three busy replicas would need about four to five database CPUs,
+so watch MariaDB and raise its CPUs before adding replicas.
+
 ## Coolify
 
+- Set the [resource profile](#resource-profile) under each resource's **Resource
+  Limits**, `GOMEMLIMIT` under the application's **Environment Variables** (a
+  runtime variable), and the MariaDB and Redis settings in each database's custom
+  configuration, then restart them.
 - Select the **Dockerfile** build strategy, with the repository root as context
   and the root `Dockerfile` as the build file.
 - Set the application port to **8080** and configure runtime secrets/environment

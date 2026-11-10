@@ -60,12 +60,22 @@ spec:
     collation_server=utf8mb4_unicode_ci
     sql_mode=STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ZERO_DATE,NO_ZERO_IN_DATE,NO_ENGINE_SUBSTITUTION
     max_connections=100
+    innodb_buffer_pool_size=1G
+    key_buffer_size=16M
+    tmp_table_size=16M
+    sort_buffer_size=2M
+    read_buffer_size=256K
+    read_rnd_buffer_size=512K
+    join_buffer_size=256K
+  # The shared resource profile with memory for three replicas, a surge pod
+  # and draining pods (docs/deployment.md#resource-profile).
   resources:
     requests:
-      cpu: 250m
-      memory: 512Mi
+      cpu: "2"
+      memory: 3Gi
     limits:
-      memory: 1Gi
+      cpu: "2"
+      memory: 3Gi
 ---
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Database
