@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -95,6 +96,9 @@ func TestMariaDBScenarios(t *testing.T) {
 				if after := regexp.MustCompile(`Last-known as of [^<]+`).FindString(get(t, m, "owner", m.Paths["discover"])); label == "" || after != label {
 					t.Errorf("removed row label changed after opening the event: %q -> %q", label, after)
 				}
+			}
+			if name == "crowd" {
+				checkCrowd(t, m)
 			}
 			paths := map[string]string{"discover": m.Paths["discover"], "event": m.Paths["event"], "discussion": m.Paths["discussion"]}
 			for key, path := range m.ScenarioPaths {
@@ -411,5 +415,49 @@ func TestMariaDBPrivateToolsArePerAccount(t *testing.T) {
 	}
 	if r := mcpTool(t, base, "not-a-valid-token-but-long-enough-to-check-0123456789", "my_saved_events", map[string]any{}); r.Status != http.StatusUnauthorized {
 		t.Fatalf("invalid token: %+v", r)
+	}
+}
+
+// Each crowd member's session signs in as that member alone, and can act
+// through the browser's form posts, as make simulate-users does.
+func checkCrowd(t *testing.T, m Manifest) {
+	t.Helper()
+	if len(m.Crowd) != crowdSize || m.SessionCookie == "" {
+		t.Fatalf("crowd: %d members, cookie %q", len(m.Crowd), m.SessionCookie)
+	}
+	csrf := ""
+	for _, member := range m.Crowd {
+		request, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, m.BaseURL+"/api/v1/me", nil)
+		request.AddCookie(&http.Cookie{Name: m.SessionCookie, Value: member.Session})
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var me struct {
+			Item struct{ ID string }
+			CSRF string `json:"csrf_token"`
+		}
+		err = json.NewDecoder(response.Body).Decode(&me)
+		response.Body.Close()
+		if err != nil || me.Item.ID != member.ID || me.CSRF == "" {
+			t.Fatalf("%s session: %v %+v", member.DisplayName, err, me.Item)
+		}
+		if csrf == "" {
+			csrf = me.CSRF
+		}
+	}
+	form := url.Values{"action": {"save"}, "csrf_token": {csrf}}
+	request, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, m.BaseURL+"/saved/"+url.PathEscape(m.EventIDs[0]), strings.NewReader(form.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Origin", m.BaseURL)
+	request.AddCookie(&http.Cookie{Name: m.SessionCookie, Value: m.Crowd[0].Session})
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("crowd save form: %d", response.StatusCode)
 	}
 }
