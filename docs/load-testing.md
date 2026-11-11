@@ -141,7 +141,7 @@ STEPS=100,200,400 STEP=1m SCENARIOS=api make benchmark target=https://ticketopia
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SCENARIOS` | `web,api,mcp_public` | Scenarios to benchmark, one at a time |
+| `SCENARIOS` | `web,api,mcp_public` | Scenarios to benchmark, one at a time; join with `+` (for example `web+api+mcp_public`) to run them together, sharing each step's rate evenly |
 | `STEPS` | `25,50,100,200,300,400,500,600,800,1000` | Held requests/s per step |
 | `STEP` / `PAUSE` | `30s` / `30` | Each step's duration, and seconds between steps |
 
@@ -152,6 +152,39 @@ full rate. Against a remote server, raise `MCP_RATE_PER_MINUTE` for the window
 before benchmarking `mcp_public`, or it measures the per-IP limit; on a review
 server, steps above 100 requests a second exceed its limit once the burst is
 spent.
+
+### Comparing runs
+
+`node scripts/load/compare.mjs <config.json> [out.html]` puts several benchmark
+runs (different times of day, settings or hosts) in one self-contained report:
+capacity cards and a bar chart, then per scenario a p95 chart (log scale) and a
+step-by-step table for every run, a network baseline, test conditions, and
+optional findings and caveats. The config is JSON:
+
+```json
+{
+  "title": "Production benchmark — three times of day",
+  "target": "https://ticketopia.example",
+  "date": "10 November 2026",
+  "summary": "One-paragraph headline.",
+  "host": "Server and resource profile.",
+  "client": "Load generator and network.",
+  "runs": [
+    {
+      "label": "Early morning", "when": "4:49 AM", "settings": "Defaults",
+      "probe": { "readyz": 90, "discover": null, "note": "time to first byte, ms" },
+      "sources": { "web": ".local/load/benchmark-…", "api": ".local/load/benchmark-…" }
+    }
+  ],
+  "findings": ["HTML allowed"],
+  "caveats": ["HTML allowed"]
+}
+```
+
+`sources` maps each scenario (`web`, `api`, `mcp_public`, `web+api+mcp_public`)
+to the benchmark directory holding its steps, so one run can combine
+directories. A step passes as in the benchmark; `stepSeconds` (default 30) and
+`p95` (default 1000 ms) match the benchmark's settings.
 
 ## Simulated users
 

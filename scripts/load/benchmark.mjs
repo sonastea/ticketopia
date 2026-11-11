@@ -4,7 +4,8 @@
 // docs/load-testing.md#benchmarks. Run through make benchmark.
 //
 // Environment: TARGET (remote origin) or MANIFEST (local review server),
-// SCENARIOS (default web,api,mcp_public), STEPS (requests/s, comma-separated),
+// SCENARIOS (default web,api,mcp_public; join with + to run scenarios
+// together, sharing each step's rate evenly), STEPS (requests/s, comma-separated),
 // STEP (each step's duration), PAUSE (seconds between steps), P95, TOKEN and
 // CITY/COUNTRY/EVENTS pass through to k6. K6 is the k6 command.
 import { spawnSync } from 'node:child_process';
@@ -67,18 +68,23 @@ for (const scenario of scenarios) {
 		if (interrupted) break;
 		const file = join(out, `${scenario}-${rps}`);
 		process.stdout.write(`${scenario} at ${rps} requests/s... `);
+		const together = scenario.split('+');
 		const k = runK6(['run', '-q', '--summary-export', `${file}.json`,
 			'--summary-trend-stats', 'avg,min,med,p(90),p(95),p(99),max', 'scripts/load/traffic-mix.js'], {
-			env: { ...env, SCENARIOS: scenario, RPS: String(rps), RAMP: '0', DURATION: step, STATUS_BREAKDOWN: '1' },
+			env: { ...env, SCENARIOS: together.join(','), RPS: String(rps / together.length), RAMP: '0', DURATION: step, STATUS_BREAKDOWN: '1' },
 		});
 		writeFileSync(`${file}.log`, `${k.stdout}\n${k.stderr}`);
 		if (k.signal === 'SIGINT' || k.status === 105 || k.status === 130) interrupted = true;
 		if (interrupted) {
+			// Partial results: neither a pass nor a failure.
+			writeFileSync(`${file}.result.json`, JSON.stringify({ status: k.status, interrupted: true, passed: false, reason: 'interrupted' }));
 			console.log('interrupted');
 			break;
 		}
 		const aborted = /stopping test prematurely/.test(k.stderr) || /stopping test prematurely/.test(k.stdout);
 		const result = summarize(scenario, rps, `${file}.json`, k.status, aborted);
+		// The outcome, for reports such as compare.mjs.
+		writeFileSync(`${file}.result.json`, JSON.stringify({ status: k.status, aborted, passed: result.passed, reason: result.reason || '' }));
 		results[scenario].push(result);
 		console.log(result.passed ? `ok, ${result.achieved.toFixed(0)}/s, p95 ${ms(result.p95)}` : `failed (${result.reason})`);
 		writeReport();
@@ -97,7 +103,9 @@ function summarize(scenario, rps, file, status, aborted) {
 	} catch {
 		// k6 failed before exporting: setup failure or a bad option
 	}
-	const trend = metrics[`http_req_duration{scenario:${scenario}}`] || {};
+	// Scenarios run together report every request's latency, setup included.
+	const together = scenario.split('+');
+	const trend = (together.length > 1 ? metrics.http_req_duration : metrics[`http_req_duration{scenario:${scenario}}`]) || {};
 	const statuses = Object.fromEntries(Object.entries(metrics)
 		.filter(([name, m]) => name.startsWith('failed_status{status:') && m.count > 0)
 		.map(([name, m]) => [name.slice('failed_status{status:'.length, -1), m.count]));
@@ -108,7 +116,8 @@ function summarize(scenario, rps, file, status, aborted) {
 	const result = {
 		rps,
 		aborted,
-		achieved: aborted ? metrics.http_reqs?.rate || 0 : (metrics[`http_reqs{scenario:${scenario}}`]?.count || 0) / seconds(step),
+		achieved: aborted ? metrics.http_reqs?.rate || 0
+			: together.reduce((sum, name) => sum + (metrics[`http_reqs{scenario:${name}}`]?.count || 0), 0) / seconds(step),
 		requests: metrics.http_reqs?.count || 0,
 		p50: trend.med,
 		p95: trend['p(95)'],
