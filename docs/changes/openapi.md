@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 2026-11-11 — Busy and not-saved errors, complete problem codes, contract v1.22.0
+
+- Add `temporarily_unavailable` (503, `Retry-After: 5`) for an overloaded or
+  unavailable database, which was reported as `provider_unavailable` ("We
+  couldn't refresh the events"); `provider_unavailable` now means the event
+  provider only. Pages and agent tools show the same "busy" wording.
+- Setting a reminder on an event you have not saved answers **409**
+  `event_not_saved` ("Save this event before setting a reminder.") instead of
+  404 `event_not_found`.
+- The `Problem.code` enum lists every code the API sends (21 were missing); a
+  test keeps it in step with the handlers.
+
 ### 2026-11-08 — Per-event freshness on stored lists, contract v1.21.0
 
 - Add optional `Event.meta` (`Freshness`) to stored (MariaDB) event list items;

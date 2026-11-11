@@ -16,6 +16,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/calendar"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 	"github.com/sonastea/ticketopia/views/home"
 )
 
@@ -372,6 +373,9 @@ func errorMessage(err error) (int, string) {
 	if errors.Is(err, calendar.ErrNoDate) {
 		return http.StatusNotFound, "This event's date hasn't been announced yet, so it can't be added to a calendar."
 	}
+	if errors.Is(err, dberr.ErrUnavailable) {
+		return http.StatusServiceUnavailable, "Ticketopia is busy right now. Please try again in a few seconds."
+	}
 	return http.StatusServiceUnavailable, "We couldn't refresh the events. Please try again shortly."
 }
 
@@ -384,6 +388,10 @@ func setRetryAfter(c echo.Context, err error) {
 // retryAfterSeconds is the provider cooldown or timeout backoff an error
 // implies, as sent in Retry-After.
 func retryAfterSeconds(err error) (int, bool) {
+	// A busy database recovers within seconds, unlike a provider cooldown.
+	if errors.Is(err, dberr.ErrUnavailable) {
+		return 5, true
+	}
 	var unavailable *discovery.UnavailableError
 	if errors.As(err, &unavailable) {
 		return max(1, int(math.Ceil(unavailable.RetryAfter.Seconds()))), true
@@ -406,6 +414,8 @@ func problem(c echo.Context, err error) error {
 		code = "event_not_found"
 	} else if errors.Is(err, calendar.ErrNoDate) {
 		code = "date_not_announced"
+	} else if errors.Is(err, dberr.ErrUnavailable) {
+		code = "temporarily_unavailable"
 	}
 	setRetryAfter(c, err)
 	c.Response().Header().Set(echo.HeaderContentType, "application/problem+json")

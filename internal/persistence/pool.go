@@ -8,19 +8,24 @@ import (
 	"sync/atomic"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 )
 
 const SupportedSchemaVersion = 20
 
-var ErrUnavailable = errors.New("database unavailable")
+// ErrUnavailable is dberr.ErrUnavailable, so callers that cannot import this
+// package (the API, whose tests this package imports) recognize it too.
+var ErrUnavailable = dberr.ErrUnavailable
 
 // safeError intentionally does not wrap the driver error, even via Unwrap.
 func safeError(operation string, err error) error {
 	if errors.Is(err, context.Canceled) {
 		return fmt.Errorf("database %s: %w", operation, context.Canceled)
 	}
+	// A timeout is also unavailability: the database (or a pooled connection)
+	// did not answer in time.
 	if errors.Is(err, context.DeadlineExceeded) {
-		return fmt.Errorf("database %s: %w", operation, context.DeadlineExceeded)
+		return fmt.Errorf("database %s: %w (%w)", operation, context.DeadlineExceeded, ErrUnavailable)
 	}
 	var server *mysql.MySQLError
 	if errors.As(err, &server) {

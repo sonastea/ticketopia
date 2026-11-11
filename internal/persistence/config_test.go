@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 )
 
 func envConfig(t testing.TB) Config {
@@ -113,8 +114,8 @@ func TestCredentialRedaction(t *testing.T) {
 		}
 	}
 	err := safeError("query", context.DeadlineExceeded)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatal("lost context classification")
+	if !errors.Is(err, context.DeadlineExceeded) || !errors.Is(err, dberr.ErrUnavailable) {
+		t.Fatal("lost context or unavailability classification")
 	}
 }
 

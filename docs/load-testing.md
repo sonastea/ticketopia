@@ -287,8 +287,8 @@ step-ups used `SCENARIOS=web,api` with compressed responses.
 
 Latency includes the Cloudflare round trip (about 50 ms). The site held 480
 requests a second for a minute and failed while ramping toward 800: requests
-queued and timed out at the app, which answered its own 503s (the API's
-`provider_unavailable` code also covers these overload timeouts). It recovered
+queued and timed out at the app, which answered its own 503s (then labelled `provider_unavailable`; since
+contract v1.22.0 overload timeouts answer `temporarily_unavailable`). It recovered
 within seconds once load stopped. Server resource use was not recorded, so the
 exact ceiling between 480 and 800 is unmeasured.
 

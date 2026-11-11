@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -97,8 +98,10 @@ func (s *Service) Detail(ctx context.Context, id string) (models.EventDetail, er
 		stored.Meta.Stale = true
 		return stored, nil
 	}
+	// Keep the storage failure (such as a database timeout) for callers that
+	// tell an overloaded database from an unavailable provider.
 	if !errors.Is(storedErr, ErrNotFound) {
-		return models.EventDetail{}, ErrUnavailable
+		return models.EventDetail{}, fmt.Errorf("%w: %w", ErrUnavailable, storedErr)
 	}
 	return models.EventDetail{}, err
 }
