@@ -13,8 +13,11 @@
 #   MIN_ACCOUNTS     fail with fewer accounts (default 1)
 #   DATABASE         database name inside the dump (default ticketopia)
 #   IMAGE            MariaDB image (default mariadb:12.3.3, as deployed)
+#   KUMA_PUSH_URL    optional: an Uptime Kuma Push monitor URL; each run reports
+#                    status=up or status=down with its message, so a missed or
+#                    failed run alerts
 #   HEALTHCHECK_URL  optional: pinged on success, and with /fail on failure
-#                    (healthchecks.io style), so a missed or failed run alerts
+#                    (healthchecks.io style), likewise
 set -eu
 
 image=${IMAGE:-mariadb:12.3.3}
@@ -25,9 +28,18 @@ container="ticketopia-restore-check-$$"
 password="restore-check-$$-$(date +%s)"
 status_file=$(mktemp)
 
+# notify /fail|"" message: report the outcome to whichever monitor is set.
 notify() {
-	[ -n "${HEALTHCHECK_URL:-}" ] || return 0
-	curl -fsS -m 10 --retry 3 --data-raw "$2" "$HEALTHCHECK_URL$1" >/dev/null 2>&1 || true
+	if [ -n "${KUMA_PUSH_URL:-}" ]; then
+		# Kuma's copied URL carries example parameters; send our own instead.
+		status=up
+		[ "$1" = /fail ] && status=down
+		curl -fsS -m 10 --retry 3 -G --data-urlencode "status=$status" --data-urlencode "msg=$2" \
+			"${KUMA_PUSH_URL%%\?*}" >/dev/null 2>&1 || true
+	fi
+	if [ -n "${HEALTHCHECK_URL:-}" ]; then
+		curl -fsS -m 10 --retry 3 --data-raw "$2" "$HEALTHCHECK_URL$1" >/dev/null 2>&1 || true
+	fi
 }
 fail() {
 	echo "restore check FAILED: $*" >&2

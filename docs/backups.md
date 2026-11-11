@@ -48,8 +48,10 @@ daily while backups keep failing. See
 - there are at least `MIN_ACCOUNTS` accounts (default 1), and
   `mariadb-check` reports every table OK.
 
-It then removes the container and prints the version and row counts. It needs
-only `sh`, Docker and, for alerts, `curl`; it touches no other database.
+It then removes the container, prints the version and row counts, and reports
+the outcome to an [Uptime Kuma](https://github.com/louislam/uptime-kuma) Push
+monitor (`KUMA_PUSH_URL`) or a healthchecks.io-style URL (`HEALTHCHECK_URL`).
+It needs only `sh`, Docker and, for alerts, `curl`; it touches no other database.
 
 On the Coolify server:
 
@@ -61,14 +63,22 @@ On the Coolify server:
    BACKUP_DIR=/data/coolify/backups/<…>/<database> sh /opt/ticketopia/verify-restore.sh
    ```
 
-3. Create a free [healthchecks.io](https://healthchecks.io) check with a 1-day
-   period and a few hours' grace. Its URL is pinged on success and with `/fail`
-   on failure, so you are emailed when a check fails **or** stops running.
+3. In Uptime Kuma, add a monitor of type **Push** (for example "Ticketopia
+   restore check") with a **Heartbeat Interval** of `90000` seconds (25 hours,
+   so a slightly late daily run is not flagged) and **Retries** `0`, attach your
+   notification, save, and copy its **Push URL**. The server must be able to
+   reach Kuma's `/api/push/…` path. Each run reports `status=up` with the
+   summary or `status=down` with the reason; a run that never happens turns the
+   monitor down after the interval. Kuma's example parameters in the copied URL
+   are replaced.
 4. Add a root crontab entry an hour after the backup:
 
    ```cron
-   0 4 * * * BACKUP_DIR=/data/coolify/backups/<…>/<database> HEALTHCHECK_URL=https://hc-ping.com/<uuid> /bin/sh /opt/ticketopia/verify-restore.sh >>/var/log/ticketopia-restore-check.log 2>&1
+   0 4 * * * BACKUP_DIR=/data/coolify/backups/<…>/<database> KUMA_PUSH_URL='https://<kuma>/api/push/<token>' /bin/sh /opt/ticketopia/verify-restore.sh >>/var/log/ticketopia-restore-check.log 2>&1
    ```
+
+   Alternatively, set `HEALTHCHECK_URL` to a [healthchecks.io](https://healthchecks.io)
+   check (1-day period): it is pinged on success and with `/fail` on failure.
 
 Leave `EXPECT_SCHEMA` unset on the server so deploys that migrate the schema do
 not fail the check; it still requires an applied, clean schema.
