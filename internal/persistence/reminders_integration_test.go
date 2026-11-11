@@ -71,8 +71,9 @@ func TestMariaDBOnSaleReminderLifecycle(t *testing.T) {
 	execSQL(t, p.db, `UPDATE event_reminders SET next_check='9999-01-01' WHERE event_id=?`, unknown.Item.ID)
 	sale := time.Now().UTC().Add(time.Hour)
 	d := makeEvent("ReminderKnown", &sale)
-	if _, err := s.Set(t.Context(), other.ID, d.Item.ID, 30); err == nil {
-		t.Fatal("configured another owner's save")
+	// Another owner's save is not this account's: it must save the event first.
+	if _, err := s.Set(t.Context(), other.ID, d.Item.ID, 30); !errors.Is(err, reminders.ErrNotSaved) {
+		t.Fatal("configured another owner's save", err)
 	}
 	if _, err := s.Get(t.Context(), other.ID, d.Item.ID); !errors.Is(err, reminders.ErrNotFound) {
 		t.Fatal("foreign reminder read", err)

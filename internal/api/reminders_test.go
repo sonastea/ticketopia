@@ -76,6 +76,11 @@ func TestReminderHTMLTimingChoicesValidationAndPrivacy(t *testing.T) {
 			t.Fatal("HTML CSRF bypass", w.Code)
 		}
 	}
+	// An event the account has not saved: the form says to save it first.
+	unsaved := accountRequest(a, "POST", "/me/reminders/ticketmaster:NotSaved", "action=set&timing=30&csrf_token="+csrf, browser, "", "", "", "application/x-www-form-urlencoded")
+	if unsaved.Code != 409 || !strings.Contains(unsaved.Body.String(), "Save this event before setting a reminder") || r.sets != 0 {
+		t.Fatal("unsaved HTML set", unsaved.Code, unsaved.Body.String())
+	}
 	get := accountRequest(a, "GET", path, "", browser, "", "", "", "")
 	if get.Code != 200 || !strings.Contains(get.Body.String(), `value="custom" selected`) || !strings.Contains(get.Body.String(), `value="45"`) {
 		t.Fatal(get.Code, get.Body.String())
@@ -136,9 +141,10 @@ func TestReminderHTMLTimingChoicesValidationAndPrivacy(t *testing.T) {
 	if w.Code != 404 || strings.Contains(w.Body.String(), "Private reminder event") {
 		t.Fatal("changed session leaked detail", w.Code, w.Body.String())
 	}
+	// Not this account's save: it is told to save first, without the event's details.
 	w = accountRequest(a, "POST", path, "action=set&timing=30&csrf_token="+csrf, browser, "", "", "", "application/x-www-form-urlencoded")
-	if w.Code != 404 {
-		t.Fatal("foreign owner write", w.Code)
+	if w.Code != 409 || !strings.Contains(w.Body.String(), "Save this event before setting a reminder") || strings.Contains(w.Body.String(), "Private reminder event") {
+		t.Fatal("foreign owner write", w.Code, w.Body.String())
 	}
 	// Stop remains an idempotent operation even after the save was removed.
 	w = accountRequest(a, "POST", path, "action=stop&csrf_token="+csrf, browser, "", "", "", "application/x-www-form-urlencoded")

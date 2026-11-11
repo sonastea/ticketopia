@@ -60,7 +60,7 @@ func (r *ReminderRepository) Set(ctx context.Context, owner, event string, lead 
 		return reminders.Item{}, safeError("reminder owner", err)
 	}
 	if err = tx.QueryRowContext(ctx, `SELECT account_id FROM saved_events WHERE account_id=? AND event_id=? LOCK IN SHARE MODE`, owner, event).Scan(&who); errors.Is(err, sql.ErrNoRows) {
-		return reminders.Item{}, saved.ErrNotFound
+		return reminders.Item{}, reminders.ErrNotSaved
 	} else if err != nil {
 		return reminders.Item{}, safeError("reminder saved event", err)
 	}

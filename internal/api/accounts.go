@@ -351,6 +351,8 @@ func (a *api) requireAPI(c echo.Context, write, browserOnly bool) (accounts.Prin
 func accountError(err error) (int, string, string, map[string]string) {
 	var invalid *accounts.ValidationError
 	switch {
+	case errors.Is(err, reminders.ErrNotSaved):
+		return 409, "event_not_saved", "Save this event before setting a reminder.", nil
 	case errors.Is(err, reminders.ErrNotFound):
 		return 404, "reminder_not_found", "This reminder could not be found.", nil
 	case errors.Is(err, reminders.ErrUnavailable):

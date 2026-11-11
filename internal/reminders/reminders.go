@@ -14,6 +14,10 @@ import (
 )
 
 var ErrNotFound = errors.New("reminder not found")
+
+// ErrNotSaved means the event exists for discovery but is not in the owner's
+// saved events, which a reminder requires.
+var ErrNotSaved = errors.New("event not saved")
 var ErrUnavailable = errors.New("reminders unavailable")
 
 type Item struct {

@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/reminders"
+	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/account"
 )
 
@@ -202,6 +203,11 @@ func (a *api) reminderWritePage(c echo.Context) error {
 	page := account.ReminderPage{Account: p.Account, CSRF: p.CSRF, Enabled: true, Lead: 30, Now: time.Now()}
 	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	if err = a.loadReminderDetail(c, &page, id); err != nil {
+		// Setting a reminder needs the event saved first; say so rather than
+		// that the event is missing.
+		if errors.Is(err, saved.ErrNotFound) && c.FormValue("action") == "set" {
+			err = reminders.ErrNotSaved
+		}
 		return a.accountPageError(c, err)
 	}
 	page.Submitted = true

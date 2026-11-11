@@ -141,7 +141,9 @@ receipts using SES evidence; there is no blind resend control.
 
 Owner-only, private/no-store; strict inputs, owner/collection-bound pagination,
 cookie CSRF/same-origin checks or personal bearer tokens. PUT requires the owner's
-saved event. No recipient override or implicit global preference changes. See
+saved event; otherwise it answers **409** `event_not_saved` ("Save this event
+before setting a reminder."), as do the HTML form and the MCP `set_reminder`
+tool. No recipient override or implicit global preference changes. See
 [OpenAPI](openapi.md) for schemas and errors. HTML and JSON share one service.
 
 Unit, handler and isolated MariaDB tests cover unknown/past/changed times,

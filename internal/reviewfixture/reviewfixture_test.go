@@ -373,7 +373,8 @@ func TestMariaDBPrivateToolsArePerAccount(t *testing.T) {
 	}
 
 	// Reminders follow the account API's rules: the event must be saved first.
-	if r := mcpTool(t, base, other, "set_reminder", map[string]any{"event_id": alsoUnsaved, "lead_minutes": 60}); !r.IsError {
+	// It says to save first, not that the event is missing.
+	if r := mcpTool(t, base, other, "set_reminder", map[string]any{"event_id": alsoUnsaved, "lead_minutes": 60}); !r.IsError || !strings.Contains(r.Text, "Save this event before setting a reminder") {
 		t.Fatalf("reminder on an unsaved event: %+v", r)
 	}
 	if r := mcpTool(t, base, other, "set_reminder", map[string]any{"event_id": unsaved, "lead_minutes": 60}); r.IsError || !strings.Contains(string(r.Content), `"lead_minutes":60`) {
