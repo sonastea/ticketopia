@@ -142,7 +142,7 @@ templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
 					<form action="/discussion-actions" method="post" data-discussion-form>
 						@DiscussionMetadata(discussionForm(post,v,"helpful",returnURL))
 						@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet",Attributes:templ.Attributes{"name":"action","value":helpfulVerb(post.Helpful),"aria-pressed":fmt.Sprint(post.Helpful)}}) {
-							Helpful · { fmt.Sprint(post.HelpfulCount) }
+							<span>Helpful · <span class="helpful-count">{ fmt.Sprint(post.HelpfulCount) }</span></span>
 						}
 						<p hidden data-discussion-error class="field-note" role="alert"></p>
 					</form>

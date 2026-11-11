@@ -16,6 +16,18 @@
     post.setAttribute('data-arrived', '');
     post.addEventListener('animationend', () => post.removeAttribute('data-arrived'), {once: true});
   };
+  // Mirrors acknowledge in app.js: rolls a confirmed Helpful count into place.
+  const acknowledge = (button, action) => {
+    if (!button) return;
+    button.dataset.acknowledged = action === 'helpful' ? 'up' : 'down';
+    button.addEventListener('animationend', () => delete button.dataset.acknowledged, {once: true});
+  };
+  // Mirrors app.js: a write still pending after 300ms swaps the submitter's
+  // label for a same-size ring (styled in app.css).
+  const showPending = button => {
+    const timer = setTimeout(() => { button.dataset.pending = ''; }, 300);
+    return () => { clearTimeout(timer); delete button.dataset.pending; };
+  };
   const uncertain = 'This post may already be published. Your draft and reply target are kept. Retry this unchanged draft to confirm it without posting twice.';
   function load(key) {
     if (memory.has(key)) return memory.get(key);
@@ -229,6 +241,7 @@
         const post = document.getElementById('post-' + confirmation.post);
         target = confirmation.action === 'helpful' || confirmation.action === 'unhelpful' ? post?.querySelector('button[aria-pressed]')
           : confirmation.action === 'edit' ? post?.querySelector('.discussion-editor > summary') : post;
+        if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') acknowledge(target, confirmation.action);
         if (confirmation.action !== 'create') scrollTo(0, position);
         if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
       } else if (url.hash === '#discussion-composer') target = content.querySelector('#discussion-composer textarea, #discussion-composer a');
@@ -294,6 +307,7 @@
     const error = form.querySelector('[data-discussion-error]');
     if (error) error.hidden = true;
     form.dataset.pending = 'true'; form.setAttribute('aria-busy', 'true'); submitter.disabled = true;
+    const settle = showPending(submitter);
     if (draft) { sync(form); feedback(form, submitter.value === 'create' ? 'Publishing contribution…' : 'Saving changes…'); }
     const status = document.querySelector('[data-discussion-status]');
     if (status) status.textContent = 'Saving contribution…';
@@ -351,7 +365,7 @@
       if (draft) feedback(form, '');
       if (status) status.textContent = 'The change could not be confirmed.';
     } finally {
-      clearTimeout(timeout);
+      clearTimeout(timeout); settle();
       form.dataset.pending = 'false'; form.removeAttribute('aria-busy'); submitter.disabled = false;
       if (draft) save(form);
     }

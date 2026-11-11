@@ -23,6 +23,13 @@
     post.setAttribute('data-arrived', '');
     post.addEventListener('animationend', () => post.removeAttribute('data-arrived'), { once: true });
   };
+  // Rolls a confirmed Helpful count in from the direction it moved (CSS
+  // animates it, fading only under reduced motion).
+  const acknowledge = (button, action) => {
+    if (!button) return;
+    button.dataset.acknowledged = action === 'helpful' ? 'up' : 'down';
+    button.addEventListener('animationend', () => delete button.dataset.acknowledged, { once: true });
+  };
   // Slides nodes from where they were to where `update` put them (FLIP), with
   // composited translates only. A node's offset excludes that of its nearest
   // moving ancestor, so nested groups and items don't double up; repeated moves
@@ -422,9 +429,9 @@
     }
   };
   const saving = new Set();
-  // Mirrored in interests.js and recommendations.js: a write that outlasts a
-  // quick confirmation swaps its icon or label for a spinner, and a dropped
-  // connection gets the same wording on every action.
+  // Mirrored in interests.js, recommendations.js and discussions.js: a write
+  // that outlasts a quick confirmation swaps its icon or label for a spinner,
+  // and a dropped connection gets the same wording on every action.
   const showPending = button => {
     const timer = setTimeout(() => { button.dataset.pending = ''; }, 300);
     return () => { clearTimeout(timer); delete button.dataset.pending; };
@@ -1121,7 +1128,7 @@
         else if (confirmation) {
           const post = [...region.querySelectorAll('.discussion-post')].find(item => item.id === 'post-' + confirmation.post);
           let target = post;
-          if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') target = post?.querySelector('button[aria-pressed]');
+          if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') acknowledge(target = post?.querySelector('button[aria-pressed]'), confirmation.action);
           else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary');
           if (target) { if (target === post) target.tabIndex = -1; target.focus({ preventScroll: true }); }
           if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
@@ -1536,7 +1543,11 @@
       if (confirmation) {
         const post = [...context.querySelectorAll('.discussion-post')].find(item => item.id === 'post-' + confirmation.post);
         let target = heading;
-        if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') target = post?.querySelector('button[aria-pressed]') || heading;
+        if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') {
+          const helpful = post?.querySelector('button[aria-pressed]');
+          acknowledge(helpful, confirmation.action);
+          target = helpful || heading;
+        }
         else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary') || heading;
         else if (confirmation.action === 'remove' && post) { post.tabIndex = -1; target = post; }
         if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);

@@ -1581,19 +1581,20 @@ html:has(.filter-sheet:modal) {
   color: var(--brand);
 }
 
+/* Helpful shares the participation controls' tinted hover and deeper press. */
 @media (hover: hover) and (pointer: fine) {
-  .event-actions .button-quiet:hover:where(:not(:disabled)) {
+  :is(.event-actions, .discussion-actions) .button-quiet:hover:where(:not(:disabled)) {
     background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface));
     border-color: var(--brand);
     color: var(--brand-dark);
   }
 
-  .event-actions .button-quiet:hover:where([data-saved="true"], [aria-pressed="true"]) {
+  :is(.event-actions, .discussion-actions) .button-quiet:hover:where([data-saved="true"], [aria-pressed="true"]) {
     background: color-mix(in oklch, var(--brand-soft), var(--brand) 8%);
   }
 }
 
-.event-actions .button-quiet:active:not(:disabled) {
+:is(.event-actions, .discussion-actions) .button-quiet:active:not(:disabled) {
   background: color-mix(in oklch, var(--brand-soft), var(--brand) 16%);
   border-color: var(--brand-active);
   color: var(--brand-active);
@@ -2507,6 +2508,12 @@ html:has(.filter-sheet:modal) {
   color: var(--error);
 }
 
+/* A recovery action sits apart from the explanation above it. */
+.error-state > :is(p, ul) + :is(a, button) {
+  justify-self: start;
+  margin-block-start: 1rem;
+}
+
 .empty-state {
   padding-block: 3rem;
 }
@@ -3210,6 +3217,10 @@ html:has(.filter-sheet:modal) {
   /* A post reached by link, or just published/edited, flashes the brand tint
      once; the spread carries it past the post's flush text edges. */
   .discussion-post:is(:target, [data-arrived]) { animation: post-arrive 1.6s var(--ease-out); }
+  /* A confirmed Helpful count rolls in from the direction it moved. */
+  .helpful-count { --count-from: .4em; }
+  [data-acknowledged="down"] .helpful-count { --count-from: -.4em; }
+  [data-acknowledged] .helpful-count { animation: count-roll 240ms var(--ease-out); }
   /* Pending forms dim gradually. */
   :is([data-discussion-form], [data-recommendation-form]) { transition: opacity 160ms var(--ease-out); }
   /* Sidebar collapse and preview open/close swap grid tracks instantly; app.js
@@ -3258,6 +3269,9 @@ html:has(.filter-sheet:modal) {
   }
   @keyframes drop-in {
     from { opacity: 0; translate: 0 -.375rem; }
+  }
+  @keyframes count-roll {
+    from { opacity: 0; translate: 0 var(--count-from); }
   }
   @keyframes post-arrive {
     from { background-color: var(--brand-soft); box-shadow: 0 0 0 .75rem var(--brand-soft); }
@@ -3425,6 +3439,7 @@ html:has(.filter-sheet:modal) {
 .discussion-actions > .text-link { justify-content: center; min-inline-size: 2.75rem; }
 .discussion-actions form { min-inline-size: 0; }
 .discussion-actions button[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
+.helpful-count { display: inline-block; font-variant-numeric: tabular-nums; }
 .discussion-removal > summary { color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
 .discussion-owner-editor { margin-block: .25rem 0; }
 .discussion-owner-editor > summary { border: 0; padding-inline: 0; font-weight: 550; }
@@ -3437,16 +3452,26 @@ html:has(.filter-sheet:modal) {
 .conversation-meta, .conversation-record time { font-variant-numeric: tabular-nums; }
 .conversation-record .account-actions { margin-block-start: .5rem; align-items: start; }
 .conversation-record .recommendation-editor { margin-block: .25rem 0; max-inline-size: 100%; }
-.discussion-replies { padding-inline-start: var(--space-reply-indent); border-inline-start: 1px solid var(--line); }
+.discussion-replies { margin-block-start: .75rem; padding-inline-start: var(--space-reply-indent); border-inline-start: 1px solid var(--line); }
 .discussion-reply-composer { margin-block-start: 2rem; scroll-margin-block-start: 1rem; }
 .discussion-composer textarea { scroll-margin-block-end: calc(6rem + env(safe-area-inset-bottom, 0px)); max-block-size: min(24rem, max(8rem, calc(var(--discussion-viewport-block-size, 100dvh) * .35))); }
 .discussion-composer-actions { display: flex; flex-wrap: wrap; align-items: start; gap: .5rem 1rem; }
 .discussion-composer button { inline-size: fit-content; max-inline-size: 100%; }
 [data-discussion-form][aria-busy="true"] { opacity: .7; }
+/* Content kept on screen while a section or conversation loads dims only if the
+   read is slow, so quick reads don't flicker; the status line stays at full
+   strength and the arrival restores it at once. */
+:is([data-event-section-region][aria-busy="true"] > [data-section-body], [data-conversation-content][aria-busy="true"]) {
+  opacity: .6;
+  transition: opacity 160ms var(--ease-out) 250ms;
+}
 [data-discussion-error] { color: var(--error); }
 /* Without motion, or in forced colours, a linked post keeps a static marker. */
 @media (prefers-reduced-motion: reduce) {
   .discussion-post:is(:target, [data-arrived]) { background-color: var(--brand-soft); box-shadow: 0 0 0 .75rem var(--brand-soft); }
+  /* The changed count still fades in, without moving. */
+  [data-acknowledged] .helpful-count { animation: count-fade 240ms var(--ease-out); }
+  @keyframes count-fade { from { opacity: 0; } }
 }
 @media (forced-colors: active) {
   .discussion-post:is(:target, [data-arrived]) { outline: 2px solid Highlight; outline-offset: .5rem; }
