@@ -2,6 +2,14 @@
 
 [Older history](archive/deployment/).
 
+## 2026-11-11 — Unreleased
+
+- Add [backups and restore checks](../backups.md): Coolify's daily MariaDB
+  backups to Cloudflare R2 (14 kept), and `scripts/backup/verify-restore.sh`
+  (`make backup-verify`), which restores the newest backup into a disposable
+  MariaDB, checks freshness, schema, tables, accounts and table integrity, and
+  pings a healthchecks.io-style URL so a failed or missing check alerts.
+
 ## 2026-11-10 — Unreleased
 
 - Add one [resource profile](../deployment.md#resource-profile) for Coolify,

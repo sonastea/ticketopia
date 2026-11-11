@@ -60,6 +60,9 @@ their status; they describe intended work rather than available features.
 - [Live activity performance and rollout](live-activity-rollout.md): operational
   telemetry, real three-replica load fixture, measured/outstanding gates and rollback.
 
+- [Backups and restore checks](backups.md): daily Coolify backups to Cloudflare R2
+  and a daily restore check (`scripts/backup/verify-restore.sh`, `make
+  backup-verify`) that alerts when a backup cannot be restored.
 - [Local development services](local-development.md): `ses-setup`, `db-setup` and
   combined `local-setup`, with isolated MiniStack SES capture and local settings.
 - [Behavior-focused testing](testing.md): regression risks, unit/HTTP/rendering/SQL

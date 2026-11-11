@@ -424,6 +424,7 @@ so watch MariaDB and raise its CPUs before adding replicas.
 
 ## Coolify
 
+- Set up [backups and the daily restore check](backups.md) for MariaDB.
 - Set the [resource profile](#resource-profile) under each resource's **Resource
   Limits**, `GOMEMLIMIT` under the application's **Environment Variables** (a
   runtime variable), and the MariaDB and Redis settings in each database's custom

@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test simulate-users benchmark
+.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test simulate-users benchmark backup-verify
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -23,6 +23,7 @@ help:
 		'make load-test     Run the k6 web/API/MCP traffic mix against a running review server' \
 		'                   (scenario=discover-last-known). Add duration=<1m> rate=<scale>, or' \
 		'                   target=<https://host> for a read-only run against a dev or production server.' \
+		'make backup-verify Restore a database backup into a disposable MariaDB and check it: file=<backup>.' \
 		'make benchmark     Step each scenario (web, api, mcp_public) to its limit and write an HTML report;' \
 		'                   a running review server by default, or target=<https://host>.' \
 		'make simulate-users Simulate signed-in users browsing, saving, following and discussing against a running' \
@@ -83,6 +84,10 @@ load-test:
 	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
 		$(if $(target),-e TARGET=$(target)) -e DURATION=$(duration) -e RATE=$(rate) \
 		--summary-export ".local/load/traffic-mix-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/traffic-mix.js
+
+# Restores a backup into a throwaway container; touches no other database.
+backup-verify:
+	@sh scripts/backup/verify-restore.sh "$(file)"
 
 # Each scenario alone at increasing request rates; the report and every step's
 # summary go to .local/load/benchmark-<UTC>/. Settings come from the
