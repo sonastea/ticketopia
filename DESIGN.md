@@ -517,8 +517,9 @@ swaps the action's icon or label for a same-size spinning ring (pulsing under
 reduced motion), and collapsed-rail labels also fade out; hiding is otherwise instant.
 A confirmed Helpful count rolls in from the direction it moved (240ms, .4em;
 a plain fade under reduced motion). An event section or conversation still
-loading after 250ms dims the content it keeps showing to 60% (a 160ms fade, kept
-under reduced motion); the arrival restores it at once. Helpful shares the
+loading after 250ms keeps its content at full contrast and shows a 2px brand
+line along its top edge with a progress cursor (a 160ms fade, kept under reduced
+motion; a border, so forced colours keep it); the arrival removes it at once. Helpful shares the
 participation controls' tinted hover and deeper press wash.
 A reader-chosen event section or conversation fades in (160ms); Load more rows
 settle in as one batch and late-loading result artwork fades over its placeholder

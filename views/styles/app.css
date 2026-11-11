@@ -3458,11 +3458,18 @@ html:has(.filter-sheet:modal) {
 .discussion-composer-actions { display: flex; flex-wrap: wrap; align-items: start; gap: .5rem 1rem; }
 .discussion-composer button { inline-size: fit-content; max-inline-size: 100%; }
 [data-discussion-form][aria-busy="true"] { opacity: .7; }
-/* Content kept on screen while a section or conversation loads dims only if the
-   read is slow, so quick reads don't flicker; the status line stays at full
-   strength and the arrival restores it at once. */
-:is([data-event-section-region][aria-busy="true"] > [data-section-body], [data-conversation-content][aria-busy="true"]) {
-  opacity: .6;
+/* Content kept on screen while a section or conversation loads stays at full
+   contrast (it is still readable and usable); a slow read instead shows a thin
+   brand line along its top edge, only after 250ms so quick reads don't
+   flicker. It is a border, so forced colours keep it visible. */
+:is([data-event-section-region] > [data-section-body], [data-conversation-content]) { position: relative; }
+:is([data-event-section-region] > [data-section-body], [data-conversation-content])::before {
+  content: ""; position: absolute; inset-block-start: 0; inset-inline: 0;
+  border-block-start: 2px solid var(--brand); opacity: 0; pointer-events: none;
+}
+:is([data-event-section-region][aria-busy="true"] > [data-section-body], [data-conversation-content][aria-busy="true"]) { cursor: progress; }
+:is([data-event-section-region][aria-busy="true"] > [data-section-body], [data-conversation-content][aria-busy="true"])::before {
+  opacity: 1;
   transition: opacity 160ms var(--ease-out) 250ms;
 }
 [data-discussion-error] { color: var(--error); }

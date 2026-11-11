@@ -7,8 +7,8 @@
 - Helpful, Publish, Save changes and Remove show the shared 300ms pending ring;
   a confirmed Helpful count rolls in from the direction it moved (a fade under
   reduced motion), and Helpful takes the participation hover/press washes.
-- Event sections and conversations dim kept content only when a read outlasts
-  250ms. Reply lists clear their heading; error recovery actions sit below their
+- Event sections and conversations show a thin brand loading line (content
+  stays at full contrast) only when a read outlasts 250ms. Reply lists clear their heading; error recovery actions sit below their
   explanation. See [DESIGN.md motion](../../DESIGN.md#buttons).
 
 ### 2026-10-29 — Aligned event card actions and versioned assets
