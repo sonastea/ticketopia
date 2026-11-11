@@ -79,7 +79,18 @@ the agent off. OAuth sign-in for clients is planned.
 - Requests above 64 KiB get **413**. Responses are `Cache-Control: no-store`.
 - Every `tools/call` is logged with its tool, outcome (`ok`, `tool_error`,
   `error`) and duration, never its arguments, including calls rejected for
-  invalid arguments.
+  invalid arguments. Names that match no tool are logged as `unknown`.
+- Each replica logs an `MCP metrics` record every minute in which anything
+  changed: per tool, cumulative `calls`, `ok`, `tool_errors`, `errors`,
+  `signed_in`, `seconds` and seven disjoint duration buckets (≤1 / ≤10 / ≤50 /
+  ≤250 / ≤1000 / ≤5000 ms and more); and `refusals` at the boundary by reason
+  (`origin`, `ip_rate`, `account_rate`, `busy`, `unauthorized`,
+  `accounts_unavailable`, `batch`, `too_large`). Dimensions are fixed: no
+  arguments, accounts or IPs. Use interval deltas, as for
+  [live-activity telemetry](live-activity-rollout.md#operational-telemetry).
+- When Ticketopia itself is busy (for example its database does not answer in
+  time), tools report "Ticketopia is busy right now… Retry after 5 seconds."
+  rather than a provider failure.
 - `/mcp` is JSON-RPC, not REST, so it is not part of the
   [OpenAPI contract](openapi.md).
 

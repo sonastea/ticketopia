@@ -99,6 +99,11 @@ Count tool calls, latency and errors per tool and account, separately from page
 views. Never log tool arguments containing private data or tokens. These metrics
 show when to move from deployment option 1 to option 2.
 
+Implemented as a per-replica `MCP metrics` log (see
+[agent tools](../app-mcp.md#protocol-and-limits)): per tool and boundary refusal,
+with a signed-in count instead of per-account dimensions, so telemetry carries
+no account identity; per-account limits still apply at the boundary.
+
 ## Testing and load
 
 **Correctness.** Test tools with the SDK's in-memory transport, as the review

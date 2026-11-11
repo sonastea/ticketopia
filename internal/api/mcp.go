@@ -46,7 +46,9 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 	if inFlight < 1 {
 		inFlight = appmcp.DefaultMaxInFlight
 	}
-	deps := appmcp.Deps{Events: a.events, Details: interestDetails{a}, Now: a.clock, Logger: a.logger, Describe: describeForAgents,
+	metrics := appmcp.NewMetrics()
+	go metrics.Run(a.runCtx, a.logger, time.Minute)
+	deps := appmcp.Deps{Events: a.events, Details: interestDetails{a}, Now: a.clock, Logger: a.logger, Describe: describeForAgents, Metrics: metrics,
 		DescribePrivate: func(err error) string { _, _, detail, _ := accountError(err); return detail }}
 	// Signed-in tools need accounts; assign only real services, never typed nils.
 	if a.enabled() && a.saved != nil {
@@ -55,7 +57,7 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 			deps.Reminders = a.reminders
 		}
 	}
-	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight))
+	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight), metrics)
 	e.Any("/mcp", echo.WrapHandler(mcpAuthenticated(appmcp.Handler(deps))), boundary)
 }
 
@@ -110,22 +112,25 @@ func mcpError(c echo.Context, status int, retry int, message string) error {
 //     sign-in;
 //   - concurrent requests are bounded and excess is refused, not queued;
 //   - bodies are capped and responses kept out of caches.
-func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan struct{}) echo.MiddlewareFunc {
+func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan struct{}, metrics *appmcp.Metrics) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Applied as headers are written: the transport sets its own no-cache,
 			// which would still allow intermediaries to store responses.
 			c.Response().Before(func() { c.Response().Header().Set("Cache-Control", "no-store") })
 			if origin := c.Request().Header.Get("Origin"); origin != "" && !a.allowedOrigin(origin) {
+				metrics.Refuse(appmcp.RefusedOrigin)
 				return mcpError(c, http.StatusForbidden, 0, "cross-origin requests are not allowed")
 			}
 			if ok, wait := limiter.allow(c.RealIP()); !ok {
+				metrics.Refuse(appmcp.RefusedIPRate)
 				return mcpError(c, http.StatusTooManyRequests, max(1, int(math.Ceil(wait.Seconds()))), "too many requests; retry after the Retry-After delay")
 			}
 			select {
 			case inFlight <- struct{}{}:
 				defer func() { <-inFlight }()
 			default:
+				metrics.Refuse(appmcp.RefusedBusy)
 				return mcpError(c, http.StatusServiceUnavailable, 1, "busy; retry shortly")
 			}
 			// Token checks read the database, so they run inside the concurrency bound.
@@ -134,11 +139,14 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 				if err != nil {
 					if errors.Is(err, accounts.ErrUnauthenticated) {
 						c.Response().Header().Set("WWW-Authenticate", `Bearer realm="ticketopia"`)
+						metrics.Refuse(appmcp.RefusedUnauthorized)
 						return mcpError(c, http.StatusUnauthorized, 0, "invalid, expired or revoked API token")
 					}
+					metrics.Refuse(appmcp.RefusedAccountsUnavailable)
 					return mcpError(c, http.StatusServiceUnavailable, 30, "accounts are unavailable; retry shortly")
 				}
 				if ok, wait := accountLimiter.allow(p.Account.ID); !ok {
+					metrics.Refuse(appmcp.RefusedAccountRate)
 					return mcpError(c, http.StatusTooManyRequests, max(1, int(math.Ceil(wait.Seconds()))), "too many requests for this account; retry after the Retry-After delay")
 				}
 				c.SetRequest(c.Request().WithContext(context.WithValue(c.Request().Context(), mcpPrincipalKey{}, p)))
@@ -146,9 +154,11 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 			if c.Request().Body != nil {
 				body, err := io.ReadAll(http.MaxBytesReader(c.Response(), c.Request().Body, mcpBodyLimit))
 				if err != nil {
+					metrics.Refuse(appmcp.RefusedTooLarge)
 					return mcpError(c, http.StatusRequestEntityTooLarge, 0, "request body too large")
 				}
 				if trimmed := bytes.TrimLeft(body, " \t\r\n"); len(trimmed) > 0 && trimmed[0] == '[' {
+					metrics.Refuse(appmcp.RefusedBatch)
 					return mcpError(c, http.StatusBadRequest, 0, "JSON-RPC batch requests are not supported; send one request per POST")
 				}
 				c.Request().Body = io.NopCloser(bytes.NewReader(body))

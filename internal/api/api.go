@@ -63,6 +63,8 @@ type api struct {
 	moderation        *moderation.Service
 	reminders         *reminders.Service
 	mcp               appmcp.Config
+	// runCtx is NewAPI's context; background loops such as MCP metrics stop with it.
+	runCtx context.Context
 }
 
 type Option func(*api)
@@ -147,6 +149,7 @@ func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store, options 
 		}
 	}
 	a := &api{
+		runCtx: ctx,
 		logger: logger, ipExtractor: ipExtractor, shutdown: ctx.Done(),
 		events:    discovery.New(ctx, cache, logger, providerConfig),
 		locations: location.New(ctx, cache, logger, location.Config{Disabled: !geolocation}),

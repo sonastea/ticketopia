@@ -146,12 +146,14 @@ func TestMCPServesPublicHostOverLoopback(t *testing.T) {
 	}
 }
 
-// Excess concurrent requests are refused at once rather than queued.
+// Excess concurrent requests are refused at once rather than queued, and
+// counted as busy refusals.
 func TestMCPBoundsConcurrentRequests(t *testing.T) {
 	app := mcpAPI(t)
 	inFlight := make(chan struct{}, 1)
 	release, entered := make(chan struct{}), make(chan struct{})
-	handler := app.mcpBoundary(newIPLimiter(600, time.Now), newIPLimiter(600, time.Now), inFlight)(func(c echo.Context) error {
+	metrics := appmcp.NewMetrics()
+	handler := app.mcpBoundary(newIPLimiter(600, time.Now), newIPLimiter(600, time.Now), inFlight, metrics)(func(c echo.Context) error {
 		entered <- struct{}{}
 		<-release
 		return c.NoContent(http.StatusOK)
@@ -171,6 +173,9 @@ func TestMCPBoundsConcurrentRequests(t *testing.T) {
 	}
 	close(release)
 	wg.Wait()
+	if got := metrics.Snapshot().Refusals[appmcp.RefusedBusy]; got != 1 {
+		t.Fatalf("busy refusals counted: %d", got)
+	}
 }
 
 func TestMCPLimiterCapsTrackedClients(t *testing.T) {

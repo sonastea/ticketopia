@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-11-11 — Per-tool metrics and busy wording
+
+- Log an `MCP metrics` record each minute with changes: per-tool calls,
+  outcomes, signed-in share and duration buckets, plus boundary refusals by
+  reason, with fixed dimensions (unregistered tool names count as `unknown`).
+- `set_reminder` on an unsaved event says to save it first, and overload is
+  reported as Ticketopia being busy, not as a provider failure.
+
 ### 2026-11-09 — k6 load baseline
 
 - Add `make load-test`: a k6 mix of page views, `/api/v1` calls and public and

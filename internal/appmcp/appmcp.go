@@ -38,6 +38,8 @@ type Deps struct {
 	Details Details
 	Now     func() time.Time
 	Logger  zerolog.Logger
+	// Metrics, when set, counts tool calls for the periodic MCP metrics log.
+	Metrics *Metrics
 	// Describe turns a service error into the user-facing message the JSON API
 	// uses for it, including any retry delay, so agents see the same wording.
 	Describe func(error) string
@@ -58,7 +60,7 @@ func NewServer(d Deps) *mcp.Server {
 		Instructions: "Ticketopia finds live events (music, sports, arts and more) from Ticketmaster data. " +
 			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy.",
 	})
-	server.AddReceivingMiddleware(observe(d.Logger))
+	server.AddReceivingMiddleware(observe(d.Logger, d.Metrics))
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[models.EventList](), Annotations: readOnly,
 		Description: "Search events by city and country (ISO code such as US), dates, category, or keyword. " +
@@ -166,7 +168,7 @@ func toolErrors[In, Out any](d Deps, call func(context.Context, In) (Out, error)
 
 // observe logs every tools/call with its tool, outcome and duration, never
 // its arguments, including calls the SDK rejects before a tool runs.
-func observe(logger zerolog.Logger) mcp.Middleware {
+func observe(logger zerolog.Logger, metrics *Metrics) mcp.Middleware {
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 			call, ok := req.(*mcp.CallToolRequest)
@@ -181,7 +183,10 @@ func observe(logger zerolog.Logger) mcp.Middleware {
 			} else if r, ok := result.(*mcp.CallToolResult); ok && r.IsError {
 				outcome = "tool_error"
 			}
-			logger.Info().Str("tool", call.Params.Name).Str("outcome", outcome).Dur("duration", time.Since(start)).Msg("MCP tool call")
+			// Client-sent names that match no tool are logged and counted as "unknown".
+			tool, elapsed := toolName(call.Params.Name), time.Since(start)
+			metrics.observe(tool, outcome, call.Extra != nil && call.Extra.TokenInfo != nil, elapsed)
+			logger.Info().Str("tool", tool).Str("outcome", outcome).Dur("duration", elapsed).Msg("MCP tool call")
 			return result, err
 		}
 	}

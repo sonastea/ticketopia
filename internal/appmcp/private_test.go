@@ -57,7 +57,12 @@ func (f fakeReminders) Remove(_ context.Context, owner, event string) error {
 // boundary does, only for requests carrying a token.
 func privateServer(t *testing.T, f *fakeAccount) *httptest.Server {
 	t.Helper()
-	handler := Handler(Deps{Events: &fakeEvents{}, Details: &fakeEvents{}, Saved: f, Reminders: fakeReminders{f},
+	return privateServerWith(t, f, nil)
+}
+
+func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest.Server {
+	t.Helper()
+	handler := Handler(Deps{Events: &fakeEvents{}, Details: &fakeEvents{}, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
 		DescribePrivate: func(err error) string { return "private: " + err.Error() }})
 	bearer := auth.RequireBearerToken(func(_ context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		if token != "owner-token" {
