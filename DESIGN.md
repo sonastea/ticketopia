@@ -512,9 +512,14 @@ selects share a 160ms ease-out colour baseline (background, text, border and
 underline colour), which reduced motion keeps. Under no reduction, action feedback,
 inline errors, revealed controls (reminder, visibility, custom timing)
 fade in over 160ms, live-activity toasts drop in over 200ms, pending forms dim
-gradually, a Save/Interested/recommendation write still pending after 300ms
+gradually, a Save/Interested/recommendation/discussion write still pending after 300ms
 swaps the action's icon or label for a same-size spinning ring (pulsing under
 reduced motion), and collapsed-rail labels also fade out; hiding is otherwise instant.
+A confirmed Helpful count rolls in from the direction it moved (240ms, .4em;
+a plain fade under reduced motion). An event section or conversation still
+loading after 250ms dims the content it keeps showing to 60% (a 160ms fade, kept
+under reduced motion); the arrival restores it at once. Helpful shares the
+participation controls' tinted hover and deeper press wash.
 A reader-chosen event section or conversation fades in (160ms); Load more rows
 settle in as one batch and late-loading result artwork fades over its placeholder
 (200ms). A post reached by link, or just published or edited, flashes the
