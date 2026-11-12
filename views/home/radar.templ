@@ -46,6 +46,7 @@ templ Radar(page RadarPage) {
 						@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }
 					}
 				} else {
+					<h2 class="sr-only">Radar matches</h2>
 					<ul id="event-list" class="event-list">
 						@EventRowsWithRadar(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests, page.matches())
 					</ul>

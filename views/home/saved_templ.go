@@ -203,7 +203,7 @@ func Saved(page SavedPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"participation-note\">Last-known event details are kept with your saves. Check the event or ticket page for current availability.</p><ul id=\"event-list\" class=\"event-list\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"participation-note\">Last-known event details are kept with your saves. Check the event or ticket page for current availability.</p><h2 class=\"sr-only\">Your saved events</h2><ul id=\"event-list\" class=\"event-list\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -521,7 +521,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 			var templ_7745c5c3_Var18 templ.SafeURL
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(saveAction(eventID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 101, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 102, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -534,7 +534,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(eventID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 101, Col: 108}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 102, Col: 108}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
@@ -547,7 +547,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 101, Col: 133}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 102, Col: 133}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
@@ -560,7 +560,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(signInURL(EventSignInReturn(eventID, returnURL)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 101, Col: 203}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 102, Col: 203}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 			if templ_7745c5c3_Err != nil {
@@ -573,7 +573,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(view.CSRF)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 102, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 103, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 			if templ_7745c5c3_Err != nil {
@@ -586,7 +586,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 103, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 104, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
@@ -599,7 +599,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(saveVerb(view.States[eventID]))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 104, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 105, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 			if templ_7745c5c3_Err != nil {
@@ -632,7 +632,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(saveLabel(true))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 106, Col: 81}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 107, Col: 81}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 				if templ_7745c5c3_Err != nil {
@@ -645,7 +645,7 @@ func SaveControlContent(eventID string, name string, view SaveView, returnURL st
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(saveLabel(view.States[eventID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 106, Col: 117}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/saved.templ`, Line: 107, Col: 117}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
