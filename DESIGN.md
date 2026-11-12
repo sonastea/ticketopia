@@ -632,7 +632,9 @@ Questions and replies inherit Manrope, plum actions, native disclosures, and fla
 rule-separated reading surfaces. Dedicated threads keep event/date/venue context
 above the conversation. One indented reply level names same-thread targets;
 public text preserves line breaks and the 70ch prose measure. Helpful uses a
-44px secondary button, with pale-plum selected state and an inline post-level count.
+44px secondary button with a thumbs-up icon that fills when selected (like Save's
+bookmark and Interested's star), a pale-plum selected state and an inline
+post-level count.
 Removed contributions leave content-free placeholders. An author's **Edit your
 contribution** and **Remove your contribution** are a quiet pair of muted
 .8125rem disclosures with the shared text-disclosure chevron. The labeled composer

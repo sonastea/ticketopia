@@ -247,7 +247,15 @@ updating components, and review the registry diff before using `--overwrite`:
   outline rather than removing it. App CSS owns visible focus and press feedback.
 - `select/native.templ` offers a themed native `<select>`. Category and genre
   remain keyboard-accessible ordinary form controls; changing category replaces
-  compatible genre options, and both work without JavaScript.
+  compatible genre options, and both work without JavaScript. `app.css` drops
+  every single-value select's native look (`appearance: none`) and draws a thin
+  V chevron, because WebKit/iOS otherwise ignores the field's padding and height
+  (27px selects beside 46px fields); forced colours restore the native arrow.
+  Set select backgrounds with `background-color`, not the `background`
+  shorthand, which would erase the chevron. On iOS, date fields drop their
+  native look too, so they keep the field's padding, alignment and height.
+- Live regions (`role="status"`) render empty rather than `hidden`, and are
+  cleared rather than hidden, so their first message is announced.
 - `collapsible/native.templ` offers native `<details>/<summary>` using the shared
   props. Browser form validation and Change city can reveal the filters, including
   without the library's JavaScript behavior.

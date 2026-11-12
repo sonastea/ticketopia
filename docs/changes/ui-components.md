@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-11-12 — Safari/iOS form fields, Helpful icon, announced status messages
+
+- Selects no longer collapse on Safari/iOS: WebKit ignored their padding and
+  height (27px beside 46px fields). Every single-value select now draws its own
+  thin chevron at the field's full size in every engine (native arrow in forced
+  colours); iOS date fields keep padding and alignment; the live-activity filter
+  spaces its fields; labels named by `aria-labelledby` keep the label weight.
+- Helpful shows a thumbs-up that fills when selected, like Save and Interested.
+- Section, conversation and composer status messages start present and empty
+  (out of flow), so screen readers announce their first message; each write
+  announces its progress and confirmation once, and the reload after it stays
+  quiet.
+
 ### 2026-11-12 — Accessibility pass: focus, rail labels, headings, edge fades
 
 - With enlarged text, keyboard focus scrolls clear of the phone navigation
@@ -74,18 +87,5 @@
   ([OpenAPI](openapi.md)) once the provider announces a date.
 - A service worker shows a self-contained offline page when a navigation fails,
   and caches nothing else ([discovery guide](../discovery.md#ui-source-and-assets)).
-
-### 2026-10-26 — Event page quick wins
-
-- The venue address links to Maps: Google's universal link (the Maps app on
-  Android, the web elsewhere), and Apple Maps on iPhone and iPad.
-- A Share icon beside Back (page and preview) opens the share sheet with the
-  canonical event link, or copies it. It is shown only where one of those works,
-  and stays out of the Tickets bar so Save keeps its one row at 360–390px.
-- "Before you go" notices written as inline " - " bullets display as a list;
-  other prose, including stray dashes, stays a paragraph. Stored text is unchanged.
-- Results warnings (last-known, partial, not collected, older) collapse to a
-  one-line summary that opens into the full explanation; plain freshness stays a
-  line.
 
 Older entries: [UI component archive](archive/ui-components/).
