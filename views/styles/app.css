@@ -905,10 +905,10 @@ summary::-webkit-details-marker {
 /* Text disclosures share one chevron in every browser instead of the UA marker
    (drawn by Chromium and Firefox, hidden in WebKit). Borders survive forced
    colours; the drawn geometry is physical. */
-:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice) > summary {
+:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal) > summary {
   list-style: none;
 }
-:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice) > summary::after {
+:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal) > summary::after {
   content: "";
   display: inline-block;
   inline-size: .45em;
@@ -919,7 +919,7 @@ summary::-webkit-details-marker {
   border-bottom: 2px solid currentColor;
   rotate: 45deg;
 }
-:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice)[open] > summary::after {
+:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal)[open] > summary::after {
   rotate: 225deg;
   vertical-align: -.05em;
 }
@@ -3216,7 +3216,7 @@ html:has(.filter-sheet:modal) {
   .filter-disclosure > summary > .icon:last-child {
     transition: transform 160ms var(--ease-out);
   }
-  :is(.account-more, .follow-search, .event-provenance, .account-token-details) > summary::after {
+  :is(.account-more, .follow-search, .event-provenance, .account-token-details, .discussion-owner-editor, .discussion-removal) > summary::after {
     transition: rotate 160ms var(--ease-out);
   }
   /* Disclosures grow open and shut where `::details-content` is supported. A
@@ -3488,11 +3488,15 @@ html:has(.filter-sheet:modal) {
 .discussion-actions form { min-inline-size: 0; }
 .discussion-actions button[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
 .helpful-count { display: inline-block; font-variant-numeric: tabular-nums; }
-.discussion-removal > summary { color: var(--brand); cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
 .discussion-owner-editor { margin-block: .25rem 0; }
-.discussion-owner-editor > summary { border: 0; padding-inline: 0; font-weight: 550; }
-.discussion-utility, .discussion-removal > summary { color: var(--muted-warm); font-size: .8125rem; }
-.discussion-removal > summary:active { background: var(--brand-soft); color: var(--brand-active); }
+/* The owner's edit and removal disclosures read as one quiet pair, marked with
+   the shared text-disclosure chevron. */
+:is(.discussion-owner-editor, .discussion-removal) > summary { inline-size: fit-content; max-inline-size: 100%; gap: 0; border: 0; padding-inline: 0; color: var(--muted-warm); cursor: pointer; font-size: .8125rem; font-weight: 650; }
+.discussion-utility { color: var(--muted-warm); font-size: .8125rem; }
+@media (hover: hover) and (pointer: fine) {
+  :is(.discussion-owner-editor, .discussion-removal) > summary:hover { background: none; color: var(--brand); }
+}
+:is(.discussion-owner-editor, .discussion-removal) > summary:active { background: var(--brand-soft); color: var(--brand-active); }
 .conversation-record { display: grid; justify-items: start; gap: .5rem; padding-block: 1.5rem; }
 .conversation-record > * { max-inline-size: 100%; }
 .conversation-record [data-slot="button"] { max-inline-size: 100%; flex-shrink: 1; }
