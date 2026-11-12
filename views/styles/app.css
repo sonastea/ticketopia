@@ -16,6 +16,8 @@
 .live-activity summary { min-block-size: 2.75rem; padding-block: .6rem; color: var(--brand); font-weight: 700; cursor: pointer; }
 .live-activity summary:active { background: var(--brand-soft); }
 .live-activity summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+/* Sits in one bar with the Hide toasts and Refresh text actions; match them. */
+.live-activity .account-more > summary { font-size: .875rem; }
 .live-activity ul { list-style: none; padding: 0; margin-block: .5rem; }
 .live-activity li { padding-block: .5rem; border-block-start: 1px solid var(--line); }
 .live-activity [data-live-badge] { font-variant-numeric: tabular-nums; font-weight: 500; }
