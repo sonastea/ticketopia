@@ -135,7 +135,7 @@ templ EventHeadingFacts(page EventPage) {
 
 templ EventSectionRegion(page EventPage, panel bool) {
 	<div data-event-section-region data-event-id={ page.Detail.Item.ID } data-section={ page.Section } data-presentation={ eventPresentation(panel) } data-action-return={ page.ActionReturnURL } data-section-thread={ contextThreadID(page) }>
-		<p class="field-note" data-section-status role="status" hidden></p>
+		<p class="field-note" data-section-status role="status"></p>
 		<div data-section-body>
 			if panel && (page.Section == "overview" || page.Section == "") {
 				@EventImage(page.Detail.Item, artDetail)

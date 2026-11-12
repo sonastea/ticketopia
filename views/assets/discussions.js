@@ -57,7 +57,8 @@
   }
   function feedback(form, message) {
     const status = form.querySelector('[data-composer-status]');
-    if (status) { status.hidden = !message; status.textContent = message; }
+    // The region stays present (empty when quiet) so new messages are announced.
+    if (status) status.textContent = message;
   }
   function sync(form) {
     const attempt = attempts.get(form);
@@ -197,8 +198,8 @@
     const position = scrollY;
     if (push) rememberConversation();
     document.querySelectorAll('[data-discussion-draft]').forEach(save);
-    status.hidden = false;
-    status.textContent = confirmation?.notice || 'Loading conversation…';
+    // After a write, its confirmation was already announced; stay quiet.
+    status.textContent = confirmation ? '' : 'Loading conversation…';
     content.setAttribute('aria-busy', 'true');
     try {
       const response = await fetch(url, {credentials: 'same-origin', signal: controller.signal});
@@ -229,7 +230,7 @@
         const editor = [...content.querySelectorAll('[data-discussion-draft]')].find(form => form.dataset.discussionDraft === open)?.closest('details');
         if (editor) editor.open = true;
       }
-      status.textContent = confirmation?.notice || 'Conversation loaded.';
+      status.textContent = confirmation ? '' : 'Conversation loaded.';
       status.classList.add('sr-only');
       let target;
       if (saved) {
@@ -308,9 +309,11 @@
     if (error) error.hidden = true;
     form.dataset.pending = 'true'; form.setAttribute('aria-busy', 'true'); submitter.disabled = true;
     const settle = showPending(submitter);
-    if (draft) { sync(form); feedback(form, submitter.value === 'create' ? 'Publishing contribution…' : 'Saving changes…'); }
+    if (draft) sync(form);
     const status = document.querySelector('[data-discussion-status]');
-    if (status) status.textContent = 'Saving contribution…';
+    // Progress and confirmation go to the page-wide status: the busy form's own
+    // region could be held back by assistive technology until the write ends.
+    if (status) status.textContent = !draft ? 'Saving contribution…' : submitter.value === 'create' ? 'Publishing contribution…' : 'Saving changes…';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     let responseStatus = 0;
@@ -334,7 +337,9 @@
           form.elements.body.value = '';
           form.elements.idempotency_key.value = crypto.randomUUID().replaceAll('-', '');
         }
-        feedback(form, result.notice);
+        // The page-wide status announces the confirmation; clear any earlier
+        // composer message (such as a restored draft).
+        feedback(form, '');
       }
       if (status) status.textContent = result.notice;
       if (form.isConnected && (!page || submittedTurn === readTurn)) {

@@ -1029,7 +1029,6 @@
   const sectionError = (region, section, url, next, retry, retain) => {
     const message = region.querySelector('[data-section-status]');
     message.classList.remove('sr-only');
-    message.hidden = false;
     message.replaceChildren(document.createTextNode(sectionNames[section] + ' could not be loaded.' + (retain ? ' Still showing ' + sectionNames[region.dataset.section] + '. ' : ' ')));
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'button-quiet'; button.textContent = 'Retry';
@@ -1092,7 +1091,7 @@
     const turn = ++generation;
     if (!force && push && region.dataset.section === section && !region.dataset.sectionThread && !url.pathname.includes('/discussions') && !region.querySelector('[data-section-retry]') && (!recommend || new URL(location.href).searchParams.get('recommend') === 'true')) {
       region.removeAttribute('aria-busy');
-      region.querySelector('[data-section-status]').hidden = true;
+      region.querySelector('[data-section-status]').textContent = '';
       if (recommend) openRecommendation(host);
       return;
     }
@@ -1105,9 +1104,9 @@
     const timeout = setTimeout(() => currentRequest.abort(), 12000);
     const message = region.querySelector('[data-section-status]');
     const previousSection = region.dataset.section;
-    message.hidden = false;
     message.classList.remove('sr-only');
-    message.textContent = 'Loading ' + sectionNames[section] + '. Still showing ' + sectionNames[previousSection] + '.';
+    // A write's confirmation was already announced by the form; stay quiet.
+    message.textContent = confirmation ? '' : 'Loading ' + sectionNames[section] + '. Still showing ' + sectionNames[previousSection] + '.';
     region.setAttribute('aria-busy', 'true');
     try {
       const headers = { 'X-Ticketopia-Section': 'true' };
@@ -1172,9 +1171,8 @@
       renderedURL = location.href;
       window.htmx?.process(host);
       document.dispatchEvent(new Event('ticketopia:section-loaded'));
-      message.hidden = false;
       message.classList.add('sr-only');
-      message.textContent = confirmation?.notice || sectionNames[section] + ' loaded.';
+      message.textContent = confirmation ? '' : sectionNames[section] + ' loaded.';
       await new Promise(resolve => requestAnimationFrame(() => {
         if (turn !== generation) { resolve(); return; }
         if (saved) {
