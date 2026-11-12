@@ -3026,11 +3026,19 @@ html:has(.filter-sheet:modal) {
     font-size: .75rem;
     font-weight: 650;
     white-space: nowrap;
-    pointer-events: none;
   }
   body.nav-collapsed .nav-link:focus-visible::after { display: block; }
   @media (hover: hover) and (pointer: fine) {
     body.nav-collapsed .nav-link:hover::after { display: block; }
+    /* The label is part of its link, so the pointer can move onto it; this
+       invisible bridge spans the gap so crossing it keeps the label open. */
+    body.nav-collapsed .nav-link:hover::before {
+      content: "";
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: 100%;
+      inline-size: 1rem;
+    }
   }
   /* Collapsed-rail labels fade in and out rather than flashing. */
   @media (prefers-reduced-motion: no-preference) {
@@ -3049,6 +3057,8 @@ html:has(.filter-sheet:modal) {
       }
     }
   }
+  /* Escape dismissed it (app.js). */
+  body.nav-collapsed .nav-link[data-tip-dismissed]::after { display: none; }
   body.nav-collapsed .sidebar-toggle .icon-collapse {
     display: none;
   }

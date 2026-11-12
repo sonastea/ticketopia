@@ -651,6 +651,23 @@
         } catch { /* The toggle still works for this page view. */ }
         announce(collapsed ? 'Sidebar collapsed.' : 'Sidebar expanded.');
       });
+      // Escape dismisses a collapsed-rail label without moving the pointer or
+      // focus; it returns once the link is neither hovered nor focused.
+      document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || !document.body.classList.contains('nav-collapsed')) return;
+        for (const link of sidebar.querySelectorAll('.nav-link:is(:hover, :focus-visible)')) {
+          if ('tipDismissed' in link.dataset) continue;
+          link.dataset.tipDismissed = '';
+          const restore = () => {
+            if (link.matches(':hover, :focus')) return;
+            delete link.dataset.tipDismissed;
+            link.removeEventListener('pointerleave', restore);
+            link.removeEventListener('focusout', restore);
+          };
+          link.addEventListener('pointerleave', restore);
+          link.addEventListener('focusout', restore);
+        }
+      });
     }
 
     if (navOrder) {
