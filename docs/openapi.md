@@ -31,7 +31,7 @@ For example, the event-search contract documents `limit` as an integer from 1 to
 - `openapi: 3.1.0` identifies the **OpenAPI specification format**, not the Go or
   Node version.
 - `info` describes the API's title, description, license, and contract version
-   (currently `1.22.0`). That version is distinct from the `/api/v1` URL namespace.
+   (currently `1.23.0`). That version is distinct from the `/api/v1` URL namespace.
 - `servers` identifies the API base URL; `/` makes it relative to the serving host.
 - `paths` lists routes, methods, parameters, response codes, and media types.
 - `components` holds reusable schemas and error responses. `$ref` links reuse
@@ -60,10 +60,11 @@ curl http://localhost:8080/api/v1/openapi.yaml
 The embedded document ships in the Go binary and container; it is not a separate
 runtime configuration file. Rebuild and restart the application after editing it.
 
-Paths and methods that match no route are outside the contract. Under `/api`
-and `/mcp`, and for any request that does not accept `text/html`, they keep
-Echo's JSON `{"message": ...}` 404/405 body rather than problem+json; only a
-browser page navigation gets the site's HTML not-found page.
+Paths and methods that match no route answer 404/405 with `Cache-Control:
+no-store` and `Vary: Accept`. Under `/api` the body is problem+json with code
+`route_not_found` or `method_not_allowed` (405 keeps the `Allow` header). A
+browser page navigation elsewhere gets the site's HTML not-found page; other
+requests (including `/mcp`) keep Echo's JSON `{"message": ...}` body.
 
 The contract is **maintained by hand**, alongside Echo handlers and Go models.
 It does not automatically register routes, validate requests, generate Go code,

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -71,8 +72,6 @@ func TestUnknownPagesAnswerBrowsersWithASitePage(t *testing.T) {
 		{"no Accept", http.MethodGet, "/no-such-page", "", nil},
 		{"JSON client", http.MethodGet, "/no-such-page", "application/json", nil},
 		{"HTML refused", http.MethodGet, "/no-such-page", "text/html;q=0, application/json", nil},
-		{"API path", http.MethodGet, "/api/v1/no-such-resource", browser, nil},
-		{"API root", http.MethodGet, "/api", browser, nil},
 		{"MCP subpath", http.MethodGet, "/mcp/extra", browser, nil},
 		{"section load", http.MethodGet, "/no-such-page", browser, []string{"X-Ticketopia-Section", "true"}},
 		{"htmx", http.MethodGet, "/no-such-page", browser, []string{"HX-Request", "true"}},
@@ -87,6 +86,42 @@ func TestUnknownPagesAnswerBrowsersWithASitePage(t *testing.T) {
 				t.Fatalf("non-navigation must keep JSON: %v\n%s", w.Header(), w.Body)
 			}
 		})
+	}
+}
+
+// Unmatched /api routes answer in the API's problem+json format, for browsers too.
+func TestUnknownAPIRoutesAnswerProblems(t *testing.T) {
+	routes := (&api{}).Routes()
+	for _, tc := range []struct {
+		method, path, accept, code string
+		status                     int
+	}{
+		{http.MethodGet, "/api/v1/no-such-resource", "text/html,*/*;q=0.8", "route_not_found", http.StatusNotFound},
+		{http.MethodGet, "/api", "", "route_not_found", http.StatusNotFound},
+		{http.MethodDelete, "/api/v1/events", "application/json", "method_not_allowed", http.StatusMethodNotAllowed},
+	} {
+		r := httptest.NewRequest(tc.method, tc.path, nil)
+		if tc.accept != "" {
+			r.Header.Set("Accept", tc.accept)
+		}
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, r)
+		var problem struct {
+			Status int
+			Code   string
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &problem); err != nil || w.Code != tc.status || problem.Status != tc.status || problem.Code != tc.code ||
+			w.Header().Get("Content-Type") != "application/problem+json" || w.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("%s %s: %d %v %s", tc.method, tc.path, w.Code, w.Header(), w.Body)
+		}
+		if tc.status == http.StatusMethodNotAllowed && !strings.Contains(w.Header().Get("Allow"), http.MethodGet) {
+			t.Errorf("405 must keep Allow: %v", w.Header())
+		}
+	}
+	head := httptest.NewRecorder()
+	routes.ServeHTTP(head, httptest.NewRequest(http.MethodHead, "/api/v1/no-such-resource", nil))
+	if head.Code != http.StatusNotFound || head.Body.Len() != 0 {
+		t.Fatalf("HEAD: %d %q", head.Code, head.Body)
 	}
 }
 

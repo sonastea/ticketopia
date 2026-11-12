@@ -26,6 +26,10 @@ func httpErrorHandler(err error, c echo.Context) {
 	header := c.Response().Header()
 	header.Add("Vary", "Accept")
 	header.Set("Cache-Control", "no-store")
+	if apiPath(c.Request().URL.Path) {
+		apiRoutingProblem(c, routing.Code)
+		return
+	}
 	if !pageNavigation(c.Request()) {
 		c.Echo().DefaultHTTPErrorHandler(err, c)
 		return
@@ -38,6 +42,29 @@ func httpErrorHandler(err error, c echo.Context) {
 	if renderErr := render(c, routing.Code, home.NotFound(routing.Code)); renderErr != nil {
 		c.Echo().DefaultHTTPErrorHandler(err, c)
 	}
+}
+
+func apiPath(path string) bool { return path == "/api" || strings.HasPrefix(path, "/api/") }
+
+// apiRoutingProblem answers an /api path or method that matches no route in the
+// API's problem+json format, keeping Echo's Allow header on 405.
+func apiRoutingProblem(c echo.Context, status int) {
+	code, detail := "route_not_found", "No API endpoint exists at this path. See /api/v1/openapi.yaml."
+	if status == http.StatusMethodNotAllowed {
+		code, detail = "method_not_allowed", "This API endpoint does not accept this method; see the Allow header."
+	}
+	c.Response().Header().Set(echo.HeaderContentType, "application/problem+json")
+	if c.Request().Method == http.MethodHead {
+		c.Response().WriteHeader(status)
+		return
+	}
+	_ = c.JSON(status, struct {
+		Type   string `json:"type"`
+		Title  string `json:"title"`
+		Status int    `json:"status"`
+		Code   string `json:"code"`
+		Detail string `json:"detail"`
+	}{"about:blank", http.StatusText(status), status, code, detail})
 }
 
 // pageNavigation reports whether r asks for an HTML page outside the API,

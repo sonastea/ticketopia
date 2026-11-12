@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-11-11 — Problem+json for unmatched API routes, contract v1.23.0
+
+- `/api` paths and methods that match no route answer problem+json with
+  `route_not_found` (404) or `method_not_allowed` (405, keeping `Allow`)
+  instead of Echo's `{"message": ...}`, with `Cache-Control: no-store` and
+  `Vary: Accept`.
+
 ### 2026-11-11 — Busy and not-saved errors, complete problem codes, contract v1.22.0
 
 - Add `temporarily_unavailable` (503, `Retry-After: 5`) for an overloaded or

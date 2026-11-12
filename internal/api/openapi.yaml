@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.22.0
+  version: 1.23.0
   license:
     name: MIT
     identifier: MIT
@@ -3108,6 +3108,6 @@ components:
         code:
           type: string
           description: Stable machine-readable cause. `provider_unavailable` means the event provider could not answer; `temporarily_unavailable` means Ticketopia itself is busy (for example its database did not answer in time) and should be retried after `Retry-After`.
-          enum: [invalid_query, event_not_found, event_not_saved, date_not_announced, provider_unavailable, temporarily_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable, saved_events_unavailable, reminder_not_found, reminders_unavailable, event_interests_unavailable, event_recommendations_unavailable, follow_not_found, follows_unavailable, radar_changed, radar_unavailable, post_not_found, idempotency_conflict, discussions_unavailable, moderation_record_not_found, moderation_unavailable, moderator_access_required, review_changed, activity_unavailable, settings_changed, invalid_preferences, precondition_required, precondition_failed]
+          enum: [invalid_query, event_not_found, event_not_saved, date_not_announced, provider_unavailable, temporarily_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable, saved_events_unavailable, reminder_not_found, reminders_unavailable, event_interests_unavailable, event_recommendations_unavailable, follow_not_found, follows_unavailable, radar_changed, radar_unavailable, post_not_found, idempotency_conflict, discussions_unavailable, moderation_record_not_found, moderation_unavailable, moderator_access_required, review_changed, route_not_found, method_not_allowed, activity_unavailable, settings_changed, invalid_preferences, precondition_required, precondition_failed]
         detail: {type: string}
         fields: {type: object, additionalProperties: {type: string}}
