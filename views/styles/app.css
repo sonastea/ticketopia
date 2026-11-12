@@ -3606,6 +3606,19 @@ html:has(.filter-sheet:modal) {
   border: 1px solid var(--control-line);
   border-radius: var(--radius);
   background: var(--surface);
+  transition: border-color 160ms var(--ease-out);
+}
+/* The keyword field is borderless inside the bar, so the bar is the field's
+   visible edge: it turns plum while typing and carries the keyboard focus ring
+   (the input's own ring would sit tight against its text). Without :has() the
+   input keeps its ring. */
+@supports selector(:has(*)) {
+  .command-bar:has(#keyword:focus) { border-color: var(--brand); }
+  .command-bar:has(#keyword:focus-visible) {
+    outline: 3px solid var(--brand);
+    outline-offset: 4px;
+  }
+  .command-bar #keyword:focus-visible { outline: none; }
 }
 [data-slot="button"].command-location {
   justify-content: start;
