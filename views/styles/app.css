@@ -2071,15 +2071,20 @@ html:has(.filter-sheet:modal) {
   margin-block-start: .5rem;
 }
 
+/* The current tab's indicator is its own .tab-mark element, painted beneath
+   the tab labels, so it can slide between tabs (app.js in place, view
+   transitions across pages) while the server-rendered position stays correct. */
 .section-nav {
   display: flex;
   flex-wrap: wrap;
   gap: .75rem;
   border-block-end: 1px solid var(--line);
   margin-block-start: 1.5rem;
+  isolation: isolate;
 }
 
 .section-nav a {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2099,8 +2104,17 @@ html:has(.filter-sheet:modal) {
 
 .section-nav a[aria-current="page"] {
   color: var(--brand);
-  border-block-end-color: var(--brand);
   font-weight: 800;
+}
+
+/* Covers the tab's own transparent 2px bottom border. */
+.tab-mark {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -2px;
+  z-index: -1;
+  border-block-end: 2px solid var(--brand);
+  pointer-events: none;
 }
 
 /* Event sections are navigation, with an explicit segmented current state. */
@@ -2134,10 +2148,16 @@ html:has(.filter-sheet:modal) {
 }
 
 .event-section-nav a[aria-current="page"] {
-  background: var(--surface);
-  border-color: var(--line);
   color: var(--brand);
   font-weight: 750;
+}
+
+/* The segment's white surface, over the tab's transparent 1px border. */
+.event-section-nav .tab-mark {
+  inset: -1px;
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  background: var(--surface);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2170,10 +2190,11 @@ html:has(.filter-sheet:modal) {
 }
 
 @media (forced-colors: active) {
-  .event-section-nav a[aria-current="page"] {
-    border-color: Highlight;
-    color: Highlight;
-  }
+  .event-section-nav a[aria-current="page"] { color: Highlight; }
+  /* Forced colours paint the tabs' transparent borders, so the mark sits above
+     them, without its (now opaque) surface; plain tabs drop their underline. */
+  .section-nav .tab-mark { z-index: 1; border-color: Highlight; background: none; }
+  .section-nav:not(.event-section-nav) a { border-block-end-color: Canvas; }
   :is(.event-actions, .discussion-actions) .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
     border-color: Highlight;
   }
@@ -3241,7 +3262,7 @@ html:has(.filter-sheet:modal) {
   ::view-transition-group(sidebar), ::view-transition-group(shell-context) { overflow: clip; }
   ::view-transition-group(sidebar) { z-index: 1; }
   /* Per-event artwork/titles stay inside the page snapshot. */
-  [data-shell-transition] :is(.event-image, .event-row h3, .event-context h2) { view-transition-name: none !important; }
+  [data-shell-transition] :is(.event-image, .event-row h3, .event-context h2, .tab-mark) { view-transition-name: none !important; }
   ::view-transition-group(shell-main), ::view-transition-new(shell-main) { animation: none; }
   ::view-transition-old(shell-main) { display: none; }
   ::view-transition-old(sidebar), ::view-transition-new(sidebar),
@@ -3260,6 +3281,14 @@ html:has(.filter-sheet:modal) {
   ::view-transition-old(.event-art), ::view-transition-new(.event-art) {
     block-size: 100%;
     object-fit: cover;
+  }
+  /* Community and moderation tabs are page links: the underline slides to the
+     new tab like the in-place event segments (app.js), which are excluded here
+     because their white surface would cover the labels in a snapshot. */
+  .section-nav:not(.event-section-nav) .tab-mark { view-transition-name: section-tab-mark; }
+  ::view-transition-group(section-tab-mark) {
+    animation-duration: 240ms;
+    animation-timing-function: var(--ease-standard);
   }
   @keyframes settle-in {
     from { opacity: 0; translate: 0 .375rem; }

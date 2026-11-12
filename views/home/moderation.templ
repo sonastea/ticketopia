@@ -145,7 +145,16 @@ templ ModerationQueue(p ModerationQueuePage) {
 	@layouts.App("profile","Moderator review queue") {
 		<main id="main" class="destination-page moderation-page"><h1>Moderator review queue</h1><p class="intro">Review the contribution and its conversation before deciding. Report counts are context, never votes for removal. Cases about your own contributions are private to other moderators.</p>
 			@ModerationLinks(true,"queue")
-			<nav class="section-nav" aria-label="Review queue filter"><a href="/moderation" aria-current={ layouts.CurrentPage(!p.All) } class="text-link">Awaiting review</a><a href="/moderation?state=all" aria-current={ layouts.CurrentPage(p.All) } class="text-link">All cases</a></nav>
+			<nav class="section-nav" aria-label="Review queue filter">
+				<a href="/moderation" aria-current={ layouts.CurrentPage(!p.All) } class="text-link">
+					Awaiting review
+					@tabMark(!p.All)
+				</a>
+				<a href="/moderation?state=all" aria-current={ layouts.CurrentPage(p.All) } class="text-link">
+					All cases
+					@tabMark(p.All)
+				</a>
+			</nav>
 			if len(p.List.Items)==0 {
 				<p class="moderation-empty">No cases on this page. { ternary(p.All,"Reports and decisions will appear here.","There are no reports or review requests awaiting a decision on this page.") }</p>
 			}

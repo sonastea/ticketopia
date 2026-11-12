@@ -356,7 +356,17 @@ templ EventStatus(status string) {
 }
 
 templ SectionLink(page EventPage, section string, text string) {
-	<a href={ templ.URL(sectionURL(page, section)) } data-panel-link data-event-section={ section } aria-current={ layouts.CurrentPage(page.Section == section || (page.Section == "" && section == "overview")) }>
+	{{ current := page.Section == section || (page.Section == "" && section == "overview") }}
+	<a href={ templ.URL(sectionURL(page, section)) } data-panel-link data-event-section={ section } aria-current={ layouts.CurrentPage(current) }>
 		{ text }
+		@tabMark(current)
 	</a>
+}
+
+// tabMark draws a section-nav current-state indicator as its own element, so
+// app.js and cross-document view transitions can slide it between tabs.
+templ tabMark(current bool) {
+	if current {
+		<span class="tab-mark" aria-hidden="true"></span>
+	}
 }

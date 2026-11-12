@@ -55,6 +55,23 @@
     }
     return result;
   };
+  // Slides a section nav's current-tab mark from the tab it marked before
+  // `update` to the tab it marks after. Only the absolutely positioned mark's
+  // left/right insets animate, so the tabs never lay out again; the
+  // server-rendered mark is already in place without this.
+  const slideTab = (nav, update) => {
+    const was = motionOK() && nav?.querySelector('.tab-mark')?.getBoundingClientRect();
+    update();
+    const mark = nav?.querySelector('.tab-mark');
+    if (!was || !mark?.animate) return;
+    const now = mark.getBoundingClientRect();
+    if (Math.abs(was.left - now.left) < 1 && Math.abs(was.right - now.right) < 1) return;
+    const { left, right } = getComputedStyle(mark);
+    mark.animate({
+      left: [`${parseFloat(left) + was.left - now.left}px`, left],
+      right: [`${parseFloat(right) + now.right - was.right}px`, right],
+    }, { duration: 240, easing: easing('standard') });
+  };
   // Shell layout switches (sidebar collapse, preview open/close) change grid
   // tracks instantly inside a same-document view transition, so snapshots move
   // on the compositor instead of the workspace laying out every frame. The root's
@@ -1087,7 +1104,9 @@
         }
       }
       host.dataset.viewerKey = shell.dataset.viewerKey;
-      for (const selector of ['[data-shell-facts]', '.event-primary-actions', '.event-section-nav', '.event-participation', '.event-provenance']) reconcile(host.querySelector(selector), shell.querySelector(selector));
+      slideTab(host.querySelector('.event-section-nav'), () => {
+        for (const selector of ['[data-shell-facts]', '.event-primary-actions', '.event-section-nav', '.event-participation', '.event-provenance']) reconcile(host.querySelector(selector), shell.querySelector(selector));
+      });
       if (!panel) reconcile(host.querySelector('.event-identity > .event-image'), shell.querySelector('.event-image'));
       const body = region.querySelector('[data-section-body]');
       body.replaceChildren(...fresh.querySelector('[data-section-body]').childNodes);

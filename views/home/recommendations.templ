@@ -123,10 +123,19 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 // the pilot its 10-minute window is usually empty.
 templ CommunityNav(current string) {
 	<nav class="section-nav" aria-label="Community collections">
-		<a href="/community" aria-current={ layouts.CurrentPage(current == "recommendations") } class="text-link">Recommendations</a>
-		<a href="/community/discussions" aria-current={ layouts.CurrentPage(current == "conversations") } class="text-link">Conversations</a>
+		<a href="/community" aria-current={ layouts.CurrentPage(current == "recommendations") } class="text-link">
+			Recommendations
+			@tabMark(current == "recommendations")
+		</a>
+		<a href="/community/discussions" aria-current={ layouts.CurrentPage(current == "conversations") } class="text-link">
+			Conversations
+			@tabMark(current == "conversations")
+		</a>
 		if layouts.LiveActivityEnabled(ctx) {
-			<a href="/happening-now" aria-current={ layouts.CurrentPage(current == "happening-now") } class="text-link">Happening Now</a>
+			<a href="/happening-now" aria-current={ layouts.CurrentPage(current == "happening-now") } class="text-link">
+				Happening Now
+				@tabMark(current == "happening-now")
+			</a>
 		}
 	</nav>
 }

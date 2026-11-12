@@ -428,3 +428,38 @@ func TestOnSaleReminderIsAnEventAction(t *testing.T) {
 		})
 	}
 }
+
+// The current-tab indicator is an element app.js and view transitions slide,
+// so every section nav renders exactly one, inside its current tab.
+func TestSectionNavsMarkOnlyTheCurrentTab(t *testing.T) {
+	for name, component := range map[string]templ.Component{
+		"community":  CommunityNav("conversations"),
+		"event":      EventSections(EventPage{Section: "discussion"}),
+		"moderation": ModerationQueue(ModerationQueuePage{All: true}),
+	} {
+		doc, err := html.Parse(strings.NewReader(renderNeighbor(t, component)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		marks := 0
+		for _, link := range neighborElements(doc, "a") {
+			current := false
+			for _, attr := range link.Attr {
+				current = current || attr.Key == "aria-current" && attr.Val == "page"
+			}
+			for child := link.FirstChild; child != nil; child = child.NextSibling {
+				for _, attr := range child.Attr {
+					if attr.Key == "class" && attr.Val == "tab-mark" {
+						marks++
+						if !current {
+							t.Fatalf("%s: a tab that is not current carries the mark", name)
+						}
+					}
+				}
+			}
+		}
+		if marks != 1 {
+			t.Fatalf("%s: want one current-tab mark, got %d", name, marks)
+		}
+	}
+}
