@@ -81,6 +81,8 @@ func iconName(name string) string {
 		return "user-round"
 	case "interests":
 		return "star"
+	case "helpful":
+		return "thumbs-up"
 	case "follows":
 		return "radio"
 	case "location":
