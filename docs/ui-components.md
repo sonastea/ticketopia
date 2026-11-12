@@ -205,6 +205,12 @@ its own `transition` replaces it, so list colour properties there too.
 `flip(nodes, update)` for reorders: it measures, runs `update`, then animates
 `translate` from the old positions, subtracting a moving ancestor's offset for
 nested groups/items and restarting from in-flight positions on rapid repeats.
+Section navs render their current-tab indicator as a `.tab-mark` child of the
+current link, painted beneath the labels from the nav's own stacking context.
+`slideTab(nav, update)` animates that mark's `left`/`right` insets from the old
+tab after an in-place event-section swap; Community and moderation tabs name it
+`section-tab-mark` for cross-document view transitions (event segments are not
+named: their surface would cover the labels in a snapshot).
 Collection removal runs its scroll compensation and focus handoff inside
 `update`, so neither becomes motion. Entrances are limited to reader-initiated
 changes (not history restores or post-write refreshes); posts use a transient
@@ -240,7 +246,10 @@ updating components, and review the registry diff before using `--overwrite`:
   variant instead of an unconditional arbitrary `a:hover` selector.
 - Rendered components (`alert`, `badge`, `button`, `card`, `empty`, `input`) use
   logical inline and block utilities (block ones need Tailwind 4.2+). They clip with `overflow-clip`, name color-only transitions, and keep a
-  transparent `outline-hidden` instead of `outline-none`.
+  transparent `outline-hidden` instead of `outline-none`. Forced colours would
+  paint that resting outline beside the (also painted) transparent border, so
+  `app.css` drops it there on buttons that aren't focused; focus and the
+  sidebar's current state keep their outlines.
 
 - `baseui/lifecycle.js` rescans for component parts only when a mutation adds or
   removes an element; text and comment changes are ignored.

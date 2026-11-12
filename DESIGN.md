@@ -520,7 +520,13 @@ a plain fade under reduced motion). An event section or conversation still
 loading after 250ms keeps its content at full contrast and shows a 2px brand
 line along its top edge with a progress cursor (a 160ms fade, kept under reduced
 motion; a border, so forced colours keep it); the arrival removes it at once. Helpful shares the
-participation controls' tinted hover and deeper press wash.
+participation controls' tinted hover and deeper press wash. A Discover search
+still loading after 300ms shows the same ring on its submit button (white on
+plum), cleared when Back restores the page. A section nav's current-tab
+indicator (event segment surface, Community/moderation underline) slides to
+the newly current tab (240ms, `--ease-standard`): in place for event sections,
+by cross-document view transition for page tabs; reduced motion and no-script
+navigation show it in place at once.
 A reader-chosen event section or conversation fades in (160ms); Load more rows
 settle in as one batch and late-loading result artwork fades over its placeholder
 (200ms). A post reached by link, or just published or edited, flashes the

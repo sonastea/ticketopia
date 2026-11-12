@@ -2,7 +2,20 @@
 
 ## Unreleased
 
-### 2026-11-11 — Discussion feedback and slow-read states
+### 2026-11-11 — Discussion feedback, slow reads, tabs, search and 404
+
+- Unknown pages opened in a browser get a site page (404, or 405 for a form
+  action's address) with a way back to Discover; API, MCP and other
+  non-HTML requests keep Echo's JSON. See [OpenAPI](../openapi.md).
+- The current-tab indicator is its own element and slides between tabs (240ms,
+  `--ease-standard`): in place on event sections, and by cross-document view
+  transition on Community and moderation tabs. Static under reduced motion or
+  without JavaScript; Highlight in forced colours, where plain tabs drop their
+  forced underline.
+- A Discover search still loading after 300ms shows the shared pending ring on
+  its submit button (cleared when Back restores the page from cache).
+- Forced colours no longer ring every button and nav link twice: the resting
+  `outline-hidden` outline is dropped, so focus is the only outline.
 
 - Helpful, Publish, Save changes and Remove show the shared 300ms pending ring;
   a confirmed Helpful count rolls in from the direction it moved (a fade under
@@ -70,27 +83,5 @@
   hints; the header wordmark meets 44px.
 - Add a favicon, apple-touch icon and web manifest (`minimal-ui`) from new SVG
   ticket-tile sources ([icons README](../../views/assets/icons/README.md)).
-
-### 2026-10-26 — Interaction motion
-
-- Sidebar collapse/expand and desktop preview open/close animate as 380ms
-  same-document view transitions (the grid still switches instantly, so no
-  per-frame workspace layout): the page takes its new layout at once while the
-  rail or preview slides over it like a drawer.
-- The signed-in Save control reserves the **Remove from Saved** width, so saving
-  no longer pushes it onto a new row (seen at ~380–530px and in some desktop
-  card widths).
-- Native controls share a 160ms colour transition baseline, and borders now ease
-  too (library buttons, actions, section tabs). Action feedback, inline errors and
-  newly revealed controls fade in, toasts drop in, pending forms dim gradually and
-  rail labels fade out. Found by a four-way transition audit.
-- Section and conversation swaps fade in, Load more rows settle in, late result
-  artwork fades in, and linked/just-written posts flash once. Rows surviving a
-  Saved/Interests removal and reordered sidebar items/sections slide into place.
-- Disclosures grow open and shut via `::details-content`; loaded previews settle
-  in; collapsed-rail labels fade in; saved bookmarks and interested stars fill and
-  pop when toggled. All motion is skipped under reduced motion (see the
-  [guide](../ui-components.md#modern-css-conventions)). Verified in Chrome; WebKit
-  opens disclosures instantly.
 
 Older entries: [UI component archive](archive/ui-components/).
