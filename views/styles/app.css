@@ -3703,6 +3703,30 @@ html:has(.filter-sheet:modal) {
   .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }
 }
 
+/* Rows that scroll sideways fade whichever edge still has more to show. The
+   scroll position drives the fade widths; without overflow the timeline is
+   inactive and both stay 0, and engines without scroll-driven animations keep
+   the hard edge (the vendored scroll-fade-x utility would fade them always).
+   Nothing moves. Focused items scroll clear of the fade (app.js). */
+@property --overflow-fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --overflow-fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes overflow-fade-start { from { --overflow-fade-start: 0px; } to { --overflow-fade-start: 1.5rem; } }
+@keyframes overflow-fade-end { from { --overflow-fade-end: 1.5rem; } to { --overflow-fade-end: 0px; } }
+@supports (animation-timeline: scroll()) {
+  :is(.date-chips, .event-section-nav) {
+    --overflow-fade-direction: to right;
+    scroll-padding-inline: 1.5rem;
+    mask-image: linear-gradient(var(--overflow-fade-direction), transparent, oklch(0% 0 none) var(--overflow-fade-start), oklch(0% 0 none) calc(100% - var(--overflow-fade-end)), transparent);
+    animation-name: overflow-fade-start, overflow-fade-end;
+    animation-duration: auto;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: scroll(self inline);
+    animation-range: 0 1.5rem, calc(100% - 1.5rem) 100%;
+  }
+  :is(.date-chips, .event-section-nav):dir(rtl) { --overflow-fade-direction: to left; }
+}
+
 /* Community filters: one compact bar. Fields sit on a paper fill inside it. */
 .filter-bar {
   display: flex;

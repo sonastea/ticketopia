@@ -304,18 +304,25 @@
   document.addEventListener('error', event => {
     if (event.target.matches?.('.event-image img')) event.target.hidden = true;
   }, true);
-  // Keep the current event section in view within its sideways-scrolling tabs.
+  // Keep the current event section, and any focused item, in view within
+  // sideways-scrolling rows, clear of their scroll padding (edge fades). Focus
+  // alone leaves a partly visible item where it is.
+  const revealInRow = (row, item) => {
+    if (!item || row.scrollWidth <= row.clientWidth) return;
+    const inset = parseFloat(getComputedStyle(row).scrollPaddingInlineStart) || 4;
+    const box = row.getBoundingClientRect(), rect = item.getBoundingClientRect();
+    if (rect.left < box.left + inset) row.scrollLeft += rect.left - box.left - inset;
+    else if (rect.right > box.right - inset) row.scrollLeft += rect.right - box.right + inset;
+  };
   const revealCurrentTab = () => {
-    for (const nav of document.querySelectorAll('.event-section-nav')) {
-      const current = nav.querySelector('[aria-current="page"]');
-      if (!current || nav.scrollWidth <= nav.clientWidth) continue;
-      const box = nav.getBoundingClientRect(), tab = current.getBoundingClientRect();
-      if (tab.left < box.left) nav.scrollLeft += tab.left - box.left - 4;
-      else if (tab.right > box.right) nav.scrollLeft += tab.right - box.right + 4;
-    }
+    for (const nav of document.querySelectorAll('.event-section-nav')) revealInRow(nav, nav.querySelector('[aria-current="page"]'));
   };
   revealCurrentTab();
   document.addEventListener('ticketopia:section-loaded', revealCurrentTab);
+  document.addEventListener('focusin', event => {
+    const row = event.target.closest?.('.date-chips, .event-section-nav');
+    if (row) revealInRow(row, event.target);
+  });
   // Result artwork that loads after the page (lazy or slow) fades over its
   // placeholder. Images already loaded before this script stay as they are.
   document.addEventListener('load', event => {
