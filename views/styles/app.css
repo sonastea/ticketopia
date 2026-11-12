@@ -3561,6 +3561,13 @@ html:has(.filter-sheet:modal) {
 [data-slot="button"].nav-link { justify-content: start; }
 .bottom-nav [data-slot="button"].nav-link { justify-content: center; }
 .sidebar [data-slot="button"]:focus-visible { outline-color: var(--brand); }
+/* Forced colours paint the component's transparent border and its resting
+   outline-hidden outline, ringing every button and nav link twice. Keep the
+   border as the control's edge and leave the outline to focus (and the
+   sidebar's current state), so a focused control stands out. */
+@media (forced-colors: active) {
+  [data-slot="button"]:not(:focus-visible) { outline-style: none; }
+}
 [data-slot="input"] { box-shadow: none; }
 [data-slot="input"], [data-slot="native-select"] { font-size: max(16px, 1rem); }
 [data-slot="label"].field { line-height: 1.6; }
