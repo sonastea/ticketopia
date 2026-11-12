@@ -125,7 +125,15 @@ Tailwind's `hover` variant and app hover rules require both hover capability and
 a fine pointer. Touch has flat pressed feedback; links remain selectable. Focus
 uses real outlines, including forced-colors mode. Geometry transitions and animations opt into
 `prefers-reduced-motion: no-preference` individually; there is no global rule
-that zeroes durations, so new motion must carry its own guard.
+that zeroes durations, so new motion must carry its own guard. Sideways-scrolling
+rows (date shortcuts, event sections) fade an edge only while more lies beyond
+it: a `scroll(self inline)` timeline drives registered fade widths in a mask,
+behind `@supports (animation-timeline: scroll())`. It moves nothing, so it is
+not reduced-motion gated; give such animations `animation-duration: auto`
+explicitly (the minified shorthand otherwise compiles to 0s). Rows that adopt it
+need matching `scroll-padding-inline`, and app.js reveals focused items past it.
+SVG icons tinted with their own author `color` take `color: inherit` in forced
+colours, which would otherwise keep that colour on the system canvas.
 
 Use parent-owned gaps and shrink-safe tracks. Page padding comes from the fluid
 `--space-page-block`/`--space-page-inline` tokens (also the event page's
@@ -150,12 +158,15 @@ scrolls: the root is a `page-scroll` scroll-state container, and
 focus). The event action bar changes its sticky `inset-block-end` rather than
 translating, so a bar that has settled in flow never overlaps what follows.
 Disclosures relying on the UA marker (`.account-more`, `.follow-search`,
-`.event-provenance`, `.account-token-details`) share a border-drawn chevron
+`.event-provenance`, `.account-token-details`, and the discussion owner's
+`.discussion-owner-editor`/`.discussion-removal`) share a border-drawn chevron
 instead, so WebKit and Chromium match and forced colours keep it. It reflows to two rows at 320px/390px with 200% text, keeping each
 label on one unbroken line. Its sticky shell row and margins reserve its actual
 height plus the `--nav-float-gap` above the bottom safe area, so page content remains
-reachable without a guessed spacer; JavaScript only reports the height to the
-event page's sticky action bar. Because media-query rem ignores enlarged page
+reachable without a guessed spacer; JavaScript reports the height
+(`--bottom-nav-block-size`) to the event page's sticky action bar and to the
+root `scroll-padding-block-end`, so keyboard focus scrolls clear of a pill that
+enlarged text has made taller than the 6rem floor. Because media-query rem ignores enlarged page
 text, JavaScript also sets `data-short-viewport` on the root below 32 actual
 rem of viewport height, which keeps that bar in place. Side insets use physical safe-area margins. The
 intermediate rail remains fixed and desktop navigation is unchanged.

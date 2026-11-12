@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### 2026-11-12 — Accessibility pass: focus, rail labels, headings, edge fades
+
+- With enlarged text, keyboard focus scrolls clear of the phone navigation
+  pill: root `scroll-padding-block-end` follows its measured height
+  (320px and 390px at 200% text: up to 100% covered before, none after).
+- Collapsed-rail labels can be hovered (the pointer can cross onto them) and
+  dismissed with Escape. Saved and Radar add a visually hidden h2 above results.
+  In forced colours the brand mark, city pin and search icons follow the text.
+- The command bar carries the keyword field's focus ring and plum border
+  (`:has()`); date shortcuts and event section tabs fade the edge that still
+  has more to scroll (scroll-driven; nothing moves; other browsers keep a hard
+  edge), and focused items scroll clear of it.
+- The owner's Edit/Remove contribution disclosures match, with the shared
+  chevron; Happening Now's filter summary takes the 14px quiet-action size; the
+  skip link is a 44px, control-cornered action.
+  See [CSS conventions](../ui-components.md#modern-css-conventions).
+
 ### 2026-11-11 — Discussion feedback, slow reads, tabs, search and 404
 
 - Unknown pages opened in a browser get a site page (404, or 405 for a form
@@ -70,18 +87,5 @@
 - Results warnings (last-known, partial, not collected, older) collapse to a
   one-line summary that opens into the full explanation; plain freshness stays a
   line.
-
-### 2026-10-26 — Mobile polish
-
-- Phone-width results keep a 5.5rem thumbnail beside the facts (about 370px per
-  result instead of 600px); enlarged text still stacks.
-- The floating navigation hides on downward scrolls and returns on upward ones
-  (scroll-direction queries; other browsers unchanged), and the event Tickets bar
-  drops into its place. Event section tabs stay on one swipeable row.
-- Filter fields align despite wrapping labels and Sort no longer truncates;
-  text disclosures share one chevron; search and country fields get keyboard
-  hints; the header wordmark meets 44px.
-- Add a favicon, apple-touch icon and web manifest (`minimal-ui`) from new SVG
-  ticket-tile sources ([icons README](../../views/assets/icons/README.md)).
 
 Older entries: [UI component archive](archive/ui-components/).
