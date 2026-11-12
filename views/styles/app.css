@@ -3630,6 +3630,11 @@ html:has(.filter-sheet:modal) {
   .command-location:hover strong { color: var(--brand); text-decoration-color: currentColor; }
 }
 .command-location:active strong { color: var(--brand-active); }
+/* SVGs keep an author colour set on themselves in forced colours, which would
+   leave these tinted icons dark on a dark canvas; take the link/text colour. */
+@media (forced-colors: active) {
+  :is(.brand, .command-location, .search-bar) > .icon { color: inherit; }
+}
 .command-bar > .search-bar {
   border: 0;
   border-block-start: 1px solid var(--line);
