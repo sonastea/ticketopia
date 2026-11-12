@@ -14,8 +14,8 @@
   forced underline.
 - A Discover search still loading after 300ms shows the shared pending ring on
   its submit button (cleared when Back restores the page from cache).
-- Forced colours no longer ring every button and nav link twice: the resting
-  `outline-hidden` outline is dropped, so focus is the only outline.
+- Forced colours no longer ring every button, nav link and text field twice:
+  the resting `outline-hidden` outline is dropped, so focus is the only outline.
 
 - Helpful, Publish, Save changes and Remove show the shared 300ms pending ring;
   a confirmed Helpful count rolls in from the direction it moved (a fade under

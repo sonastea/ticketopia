@@ -248,7 +248,7 @@ updating components, and review the registry diff before using `--overwrite`:
   logical inline and block utilities (block ones need Tailwind 4.2+). They clip with `overflow-clip`, name color-only transitions, and keep a
   transparent `outline-hidden` instead of `outline-none`. Forced colours would
   paint that resting outline beside the (also painted) transparent border, so
-  `app.css` drops it there on buttons that aren't focused; focus and the
+  `app.css` drops it there on buttons and text inputs that aren't focused; focus and the
   sidebar's current state keep their outlines.
 
 - `baseui/lifecycle.js` rescans for component parts only when a mutation adds or
