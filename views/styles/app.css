@@ -114,6 +114,10 @@
 .account-field-grid { display: flex; flex-wrap: wrap; gap: 1rem; }
 .account-field-grid > * { flex: 1 1 9rem; }
 .account-field-grid > :first-child { flex: 2 1 18rem; }
+/* The live activity filter's fields stack inside a disclosure with no flow
+   gap; space them like the account form, with notes close to their field. */
+[data-live-filter-details] > :where(:not(summary)) { margin-block-start: 1rem; }
+[data-live-filter-details] > .field-note { margin-block-start: .5rem; }
 .account-checkboxes { display: grid; gap: .5rem; padding: 0; border: 0; min-inline-size: 0; }
 .account-checkboxes legend { font-size: 1.25rem; font-weight: 750; margin-block: 1rem; }
 .account-checkboxes label { display: flex; align-items: center; gap: .75rem; min-block-size: 2.75rem; padding-block: .5rem; cursor: pointer; }
@@ -366,6 +370,44 @@ button:disabled {
 
 button, input, select {
   border-radius: .5rem;
+}
+
+/* WebKit keeps its native select look, which ignores padding and minimum
+   height: on iOS every select rendered 27px tall, its text against the border,
+   beside 46px fields. Draw the arrow ourselves so every engine honours the
+   field's box. The gradients are physical geometry, mirrored for RTL; forced
+   colours drop gradients, so the native arrow returns there. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  min-block-size: 2.75rem;
+  padding-inline-end: 2.5rem;
+  line-height: 1.6;
+  /* A thin V like the site's disclosure chevrons: a "\" and a "/" stroke in
+     two adjacent squares. */
+  --chevron-stroke: transparent calc(50% - .07rem), currentColor calc(50% - .07rem) calc(50% + .07rem), transparent calc(50% + .07rem);
+  background-image: linear-gradient(45deg, var(--chevron-stroke)), linear-gradient(-45deg, var(--chevron-stroke));
+  background-position: right 1.3rem center, right .85rem center;
+  background-size: .45rem .45rem;
+  background-repeat: no-repeat;
+}
+select:not([multiple]):not([size]):dir(rtl) {
+  background-position: left .85rem center, left 1.3rem center;
+}
+@media (forced-colors: active) {
+  select:not([multiple]):not([size]) { appearance: auto; -webkit-appearance: auto; }
+}
+
+/* iOS date fields ignore padding and alignment and collapse when empty unless
+   their native look is dropped; the tap still opens the system picker. */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"] {
+    appearance: none;
+    -webkit-appearance: none;
+    min-block-size: 2.875rem;
+    text-align: start;
+  }
+  input[type="date"]::-webkit-date-and-time-value { text-align: start; margin: 0; }
 }
 
 p, h1, h2, h3 {
@@ -791,9 +833,10 @@ input::placeholder {
   .save-button:hover:not(:disabled) { background: var(--brand-soft); color: var(--brand-dark); }
 }
 .save-form[aria-busy="true"] .save-button { color: var(--brand); background: var(--brand-soft); }
-/* Saved bookmarks and interested stars fill in; JavaScript adds a pop on change. */
-:is(.save-button, .interest-button) .icon { fill: currentColor; fill-opacity: 0; transition: fill-opacity 160ms var(--ease-out); }
-:is(.save-button[data-saved="true"], .interest-button[aria-pressed="true"]) .icon { fill-opacity: 1; }
+/* Saved bookmarks, interested stars and helpful thumbs fill in; JavaScript adds
+   a pop on save and interest changes, and Helpful's count rolls. */
+:is(.save-button, .interest-button, .helpful-button) .icon { fill: currentColor; fill-opacity: 0; transition: fill-opacity 160ms var(--ease-out); }
+:is(.save-button[data-saved="true"], .interest-button[aria-pressed="true"], .helpful-button[aria-pressed="true"]) .icon { fill-opacity: 1; }
 /* A write still pending after 300ms swaps the action's icon, or a text-only
    action's label, for a spinner in the same space, so the button never resizes.
    The label stays in the accessible name; status regions announce progress. */
@@ -1077,6 +1120,12 @@ html:has(.filter-sheet:modal) {
   font-weight: 400;
 }
 
+/* A span with an id is the field's name (aria-labelledby), not a hint. */
+.field > span[id] {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
 .field-wide {
   grid-column: 1 / -1;
 }
@@ -1090,7 +1139,7 @@ html:has(.filter-sheet:modal) {
   padding-inline: .7rem;
   margin-block-start: .4rem;
   border: 1px solid var(--control-line);
-  background: var(--surface);
+  background-color: var(--surface);
   color: var(--ink);
   font-weight: 500;
   font-size: 1rem;
@@ -1098,7 +1147,7 @@ html:has(.filter-sheet:modal) {
 
 .field select:disabled {
   color: var(--muted-warm);
-  background: var(--paper);
+  background-color: var(--paper);
 }
 
 .field-note {
@@ -1107,8 +1156,16 @@ html:has(.filter-sheet:modal) {
   color: var(--muted-warm);
 }
 
-.field-note:empty {
+.field-note:empty:not([role="status"]) {
   display: none;
+}
+
+/* Live regions stay in the accessibility tree while empty, so a message
+   placed in them later is announced; out of flow, they add no grid or flex gap
+   until then. */
+.field-note[role="status"]:empty {
+  position: absolute;
+  margin-block: 0;
 }
 
 .filter-actions {
@@ -3759,7 +3816,7 @@ html:has(.filter-sheet:modal) {
   inline-size: auto;
   min-block-size: 2.75rem;
   border-color: transparent;
-  background: var(--paper);
+  background-color: var(--paper);
 }
 .filter-bar > .filter-bar-country { flex: 0 1 7rem; }
 .filter-bar > .action { flex: none; }
