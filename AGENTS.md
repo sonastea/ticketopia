@@ -89,6 +89,16 @@
   verify compact/desktop layouts, long content, enlarged text, touch feedback,
   keyboard/forced-colors focus, and reduced motion after shared styling changes.
 
+## UI/UX changes
+
+- The parent session, or a `general` subagent using the session's default model,
+  implements UI/UX changes and owns their final sign-off. The `reviewer` subagent
+  reviews the diff and may audit accessibility; its findings are inputs, not
+  approval.
+- After review fixes, the implementer re-verifies in a real browser (desktop and
+  phone, keyboard, reduced motion, forced colours, JavaScript off) before the
+  change is committed as final or merged.
+
 ## Validation and completion
 
 - Use the smallest useful check during implementation: affected Go package/tests
