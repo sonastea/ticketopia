@@ -410,17 +410,26 @@ h3 {
   block-size: 1.25em;
 }
 
+/* Shaped like a secondary action: control corners, 44px tall. */
 .skip-link {
   position: fixed;
   z-index: 100;
   inset-block-start: -6rem;
   inset-inline-start: 1rem;
-  padding-block: .75rem;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  padding-block: .65rem;
   padding-inline: 1rem;
   color: var(--brand);
   background: var(--surface);
-  border: 2px solid currentColor;
+  border: 1px solid var(--control-line);
+  border-radius: .5rem;
+  font-size: .875rem;
+  font-weight: 750;
+  text-decoration: none;
 }
+.skip-link:active { background: var(--brand-soft); color: var(--brand-active); }
 
 .skip-link:focus {
   inset-block-start: 1rem;
