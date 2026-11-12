@@ -182,6 +182,7 @@ func (a *api) Server(port int) *http.Server {
 
 func (a *api) Routes() *echo.Echo {
 	e := echo.New()
+	e.HTTPErrorHandler = httpErrorHandler
 	e.IPExtractor = a.ipExtractor
 	if e.IPExtractor == nil {
 		e.IPExtractor = echo.ExtractIPDirect()

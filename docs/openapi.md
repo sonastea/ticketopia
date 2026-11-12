@@ -60,6 +60,11 @@ curl http://localhost:8080/api/v1/openapi.yaml
 The embedded document ships in the Go binary and container; it is not a separate
 runtime configuration file. Rebuild and restart the application after editing it.
 
+Paths and methods that match no route are outside the contract. Under `/api`
+and `/mcp`, and for any request that does not accept `text/html`, they keep
+Echo's JSON `{"message": ...}` 404/405 body rather than problem+json; only a
+browser page navigation gets the site's HTML not-found page.
+
 The contract is **maintained by hand**, alongside Echo handlers and Go models.
 It does not automatically register routes, validate requests, generate Go code,
 or guarantee that responses match its schemas. Runtime behavior is implemented

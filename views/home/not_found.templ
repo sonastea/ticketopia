@@ -1,0 +1,40 @@
+package home
+
+import "net/http"
+import "strconv"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+import "github.com/sonastea/ticketopia/views/components/badge"
+import "github.com/sonastea/ticketopia/views/components/empty"
+
+// NotFound answers a browser navigation that matched no page (404) or reached
+// a page that only accepts another method, such as a form action (405).
+templ NotFound(status int) {
+	@layouts.App("", notFoundTitle(status)) {
+		<main id="main" class="destination-page">
+			<h1>{ notFoundTitle(status) }</h1>
+			@empty.Empty(empty.Props{Class: "destination-state"}) {
+				@badge.Badge(badge.Props{Class: "availability-label"}) {
+					{ strconv.Itoa(status) } { http.StatusText(status) }
+				}
+				if status == http.StatusMethodNotAllowed {
+					<h2>This address belongs to an action.</h2>
+					<p>It works from a button or form on Ticketopia, not as a page of its own. Nothing was changed.</p>
+				} else {
+					<h2>Nothing is playing at this address.</h2>
+					<p>The link may be mistyped, or the page may have moved. Events and conversations that still exist can be found from Discover.</p>
+				}
+				@button.Button(button.Props{Href: "/", Class: "action"}) {
+					<span>Discover events</span>@layouts.Icon("arrow")
+				}
+			}
+		</main>
+	}
+}
+
+func notFoundTitle(status int) string {
+	if status == http.StatusMethodNotAllowed {
+		return "This page can't be opened directly"
+	}
+	return "Page not found"
+}
