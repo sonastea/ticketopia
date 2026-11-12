@@ -274,8 +274,12 @@
   min-inline-size: 0;
 }
 
+/* Focused controls scroll clear of the floating phone navigation, whose height
+   app.js reports (0 once the rail replaces it); enlarged text can make it
+   several times taller than the 6rem floor. Before measurement (or without
+   JavaScript) its rem-sized estimate still grows with the text. */
 html {
-  scroll-padding-block: 2rem 6rem;
+  scroll-padding-block: 2rem max(6rem, calc(var(--bottom-nav-block-size, 4.5rem) + var(--nav-float-gap) + 1.5rem));
 }
 
 body {
