@@ -1025,10 +1025,18 @@
       }
       const recommend = sectionHost().querySelector('[data-recommend-intent]');
       if (recommend) recommend.hidden = section === 'community';
-      for (const item of sectionHost().querySelectorAll('[data-event-section]')) {
-        if (item.dataset.eventSection === section) item.setAttribute('aria-current', 'page');
-        else item.removeAttribute('aria-current');
-      }
+      // No fresh nav arrived, so move the mark here as the server would render it.
+      const nav = sectionHost().querySelector('.event-section-nav');
+      slideTab(nav, () => {
+        const mark = nav?.querySelector('.tab-mark') || Object.assign(document.createElement('span'), { className: 'tab-mark' });
+        mark.setAttribute('aria-hidden', 'true');
+        mark.remove();
+        for (const item of sectionHost().querySelectorAll('[data-event-section]')) {
+          if (item.dataset.eventSection !== section) { item.removeAttribute('aria-current'); continue; }
+          item.setAttribute('aria-current', 'page');
+          item.append(mark);
+        }
+      });
     }
   };
   // WebKit does not focus links on mouse click, so remember the clicked section

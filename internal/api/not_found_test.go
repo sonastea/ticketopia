@@ -45,6 +45,21 @@ func TestUnknownPagesAnswerBrowsersWithASitePage(t *testing.T) {
 	if head.Code != http.StatusNotFound || !strings.HasPrefix(head.Header().Get("Content-Type"), "text/html") {
 		t.Fatalf("HEAD must match GET's status and type: %d %v", head.Code, head.Header())
 	}
+	if head.Body.Len() != 0 {
+		t.Fatalf("HEAD must not send a body:\n%s", head.Body)
+	}
+
+	// Both representations share addresses, so neither may be cached for the other.
+	for name, w := range map[string]*httptest.ResponseRecorder{
+		"HTML 404": page, "HTML 405": action, "HTML HEAD": head,
+		"JSON 404": serve(http.MethodGet, "/no-such-page", "application/json"),
+		"JSON 405": serve(http.MethodGet, "/saved/ticketmaster:1", "application/json"),
+		"API 404":  serve(http.MethodGet, "/api/v1/no-such-resource", browser),
+	} {
+		if !strings.Contains(w.Header().Get("Vary"), "Accept") || w.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("%s must carry Vary: Accept and Cache-Control: no-store: %v", name, w.Header())
+		}
+	}
 
 	for _, tc := range []struct {
 		name    string
@@ -55,6 +70,7 @@ func TestUnknownPagesAnswerBrowsersWithASitePage(t *testing.T) {
 	}{
 		{"no Accept", http.MethodGet, "/no-such-page", "", nil},
 		{"JSON client", http.MethodGet, "/no-such-page", "application/json", nil},
+		{"HTML refused", http.MethodGet, "/no-such-page", "text/html;q=0, application/json", nil},
 		{"API path", http.MethodGet, "/api/v1/no-such-resource", browser, nil},
 		{"API root", http.MethodGet, "/api", browser, nil},
 		{"MCP subpath", http.MethodGet, "/mcp/extra", browser, nil},
@@ -71,5 +87,40 @@ func TestUnknownPagesAnswerBrowsersWithASitePage(t *testing.T) {
 				t.Fatalf("non-navigation must keep JSON: %v\n%s", w.Header(), w.Body)
 			}
 		})
+	}
+}
+
+func TestPrefersHTML(t *testing.T) {
+	for _, tc := range []struct {
+		accept string
+		want   bool
+	}{
+		{"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", true}, // Chrome
+		{"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", true},                                                                         // Firefox, Safari
+		{"TEXT/HTML", true},
+		{"Text/Html; Q=0.5", true},
+		{"text/html;level=1", true},
+		{"text/*", true},
+		{"application/json, text/html", true},
+		{"application/json;q=0.9, text/html", true},
+		{"text/*;q=0, text/html", true},
+		{"", false},
+		{"*/*", false}, // curl, fetch
+		{"application/json", false},
+		{"text/html;q=0, application/json", false},
+		{"TEXT/HTML;Q=0, application/json", false},
+		{"text/html;q=0", false},
+		{"text/html;q=0.000", false},
+		{"text/html;q=0.5, application/json", false},
+		{"text/html;q=0.5, */*", false},
+		{"text/html, text/*;q=0.1, application/*", true},
+		{"text/html;q=0.5, application/*;q=0.9", false},
+		{"text/html;q=2", false},
+		{"text/html;q=NaN", false},
+		{"text/plain", false},
+	} {
+		if got := prefersHTML(tc.accept); got != tc.want {
+			t.Errorf("prefersHTML(%q) = %v, want %v", tc.accept, got, tc.want)
+		}
 	}
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -16,14 +17,24 @@ import (
 func httpErrorHandler(err error, c echo.Context) {
 	var routing *echo.HTTPError
 	if c.Response().Committed || !errors.As(err, &routing) ||
-		(routing.Code != http.StatusNotFound && routing.Code != http.StatusMethodNotAllowed) ||
-		!pageNavigation(c.Request()) {
+		(routing.Code != http.StatusNotFound && routing.Code != http.StatusMethodNotAllowed) {
 		c.Echo().DefaultHTTPErrorHandler(err, c)
 		return
 	}
+	// The same address answers with HTML or JSON depending on the request, so
+	// neither representation may be stored and replayed for the other.
 	header := c.Response().Header()
 	header.Add("Vary", "Accept")
 	header.Set("Cache-Control", "no-store")
+	if !pageNavigation(c.Request()) {
+		c.Echo().DefaultHTTPErrorHandler(err, c)
+		return
+	}
+	if c.Request().Method == http.MethodHead {
+		header.Set(echo.HeaderContentType, echo.MIMETextHTMLCharsetUTF8)
+		c.Response().WriteHeader(routing.Code)
+		return
+	}
 	if renderErr := render(c, routing.Code, home.NotFound(routing.Code)); renderErr != nil {
 		c.Echo().DefaultHTTPErrorHandler(err, c)
 	}
@@ -45,5 +56,67 @@ func pageNavigation(r *http.Request) bool {
 	if r.Header.Get("HX-Request") != "" || r.Header.Get("X-Ticketopia-Panel") != "" || r.Header.Get("X-Ticketopia-Section") != "" {
 		return false
 	}
-	return strings.Contains(r.Header.Get("Accept"), "text/html")
+	return prefersHTML(r.Header.Get("Accept"))
+}
+
+// prefersHTML reports whether an Accept header names HTML, by text/html or
+// text/*, with a nonzero q value at least that of application/json. Each type
+// takes the q of its most specific matching range. A bare */* does not count
+// as naming HTML: browsers always list text/html for navigations, while curl,
+// fetch and API clients send */* (or nothing) and keep the JSON response.
+func prefersHTML(accept string) bool {
+	html, json := acceptance{}, acceptance{}
+	for _, part := range strings.Split(accept, ",") {
+		params := strings.Split(part, ";")
+		mediaRange := strings.ToLower(strings.TrimSpace(params[0]))
+		q, ok := qValue(params[1:])
+		if mediaRange == "" || !ok {
+			continue
+		}
+		html.consider(mediaRange, "text", "html", q)
+		json.consider(mediaRange, "application", "json", q)
+	}
+	return html.specificity >= 2 && html.q > 0 && html.q >= json.q
+}
+
+// acceptance is the q value a media type takes from its most specific
+// matching range: 3 for type/subtype, 2 for type/*, 1 for */* and 0 for none.
+type acceptance struct {
+	specificity int
+	q           float64
+}
+
+func (a *acceptance) consider(mediaRange, typ, subtype string, q float64) {
+	specificity := 0
+	switch mediaRange {
+	case typ + "/" + subtype:
+		specificity = 3
+	case typ + "/*":
+		specificity = 2
+	case "*/*":
+		specificity = 1
+	}
+	if specificity == 0 || specificity < a.specificity {
+		return
+	}
+	if specificity > a.specificity || q > a.q {
+		a.specificity, a.q = specificity, q
+	}
+}
+
+// qValue returns a media range's q parameter (1 when absent). ok is false
+// for a malformed or out-of-range value, which voids the range.
+func qValue(params []string) (q float64, ok bool) {
+	for _, param := range params {
+		name, value, _ := strings.Cut(param, "=")
+		if !strings.EqualFold(strings.TrimSpace(name), "q") {
+			continue
+		}
+		q, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err != nil || !(q >= 0 && q <= 1) {
+			return 0, false
+		}
+		return q, true
+	}
+	return 1, true
 }
