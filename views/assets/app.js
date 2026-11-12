@@ -453,6 +453,20 @@
     const timer = setTimeout(() => { button.dataset.pending = ''; }, 300);
     return () => { clearTimeout(timer); delete button.dataset.pending; };
   };
+  // A Discover search is an ordinary full-page GET; if the next page is slow,
+  // its submit button shows the same spinner. Nothing is disabled, so the
+  // native submission (and a repeat) is unchanged, and a page restored from
+  // the back/forward cache drops the spinner.
+  let settleSearch = () => {};
+  document.addEventListener('submit', event => {
+    const form = event.target.closest('.search-form');
+    if (!form || event.defaultPrevented) return;
+    const button = event.submitter?.matches('button') ? event.submitter : form.querySelector('button[type="submit"]');
+    if (!button) return;
+    settleSearch();
+    settleSearch = showPending(button);
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) settleSearch(); });
   const disconnected = error => error.name === 'TypeError' || !navigator.onLine;
   const connectionMessage = 'Couldn\'t connect. Check your connection and try again; repeating it is safe.';
   // Save privacy is explained on the first Save in this browser rather than

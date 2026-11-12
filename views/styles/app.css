@@ -807,6 +807,11 @@ button[data-pending]:not(:has(> .icon))::before {
   border-color: var(--brand);
   border-block-start-color: transparent;
 }
+/* On a filled primary action the ring takes the label's colour instead. */
+.action[data-pending]:not(:has(> .icon))::before {
+  border-color: currentColor;
+  border-block-start-color: transparent;
+}
 @media (prefers-reduced-motion: no-preference) {
   button[data-pending]::before { animation: pending-spin 700ms linear infinite; }
 }
