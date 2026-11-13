@@ -127,6 +127,33 @@ func TestMariaDBOAuthCodesGrantsAndRevocation(t *testing.T) {
 	if _, err := exchange(2, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {rotated.RefreshToken}, "client_id": {client}}); err == nil {
 		t.Fatal("latest refresh token survived a replay")
 	}
+	// A client revokes its own connection (RFC 7009) on any replica, by either
+	// token; another client's revocation of the same token changes nothing.
+	for _, byRefresh := range []bool{false, true} {
+		self, err := exchange(0, codeForm(approve(owner.ID), verifier))
+		if err != nil {
+			t.Fatal(err)
+		}
+		token := self.AccessToken
+		if byRefresh {
+			token = self.RefreshToken
+		}
+		if err := services[1].RevokeToken(t.Context(), url.Values{"token": {token}, "client_id": {"https://other.example/client.json"}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := services[2].Authenticate(t.Context(), self.AccessToken); err != nil {
+			t.Fatalf("another client revoked the connection: %v", err)
+		}
+		if err := services[1].RevokeToken(t.Context(), url.Values{"token": {token}, "client_id": {client}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := services[2].Authenticate(t.Context(), self.AccessToken); !errors.Is(err, oauth.ErrUnauthenticated) {
+			t.Fatalf("revoked by refresh=%v: %v", byRefresh, err)
+		}
+		if _, err := exchange(2, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {self.RefreshToken}, "client_id": {client}}); err == nil {
+			t.Fatal("refresh token survived revocation")
+		}
+	}
 	rotated, err = exchange(0, codeForm(approve(owner.ID, oauth.ScopeRead), verifier))
 	if err != nil {
 		t.Fatal(err)

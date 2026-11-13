@@ -362,12 +362,77 @@ func TestRevocation(t *testing.T) {
 	}
 }
 
+// A client disconnects itself with either current token; tokens it doesn't
+// hold, or that another client holds, succeed without changing anything.
+func TestRevokeToken(t *testing.T) {
+	f := newFixture(t, true)
+	revoke := func(token, client string) error {
+		t.Helper()
+		form := url.Values{"token": {token}, "client_id": {client}}
+		return f.service.RevokeToken(t.Context(), form)
+	}
+	for name, c := range map[string]struct {
+		form url.Values
+		code string
+	}{
+		"missing token":  {url.Values{"client_id": {clientID}}, "invalid_request"},
+		"missing client": {url.Values{"token": {oauth.AccessPrefix + "x"}}, "invalid_client"},
+		"repeated token": {url.Values{"client_id": {clientID}, "token": {"a", "b"}}, "invalid_request"},
+	} {
+		if err := f.service.RevokeToken(t.Context(), c.form); oauthCode(err) != c.code {
+			t.Errorf("%s: %v, want %s", name, err, c.code)
+		}
+	}
+
+	first, _ := f.exchange(t, codeForm(f.approve(t)))
+	second, _ := f.exchange(t, codeForm(f.approve(t)))
+	for _, token := range []string{"unknown", oauth.AccessPrefix + "unknown", oauth.RefreshPrefix + "unknown", strings.Repeat("x", 200)} {
+		if err := revoke(token, clientID); err != nil {
+			t.Fatalf("%q: %v", token, err)
+		}
+	}
+	if err := revoke(first.AccessToken, "https://other.example/client.json"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.Authenticate(t.Context(), first.AccessToken); err != nil {
+		t.Fatal("another client revoked the connection")
+	}
+	// The access token ends the whole connection, refresh token included;
+	// the other connection stays.
+	if err := revoke(first.AccessToken, clientID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.service.Authenticate(t.Context(), first.AccessToken); err == nil {
+		t.Fatal("revoked access token still works")
+	}
+	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {first.RefreshToken}, "client_id": {clientID}}
+	if _, err := f.exchange(t, refresh); oauthCode(err) != "invalid_grant" {
+		t.Fatalf("refresh after access-token revocation: %v", err)
+	}
+	if _, err := f.service.Authenticate(t.Context(), second.AccessToken); err != nil {
+		t.Fatal("revocation ended another connection")
+	}
+	// The refresh token, with a hint, ends its connection too.
+	form := url.Values{"token": {second.RefreshToken}, "token_type_hint": {"refresh_token"}, "client_id": {clientID}}
+	if err := f.service.RevokeToken(t.Context(), form); err != nil {
+		t.Fatal(err)
+	}
+	if grants, _ := f.service.Grants(t.Context(), "account-1"); len(grants) != 0 {
+		t.Fatalf("connections after revocation: %d", len(grants))
+	}
+	// Revoking again is still a success.
+	if err := revoke(second.RefreshToken, clientID); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestMetadataDescribesOneIssuerAndResource(t *testing.T) {
 	f := newFixture(t, true)
 	server, resource := f.service.ServerMetadata(), f.service.ResourceMetadata()
 	if server.Issuer != issuer || server.AuthorizationEndpoint != issuer+"/oauth/authorize" || server.TokenEndpoint != issuer+"/oauth/token" ||
 		!server.ClientIDMetadataDocumentSupported || !slices.Equal(server.CodeChallengeMethodsSupported, []string{"S256"}) ||
-		!slices.Equal(server.TokenEndpointAuthMethodsSupported, []string{"none"}) {
+		!slices.Equal(server.TokenEndpointAuthMethodsSupported, []string{"none"}) || server.RevocationEndpoint != issuer+"/oauth/revoke" ||
+		!slices.Equal(server.RevocationEndpointAuthMethods, []string{"none"}) {
 		t.Fatalf("server metadata %+v", server)
 	}
 	if resource.Resource != issuer+"/mcp" || !slices.Equal(resource.AuthorizationServers, []string{issuer}) ||

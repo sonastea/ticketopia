@@ -158,6 +158,24 @@ func (r *Repository) RevokeGrant(_ context.Context, account, id string) error {
 	return nil
 }
 
+func (r *Repository) RevokeToken(_ context.Context, hash [32]byte, refresh bool, clientID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.Fail != nil {
+		return r.Fail
+	}
+	for id, g := range r.Grants {
+		current := g.AccessHash
+		if refresh {
+			current = g.RefreshHash
+		}
+		if current == hash && hash != ([32]byte{}) && g.ClientID == clientID {
+			delete(r.Grants, id)
+		}
+	}
+	return nil
+}
+
 func (r *Repository) RevokeAll(_ context.Context, account string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

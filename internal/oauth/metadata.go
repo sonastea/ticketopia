@@ -4,6 +4,7 @@ package oauth
 const (
 	AuthorizePath             = "/oauth/authorize"
 	TokenPath                 = "/oauth/token"
+	RevocationPath            = "/oauth/revoke"
 	ServerMetadataPath        = "/.well-known/oauth-authorization-server"
 	ResourceMetadataPath      = "/.well-known/oauth-protected-resource"
 	ResourceMetadataInsertion = ResourceMetadataPath + "/mcp"
@@ -18,6 +19,8 @@ type ServerMetadata struct {
 	ResponseTypesSupported            []string `json:"response_types_supported"`
 	GrantTypesSupported               []string `json:"grant_types_supported"`
 	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
+	RevocationEndpoint                string   `json:"revocation_endpoint"`
+	RevocationEndpointAuthMethods     []string `json:"revocation_endpoint_auth_methods_supported"`
 	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported"`
 	ClientIDMetadataDocumentSupported bool     `json:"client_id_metadata_document_supported"`
 	IssParameterSupported             bool     `json:"authorization_response_iss_parameter_supported"`
@@ -42,6 +45,8 @@ func (s *Service) ServerMetadata() ServerMetadata {
 		ResponseTypesSupported:            []string{"code"},
 		GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
 		TokenEndpointAuthMethodsSupported: []string{"none"},
+		RevocationEndpoint:                s.issuer + RevocationPath,
+		RevocationEndpointAuthMethods:     []string{"none"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
 		ClientIDMetadataDocumentSupported: true,
 		IssParameterSupported:             true,

@@ -327,6 +327,70 @@ func TestOAuthTokenEndpoint(t *testing.T) {
 	}
 }
 
+// An agent disconnects itself at the advertised revocation endpoint: its
+// token stops working on /mcp at once and the account page no longer lists it.
+func TestOAuthRevocationEndpoint(t *testing.T) {
+	f := newOAuthFixture(t, true)
+	meta := f.do(t, http.MethodGet, oauth.ServerMetadataPath, "", nil)
+	if !strings.Contains(meta.Body.String(), `"revocation_endpoint":"`+oauthBase+oauth.RevocationPath+`"`) {
+		t.Fatalf("metadata: %s", meta.Body.String())
+	}
+	if r := f.do(t, http.MethodOptions, oauth.RevocationPath, "", nil); r.Code != http.StatusNoContent || r.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Fatalf("preflight: %d %v", r.Code, r.Header())
+	}
+	access := oauth.AccessPrefix + "revocable-fixture-token"
+	f.grants.CreateGrant(oauth.Grant{ID: "0123456789abcdef0123456789abcdef", AccountID: f.accountStorage.account.ID, ClientID: agentClientID, ClientName: "Test Agent",
+		Scopes: []string{oauth.ScopeRead}, CreatedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour), AccessHash: oauth.Hash(access), AccessUntil: time.Now().Add(time.Hour)}, time.Now())
+	form := url.Values{"token": {access}, "token_type_hint": {"access_token"}, "client_id": {agentClientID}}.Encode()
+	formType := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
+	for name, c := range map[string]struct {
+		body    string
+		headers map[string]string
+		status  int
+		code    string
+	}{
+		"client secret": {form, map[string]string{"Content-Type": "application/x-www-form-urlencoded", "Authorization": "Basic eDp5"}, 401, "invalid_client"},
+		"json body":     {form, map[string]string{"Content-Type": "application/json"}, 400, "invalid_request"},
+		"missing token": {"client_id=" + url.QueryEscape(agentClientID), formType, 400, "invalid_request"},
+	} {
+		r := f.do(t, http.MethodPost, oauth.RevocationPath, c.body, c.headers)
+		var body struct{ Error string }
+		_ = json.Unmarshal(r.Body.Bytes(), &body)
+		if r.Code != c.status || body.Error != c.code || r.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("%s: %d %s", name, r.Code, r.Body.String())
+		}
+	}
+	if len(f.grants.Grants) != 1 {
+		t.Fatal("a refused request revoked the connection")
+	}
+	f.grants.Fail = io.ErrUnexpectedEOF
+	r := f.do(t, http.MethodPost, oauth.RevocationPath, form, formType)
+	if r.Code != http.StatusServiceUnavailable || r.Header().Get("Retry-After") == "" || strings.Contains(r.Body.String(), "EOF") {
+		t.Fatalf("storage failure: %d %v %s", r.Code, r.Header(), r.Body.String())
+	}
+	f.grants.Fail = nil
+
+	call := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"my_saved_events","arguments":{}}}`
+	bearer := map[string]string{"Authorization": "Bearer " + access}
+	if r := mcpPost(t, f.routes, call, bearer); r.Code != http.StatusOK {
+		t.Fatalf("token before revocation: %d", r.Code)
+	}
+	// Revoking succeeds, and so does revoking again: the client is told
+	// nothing about whether the token was still live.
+	for range 2 {
+		r := f.do(t, http.MethodPost, oauth.RevocationPath, form, formType)
+		if r.Code != http.StatusOK || r.Body.Len() != 0 || r.Header().Get("Access-Control-Allow-Origin") != "*" {
+			t.Fatalf("revoke: %d %v %q", r.Code, r.Header(), r.Body.String())
+		}
+	}
+	if r := mcpPost(t, f.routes, call, bearer); r.Code != http.StatusUnauthorized || !strings.Contains(r.Header().Get("WWW-Authenticate"), `error="invalid_token"`) {
+		t.Fatalf("revoked token: %d %v", r.Code, r.Header())
+	}
+	if page := f.browserRequest(t, http.MethodGet, "/me", nil); strings.Contains(page.Body.String(), "Disconnect Test Agent") {
+		t.Fatal("account page still lists the revoked connection")
+	}
+}
+
 // With OAuth off, nothing new is served and signed-in tools keep their tool
 // error, so enabling MCP alone changes no existing client's behavior.
 func TestMCPOAuthOffByDefault(t *testing.T) {
@@ -335,6 +399,9 @@ func TestMCPOAuthOffByDefault(t *testing.T) {
 		if r := f.do(t, http.MethodGet, path, "", nil); r.Code != http.StatusNotFound {
 			t.Errorf("%s: %d", path, r.Code)
 		}
+	}
+	if r := f.do(t, http.MethodPost, oauth.RevocationPath, "token=x&client_id=y", map[string]string{"Content-Type": "application/x-www-form-urlencoded"}); r.Code != http.StatusNotFound {
+		t.Errorf("revocation without OAuth: %d", r.Code)
 	}
 	r := mcpPost(t, f.routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"save_event","arguments":{"event_id":"x"}}}`, nil)
 	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), "Authorization: Bearer") {

@@ -23,16 +23,18 @@ func (a *api) oauthRoutes(e *echo.Echo, tokenLimiter *ipLimiter) {
 	e.GET(oauth.ServerMetadataPath, a.oauthMetadata(func() any { return a.oauth.ServerMetadata() }))
 	e.GET(oauth.ResourceMetadataPath, a.oauthMetadata(func() any { return a.oauth.ResourceMetadata() }))
 	e.GET(oauth.ResourceMetadataInsertion, a.oauthMetadata(func() any { return a.oauth.ResourceMetadata() }))
-	for _, path := range []string{oauth.ServerMetadataPath, oauth.ResourceMetadataPath, oauth.ResourceMetadataInsertion, oauth.TokenPath} {
+	for _, path := range []string{oauth.ServerMetadataPath, oauth.ResourceMetadataPath, oauth.ResourceMetadataInsertion, oauth.TokenPath, oauth.RevocationPath} {
 		e.OPTIONS(path, oauthPreflight)
 	}
 	e.GET(oauth.AuthorizePath, a.oauthAuthorize)
 	e.POST(oauth.AuthorizePath, a.oauthDecide)
-	e.POST(oauth.TokenPath, a.oauthToken(tokenLimiter))
+	// Token and revocation requests share one per-IP allowance.
+	e.POST(oauth.TokenPath, a.oauthClientEndpoint(tokenLimiter, "token", a.oauthToken))
+	e.POST(oauth.RevocationPath, a.oauthClientEndpoint(tokenLimiter, "revocation", a.oauthRevoke))
 	e.POST("/me/connections/:grant_id/revoke", a.revokeConnectionPage)
 }
 
-// Metadata and the token endpoint carry no cookies or ambient authority, so
+// Metadata and the token and revocation endpoints carry no cookies or ambient authority, so
 // browser-based clients may call them from any origin.
 func oauthCORS(c echo.Context) {
 	h := c.Response().Header()
@@ -153,14 +155,17 @@ func oauthProblem(c echo.Context, status int, code, description string) error {
 	return c.JSON(status, map[string]string{"error": code, "error_description": description})
 }
 
-func (a *api) oauthToken(limiter *ipLimiter) echo.HandlerFunc {
+// oauthClientEndpoint applies the rules the token and revocation endpoints
+// share (per-IP limit, public clients, form bodies) and maps handle's errors
+// to OAuth error responses; handle writes the success response.
+func (a *api) oauthClientEndpoint(limiter *ipLimiter, name string, handle func(echo.Context, url.Values) error) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		oauthCORS(c)
 		c.Response().Header().Set("Cache-Control", "no-store")
 		c.Response().Header().Set("Pragma", "no-cache")
 		if ok, wait := limiter.allow(c.RealIP()); !ok {
 			c.Response().Header().Set("Retry-After", strconv.Itoa(max(1, int(math.Ceil(wait.Seconds())))))
-			return oauthProblem(c, http.StatusTooManyRequests, "temporarily_unavailable", "too many token requests; retry after the Retry-After delay")
+			return oauthProblem(c, http.StatusTooManyRequests, "temporarily_unavailable", "too many "+name+" requests; retry after the Retry-After delay")
 		}
 		// Only public clients: a secret would mean the client is not the one
 		// its metadata document describes.
@@ -175,7 +180,7 @@ func (a *api) oauthToken(limiter *ipLimiter) echo.HandlerFunc {
 		if err := c.Request().ParseForm(); err != nil {
 			return oauthProblem(c, http.StatusBadRequest, "invalid_request", "the request body is invalid or too large")
 		}
-		token, err := a.oauth.Exchange(c.Request().Context(), c.Request().PostForm)
+		err = handle(c, c.Request().PostForm)
 		var oauthErr *oauth.Error
 		if errors.As(err, &oauthErr) {
 			status := http.StatusBadRequest
@@ -185,12 +190,29 @@ func (a *api) oauthToken(limiter *ipLimiter) echo.HandlerFunc {
 			return oauthProblem(c, status, oauthErr.Code, oauthErr.Description)
 		}
 		if err != nil {
-			a.logger.Warn().Err(err).Msg("OAuth token request failed")
+			a.logger.Warn().Err(err).Msg("OAuth " + name + " request failed")
 			c.Response().Header().Set("Retry-After", "30")
 			return oauthProblem(c, http.StatusServiceUnavailable, "temporarily_unavailable", "accounts are unavailable; retry shortly")
 		}
-		return c.JSON(http.StatusOK, token)
+		return nil
 	}
+}
+
+func (a *api) oauthToken(c echo.Context, form url.Values) error {
+	token, err := a.oauth.Exchange(c.Request().Context(), form)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, token)
+}
+
+// oauthRevoke is the RFC 7009 revocation endpoint: 200 with an empty body
+// whether or not the token was live, 503 with Retry-After when storage fails.
+func (a *api) oauthRevoke(c echo.Context, form url.Values) error {
+	if err := a.oauth.RevokeToken(c.Request().Context(), form); err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusOK)
 }
 
 func (a *api) revokeConnectionPage(c echo.Context) error {

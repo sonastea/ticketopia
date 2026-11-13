@@ -194,6 +194,10 @@ type Repository interface {
 	Authenticate(ctx context.Context, access [32]byte, now time.Time) (Grant, error)
 	ListGrants(ctx context.Context, account string, now time.Time) ([]Grant, error)
 	RevokeGrant(ctx context.Context, account, id string) error
+	// RevokeToken removes the grant whose current access token (or, when
+	// refresh is set, refresh token) has this hash, if it belongs to clientID.
+	// An unknown token or another client's token changes nothing.
+	RevokeToken(ctx context.Context, hash [32]byte, refresh bool, clientID string) error
 	RevokeAll(ctx context.Context, account string) error
 }
 
@@ -510,6 +514,39 @@ func (s *Service) Revoke(ctx context.Context, account, id string) error {
 		return ErrNotFound
 	}
 	return s.repo.RevokeGrant(ctx, account, id)
+}
+
+// RevokeToken answers an RFC 7009 revocation request: a client disconnecting
+// itself. Either of a connection's current tokens ends the whole connection,
+// as the account page's Disconnect does. Unknown, expired, rotated or other
+// clients' tokens succeed without changing anything (section 2.2), so the
+// response reveals nothing about tokens the caller does not hold. The token's
+// prefix identifies its type, so token_type_hint is accepted and ignored.
+func (s *Service) RevokeToken(ctx context.Context, form url.Values) error {
+	for key, v := range form {
+		if len(v) > 1 {
+			return oauthError("invalid_request", key+" must not be repeated")
+		}
+	}
+	clientID := form.Get("client_id")
+	if clientID == "" {
+		return oauthError("invalid_client", "client_id is required")
+	}
+	raw := form.Get("token")
+	if raw == "" {
+		return oauthError("invalid_request", "token is required")
+	}
+	if len(raw) > 128 {
+		return nil
+	}
+	switch {
+	case strings.HasPrefix(raw, AccessPrefix):
+		return s.repo.RevokeToken(ctx, Hash(raw), false, clientID)
+	case strings.HasPrefix(raw, RefreshPrefix):
+		return s.repo.RevokeToken(ctx, Hash(raw), true, clientID)
+	default:
+		return nil
+	}
 }
 
 // RevokeAll disconnects every agent and discards pending codes.

@@ -21,6 +21,8 @@ than in editors, and those apps connect only through OAuth. See the
 - [ ] Dynamic Client Registration as a deprecated compatibility fallback, only if a
   client we need (for example Cursor) cannot use CIMD or a pre-registered client.
 - [ ] Token revocation endpoint (RFC 7009) so clients can disconnect themselves.
+  Implemented at `/oauth/revoke` ([guide](../app-mcp.md#oauth-sign-in)); check
+  this once a real client disconnects through it on a public deployment.
 - [ ] Agent tools for personalized radar (`my_radar`) and artist/venue follows,
   then Interested; the APIs exist, so each tool wraps a shared service.
 - [ ] Default `find_events` to the signed-in account's remembered city.

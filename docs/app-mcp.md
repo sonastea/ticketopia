@@ -79,7 +79,8 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
 - **Discovery.** `/.well-known/oauth-protected-resource/mcp` (and the root
   `/.well-known/oauth-protected-resource`) describe `/mcp` (RFC 9728);
   `/.well-known/oauth-authorization-server` describes the server (RFC 8414). Both
-  allow any origin, as does the token endpoint, which never uses cookies.
+  allow any origin, as do the token and revocation endpoints, which never use
+  cookies.
 - **Challenges.** A request without a token gets **401** with
   `resource_metadata` and `scope="read write"` in `WWW-Authenticate`, so clients
   start sign-in: every request while sign-in is required, otherwise only
@@ -125,8 +126,17 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   immediately. An account keeps at most ten; approving another removes the
   oldest. **Sign out everywhere** also disconnects every app, including any whose
   code exchange is in progress.
-- The token endpoint is limited per client IP like `/mcp`
-  (`MCP_RATE_PER_MINUTE`); authorization pages share the sign-in limit of 20
+- **Revocation** (RFC 7009): an agent disconnects itself by posting `token`
+  (either current token) and its `client_id` to `/oauth/revoke`, the
+  `revocation_endpoint` in server metadata, form-encoded and without client
+  authentication. Either token ends the whole connection, as **Disconnect**
+  does; `token_type_hint` is accepted but unneeded, since the prefix identifies
+  the token. The answer is an empty **200** whether or not anything was revoked:
+  unknown, expired, rotated and other clients' tokens change nothing. A missing
+  `token` gets `invalid_request`, a missing `client_id` or any `Authorization`
+  header `invalid_client`, and a storage failure **503** with `Retry-After`.
+- The token and revocation endpoints share one allowance per client IP, like
+  `/mcp` (`MCP_RATE_PER_MINUTE`); authorization pages share the sign-in limit of 20
   attempts per IP per ten minutes.
 
 OAuth needs schema version 21 (`oauth_codes`, `oauth_grants`,

@@ -286,6 +286,21 @@ func (r *OAuthRepository) RevokeGrant(ctx context.Context, account, id string) e
 	return nil
 }
 
+// RevokeToken deletes the connection holding the token; its refresh history
+// goes with it. Both hash columns are unique, so at most one row matches.
+func (r *OAuthRepository) RevokeToken(ctx context.Context, hash [32]byte, refresh bool, clientID string) error {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	query := `DELETE FROM oauth_grants WHERE access_hash=? AND client_id=?`
+	if refresh {
+		query = `DELETE FROM oauth_grants WHERE refresh_hash=? AND client_id=?`
+	}
+	if _, err := r.db.ExecContext(ctx, query, hash[:], clientID); err != nil {
+		return safeError("token revoke", err)
+	}
+	return nil
+}
+
 // RevokeAll removes every connection and pending code under the account lock
 // that Redeem also takes, so no redemption in flight can outlive it.
 func (r *OAuthRepository) RevokeAll(ctx context.Context, account string) error {
