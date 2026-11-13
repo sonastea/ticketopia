@@ -89,6 +89,30 @@ func TestParseDocument(t *testing.T) {
 		"no code grant":  strings.Replace(document, `"authorization_code","refresh_token"`, `"client_credentials"`, 1),
 		"not an object":  `[]`,
 		"secret present": strings.Replace(document, `}`, `,"client_secret":"x"}`, 1),
+		"methods without none": strings.Replace(document, `"none"`,
+			`"none","token_endpoint_auth_methods_supported":["private_key_jwt"]`, 1),
+	} {
+		var ce *oauth.ClientError
+		if _, err := oauth.ParseDocument(id, []byte(body)); !errors.As(err, &ce) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// chatGPTDocument is ChatGPT's published document (MCP SEP-3149): it prefers
+// private_key_jwt but also lists none, so it connects as a public client.
+const chatGPTDocument = `{"client_id":"https://chatgpt.com/oauth/client.json","client_uri":"https://chatgpt.com/","redirect_uris":["https://chatgpt.com/connector_platform_oauth_redirect"],"token_endpoint_auth_method":"private_key_jwt","token_endpoint_auth_methods_supported":["none","private_key_jwt"],"grant_types":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:jwt-bearer"],"response_types":["code"],"client_name":"ChatGPT","logo_uri":"https://persistent.oaistatic.com/sonic/misc/openai-logo.png","token_endpoint_auth_signing_alg":"RS256","jwks_uri":"https://chatgpt.com/oauth/jwks.json"}`
+
+func TestParseDocumentAuthMethods(t *testing.T) {
+	const id = "https://chatgpt.com/oauth/client.json"
+	client, err := oauth.ParseDocument(id, []byte(chatGPTDocument))
+	if err != nil || client.Name != "ChatGPT" || !client.Refresh || client.RedirectURIs[0] != "https://chatgpt.com/connector_platform_oauth_redirect" {
+		t.Fatalf("client %+v %v", client, err)
+	}
+	for name, body := range map[string]string{
+		"private_key_jwt only": strings.Replace(chatGPTDocument, `["none","private_key_jwt"]`, `["private_key_jwt"]`, 1),
+		"legacy singular only": strings.Replace(chatGPTDocument, `"token_endpoint_auth_methods_supported":["none","private_key_jwt"],`, ``, 1),
+		"secret despite none":  strings.Replace(chatGPTDocument, `}`, `,"client_secret":"x"}`, 1),
 	} {
 		var ce *oauth.ClientError
 		if _, err := oauth.ParseDocument(id, []byte(body)); !errors.As(err, &ce) {

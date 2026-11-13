@@ -89,7 +89,11 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   [Client ID Metadata Document](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration):
   an HTTPS `client_id` URL serving JSON with the same `client_id`, a
   `client_name` and `redirect_uris`. Dynamic Client Registration and client
-  secrets are not supported. Documents are fetched over HTTPS on port 443 from
+  secrets are not supported. Clients sign in as public clients (`none`): a
+  document's `token_endpoint_auth_methods_supported` must include `none` when
+  it is present (MCP SEP-3149; ChatGPT lists `none` and `private_key_jwt`),
+  and otherwise its legacy `token_endpoint_auth_method` must be `none` or
+  absent. Documents are fetched over HTTPS on port 443 from
   public addresses only (no redirects, 5 KB, 5 seconds) and cached per replica
   for their `max-age` (1 minute to 24 hours, default 10 minutes).
 - **Redirects** must match a registered URI exactly, except loopback `http`
@@ -188,10 +192,15 @@ configuration. Omitting the header works only for public tools, and only with
 `MCP_REQUIRE_SIGN_IN=false` or without accounts.
 
 With OAuth on (the default with accounts), omit the header instead: clients that
-support MCP OAuth with Client ID Metadata Documents (Claude Code, VS Code, Claude
-and ChatGPT connectors) open the browser to sign in when they connect (or, with
-sign-in optional, when a signed-in tool first needs it). Hosted apps (Claude on
-the web, ChatGPT) can only reach a public HTTPS deployment, not `localhost`.
+support MCP OAuth with Client ID Metadata Documents (Claude Code, OpenCode,
+VS Code, Claude and ChatGPT connectors) open the browser to sign in when they
+connect (or, with sign-in optional, when a signed-in tool first needs it). The
+client app signs in, not the model, so OpenCode or Claude Code connects the same
+way with any model (GLM, GPT, Claude). In OpenCode, add the server without a
+header (`opencode mcp add ticketopia --url …/mcp`) and sign in from `/mcps`.
+Hosted apps (Claude on the web, ChatGPT) can only reach a public HTTPS
+deployment, not `localhost`. Clients that only support Dynamic Client
+Registration cannot sign in; give them an API token header instead.
 
 The [review server](testing.md#signed-in-manual-review-server) also serves
 `/mcp` (manifest `paths.mcp`) over its seeded fixture data, without a provider

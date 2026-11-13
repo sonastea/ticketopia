@@ -235,7 +235,24 @@ type document struct {
 	GrantTypes              []string `json:"grant_types"`
 	ResponseTypes           []string `json:"response_types"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
-	ClientSecret            *string  `json:"client_secret"`
+	// TokenEndpointAuthMethods lists every method the client can use (MCP
+	// SEP-3149); the singular field is then only a legacy preference.
+	TokenEndpointAuthMethods []string `json:"token_endpoint_auth_methods_supported"`
+	ClientSecret             *string  `json:"client_secret"`
+}
+
+// public reports whether the client can authenticate at the token endpoint
+// with "none", the only method Ticketopia accepts. A listed set of methods
+// wins over the singular preference, so a client such as ChatGPT that prefers
+// private_key_jwt but also supports none connects as a public client.
+func (d document) public() bool {
+	if d.ClientSecret != nil {
+		return false
+	}
+	if len(d.TokenEndpointAuthMethods) > 0 {
+		return slices.Contains(d.TokenEndpointAuthMethods, "none")
+	}
+	return d.TokenEndpointAuthMethod == "" || d.TokenEndpointAuthMethod == "none"
 }
 
 // ParseDocument validates a metadata document fetched from id.
@@ -251,7 +268,7 @@ func ParseDocument(id string, body []byte) (Client, error) {
 		return Client{}, invalid("client_id does not match its URL")
 	}
 	// Ticketopia supports only public clients; a document cannot carry secrets.
-	if doc.ClientSecret != nil || (doc.TokenEndpointAuthMethod != "" && doc.TokenEndpointAuthMethod != "none") {
+	if !doc.public() {
 		return Client{}, invalid("only public clients without a secret are supported")
 	}
 	if len(doc.GrantTypes) > 0 && !slices.Contains(doc.GrantTypes, "authorization_code") {

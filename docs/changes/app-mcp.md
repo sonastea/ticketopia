@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-11-13 — Accept ChatGPT's client metadata
+
+- Client ID Metadata Documents that list `token_endpoint_auth_methods_supported`
+  (MCP SEP-3149) are accepted when the list includes `none`, whatever the legacy
+  `token_endpoint_auth_method` preference says. ChatGPT's document prefers
+  `private_key_jwt` but lists `none`, and was refused; it now signs in as a
+  public client. Verified against the live ChatGPT, OpenCode and Claude Code
+  documents on a local server; see the [guide](../app-mcp.md#oauth-sign-in).
+
 ### 2026-11-12 — OAuth sign-in with Client ID Metadata Documents
 
 - Add an OAuth 2.1 authorization server (`MCP_OAUTH_ENABLED`, on by default
