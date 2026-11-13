@@ -208,10 +208,18 @@ func (a *api) oauthToken(c echo.Context, form url.Values) error {
 
 // oauthRevoke is the RFC 7009 revocation endpoint: 200 with an empty body
 // whether or not the token was live, 503 with Retry-After when storage fails.
+// Each answered request is logged with its outcome and the host of the
+// claimed client_id (caller-supplied, so capped), never the token or account.
 func (a *api) oauthRevoke(c echo.Context, form url.Values) error {
-	if err := a.oauth.RevokeToken(c.Request().Context(), form); err != nil {
+	outcome, err := a.oauth.RevokeToken(c.Request().Context(), form)
+	if err != nil {
 		return err
 	}
+	host := oauth.Client{ID: form.Get("client_id")}.Host()
+	if len(host) > 100 {
+		host = host[:100]
+	}
+	a.logger.Info().Str("outcome", string(outcome)).Str("client_host", host).Msg("OAuth token revocation")
 	return c.NoContent(http.StatusOK)
 }
 

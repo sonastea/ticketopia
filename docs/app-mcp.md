@@ -130,11 +130,18 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   (either current token) and its `client_id` to `/oauth/revoke`, the
   `revocation_endpoint` in server metadata, form-encoded and without client
   authentication. Either token ends the whole connection, as **Disconnect**
-  does; `token_type_hint` is accepted but unneeded, since the prefix identifies
-  the token. The answer is an empty **200** whether or not anything was revoked:
-  unknown, expired, rotated and other clients' tokens change nothing. A missing
-  `token` gets `invalid_request`, a missing `client_id` or any `Authorization`
-  header `invalid_client`, and a storage failure **503** with `Retry-After`.
+  does; so does a refresh token already rotated away, which means the client
+  kept a stale token or it leaked, as with a replay at the token endpoint. A
+  replaced access token is simply unknown. `token_type_hint` is accepted but
+  unneeded, since the prefix identifies the token. The answer is an empty
+  **200** whether or not anything was revoked: unknown, expired and other
+  clients' tokens change nothing. A missing `token` gets `invalid_request`, a
+  missing `client_id` or any `Authorization` header `invalid_client`, and a
+  storage failure **503** with `Retry-After`. Each answered request logs an
+  `OAuth token revocation` record with its `outcome` (`revoked`,
+  `revoked_rotated`, `unknown` or `other_client`, a client bug or a token in
+  the wrong hands) and the claimed client's metadata host, never the token or
+  account.
 - The token and revocation endpoints share one allowance per client IP, like
   `/mcp` (`MCP_RATE_PER_MINUTE`); authorization pages share the sign-in limit of 20
   attempts per IP per ten minutes.

@@ -128,30 +128,65 @@ func TestMariaDBOAuthCodesGrantsAndRevocation(t *testing.T) {
 		t.Fatal("latest refresh token survived a replay")
 	}
 	// A client revokes its own connection (RFC 7009) on any replica, by either
-	// token; another client's revocation of the same token changes nothing.
-	for _, byRefresh := range []bool{false, true} {
+	// current token or a rotated refresh token; another client's revocation
+	// of the same token changes nothing.
+	revokeAs := func(i int, token, clientID string, want oauth.Revocation) {
+		t.Helper()
+		got, err := services[i%len(services)].RevokeToken(t.Context(), url.Values{"token": {token}, "client_id": {clientID}})
+		if err != nil || got != want {
+			t.Fatalf("revoke: %q %v, want %q", got, err, want)
+		}
+	}
+	for _, kind := range []string{"access", "refresh", "rotated"} {
 		self, err := exchange(0, codeForm(approve(owner.ID), verifier))
 		if err != nil {
 			t.Fatal(err)
 		}
-		token := self.AccessToken
-		if byRefresh {
+		token, want := self.AccessToken, oauth.Revoked
+		switch kind {
+		case "refresh":
 			token = self.RefreshToken
+		case "rotated":
+			token, want = self.RefreshToken, oauth.RevokedRotated
+			if self, err = exchange(1, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {token}, "client_id": {client}}); err != nil {
+				t.Fatal(err)
+			}
 		}
-		if err := services[1].RevokeToken(t.Context(), url.Values{"token": {token}, "client_id": {"https://other.example/client.json"}}); err != nil {
-			t.Fatal(err)
-		}
+		revokeAs(1, token, "https://other.example/client.json", oauth.RevokeOtherClient)
 		if _, err := services[2].Authenticate(t.Context(), self.AccessToken); err != nil {
 			t.Fatalf("another client revoked the connection: %v", err)
 		}
-		if err := services[1].RevokeToken(t.Context(), url.Values{"token": {token}, "client_id": {client}}); err != nil {
-			t.Fatal(err)
-		}
+		revokeAs(1, token, client, want)
 		if _, err := services[2].Authenticate(t.Context(), self.AccessToken); !errors.Is(err, oauth.ErrUnauthenticated) {
-			t.Fatalf("revoked by refresh=%v: %v", byRefresh, err)
+			t.Fatalf("revoked by %s token: %v", kind, err)
 		}
 		if _, err := exchange(2, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {self.RefreshToken}, "client_id": {client}}); err == nil {
 			t.Fatal("refresh token survived revocation")
+		}
+		revokeAs(2, token, client, oauth.RevokeUnknown)
+	}
+	// Revoking a refresh token while it is being refreshed on another replica
+	// always ends the connection, whichever wins.
+	for i := range 6 {
+		self, err := exchange(0, codeForm(approve(owner.ID), verifier))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var next oauth.Token
+		wg.Go(func() {
+			next, _ = exchange(i, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {self.RefreshToken}, "client_id": {client}})
+		})
+		wg.Go(func() {
+			if got, err := services[(i+1)%len(services)].RevokeToken(t.Context(), url.Values{"token": {self.RefreshToken}, "client_id": {client}}); err != nil ||
+				(got != oauth.Revoked && got != oauth.RevokedRotated) {
+				t.Errorf("racing revoke: %q %v", got, err)
+			}
+		})
+		wg.Wait()
+		for _, access := range []string{self.AccessToken, next.AccessToken} {
+			if _, err := services[2].Authenticate(t.Context(), access); access != "" && !errors.Is(err, oauth.ErrUnauthenticated) {
+				t.Fatalf("connection survived a revocation racing its refresh: %v", err)
+			}
 		}
 	}
 	rotated, err = exchange(0, codeForm(approve(owner.ID, oauth.ScopeRead), verifier))

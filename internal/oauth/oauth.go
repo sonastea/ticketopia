@@ -195,9 +195,10 @@ type Repository interface {
 	ListGrants(ctx context.Context, account string, now time.Time) ([]Grant, error)
 	RevokeGrant(ctx context.Context, account, id string) error
 	// RevokeToken removes the grant whose current access token (or, when
-	// refresh is set, refresh token) has this hash, if it belongs to clientID.
-	// An unknown token or another client's token changes nothing.
-	RevokeToken(ctx context.Context, hash [32]byte, refresh bool, clientID string) error
+	// refresh is set, current or rotated refresh token) has this hash, if it
+	// belongs to clientID. An unknown token or another client's token changes
+	// nothing.
+	RevokeToken(ctx context.Context, hash [32]byte, refresh bool, clientID string) (Revocation, error)
 	RevokeAll(ctx context.Context, account string) error
 }
 
@@ -516,28 +517,48 @@ func (s *Service) Revoke(ctx context.Context, account, id string) error {
 	return s.repo.RevokeGrant(ctx, account, id)
 }
 
+// Revocation is what a revocation request did. Clients always get the same
+// answer; this is for logs.
+type Revocation string
+
+const (
+	// Revoked: a current token ended its connection.
+	Revoked Revocation = "revoked"
+	// RevokedRotated: a rotated refresh token ended its connection. Either
+	// the client kept a stale token or it leaked; as with a replay at the
+	// token endpoint, the safe outcome is reconnecting.
+	RevokedRotated Revocation = "revoked_rotated"
+	// RevokeUnknown: no connection holds the token (unknown, expired, already
+	// revoked, a replaced access token, or not a Ticketopia OAuth token).
+	RevokeUnknown Revocation = "unknown"
+	// RevokeOtherClient: the token belongs to a different client_id, so
+	// nothing changed: a client bug, or a token in the wrong hands.
+	RevokeOtherClient Revocation = "other_client"
+)
+
 // RevokeToken answers an RFC 7009 revocation request: a client disconnecting
-// itself. Either of a connection's current tokens ends the whole connection,
-// as the account page's Disconnect does. Unknown, expired, rotated or other
-// clients' tokens succeed without changing anything (section 2.2), so the
-// response reveals nothing about tokens the caller does not hold. The token's
-// prefix identifies its type, so token_type_hint is accepted and ignored.
-func (s *Service) RevokeToken(ctx context.Context, form url.Values) error {
+// itself. Either of a connection's current tokens, or a refresh token it has
+// rotated away, ends the whole connection, as the account page's Disconnect
+// does. Unknown, expired or other clients' tokens succeed without changing
+// anything (section 2.2), so the response reveals nothing about tokens the
+// caller does not hold. The token's prefix identifies its type, so
+// token_type_hint is accepted and ignored.
+func (s *Service) RevokeToken(ctx context.Context, form url.Values) (Revocation, error) {
 	for key, v := range form {
 		if len(v) > 1 {
-			return oauthError("invalid_request", key+" must not be repeated")
+			return "", oauthError("invalid_request", key+" must not be repeated")
 		}
 	}
 	clientID := form.Get("client_id")
 	if clientID == "" {
-		return oauthError("invalid_client", "client_id is required")
+		return "", oauthError("invalid_client", "client_id is required")
 	}
 	raw := form.Get("token")
 	if raw == "" {
-		return oauthError("invalid_request", "token is required")
+		return "", oauthError("invalid_request", "token is required")
 	}
 	if len(raw) > 128 {
-		return nil
+		return RevokeUnknown, nil
 	}
 	switch {
 	case strings.HasPrefix(raw, AccessPrefix):
@@ -545,7 +566,7 @@ func (s *Service) RevokeToken(ctx context.Context, form url.Values) error {
 	case strings.HasPrefix(raw, RefreshPrefix):
 		return s.repo.RevokeToken(ctx, Hash(raw), true, clientID)
 	default:
-		return nil
+		return RevokeUnknown, nil
 	}
 }
 

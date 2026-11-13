@@ -366,10 +366,12 @@ func TestRevocation(t *testing.T) {
 // hold, or that another client holds, succeed without changing anything.
 func TestRevokeToken(t *testing.T) {
 	f := newFixture(t, true)
-	revoke := func(token, client string) error {
+	revoke := func(token, client string, want oauth.Revocation) {
 		t.Helper()
 		form := url.Values{"token": {token}, "client_id": {client}}
-		return f.service.RevokeToken(t.Context(), form)
+		if got, err := f.service.RevokeToken(t.Context(), form); err != nil || got != want {
+			t.Fatalf("revoke %.20q: %q %v, want %q", token, got, err, want)
+		}
 	}
 	for name, c := range map[string]struct {
 		form url.Values
@@ -379,7 +381,7 @@ func TestRevokeToken(t *testing.T) {
 		"missing client": {url.Values{"token": {oauth.AccessPrefix + "x"}}, "invalid_client"},
 		"repeated token": {url.Values{"client_id": {clientID}, "token": {"a", "b"}}, "invalid_request"},
 	} {
-		if err := f.service.RevokeToken(t.Context(), c.form); oauthCode(err) != c.code {
+		if _, err := f.service.RevokeToken(t.Context(), c.form); oauthCode(err) != c.code {
 			t.Errorf("%s: %v, want %s", name, err, c.code)
 		}
 	}
@@ -387,21 +389,15 @@ func TestRevokeToken(t *testing.T) {
 	first, _ := f.exchange(t, codeForm(f.approve(t)))
 	second, _ := f.exchange(t, codeForm(f.approve(t)))
 	for _, token := range []string{"unknown", oauth.AccessPrefix + "unknown", oauth.RefreshPrefix + "unknown", strings.Repeat("x", 200)} {
-		if err := revoke(token, clientID); err != nil {
-			t.Fatalf("%q: %v", token, err)
-		}
+		revoke(token, clientID, oauth.RevokeUnknown)
 	}
-	if err := revoke(first.AccessToken, "https://other.example/client.json"); err != nil {
-		t.Fatal(err)
-	}
+	revoke(first.AccessToken, "https://other.example/client.json", oauth.RevokeOtherClient)
 	if _, err := f.service.Authenticate(t.Context(), first.AccessToken); err != nil {
 		t.Fatal("another client revoked the connection")
 	}
 	// The access token ends the whole connection, refresh token included;
 	// the other connection stays.
-	if err := revoke(first.AccessToken, clientID); err != nil {
-		t.Fatal(err)
-	}
+	revoke(first.AccessToken, clientID, oauth.Revoked)
 	if _, err := f.service.Authenticate(t.Context(), first.AccessToken); err == nil {
 		t.Fatal("revoked access token still works")
 	}
@@ -414,16 +410,33 @@ func TestRevokeToken(t *testing.T) {
 	}
 	// The refresh token, with a hint, ends its connection too.
 	form := url.Values{"token": {second.RefreshToken}, "token_type_hint": {"refresh_token"}, "client_id": {clientID}}
-	if err := f.service.RevokeToken(t.Context(), form); err != nil {
-		t.Fatal(err)
+	if got, err := f.service.RevokeToken(t.Context(), form); err != nil || got != oauth.Revoked {
+		t.Fatalf("refresh token: %q %v", got, err)
 	}
 	if grants, _ := f.service.Grants(t.Context(), "account-1"); len(grants) != 0 {
 		t.Fatalf("connections after revocation: %d", len(grants))
 	}
 	// Revoking again is still a success.
-	if err := revoke(second.RefreshToken, clientID); err != nil {
+	revoke(second.RefreshToken, clientID, oauth.RevokeUnknown)
+
+	// A refresh token already rotated away ends the connection holding its
+	// successor, but only for the client it was issued to.
+	third, _ := f.exchange(t, codeForm(f.approve(t)))
+	next, err := f.exchange(t, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {third.RefreshToken}, "client_id": {clientID}})
+	if err != nil {
 		t.Fatal(err)
 	}
+	revoke(third.RefreshToken, "https://other.example/client.json", oauth.RevokeOtherClient)
+	revoke(third.RefreshToken, clientID, oauth.RevokedRotated)
+	if _, err := f.service.Authenticate(t.Context(), next.AccessToken); err == nil {
+		t.Fatal("rotated refresh token left its connection active")
+	}
+	// A replaced access token has no history: nothing to revoke.
+	fourth, _ := f.exchange(t, codeForm(f.approve(t)))
+	if _, err := f.exchange(t, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {fourth.RefreshToken}, "client_id": {clientID}}); err != nil {
+		t.Fatal(err)
+	}
+	revoke(fourth.AccessToken, clientID, oauth.RevokeUnknown)
 }
 
 func TestMetadataDescribesOneIssuerAndResource(t *testing.T) {

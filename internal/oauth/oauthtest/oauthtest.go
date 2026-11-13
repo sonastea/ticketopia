@@ -158,22 +158,34 @@ func (r *Repository) RevokeGrant(_ context.Context, account, id string) error {
 	return nil
 }
 
-func (r *Repository) RevokeToken(_ context.Context, hash [32]byte, refresh bool, clientID string) error {
+func (r *Repository) RevokeToken(_ context.Context, hash [32]byte, refresh bool, clientID string) (oauth.Revocation, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.Fail != nil {
-		return r.Fail
+		return "", r.Fail
 	}
-	for id, g := range r.Grants {
+	id, outcome := "", oauth.Revoked
+	for gid, g := range r.Grants {
 		current := g.AccessHash
 		if refresh {
 			current = g.RefreshHash
 		}
-		if current == hash && hash != ([32]byte{}) && g.ClientID == clientID {
-			delete(r.Grants, id)
+		if current == hash && hash != ([32]byte{}) {
+			id = gid
 		}
 	}
-	return nil
+	if u, ok := r.Used[hash]; ok && id == "" && refresh {
+		id, outcome = u.grant, oauth.RevokedRotated
+	}
+	g, ok := r.Grants[id]
+	switch {
+	case !ok:
+		return oauth.RevokeUnknown, nil
+	case g.ClientID != clientID:
+		return oauth.RevokeOtherClient, nil
+	}
+	delete(r.Grants, id)
+	return outcome, nil
 }
 
 func (r *Repository) RevokeAll(_ context.Context, account string) error {

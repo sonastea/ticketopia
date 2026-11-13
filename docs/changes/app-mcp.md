@@ -7,11 +7,14 @@
 - Agents disconnect themselves at `POST /oauth/revoke`, advertised as
   `revocation_endpoint` in server metadata: either of a connection's current
   tokens with the client's `client_id` ends the whole connection, as
-  **Disconnect** on the account page does. Unknown, expired, rotated or other
+  **Disconnect** on the account page does; a refresh token already rotated away
+  does too, like a replay at the token endpoint. Unknown, expired or other
   clients' tokens get the same empty 200 and change nothing. It shares the token
   endpoint's public-client, form-body, CORS and per-IP rules; storage failures
-  get 503 with `Retry-After`. No schema change. Tests cover the service rules,
-  the HTTP endpoint and cross-replica revocation against MariaDB; see the
+  get 503 with `Retry-After`. Each revocation is logged with its outcome and
+  the client's metadata host, never the token or account. No schema change.
+  Tests cover the service rules, the HTTP endpoint and logs, and cross-replica
+  revocation, including racing a refresh, against MariaDB; see the
   [guide](../app-mcp.md#oauth-sign-in).
 
 ### 2026-11-13 — Accept ChatGPT's client metadata

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
+	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/oauth"
@@ -376,12 +378,19 @@ func TestOAuthRevocationEndpoint(t *testing.T) {
 		t.Fatalf("token before revocation: %d", r.Code)
 	}
 	// Revoking succeeds, and so does revoking again: the client is told
-	// nothing about whether the token was still live.
+	// nothing about whether the token was still live, but the log is.
+	var logs bytes.Buffer
+	f.app.logger = zerolog.New(&logs)
 	for range 2 {
 		r := f.do(t, http.MethodPost, oauth.RevocationPath, form, formType)
 		if r.Code != http.StatusOK || r.Body.Len() != 0 || r.Header().Get("Access-Control-Allow-Origin") != "*" {
 			t.Fatalf("revoke: %d %v %q", r.Code, r.Header(), r.Body.String())
 		}
+	}
+	lines := strings.Split(strings.TrimSpace(logs.String()), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[0], `"outcome":"revoked"`) || !strings.Contains(lines[1], `"outcome":"unknown"`) ||
+		!strings.Contains(lines[0], `"client_host":"agent.example"`) || strings.Contains(logs.String(), access) {
+		t.Fatalf("revocation logs:\n%s", logs.String())
 	}
 	if r := mcpPost(t, f.routes, call, bearer); r.Code != http.StatusUnauthorized || !strings.Contains(r.Header().Get("WWW-Authenticate"), `error="invalid_token"`) {
 		t.Fatalf("revoked token: %d %v", r.Code, r.Header())

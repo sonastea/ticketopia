@@ -287,18 +287,49 @@ func (r *OAuthRepository) RevokeGrant(ctx context.Context, account, id string) e
 }
 
 // RevokeToken deletes the connection holding the token; its refresh history
-// goes with it. Both hash columns are unique, so at most one row matches.
-func (r *OAuthRepository) RevokeToken(ctx context.Context, hash [32]byte, refresh bool, clientID string) error {
+// goes with it. Both hash columns are unique, so at most one row matches. A
+// refresh token that is not current is looked up in the rotation history
+// without a lock, then its grant is locked by ID, as replayed refreshes do,
+// so this never holds a history row while waiting on a grant. A refresh
+// racing the revocation therefore still ends with the grant revoked: either
+// revocation locks it first, or the token is already in the history.
+func (r *OAuthRepository) RevokeToken(ctx context.Context, hash [32]byte, refresh bool, clientID string) (oauth.Revocation, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	query := `DELETE FROM oauth_grants WHERE access_hash=? AND client_id=?`
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return "", safeError("revoke transaction", err)
+	}
+	defer tx.Rollback()
+	column, outcome := "access_hash", oauth.Revoked
 	if refresh {
-		query = `DELETE FROM oauth_grants WHERE refresh_hash=? AND client_id=?`
+		column = "refresh_hash"
 	}
-	if _, err := r.db.ExecContext(ctx, query, hash[:], clientID); err != nil {
-		return safeError("token revoke", err)
+	var grant, owner string
+	err = tx.QueryRowContext(ctx, `SELECT grant_id,client_id FROM oauth_grants WHERE `+column+`=? FOR UPDATE`, hash[:]).Scan(&grant, &owner)
+	if errors.Is(err, sql.ErrNoRows) && refresh {
+		outcome = oauth.RevokedRotated
+		err = tx.QueryRowContext(ctx, `SELECT grant_id FROM oauth_refresh_history WHERE refresh_hash=?`, hash[:]).Scan(&grant)
+		if err == nil {
+			err = tx.QueryRowContext(ctx, `SELECT client_id FROM oauth_grants WHERE grant_id=? FOR UPDATE`, grant).Scan(&owner)
+		}
 	}
-	return nil
+	if errors.Is(err, sql.ErrNoRows) {
+		return oauth.RevokeUnknown, nil
+	}
+	if err != nil {
+		return "", safeError("revoke read", err)
+	}
+	if owner != clientID {
+		return oauth.RevokeOtherClient, nil
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM oauth_grants WHERE grant_id=?`, grant); err != nil {
+		return "", safeError("token revoke", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return "", safeError("revoke commit", err)
+	}
+	return outcome, nil
 }
 
 // RevokeAll removes every connection and pending code under the account lock
