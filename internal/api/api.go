@@ -29,6 +29,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/location"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/moderation"
+	"github.com/sonastea/ticketopia/internal/oauth"
 	"github.com/sonastea/ticketopia/internal/radar"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/reminders"
@@ -63,6 +64,7 @@ type api struct {
 	moderation        *moderation.Service
 	reminders         *reminders.Service
 	mcp               appmcp.Config
+	oauth             *oauth.Service
 	// runCtx is NewAPI's context; background loops such as MCP metrics stop with it.
 	runCtx context.Context
 }

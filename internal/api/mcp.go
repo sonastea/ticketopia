@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/appmcp"
+	"github.com/sonastea/ticketopia/internal/oauth"
 	"golang.org/x/time/rate"
 )
 
@@ -26,6 +28,22 @@ import (
 // and signed-in tools for requests with a valid API token.
 func WithMCP(config appmcp.Config) Option {
 	return func(a *api) { a.mcp = config }
+}
+
+// WithMCPOAuth lets agents sign in to /mcp through OAuth when MCP and
+// config.OAuth are enabled and accounts are on.
+func WithMCPOAuth(service *oauth.Service) Option {
+	return func(a *api) { a.oauth = service }
+}
+
+// signInRequired reports whether every /mcp request needs a valid token.
+func (a *api) signInRequired() bool {
+	return a.mcp.Enabled && a.mcp.RequireSignIn && a.enabled()
+}
+
+// oauthEnabled reports whether OAuth sign-in for /mcp is served.
+func (a *api) oauthEnabled() bool {
+	return a.mcp.Enabled && a.mcp.OAuth && a.oauth != nil && a.enabled()
 }
 
 const (
@@ -59,9 +77,21 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 	}
 	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight), metrics)
 	e.Any("/mcp", echo.WrapHandler(mcpAuthenticated(appmcp.Handler(deps))), boundary)
+	if a.oauthEnabled() {
+		a.oauthRoutes(e, newIPLimiter(rate, a.clock))
+	}
 }
 
-type mcpPrincipalKey struct{}
+type mcpCallerKey struct{}
+
+// mcpCaller is the account behind a verified API token or OAuth access token.
+// API tokens carry every scope; OAuth connections carry what the person allowed.
+type mcpCaller struct {
+	account string
+	scopes  []string
+}
+
+func (c mcpCaller) can(scope string) bool { return slices.Contains(c.scopes, scope) }
 
 // mcpAuthenticated hands the account the boundary verified to the tools as
 // MCP token info. The SDK middleware only runs for requests carrying a token,
@@ -70,11 +100,11 @@ type mcpPrincipalKey struct{}
 // without the Bearer challenge for a token expiring mid-request.
 func mcpAuthenticated(handler http.Handler) http.Handler {
 	bearer := auth.RequireBearerToken(func(_ context.Context, _ string, r *http.Request) (*auth.TokenInfo, error) {
-		p, ok := r.Context().Value(mcpPrincipalKey{}).(accounts.Principal)
+		caller, ok := r.Context().Value(mcpCallerKey{}).(mcpCaller)
 		if !ok {
 			return nil, auth.ErrInvalidToken
 		}
-		return &auth.TokenInfo{UserID: p.Account.ID}, nil
+		return &auth.TokenInfo{UserID: caller.account, Scopes: caller.scopes}, nil
 	}, &auth.RequireBearerTokenOptions{AllowMissingExpiration: true})(handler)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "" {
@@ -107,9 +137,12 @@ func mcpError(c echo.Context, status int, retry int, message string) error {
 //     requires Origin validation against DNS rebinding; CORS stays disabled);
 //   - each client IP is rate limited on this replica, and one request is one
 //     call: JSON-RPC batches are rejected so a request cannot carry many;
-//   - a bearer API token, if sent, must be valid, and its account is limited
-//     too; cookies are never used, so browsers cannot act with ambient
-//     sign-in;
+//   - a bearer API token or OAuth access token, if sent, must be valid, and
+//     its account is limited too; cookies are never used, so browsers cannot
+//     act with ambient sign-in;
+//   - with sign-in required, any request without a token gets a 401
+//     challenge; otherwise, with OAuth on, signed-in tool calls without one
+//     do; changes through a read-only connection get a 403;
 //   - concurrent requests are bounded and excess is refused, not queued;
 //   - bodies are capped and responses kept out of caches.
 func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan struct{}, metrics *appmcp.Metrics) echo.MiddlewareFunc {
@@ -134,22 +167,31 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 				return mcpError(c, http.StatusServiceUnavailable, 1, "busy; retry shortly")
 			}
 			// Token checks read the database, so they run inside the concurrency bound.
+			var caller *mcpCaller
 			if header := c.Request().Header.Get("Authorization"); header != "" {
-				p, err := a.mcpPrincipal(c, header)
+				verified, err := a.mcpCaller(c, header)
 				if err != nil {
 					if errors.Is(err, accounts.ErrUnauthenticated) {
-						c.Response().Header().Set("WWW-Authenticate", `Bearer realm="ticketopia"`)
+						c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("invalid_token", ""))
 						metrics.Refuse(appmcp.RefusedUnauthorized)
-						return mcpError(c, http.StatusUnauthorized, 0, "invalid, expired or revoked API token")
+						return mcpError(c, http.StatusUnauthorized, 0, "invalid, expired or revoked token")
 					}
 					metrics.Refuse(appmcp.RefusedAccountsUnavailable)
 					return mcpError(c, http.StatusServiceUnavailable, 30, "accounts are unavailable; retry shortly")
 				}
-				if ok, wait := accountLimiter.allow(p.Account.ID); !ok {
+				if ok, wait := accountLimiter.allow(verified.account); !ok {
 					metrics.Refuse(appmcp.RefusedAccountRate)
 					return mcpError(c, http.StatusTooManyRequests, max(1, int(math.Ceil(wait.Seconds()))), "too many requests for this account; retry after the Retry-After delay")
 				}
-				c.SetRequest(c.Request().WithContext(context.WithValue(c.Request().Context(), mcpPrincipalKey{}, p)))
+				caller = &verified
+				c.SetRequest(c.Request().WithContext(context.WithValue(c.Request().Context(), mcpCallerKey{}, verified)))
+			}
+			// With sign-in required, every request needs a token, so all agent
+			// traffic is attributed to an account and limited per account.
+			if caller == nil && a.signInRequired() {
+				c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("", strings.Join(oauth.Scopes, " ")))
+				metrics.Refuse(appmcp.RefusedSignInRequired)
+				return mcpError(c, http.StatusUnauthorized, 0, "sign in to Ticketopia to use its agent tools")
 			}
 			if c.Request().Body != nil {
 				body, err := io.ReadAll(http.MaxBytesReader(c.Response(), c.Request().Body, mcpBodyLimit))
@@ -161,6 +203,11 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 					metrics.Refuse(appmcp.RefusedBatch)
 					return mcpError(c, http.StatusBadRequest, 0, "JSON-RPC batch requests are not supported; send one request per POST")
 				}
+				if a.oauthEnabled() {
+					if handled, err := a.mcpAuthorizeCall(c, body, caller, metrics); handled {
+						return err
+					}
+				}
 				c.Request().Body = io.NopCloser(bytes.NewReader(body))
 			}
 			return next(c)
@@ -168,15 +215,83 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 	}
 }
 
-// mcpPrincipal verifies a bearer API token through the account service, as
-// /api/v1 does. Accounts being off means no token can be valid.
-func (a *api) mcpPrincipal(c echo.Context, header string) (accounts.Principal, error) {
+// mcpCaller verifies a bearer token: an OAuth access token when OAuth is on,
+// otherwise an account API token as /api/v1 accepts. Accounts being off means
+// no token can be valid.
+func (a *api) mcpCaller(c echo.Context, header string) (mcpCaller, error) {
 	// The scheme is case-insensitive, as the MCP SDK parses it.
 	fields := strings.Fields(header)
 	if len(fields) != 2 || !strings.EqualFold(fields[0], "bearer") || !a.enabled() || a.accounts == nil {
-		return accounts.Principal{}, accounts.ErrUnauthenticated
+		return mcpCaller{}, accounts.ErrUnauthenticated
 	}
-	return a.authenticateRequest(c, fields[1], "api")
+	if strings.HasPrefix(fields[1], oauth.AccessPrefix) {
+		if !a.oauthEnabled() {
+			return mcpCaller{}, accounts.ErrUnauthenticated
+		}
+		access, err := a.oauth.Authenticate(c.Request().Context(), fields[1])
+		if errors.Is(err, oauth.ErrUnauthenticated) {
+			return mcpCaller{}, accounts.ErrUnauthenticated
+		}
+		if err != nil {
+			return mcpCaller{}, err
+		}
+		return mcpCaller{access.AccountID, access.Scopes}, nil
+	}
+	p, err := a.authenticateRequest(c, fields[1], "api")
+	if err != nil {
+		return mcpCaller{}, err
+	}
+	return mcpCaller{p.Account.ID, slices.Clone(oauth.Scopes)}, nil
+}
+
+// mcpChallenge is the WWW-Authenticate value for /mcp. With OAuth on it
+// points clients at the protected resource metadata (RFC 9728) and the
+// scopes they should request.
+func (a *api) mcpChallenge(errorCode, scope string) string {
+	challenge := `Bearer realm="ticketopia"`
+	if errorCode != "" {
+		challenge += `, error="` + errorCode + `"`
+	}
+	if a.oauthEnabled() {
+		challenge += `, resource_metadata="` + a.oauth.ResourceMetadataURL() + `"`
+		if scope != "" {
+			challenge += `, scope="` + scope + `"`
+		}
+	}
+	return challenge
+}
+
+// mcpAuthorizeCall answers with HTTP challenges so clients start sign-in
+// (401) or ask the person to allow changes (403 insufficient_scope) instead of
+// showing a tool error. Unless sign-in is required (checked earlier for every
+// request), initialize, tools/list and public tools stay anonymous.
+// It reports whether it answered the request, which then must not continue.
+func (a *api) mcpAuthorizeCall(c echo.Context, body []byte, caller *mcpCaller, metrics *appmcp.Metrics) (bool, error) {
+	var call struct {
+		Method string `json:"method"`
+		Params struct {
+			Name string `json:"name"`
+		} `json:"params"`
+	}
+	all := strings.Join(oauth.Scopes, " ")
+	if json.Unmarshal(body, &call) != nil || call.Method != "tools/call" {
+		return false, nil
+	}
+	write, signedIn := appmcp.SignedInTools[call.Params.Name]
+	if !signedIn {
+		return false, nil
+	}
+	if caller == nil {
+		c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("", all))
+		metrics.Refuse(appmcp.RefusedSignInRequired)
+		return true, mcpError(c, http.StatusUnauthorized, 0, "sign in to Ticketopia to use "+call.Params.Name)
+	}
+	if write && !caller.can(oauth.ScopeWrite) {
+		c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("insufficient_scope", all))
+		metrics.Refuse(appmcp.RefusedInsufficientScope)
+		return true, mcpError(c, http.StatusForbidden, 0, "this connection is read-only; reconnect and allow changes to use "+call.Params.Name)
+	}
+	return false, nil
 }
 
 // allowedOrigin accepts configured origins (MCP_ALLOWED_ORIGINS, default

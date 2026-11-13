@@ -20,6 +20,10 @@ const (
 	RefusedAccountsUnavailable = "accounts_unavailable"
 	RefusedBatch               = "batch"
 	RefusedTooLarge            = "too_large"
+	// With OAuth: a signed-in tool called without a token, or a change
+	// requested through a read-only connection.
+	RefusedSignInRequired    = "sign_in_required"
+	RefusedInsufficientScope = "insufficient_scope"
 )
 
 // Metrics counts tool calls and boundary refusals per replica, with fixed

@@ -218,20 +218,20 @@ func TestMCPToolErrorsCarryRetryDelay(t *testing.T) {
 }
 
 func TestMCPConfigFromEnv(t *testing.T) {
-	for _, name := range []string{"MCP_ENABLED", "MCP_RATE_PER_MINUTE", "MCP_MAX_IN_FLIGHT", "MCP_ALLOWED_ORIGINS", "AUTH_BASE_URL"} {
+	for _, name := range []string{"MCP_ENABLED", "MCP_RATE_PER_MINUTE", "MCP_MAX_IN_FLIGHT", "MCP_ALLOWED_ORIGINS", "AUTH_BASE_URL", "MCP_OAUTH_ENABLED", "MCP_REQUIRE_SIGN_IN"} {
 		t.Setenv(name, "")
 	}
-	if c, err := appmcp.ConfigFromEnv(); err != nil || c.Enabled || c.RatePerMinute != 60 || c.MaxInFlight != 8 || len(c.AllowedOrigins) != 0 {
+	if c, err := appmcp.ConfigFromEnv(); err != nil || c.Enabled || c.OAuth || c.RatePerMinute != 60 || c.MaxInFlight != 8 || len(c.AllowedOrigins) != 0 {
 		t.Fatalf("defaults %+v %v", c, err)
 	}
 	// Disabled MCP reads nothing else, so its settings cannot stop startup.
-	for name, value := range map[string]string{"MCP_RATE_PER_MINUTE": "0", "MCP_ALLOWED_ORIGINS": "null", "AUTH_BASE_URL": "ftp://elsewhere/path"} {
+	for name, value := range map[string]string{"MCP_RATE_PER_MINUTE": "0", "MCP_ALLOWED_ORIGINS": "null", "AUTH_BASE_URL": "ftp://elsewhere/path", "MCP_OAUTH_ENABLED": "maybe"} {
 		t.Setenv(name, value)
 	}
 	if _, err := appmcp.ConfigFromEnv(); err != nil {
 		t.Fatalf("disabled MCP validated its settings: %v", err)
 	}
-	for _, name := range []string{"MCP_RATE_PER_MINUTE", "MCP_ALLOWED_ORIGINS"} {
+	for _, name := range []string{"MCP_RATE_PER_MINUTE", "MCP_ALLOWED_ORIGINS", "MCP_OAUTH_ENABLED"} {
 		t.Setenv(name, "")
 	}
 	t.Setenv("MCP_ENABLED", "true")
@@ -249,7 +249,40 @@ func TestMCPConfigFromEnv(t *testing.T) {
 		t.Fatalf("explicit origins: %v", c.AllowedOrigins)
 	}
 	t.Setenv("MCP_ALLOWED_ORIGINS", "")
-	for name, value := range map[string]string{"MCP_ENABLED": "sometimes", "MCP_RATE_PER_MINUTE": "0", "MCP_MAX_IN_FLIGHT": "257", "MCP_ALLOWED_ORIGINS": "null"} {
+	// With accounts, OAuth and required sign-in default on; each can be
+	// turned off. Without accounts they default off and cannot be enabled.
+	resolve := func(accounts bool) (appmcp.Config, error) {
+		c, err := appmcp.ConfigFromEnv()
+		if err != nil {
+			return c, err
+		}
+		return c.Resolve(accounts)
+	}
+	if c, err := resolve(true); err != nil || !c.OAuth || !c.RequireSignIn {
+		t.Fatalf("defaults with accounts: %+v %v", c, err)
+	}
+	if c, err := resolve(false); err != nil || c.OAuth || c.RequireSignIn {
+		t.Fatalf("defaults without accounts: %+v %v", c, err)
+	}
+	t.Setenv("MCP_REQUIRE_SIGN_IN", "false")
+	if c, err := resolve(true); err != nil || !c.OAuth || c.RequireSignIn {
+		t.Fatalf("optional sign-in: %+v %v", c, err)
+	}
+	t.Setenv("MCP_OAUTH_ENABLED", "false")
+	if c, err := resolve(true); err != nil || c.OAuth || c.RequireSignIn {
+		t.Fatalf("OAuth off: %+v %v", c, err)
+	}
+	for _, name := range []string{"MCP_OAUTH_ENABLED", "MCP_REQUIRE_SIGN_IN"} {
+		t.Setenv("MCP_OAUTH_ENABLED", "")
+		t.Setenv("MCP_REQUIRE_SIGN_IN", "")
+		t.Setenv(name, "true")
+		if _, err := resolve(false); err == nil {
+			t.Fatalf("%s=true accepted without accounts", name)
+		}
+	}
+	t.Setenv("MCP_OAUTH_ENABLED", "")
+	t.Setenv("MCP_REQUIRE_SIGN_IN", "")
+	for name, value := range map[string]string{"MCP_ENABLED": "sometimes", "MCP_OAUTH_ENABLED": "maybe", "MCP_REQUIRE_SIGN_IN": "always", "MCP_RATE_PER_MINUTE": "0", "MCP_MAX_IN_FLIGHT": "257", "MCP_ALLOWED_ORIGINS": "null"} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("MCP_ENABLED", "true")
 			t.Setenv(name, value)

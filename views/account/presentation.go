@@ -3,6 +3,7 @@ package account
 import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/oauth"
 	"github.com/sonastea/ticketopia/views/home"
 	"github.com/sonastea/ticketopia/views/layouts"
 	"net/url"
@@ -72,6 +73,30 @@ type Page struct {
 	CategoriesUnavailable                  bool
 	EventInterests                         home.InterestCollectionPage
 	ModerationEnabled, Moderator           bool
+	// Connections are agents signed in through OAuth, when that is enabled.
+	Connections        []oauth.Grant
+	ConnectionsEnabled bool
+	// ConnectionsOpen expands the list after a disconnection.
+	ConnectionsOpen bool
+}
+
+// ConsentPage asks whether to connect an agent to the account.
+type ConsentPage struct {
+	ClientName, ClientHost, RedirectHost string
+	// LocalRedirect is set when the app receives the result on this device.
+	LocalRedirect bool
+	// Write is set when the app asks to change saves and reminders.
+	Write               bool
+	Email, CSRF, Action string
+	Fields              []HiddenField
+}
+
+// HiddenField carries an authorization request parameter through the form.
+type HiddenField struct{ Name, Value string }
+
+// signInConnects reports a sign-in that resumes an agent connection.
+func signInConnects(returnTo string) bool {
+	return strings.HasPrefix(returnTo, "/oauth/authorize?")
 }
 
 func (p Page) Active() string {

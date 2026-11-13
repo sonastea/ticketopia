@@ -109,6 +109,13 @@ func safeAuthReturn(raw string) string {
 	if err != nil || u.IsAbs() || u.Host != "" || u.Fragment != "" || u.RawPath != "" || !strings.HasPrefix(u.Path, "/") {
 		return "/me"
 	}
+	if u.Path == "/oauth/authorize" {
+		// The authorization request is validated again when it resumes.
+		if _, err := url.ParseQuery(u.RawQuery); err != nil || u.RawQuery == "" {
+			return "/me"
+		}
+		return u.String()
+	}
 	if u.Path == "/" {
 		values, err := url.ParseQuery(u.RawQuery)
 		if err != nil {
@@ -665,6 +672,8 @@ func (a *api) accountPage(section string) echo.HandlerFunc {
 			notice = "Your private preferences were saved."
 		case "token":
 			notice = "API token revoked."
+		case "connection":
+			notice = "App disconnected. It can no longer use your account."
 		}
 		return a.renderAccount(c, 200, p, section, "", notice, "")
 	}
@@ -696,6 +705,13 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 		page.Tokens, err = a.accounts.Tokens(c.Request().Context(), p.Account.ID)
 		if err != nil {
 			return a.accountPageError(c, err)
+		}
+		if a.oauthEnabled() {
+			page.ConnectionsEnabled = true
+			page.ConnectionsOpen = c.QueryParam("saved") == "connection"
+			if page.Connections, err = a.oauth.Grants(c.Request().Context(), p.Account.ID); err != nil {
+				return a.accountPageError(c, err)
+			}
 		}
 	}
 	if section == "interests" {
@@ -844,7 +860,13 @@ func (a *api) logoutPage(all bool) echo.HandlerFunc {
 			return a.accountPageError(c, err)
 		}
 		if all {
-			err = a.accounts.RevokeAll(c.Request().Context(), p.Account.ID)
+			// Disconnect agents first: if that fails, the session still works to retry.
+			if a.oauthEnabled() {
+				err = a.oauth.RevokeAll(c.Request().Context(), p.Account.ID)
+			}
+			if err == nil {
+				err = a.accounts.RevokeAll(c.Request().Context(), p.Account.ID)
+			}
 		} else {
 			err = a.accounts.Revoke(c.Request().Context(), p.Account.ID, p.Credential.ID)
 		}

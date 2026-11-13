@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### 2026-11-12 — OAuth sign-in with Client ID Metadata Documents
+
+- Add an OAuth 2.1 authorization server (`MCP_OAUTH_ENABLED`, on by default
+  with accounts) so agents sign in through the browser: protected resource and
+  authorization server metadata, `/oauth/authorize` with S256 PKCE, RFC 9207
+  `iss`, and `/oauth/token` with rotating refresh tokens; replaying a rotated
+  refresh token revokes the connection. Clients identify
+  with Client ID Metadata Documents, fetched only from public HTTPS addresses;
+  DCR and client secrets are not supported.
+- A consent page names the app and its metadata host and lets people withhold
+  changes (`read` versus `write` scopes). With accounts, `/mcp` now requires
+  sign-in for every request by default (`MCP_REQUIRE_SIGN_IN`), answering
+  requests without a token with a 401 challenge, so agent traffic is attributed
+  and limited per account; with sign-in optional, only signed-in tool calls are
+  challenged. Changes through read-only connections get 403
+  `insufficient_scope`, and tools also refuse writes without the scope.
+- Remote `make load-test` runs send `TOKEN` on public tool calls too; review
+  servers keep sign-in optional so the local baseline stays anonymous.
+- Connections are listed under **Connected apps** on the account page and can be
+  disconnected; **Sign out everywhere** disconnects them all, serialized with
+  code redemption. Schema 21 adds `oauth_codes`, `oauth_grants` and
+  `oauth_refresh_history` with runtime grants in every provisioning path.
+- Tests cover the service rules, document fetching and SSRF refusal, a real MCP
+  SDK client signing in and stepping up from read-only, and code/refresh single
+  use, replay revocation and redemption racing sign-out across three replicas
+  against MariaDB. Real hosted clients still need a public deployment to verify;
+  see the [feature backlog](../goals/feature-backlog.md).
+
 ### 2026-11-11 — Per-tool metrics and busy wording
 
 - Log an `MCP metrics` record each minute with changes: per-tool calls,

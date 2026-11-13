@@ -29,6 +29,8 @@ their status; they describe intended work rather than available features.
   with incremental verification and three-replica performance gates.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
+- [Feature backlog](goals/feature-backlog.md): ordered candidate features for when
+  feature work resumes, starting with OAuth sign-in for agent clients.
 - [Personal radar and reminders](goals/personal-radar.md): core discovery and
   reminder goals, with small user outcomes and pilot checkpoints.
 - [Positive event communities](goals/event-communities.md): MVP interest,

@@ -11,7 +11,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 )
 
-const SupportedSchemaVersion = 20
+const SupportedSchemaVersion = 21
 
 // ErrUnavailable is dberr.ErrUnavailable, so callers that cannot import this
 // package (the API, whose tests this package imports) recognize it too.
@@ -148,6 +148,9 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT ` + credentialColumns + ` FROM account_credentials LIMIT 0`,
 		`SELECT state_hash, browser_hash, verifier, nonce, return_to, expires_at FROM auth_flows LIMIT 0`,
 		`SELECT bucket_hash, attempts, expires_at FROM auth_rate_limits LIMIT 0`,
+		`SELECT code_hash,account_id,client_id,client_name,redirect_uri,code_challenge,scopes,refresh,expires_at FROM oauth_codes LIMIT 0`,
+		`SELECT ` + grantColumns + ` FROM oauth_grants LIMIT 0`,
+		`SELECT refresh_hash,grant_id,used_at FROM oauth_refresh_history LIMIT 0`,
 		`SELECT event_id, snapshot, data_as_of, community_city, community_country,activity_title FROM event_snapshots LIMIT 0`,
 		`SELECT account_id, event_id, saved_at FROM saved_events LIMIT 0`,
 		`SELECT account_id, event_id, interested_at, visibility FROM event_interests LIMIT 0`,
@@ -188,7 +191,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		}
 	}
 	var count int
-	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','discussion_follows','discussion_notifications','discussion_notification_posts','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals','artists','artist_providers','venues','venue_providers','artist_follows','venue_follows','event_history_state','event_observations','collection_tasks','collection_runs','collection_pages','collection_run_events','provider_budgets') AND engine = 'InnoDB'`).Scan(&count)
+	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','oauth_codes','oauth_grants','oauth_refresh_history','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','discussion_follows','discussion_notifications','discussion_notification_posts','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals','artists','artist_providers','venues','venue_providers','artist_follows','venue_follows','event_history_state','event_observations','collection_tasks','collection_runs','collection_pages','collection_run_events','provider_budgets') AND engine = 'InnoDB'`).Scan(&count)
 	if err != nil {
 		return safeError("schema validation", err)
 	}
@@ -196,7 +199,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('event_reminders','reminder_jobs','reminder_dispatch','live_recommendation_activity') AND engine='InnoDB'`).Scan(&reminderCount); err != nil {
 		return safeError("schema validation", err)
 	}
-	if count != 38 || reminderCount != 4 {
+	if count != 41 || reminderCount != 4 {
 		return fmt.Errorf("database schema requires InnoDB tables")
 	}
 	return nil

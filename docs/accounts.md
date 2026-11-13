@@ -171,10 +171,13 @@ response, then use `Authorization: Bearer TOKEN` for own account/profile/prefere
 API reads/writes. A later GET/list never reveals the secret. Re-submitting a token
 creation POST creates another token, so don't refresh/resubmit its response.
 API tokens cannot manage credentials. Revoke individually or use **Sign out
-everywhere & revoke API tokens**; ordinary Sign out revokes only the current session
+everywhere & revoke API tokens** (which also disconnects apps when
+[OAuth sign-in](app-mcp.md#oauth-sign-in) is on); ordinary Sign out revokes only the current session
 and does not sign out of Google. Tokens can revoke themselves through
 `DELETE /api/v1/me/session`. The same tokens sign agents in to the
-[agent tools](app-mcp.md#signing-in) at `/mcp`.
+[agent tools](app-mcp.md#signing-in) at `/mcp`. Agents can instead connect through
+[OAuth](app-mcp.md#oauth-sign-in); those connections appear under **Connected apps**
+on `/me`, with their access, and can be disconnected there.
 
 The [OpenAPI contract](openapi.md) documents `/api/v1/me`, own profile/preferences,
 public `/api/v1/users/{id}`, token management, and current-credential revocation.

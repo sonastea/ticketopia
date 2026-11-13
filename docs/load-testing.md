@@ -62,7 +62,9 @@ Remote runs differ from local ones to stay safe on a real deployment:
   from the account page; use a dedicated test account. `my_reminders` runs only
   when the server lists it (reminders enabled). Keep the token in the
   environment, not on the command line. It is sent only over HTTPS or to this
-  machine, unless `ALLOW_HTTP_TOKEN=1` on a trusted network.
+  machine, unless `ALLOW_HTTP_TOKEN=1` on a trusted network. Servers with
+  accounts require sign-in for every `/mcp` call by default, so remote public
+  tool calls also carry `TOKEN` when it is set; without it they get 401 there.
 - **Gentle and ramped.** At `RATE=1`, per minute: 30 page, 30 API, 15 public
   tool and 4 signed-in tool iterations, so `/mcp` stays near 40 requests a
   minute, under the default `MCP_RATE_PER_MINUTE` of 60 per IP. Arrivals ramp

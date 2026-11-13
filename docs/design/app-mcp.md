@@ -2,8 +2,12 @@
 
 Status: **Steps 1–3 implemented** (public tools behind `MCP_ENABLED`, signed-in
 saves and reminders with API-token bearer auth, and a local k6 baseline; see
-[agent tools](../app-mcp.md) and [load testing](../load-testing.md)). Later
-steps remain proposed. It describes an MCP
+[agent tools](../app-mcp.md) and [load testing](../load-testing.md)). **Step 4
+implemented** as OAuth with Client ID Metadata Documents and read/write scopes
+(on by default with accounts, as is requiring sign-in for every request);
+Dynamic Client Registration was left out (see the
+[feature backlog](../goals/feature-backlog.md)), and connecting real hosted
+clients awaits a public deployment. Step 5 remains proposed. It describes an MCP
 server for Ticketopia users' own agents. The separate, implemented
 [review MCP server](../testing.md#review-fixtures-over-mcp) is a local
 development tool over throwaway fixture data and is unaffected by this plan.
@@ -142,13 +146,13 @@ the system sustains.
 1. Read-only public tools behind `MCP_ENABLED`, with rate limits and metrics.
 2. Signed-in tools with API-token bearer auth; privacy and limit tests.
 3. k6 baseline for web, API and `/mcp` traffic mixes; agent-session exploration.
-4. OAuth flow and read/write scopes.
+4. OAuth flow and read/write scopes (implemented with CIMD; DCR deferred).
 5. Revisit deployment option 2 using the metrics.
 
 ## Open questions
 
-- Which client applications must work first, and do they all send custom
-  headers before OAuth is available?
+- Which client applications must work first? Claude Code, VS Code, Claude and
+  ChatGPT support CIMD; Cursor documents DCR or a pre-registered client only.
 - Rate-limit values per token and per IP, and whether paid or trusted users
   need higher ones.
 - Whether `find_events` should default to the account's remembered city when

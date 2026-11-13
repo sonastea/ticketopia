@@ -53,8 +53,9 @@ func (f fakeReminders) Remove(_ context.Context, owner, event string) error {
 	return nil
 }
 
-// privateServer verifies "owner-token" as account owner-id, as the API's
-// boundary does, only for requests carrying a token.
+// privateServer verifies "owner-token" (read and write) and "reader-token"
+// (read only) as account owner-id, as the API's boundary does, only for
+// requests carrying a token.
 func privateServer(t *testing.T, f *fakeAccount) *httptest.Server {
 	t.Helper()
 	return privateServerWith(t, f, nil)
@@ -65,10 +66,13 @@ func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest
 	handler := Handler(Deps{Events: &fakeEvents{}, Details: &fakeEvents{}, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
 		DescribePrivate: func(err error) string { return "private: " + err.Error() }})
 	bearer := auth.RequireBearerToken(func(_ context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
-		if token != "owner-token" {
-			return nil, auth.ErrInvalidToken
+		switch token {
+		case "owner-token":
+			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read", "write"}, Expiration: time.Now().Add(time.Hour)}, nil
+		case "reader-token":
+			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read"}, Expiration: time.Now().Add(time.Hour)}, nil
 		}
-		return &auth.TokenInfo{UserID: "owner-id", Expiration: time.Now().Add(time.Hour)}, nil
+		return nil, auth.ErrInvalidToken
 	}, nil)(handler)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "" {
@@ -194,5 +198,46 @@ func TestPrivateToolsNeedAccountServices(t *testing.T) {
 		if strings.HasPrefix(tool.Name, "my_") || strings.Contains(tool.Name, "save") || strings.Contains(tool.Name, "reminder") {
 			t.Fatalf("%s listed without account services", tool.Name)
 		}
+	}
+}
+
+// A read-only connection reads the account but cannot change it, even if a
+// request gets past the HTTP boundary's scope check.
+func TestReadOnlyTokensCannotWrite(t *testing.T) {
+	f := &fakeAccount{}
+	base := privateServer(t, f).URL
+	event := map[string]any{"event_id": "ticketmaster:x"}
+	for name, args := range map[string]map[string]any{"save_event": event, "unsave_event": event,
+		"set_reminder": {"event_id": "ticketmaster:x", "lead_minutes": 30}, "stop_reminder": event} {
+		if reply := tool(t, base, "reader-token", name, args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "read-only") {
+			t.Fatalf("%s with read-only token: %+v", name, reply.Result)
+		}
+	}
+	if len(f.calls) != 0 {
+		t.Fatalf("read-only writes reached services: %v", f.calls)
+	}
+	if reply := tool(t, base, "reader-token", "my_saved_events", map[string]any{}); reply.Result.IsError {
+		t.Fatalf("read-only read: %+v", reply.Result)
+	}
+}
+
+// SignedInTools drives the HTTP boundary's sign-in and scope challenges, so
+// it must name exactly the registered signed-in tools and their writes.
+func TestSignedInToolsMatchRegistration(t *testing.T) {
+	reply := rpc(t, privateServer(t, &fakeAccount{}).URL, "", "tools/list", map[string]any{})
+	public := map[string]bool{"find_events": true, "list_categories": true, "event_details": true}
+	listed := 0
+	for _, tool := range reply.Result.Tools {
+		if public[tool.Name] {
+			continue
+		}
+		listed++
+		write, ok := SignedInTools[tool.Name]
+		if !ok || write == tool.Annotations.ReadOnlyHint {
+			t.Errorf("%s: in SignedInTools=%v write=%v readOnlyHint=%v", tool.Name, ok, write, tool.Annotations.ReadOnlyHint)
+		}
+	}
+	if listed != len(SignedInTools) {
+		t.Fatalf("listed %d signed-in tools, SignedInTools has %d", listed, len(SignedInTools))
 	}
 }

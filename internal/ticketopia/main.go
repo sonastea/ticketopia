@@ -18,6 +18,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/history"
 	"github.com/sonastea/ticketopia/internal/infra"
 	"github.com/sonastea/ticketopia/internal/logger"
+	"github.com/sonastea/ticketopia/internal/oauth"
 	"github.com/sonastea/ticketopia/internal/persistence"
 	"github.com/sonastea/ticketopia/internal/reminders"
 )
@@ -82,6 +83,10 @@ func Execute(ctx context.Context) int {
 		logger.Error().Err(err).Msg("Invalid MCP configuration")
 		return 1
 	}
+	if mcpConfig, err = mcpConfig.Resolve(authConfig.Enabled); err != nil {
+		logger.Error().Err(err).Msg("Invalid MCP configuration")
+		return 1
+	}
 	if mcpConfig.Enabled {
 		options = append(options, api.WithMCP(mcpConfig))
 	}
@@ -133,6 +138,9 @@ func Execute(ctx context.Context) int {
 			options = append(options, api.WithDiscussionFollows(pool.DiscussionFollows()))
 			options = append(options, api.WithModeration(pool.Moderation()))
 			options = append(options, api.WithAccounts(authConfig, accounts.New(pool.Accounts(), accounts.NewGoogle(ctx, authConfig))))
+			if mcpConfig.OAuth {
+				options = append(options, api.WithMCPOAuth(oauth.New(pool.OAuth(), oauth.NewDocuments(), authConfig.BaseURL)))
+			}
 		}
 	}
 

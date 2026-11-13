@@ -38,6 +38,9 @@ templ SignInContext(enabled bool, returnTo string, message string, eventName str
 						<p class="field-note">Signing in doesn't save an event, mark interest, publish a recommendation, change visibility, or set up reminders.</p>
 					}
 				}
+				if enabled && signInConnects(returnTo) {
+					<p>An app wants to connect to your Ticketopia account. After sign-in, you'll see what it can do and choose whether to connect it.</p>
+				}
 				if enabled {
 					<p>Sign in to create your Ticketopia profile and keep your preferences across visits and devices.</p>
 					@button.Button(button.Props{Href: googleStartURL(returnTo, intent), Class: "google-sign-in"}) {
@@ -179,7 +182,11 @@ templ Profile(p Page) {
 			<form action="/auth/logout-all" method="post">
 				@CSRF(p.CSRF)
 				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
-					Sign out everywhere &amp; revoke API tokens
+					if p.ConnectionsEnabled {
+						Sign out everywhere, revoke API tokens &amp; disconnect apps
+					} else {
+						Sign out everywhere &amp; revoke API tokens
+					}
 				}
 			</form>
 		</div>
@@ -219,6 +226,9 @@ templ Profile(p Page) {
 				</ul>
 			}
 		</details>
+		if p.ConnectionsEnabled {
+			@Connections(p)
+		}
 	</section>
 }
 

@@ -54,6 +54,10 @@ const queryOf = (search) => Object.entries(search).map(([k, v]) => `${k}=${encod
 // Signed-in reads use TOKEN remotely, the owner fixture locally; the
 // fixture's other account makes the local idempotent writes.
 const reader = remote ? __ENV.TOKEN || '' : manifest.accounts.owner.api_token;
+// Servers with accounts require sign-in for every /mcp call by default, so
+// remote public tool calls carry TOKEN when given; review servers allow them
+// anonymously, which keeps the local baseline's public traffic anonymous.
+const publicToken = remote ? reader : '';
 const writer = remote ? '' : manifest.accounts.other.api_token;
 // An API token is a full account credential: send it only over HTTPS or to
 // this machine, unless explicitly allowed for a trusted network.
@@ -278,10 +282,10 @@ export function api(data) {
 }
 
 export function mcpPublic(data) {
-	const found = tool('find_events', data.search, '', hasEvents);
+	const found = tool('find_events', data.search, publicToken, hasEvents);
 	// Remotely, open only the setup events, so details stay cached.
 	const id = found && !remote ? found.items[exec.scenario.iterationInTest % found.items.length].id : pick(data);
-	tool('event_details', { event_id: id }, '', (c) => isObject(c.item) && c.item.id === id);
+	tool('event_details', { event_id: id }, publicToken, (c) => isObject(c.item) && c.item.id === id);
 }
 
 export function mcpSignedIn(data) {

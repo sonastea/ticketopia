@@ -411,7 +411,8 @@ func TestMariaDBPrivateToolsArePerAccount(t *testing.T) {
 	data, _ := os.ReadFile(m.Accounts["owner"].StorageState)
 	_ = json.Unmarshal(data, &state)
 	cookie := state.Cookies[0].Name + "=" + state.Cookies[0].Value
-	if r := mcpTool(t, base, "", "my_saved_events", map[string]any{}, "Cookie", cookie); !r.IsError || !strings.Contains(r.Text, "Authorization: Bearer") {
+	// Review servers enable OAuth, so the cookie-only call is challenged to sign in.
+	if r := mcpTool(t, base, "", "my_saved_events", map[string]any{}, "Cookie", cookie); r.Status != http.StatusUnauthorized || r.IsError || r.Content != nil {
 		t.Fatalf("cookie accepted: %+v", r)
 	}
 	if r := mcpTool(t, base, "not-a-valid-token-but-long-enough-to-check-0123456789", "my_saved_events", map[string]any{}); r.Status != http.StatusUnauthorized {

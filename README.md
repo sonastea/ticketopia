@@ -146,6 +146,10 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 - [x] Provide an OpenAPI description for implemented endpoints.
 - [x] Let users' AI agents search events and manage their saves and reminders
   over [MCP](docs/app-mcp.md) (`/mcp`, opt-in, API-token sign-in).
+- [ ] Sign agents in through OAuth with read/write consent and connected-app
+  revocation ([implemented](docs/app-mcp.md#oauth-sign-in), on by default with
+  accounts and required for every `/mcp` request; verify with hosted clients on
+  a public deployment).
 
 ### MariaDB persistence
 

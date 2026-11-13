@@ -18,6 +18,8 @@ import (
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/oauth"
+	"github.com/sonastea/ticketopia/internal/oauth/oauthtest"
 	"github.com/sonastea/ticketopia/internal/persistence"
 	"github.com/sonastea/ticketopia/internal/persistence/persistencetest"
 	"github.com/sonastea/ticketopia/internal/reminders"
@@ -320,6 +322,14 @@ func (f *fixture) seed(sc scenario) error {
 		"interests": "/me/interests", "reminders": "/me/reminders", "discussions": "/me/discussions",
 		"notifications": "/me/notifications", "community": "/community", "follows": "/follows",
 		"happening_now": "/happening-now", "reports": "/me/reports", "moderation_queue": "/moderation",
+		"oauth_authorize": reviewAuthorizePath(f.base),
+	}
+	// The owner has one read-only connected app, listed on the profile page.
+	accessHash := oauth.Hash(accounts.ID())
+	errs = append(errs, p.OAuth().CreateGrant(ctx, oauth.Grant{ID: accounts.ID(), AccountID: owner, ClientID: ReviewClientID, ClientName: "Review Agent",
+		Scopes: []string{oauth.ScopeRead}, CreatedAt: f.now, ExpiresAt: f.now.Add(oauth.GrantLifetime), AccessHash: accessHash, AccessUntil: f.now.Add(oauth.AccessLifetime)}, f.now))
+	if err := errors.Join(errs...); err != nil {
+		return err
 	}
 	f.scenarioPaths = map[string]string{}
 	if sc.seed != nil {
@@ -715,4 +725,21 @@ type refusingProvider struct{}
 
 func (refusingProvider) RefreshEvent(context.Context, string) (models.EventDetail, error) {
 	return models.EventDetail{}, errors.New("review fixture: provider disabled")
+}
+
+// ReviewClientID is the fixture agent review servers accept for OAuth, so
+// consent can be reviewed without fetching a real client metadata document.
+const ReviewClientID = "https://review-agent.example/oauth/client.json"
+
+// reviewClients resolves only the fixture agent.
+var reviewClients = oauthtest.Clients{ReviewClientID: {ID: ReviewClientID, Name: "Review Agent",
+	RedirectURIs: []string{"http://127.0.0.1/callback"}, Refresh: true}}
+
+// reviewAuthorizePath is an authorization request from the fixture agent,
+// asking to read and change, as a client would open it in the browser.
+func reviewAuthorizePath(base string) string {
+	v := url.Values{"response_type": {"code"}, "client_id": {ReviewClientID}, "redirect_uri": {"http://127.0.0.1:53682/callback"},
+		"code_challenge": {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"}, "code_challenge_method": {"S256"},
+		"scope": {"read write"}, "state": {"review"}, "resource": {base + "/mcp"}}
+	return oauth.AuthorizePath + "?" + v.Encode()
 }

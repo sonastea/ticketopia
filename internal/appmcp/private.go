@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"slices"
 	"strconv"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -24,6 +25,20 @@ type Reminders interface {
 	Set(ctx context.Context, owner, event string, lead int) (reminders.Item, error)
 	Remove(ctx context.Context, owner, event string) error
 }
+
+// SignedInTools are the tools acting on the caller's account; the value
+// reports whether the tool changes it, which needs the write scope.
+var SignedInTools = map[string]bool{
+	"my_saved_events": false, "save_event": true, "unsave_event": true,
+	"my_reminders": false, "set_reminder": true, "stop_reminder": true,
+}
+
+// ScopeWrite is the OAuth scope that allows changes, matching oauth.ScopeWrite.
+// API tokens carry every scope.
+const ScopeWrite = "write"
+
+// errReadOnly backs up the HTTP boundary's insufficient_scope response.
+var errReadOnly = errors.New("this connection is read-only: reconnect Ticketopia in your agent and allow changes to save events or set reminders")
 
 // errSignIn is reported when a signed-in tool is called without a verified
 // API token; the HTTP boundary rejects invalid tokens before tools run.
@@ -133,6 +148,9 @@ func privateTool[In, Out any](d Deps, call func(ctx context.Context, owner strin
 		}
 		if owner == "" {
 			return toolError(errSignIn.Error()), zero, nil
+		}
+		if SignedInTools[req.Params.Name] && !slices.Contains(req.Extra.TokenInfo.Scopes, ScopeWrite) {
+			return toolError(errReadOnly.Error()), zero, nil
 		}
 		out, err := call(ctx, owner, in)
 		if err != nil {

@@ -19,6 +19,39 @@ type Config struct {
 	// AllowedOrigins are the browser origins (scheme://host[:port]) accepted
 	// besides loopback; requests without an Origin header are unaffected.
 	AllowedOrigins []string
+	// OAuth serves an authorization server so agents can sign in through the
+	// browser instead of pasting an API token. It needs accounts.
+	OAuth bool
+	// RequireSignIn answers every /mcp request without a valid token with a
+	// sign-in challenge, so all agent traffic is attributed to an account and
+	// limited per account. It needs accounts.
+	RequireSignIn bool
+
+	// Whether MCP_OAUTH_ENABLED and MCP_REQUIRE_SIGN_IN were set; Resolve
+	// applies the defaults to the rest.
+	oauthSet, requireSet bool
+}
+
+// Resolve applies the defaults that depend on accounts: with accounts on,
+// OAuth sign-in and required sign-in default to on; without accounts nobody
+// can sign in, so they default to off and explicitly enabling them is an error.
+func (c Config) Resolve(accounts bool) (Config, error) {
+	if !c.Enabled {
+		return c, nil
+	}
+	if !c.oauthSet {
+		c.OAuth = accounts
+	}
+	if !c.requireSet {
+		c.RequireSignIn = accounts
+	}
+	if !accounts && c.OAuth {
+		return c, fmt.Errorf("MCP_OAUTH_ENABLED requires accounts (AUTH_ENABLED=true)")
+	}
+	if !accounts && c.RequireSignIn {
+		return c, fmt.Errorf("MCP_REQUIRE_SIGN_IN requires accounts (AUTH_ENABLED=true)")
+	}
+	return c, nil
 }
 
 const (
@@ -26,7 +59,8 @@ const (
 	DefaultMaxInFlight   = 8
 )
 
-// ConfigFromEnv reads MCP_* settings. MCP_ALLOWED_ORIGINS (comma-separated)
+// ConfigFromEnv reads MCP_* settings. MCP_OAUTH_ENABLED and MCP_REQUIRE_SIGN_IN
+// default by Resolve, on when accounts are. MCP_ALLOWED_ORIGINS (comma-separated)
 // defaults to AUTH_BASE_URL, read directly so it applies without accounts and
 // trimmed of trailing slashes as accounts do. Nothing else is read or
 // validated while MCP is disabled, so it cannot affect startup.
@@ -41,6 +75,18 @@ func ConfigFromEnv() (Config, error) {
 	}
 	if !c.Enabled {
 		return c, nil
+	}
+	for _, setting := range []struct {
+		name        string
+		target, set *bool
+	}{{"MCP_OAUTH_ENABLED", &c.OAuth, &c.oauthSet}, {"MCP_REQUIRE_SIGN_IN", &c.RequireSignIn, &c.requireSet}} {
+		if raw := os.Getenv(setting.name); raw != "" {
+			v, err := strconv.ParseBool(raw)
+			if err != nil {
+				return c, fmt.Errorf("%s must be true or false", setting.name)
+			}
+			*setting.target, *setting.set = v, true
+		}
 	}
 	for _, setting := range []struct {
 		name   string

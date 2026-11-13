@@ -144,7 +144,12 @@ production, use runtime secret/environment storage, not build arguments:
    1–256) bounds concurrent requests per replica; keep it below `DB_MAX_OPEN`.
    It relies on the same trusted-proxy setting, and accepts browser origins only
    from **`MCP_ALLOWED_ORIGINS`** (default `AUTH_BASE_URL`, even without
-   accounts) or loopback.
+   accounts) or loopback. With accounts enabled, agents
+   [sign in through OAuth](app-mcp.md#oauth-sign-in) and every `/mcp` request
+   requires sign-in by default; **`MCP_OAUTH_ENABLED=false`** and
+   **`MCP_REQUIRE_SIGN_IN=false`** turn these off (both require accounts when
+   true). OAuth uses `AUTH_BASE_URL` as the issuer and must reach client metadata
+   documents over outbound HTTPS.
 7. Optionally set **`KV_URL`** to one shared cache endpoint; URL credentials are
    secrets. An empty value uses memory without losing user-facing features. See
    [cache configuration](cache.md) for backend requirements and fallback behavior.

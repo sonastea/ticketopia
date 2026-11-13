@@ -30,6 +30,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/location"
+	"github.com/sonastea/ticketopia/internal/oauth"
 	"github.com/sonastea/ticketopia/internal/persistence"
 	"github.com/sonastea/ticketopia/internal/persistence/persistencetest"
 )
@@ -220,7 +221,9 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()),
 		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth),
 		// The app's agent tools, so reviews and load scripts can call /mcp too.
-		api.WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 6000, MaxInFlight: 64})}, options...)...)
+		// Sign-in stays optional so load scripts can call public tools anonymously.
+		api.WithMCP(appmcp.Config{Enabled: true, OAuth: true, RatePerMinute: 6000, MaxInFlight: 64}),
+		api.WithMCPOAuth(oauth.New(p.OAuth(), reviewClients, base))}, options...)...)
 	if err != nil {
 		listener.Close()
 		return nil, err
