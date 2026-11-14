@@ -21,6 +21,31 @@ type Preview struct {
 	Question, Recommendation   *Contribution
 }
 
+// Community is one event's public totals and, separately, the signed-in
+// viewer's own state, as GET /api/v1/events/{id}/community and the agents'
+// event_community tool return it.
+type Community struct {
+	EventID string          `json:"event_id"`
+	Counts  CommunityCounts `json:"counts"`
+	// Viewer is nil (null) without a signed-in caller.
+	Viewer *CommunityViewer `json:"viewer"`
+}
+
+type CommunityCounts struct {
+	Interested      int `json:"interested" jsonschema:"all interest, including private choices, without identities"`
+	Recommendations int `json:"recommendations" jsonschema:"active public recommendations"`
+	Discussions     int `json:"discussions" jsonschema:"visible root questions and tips; replies are not counted"`
+}
+
+// CommunityViewer is a separate object so a client never mistakes a public
+// count for a personal choice.
+type CommunityViewer struct {
+	Saved              bool   `json:"saved"`
+	Interested         bool   `json:"interested"`
+	InterestVisibility string `json:"interest_visibility,omitempty" jsonschema:"private or public; present only when interested"`
+	Recommended        bool   `json:"recommended"`
+}
+
 type Repository interface {
 	Previews(context.Context, []string) (map[string]Preview, error)
 }

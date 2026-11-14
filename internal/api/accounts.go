@@ -18,6 +18,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/drafts"
+	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/follows"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/moderation"
@@ -25,6 +26,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
+	"github.com/sonastea/ticketopia/internal/useractivity"
 	"github.com/sonastea/ticketopia/views/account"
 	"github.com/sonastea/ticketopia/views/home"
 )
@@ -405,6 +407,8 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 409, "idempotency_conflict", "This retry key was used for a different contribution. Use a new key for a new post.", nil
 	case errors.Is(err, discussions.ErrUnavailable), errors.Is(err, discussionfollows.ErrUnavailable):
 		return 503, "discussions_unavailable", "Discussions couldn't load or change. Please try again shortly.", nil
+	case errors.Is(err, eventactivity.ErrUnavailable), errors.Is(err, useractivity.ErrUnavailable):
+		return 503, "community_activity_unavailable", "Community activity couldn't load. Please try again shortly.", nil
 	case errors.Is(err, moderation.ErrForbidden):
 		return 403, "moderator_access_required", "Moderator access is required. Another moderator must handle cases about your own contributions; check your moderation outcomes instead.", nil
 	case errors.Is(err, moderation.ErrNotFound):

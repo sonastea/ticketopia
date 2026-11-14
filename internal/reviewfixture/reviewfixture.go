@@ -218,7 +218,7 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 		api.WithLocation(location.New(runCtx, cache, zerolog.Nop(), location.Config{Disabled: true})),
 		api.WithSavedEvents(p.Saved()), api.WithReminders(p.Reminders()), api.WithRadar(p.Radar(), time.Hour),
 		api.WithFollows(p.Follows()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(recommendations), api.WithAgentDrafts(p.Drafts()),
-		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()),
+		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()), api.WithUserActivity(p.UserActivity()),
 		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth),
 		// The app's agent tools, so reviews and load scripts can call /mcp too.
 		// Sign-in stays optional so load scripts can call public tools anonymously.

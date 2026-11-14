@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 2026-11-14 — Event community and profile activity reads, contract v1.25.0
+
+- Add `GET /api/v1/events/{event_id}/community` (`EventCommunity`): public
+  interest, recommendation and discussion totals plus a separate `viewer`
+  object (null when anonymous) with the caller's own save, interest and
+  recommendation state.
+- Add `GET /api/v1/users/{user_id}/activity` (`ProfileActivityList`): one
+  person's visible posts, active recommendations and public interest, newest
+  first, with account-bound cursors.
+- Add problem code `community_activity_unavailable`. See
+  [community activity from other clients](../accounts.md#community-activity-from-other-clients).
+
 ### 2026-11-14 — Recommendation attribution and draft errors, contract v1.24.0
 
 - `EventRecommendation` gains optional `via` and `via_host`: the connected app

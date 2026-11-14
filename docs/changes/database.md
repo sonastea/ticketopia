@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-11-14 — Public activity timeline index, schema v23
+
+- Add `discussion_posts.discussion_author (account_id, created_at, post_id)` so
+  `GET /api/v1/users/{id}/activity` reads a person's visible posts newest first.
+  The timeline merges posts, active recommendations and public interest through
+  owner-leading indexes, then reads each page row's snapshot by primary key.
+- Index only: no columns, rows or grants change. Drain v22 replicas, migrate,
+  then start v23. See [persistence](../persistence.md) and
+  [community activity from other clients](../accounts.md#community-activity-from-other-clients).
+
 ### 2026-10-14 — Reproducible query baseline, schema v15
 
 - Add deterministic 1k/10k and explicit 100k workloads, community/coverage/write
@@ -61,37 +71,3 @@
 - Verify concurrent retries/Helpful across pools, ancestry, removed reply context,
   restart/provider loss, filtered keysets, schema-5 preservation, atomic rollback,
   and DB-clock read-after-write boundaries with the full real-MariaDB race suite.
-
-### 2026-10-06 — Account/save schemas, runtime grants, and server configuration
-
-- Add schema v2 for accounts/issuer-subject identities, hashed credentials,
-  browser-bound one-time flows, and shared rate counters, with scoped local/operator
-  grants and full startup schema checks; see [accounts](../accounts.md).
-- Add schema v3 last-known event snapshots and owner-only bookmarks, transactional
-  identity/activity writes, scoped local/operator grants and startup validation.
-  Verify v2 account/credential/event preservation in isolated migration tests;
-  require draining v2 apps before migration. See [private saves](../saved-events.md).
-- Add schema v4 independent event interest with private/public visibility, scoped
-  runtime/operator grants and write probes. Share transactional event snapshots
-  without merging save/interest records; verify migration preservation, rollback,
-  independent pools, keysets and provider-free restart. See [interest](../event-interest.md).
-  Require draining v3 apps before migration; the current development database is unchanged.
-- Add schema v5 public recommendations with unique account/event keys, stable
-  publication/edit times, bounded reasons, and scoped runtime/operator grants/probes.
-  Verify atomic writes/rollback, independent pools, offline edits/restarts, filtered
-  binary keysets, and v4 activity/session preservation; drain v4 apps before upgrading.
-  Leave the running development database unchanged; see [recommendations](../event-recommendations.md).
-- Add local `make db-setup` (originally `make migrate`) to prepare TLS/Compose/users,
-  run current-source migrations, reapply runtime grants and verify runtime access
-  with zero-row write probes.
-  Pin migration connection settings to local fixtures; stop on any failed step.
-  Verify repeat runs locally, fail-fast ordering/configuration isolation tests,
-  missing-grant detection in isolated MariaDB, the full Go race suite and vet.
-  See [local development](../persistence.md#repeatable-local-development).
-- Make `make migrate` migrations-only using existing environment/`.env` settings;
-  move the combined local workflow to `make db-setup` and `mariadb-setup.sh`.
-  Test configured connection preservation without Docker/OpenSSL, migration failure
-  propagation, and combined setup ordering/fail-fast behavior; see
-  [local development](../persistence.md#repeatable-local-development).
-- Document the required v1 traffic drain before migration and v2 restart, rather
-  than claiming overlapping schema support or a zero-downtime upgrade.

@@ -60,6 +60,10 @@ type Deps struct {
 	DraftsURL string
 	// PublishLimit, when set, bounds publishing tool calls per account.
 	PublishLimit *PublishLimiter
+	// EventCommunity and ProfileActivity enable the public community read
+	// tools, which add the caller's own state when signed in.
+	EventCommunity  EventCommunity
+	ProfileActivity ProfileActivity
 	// Accounts reads the caller's remembered city, which find_events
 	// defaults to.
 	Accounts Accounts
@@ -79,6 +83,7 @@ func NewServer(d Deps) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "ticketopia", Title: "Ticketopia", Version: "0.1.0"}, &mcp.ServerOptions{
 		Instructions: "Ticketopia finds live events (music, sports, arts and more) from Ticketmaster data. " +
 			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy. " +
+			"event_community reads an event's public interest, recommendation and discussion totals, and profile_activity a person's public contributions. " +
 			"Signed in, my_radar suggests events from the user's follows and categories, and tools manage their saves, reminders, follows and Interested choices privately. " +
 			"Only make_interest_public, recommend_event and withdraw_recommendation act publicly in the user's name; they need the user's permission to post publicly, " +
 			"and you should use them only when the user asks. You never publish words: draft_recommendation saves a private draft, " +
@@ -121,6 +126,7 @@ func NewServer(d Deps) *mcp.Server {
 	addPrivateTools(server, d)
 	addPersonalTools(server, d)
 	addPublishingTools(server, d)
+	addCommunityTools(server, d)
 	return server
 }
 

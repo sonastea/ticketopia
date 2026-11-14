@@ -24,6 +24,11 @@
   - `docs/persistence.md`: MariaDB, schema, migrations, and durable state.
   - `docs/openapi.md`: API contracts; keep the hand-maintained source
     `internal/api/openapi.yaml` aligned with handler/model changes.
+  - `docs/app-mcp.md`: agent tools. Every new `/api/v1` endpoint also ships as
+    an agent tool in `internal/appmcp`, sharing one service method with its
+    handler. Mirror the route's auth and visibility. Tools that act on the
+    caller's account go in `SignedInTools` with the right scope; public reads
+    don't. Register the name in `toolNames`.
   - `docs/deployment.md`: deployment/infrastructure work only.
 - Consult goals, ideas, and proposed designs only for relevant planned requirements;
   distinguish plans from implemented behavior. Read `docs/changes/` and archives

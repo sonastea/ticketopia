@@ -8,6 +8,12 @@ not compare it. A bounded `Snapshots` batch read (at most 50 IDs, one SELECT on
 `event_snapshots`) supplies display-only artwork to Happening Now. See
 [discovery](discovery.md#responsive-navigation-and-event-details).
 
+Schema 23 adds the `discussion_posts.discussion_author (account_id, created_at,
+post_id)` index for a person's public activity timeline
+(`GET /api/v1/users/{id}/activity`), which merges their visible posts, active
+recommendations and public interest through owner-leading indexes. It changes
+no columns, rows or grants. See [community activity from other clients](accounts.md#community-activity-from-other-clients).
+
 Schema 22 adds nullable `event_recommendations.via_client_name` and
 `via_client_host` (the app an agent published through; existing rows stay
 `NULL`) and `agent_drafts`, private agent-written text awaiting the person's
@@ -359,8 +365,10 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 20 only**. Versions 0–19 and 21+ are rejected;
-Partial schemas/missing columns or non-InnoDB tables fail startup. The additive
+This binary supports **clean schema version 23 only**. Versions 0–22 and 24+ are rejected;
+Partial schemas/missing columns or non-InnoDB tables fail startup. The v22-to-v23
+upgrade only adds an index: drain v22 replicas, migrate, then start v23; existing
+runtime grants suffice. The additive
 v19-to-v20 upgrade still requires drained v19 replicas, then migrate and start. The
 v16-to-v17 upgrade requires drained writes and the normal migrate/reconcile/start
 sequence. Roll back with a schema-17-compatible image and the live kill switch;

@@ -6,6 +6,7 @@ one entry per feature. Related changes stay in the same feature document. Browse
 
 - 2026-11-14 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-14 — [OpenAPI contract](changes/openapi.md)
+- 2026-11-14 — [Database and persistence](changes/database.md)
 - 2026-11-13 — [Observability](changes/observability.md)
 - 2026-11-12 — [UI components](changes/ui-components.md)
 - 2026-11-11 — [Container deployment](changes/deployment.md)
@@ -19,7 +20,6 @@ one entry per feature. Related changes stay in the same feature document. Browse
 - 2026-10-28 — [Personal radar and reminders](changes/personal-radar.md)
 - 2026-10-26 — [Private saved events](changes/saved-events.md)
 - 2026-10-23 — [Authentication and accounts](changes/accounts.md)
-- 2026-10-14 — [Database and persistence](changes/database.md)
 - 2026-10-12 — [Release verification and scope](changes/release-verification.md)
 - 2026-10-12 — [Private artist and venue follows](changes/follows.md)
 - 2026-10-04 — [Documentation](changes/documentation.md)

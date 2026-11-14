@@ -96,6 +96,14 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 			}
 		}
 		deps.PublishLimit = appmcp.NewPublishLimiter(appmcp.PublishesPerHour, a.clock)
+		// Community reads are public tools: they serve agents exactly what
+		// /api/v1/events/{id}/community and /users/{id}/activity serve.
+		if a.eventCommunityEnabled() {
+			deps.EventCommunity = communityReads{a}
+		}
+		if a.userActivityEnabled() {
+			deps.ProfileActivity = communityReads{a}
+		}
 	}
 	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight), metrics)
 	e.Any("/mcp", echo.WrapHandler(mcpAuthenticated(appmcp.Handler(deps))), boundary)

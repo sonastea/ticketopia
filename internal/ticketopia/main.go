@@ -165,7 +165,7 @@ func Execute(ctx context.Context) int {
 				options = append(options, api.WithLiveActivity(service, liveConfig.StartsPerMinute))
 			}
 			options = append(options, api.WithEventDiscussions(pool.Discussions()))
-			options = append(options, api.WithEventActivity(pool.EventActivity()))
+			options = append(options, api.WithEventActivity(pool.EventActivity()), api.WithUserActivity(pool.UserActivity()))
 			options = append(options, api.WithDiscussionFollows(pool.DiscussionFollows()))
 			options = append(options, api.WithModeration(pool.Moderation()))
 			options = append(options, api.WithAccounts(authConfig, accounts.New(pool.Accounts(), accounts.NewGoogle(ctx, authConfig))))

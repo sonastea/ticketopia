@@ -35,6 +35,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
+	"github.com/sonastea/ticketopia/internal/useractivity"
 	"github.com/sonastea/ticketopia/views/assets"
 )
 
@@ -62,6 +63,7 @@ type api struct {
 	drafts            *drafts.Service
 	discussions       *discussions.Service
 	eventActivity     *eventactivity.Service
+	userActivity      *useractivity.Service
 	discussionFollows *discussionfollows.Service
 	moderation        *moderation.Service
 	reminders         *reminders.Service
@@ -217,6 +219,7 @@ func (a *api) Routes() *echo.Echo {
 	a.draftRoutes(e)
 	a.discussionRoutes(e)
 	a.discussionFollowRoutes(e)
+	a.communityActivityRoutes(e)
 	a.moderationRoutes(e)
 	a.accountRoutes(e)
 	a.liveActivityRoutes(e)

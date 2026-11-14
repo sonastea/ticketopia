@@ -16,6 +16,7 @@ It describes implemented discovery, [account APIs](accounts.md#sessions-and-api-
 [event-interest APIs](event-interest.md#api),
 [public-recommendation APIs](event-recommendations.md#api),
 [discussion/Helpful APIs](event-discussions.md#api),
+[event community and profile activity reads](accounts.md#community-activity-from-other-clients),
 [private reporting/moderation APIs](moderation.md#api),
 its own contract-download route, and the `/healthz` and `/readyz` probes. It does
 not describe HTML pages or planned community APIs. See
@@ -31,7 +32,7 @@ For example, the event-search contract documents `limit` as an integer from 1 to
 - `openapi: 3.1.0` identifies the **OpenAPI specification format**, not the Go or
   Node version.
 - `info` describes the API's title, description, license, and contract version
-   (currently `1.24.0`). That version is distinct from the `/api/v1` URL namespace.
+   (currently `1.25.0`). That version is distinct from the `/api/v1` URL namespace.
 - `servers` identifies the API base URL; `/` makes it relative to the serving host.
 - `paths` lists routes, methods, parameters, response codes, and media types.
 - `components` holds reusable schemas and error responses. `$ref` links reuse

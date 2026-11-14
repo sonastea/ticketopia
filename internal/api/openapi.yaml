@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.24.0
+  version: 1.25.0
   license:
     name: MIT
     identifier: MIT
@@ -1329,6 +1329,32 @@ paths:
                   count: {type: integer, minimum: 0}
         '400': {$ref: '#/components/responses/AccountBadRequest'}
         '503': {$ref: '#/components/responses/InterestsUnavailable'}
+  /api/v1/events/{event_id}/community:
+    get:
+      operationId: getEventCommunity
+      summary: Read an event's community totals and, when signed in, your own state
+      description: |
+        One read for a client's event view. `counts` are the same for everyone:
+        interest including private choices (no identities), active
+        recommendations, and visible discussion roots (questions and tips).
+        `viewer` is null without a credential; with a browser session or API
+        token it holds only the caller's own save, interest and recommendation
+        state. A sent bearer token that fails returns 401 rather than an
+        anonymous answer; an expired browser session reads anonymously. No query
+        parameters or provider calls; unknown event IDs report zero totals. All
+        responses are private, no-store.
+      security: [{}, {sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
+      responses:
+        '200':
+          description: Public totals and the caller's own state, kept in separate objects.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EventCommunity'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/CommunityActivityUnavailable'}
   /api/v1/events/{event_id}/interested-users:
     get:
       operationId: listPublicInterestedUsers
@@ -1572,6 +1598,38 @@ paths:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
         '503': {$ref: '#/components/responses/RecommendationsUnavailable'}
+  /api/v1/users/{user_id}/activity:
+    get:
+      operationId: listPublicProfileActivity
+      summary: Read an account's public contributions as one timeline
+      description: |
+        Visible discussion posts and replies, active recommendations, and
+        Interested choices the person made public, newest first. Never includes
+        private interest, saves, follows, reminders, removed or hidden posts, or
+        withdrawn recommendations, and is identical for every viewer, including
+        the owner. A reply stays listed when moderation hides its thread's root,
+        as in the thread itself. Ordered by `at`, then type
+        (recommendation, discussion_post, interest), then post or event ID,
+        all descending. Cursors are bound to this account. Last-known snapshots;
+        no provider calls. Visibility changes, removals and withdrawals can
+        shorten later pages. All responses are private, no-store.
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {$ref: '#/components/schemas/AccountID'}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/InterestCursor'}
+      responses:
+        '200':
+          description: This account's public activity, or an empty array.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProfileActivityList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '404':
+          description: Account not found, including an invalid account ID.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/CommunityActivityUnavailable'}
   /api/v1/events/{event_id}/discussions:
     parameters:
       - {$ref: '#/components/parameters/DiscussionEventID'}
@@ -2409,6 +2467,11 @@ components:
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
+    CommunityActivityUnavailable:
+      description: Accounts or community storage are disabled or unavailable. No fabricated zero totals or empty timeline.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
     RemindersUnavailable:
       description: Email reminders disabled or unavailable; saves remain unchanged.
       content:
@@ -2777,6 +2840,71 @@ components:
         count: {type: integer, minimum: 0}
         interested: {type: boolean}
         visibility: {type: string, enum: [private, public], description: Present only when this owner is interested.}
+    EventCommunity:
+      type: object
+      additionalProperties: false
+      required: [event_id, counts, viewer]
+      properties:
+        event_id: {$ref: '#/components/schemas/ResourceID'}
+        counts:
+          type: object
+          additionalProperties: false
+          required: [interested, recommendations, discussions]
+          properties:
+            interested: {type: integer, minimum: 0, description: 'All interest, including private choices.'}
+            recommendations: {type: integer, minimum: 0, description: Active public endorsements.}
+            discussions: {type: integer, minimum: 0, description: Visible root questions and tips; replies are counted per thread.}
+        viewer:
+          description: The caller's own state; null without a credential.
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [saved, interested, recommended]
+              properties:
+                saved: {type: boolean}
+                interested: {type: boolean}
+                interest_visibility: {type: string, enum: [private, public], description: Present only when interested.}
+                recommended: {type: boolean, description: 'Whether the caller has an active recommendation; read it at /api/v1/me/event-recommendations/{event_id}.'}
+    ProfileActivity:
+      type: object
+      additionalProperties: false
+      required: [type, at, event, meta]
+      properties:
+        type: {type: string, enum: [discussion_post, recommendation, interest]}
+        at: {type: string, format: date-time, description: 'Post creation, original recommendation publication, or original interest time.'}
+        event: {$ref: '#/components/schemas/Event'}
+        post:
+          description: Present only for discussion_post.
+          type: object
+          additionalProperties: false
+          required: [id, thread_id, body, created_at, updated_at]
+          properties:
+            id: {$ref: '#/components/schemas/AccountID'}
+            thread_id: {$ref: '#/components/schemas/AccountID'}
+            parent_id: {$ref: '#/components/schemas/AccountID'}
+            body: {type: string, maxLength: 4000, description: 'Plain text, never trusted HTML.'}
+            created_at: {type: string, format: date-time}
+            updated_at: {type: string, format: date-time}
+        recommendation:
+          description: Present only for recommendation.
+          type: object
+          additionalProperties: false
+          required: [reason, recommended_at, updated_at]
+          properties:
+            reason: {type: string, maxLength: 500, description: 'Optional reason as plain text, never trusted HTML.'}
+            via: {type: string, maxLength: 80, description: As on EventRecommendation.}
+            via_host: {type: string, maxLength: 253, description: As on EventRecommendation.}
+            recommended_at: {type: string, format: date-time}
+            updated_at: {type: string, format: date-time}
+        meta: {$ref: '#/components/schemas/Freshness'}
+    ProfileActivityList:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ProfileActivity'}}
+        next_cursor: {type: [string, 'null']}
     InterestParticipants:
       type: object
       required: [items, next_cursor]
@@ -3110,6 +3238,6 @@ components:
         code:
           type: string
           description: Stable machine-readable cause. `provider_unavailable` means the event provider could not answer; `temporarily_unavailable` means Ticketopia itself is busy (for example its database did not answer in time) and should be retried after `Retry-After`.
-          enum: [invalid_query, event_not_found, event_not_saved, date_not_announced, provider_unavailable, temporarily_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable, saved_events_unavailable, reminder_not_found, reminders_unavailable, event_interests_unavailable, event_recommendations_unavailable, draft_not_found, draft_limit, drafts_unavailable, recommendation_changed, follow_not_found, follows_unavailable, radar_changed, radar_unavailable, post_not_found, idempotency_conflict, discussions_unavailable, moderation_record_not_found, moderation_unavailable, moderator_access_required, review_changed, route_not_found, method_not_allowed, activity_unavailable, settings_changed, invalid_preferences, precondition_required, precondition_failed]
+          enum: [invalid_query, event_not_found, event_not_saved, date_not_announced, provider_unavailable, temporarily_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable, saved_events_unavailable, reminder_not_found, reminders_unavailable, event_interests_unavailable, event_recommendations_unavailable, draft_not_found, draft_limit, drafts_unavailable, recommendation_changed, follow_not_found, follows_unavailable, radar_changed, radar_unavailable, post_not_found, idempotency_conflict, discussions_unavailable, community_activity_unavailable, moderation_record_not_found, moderation_unavailable, moderator_access_required, review_changed, route_not_found, method_not_allowed, activity_unavailable, settings_changed, invalid_preferences, precondition_required, precondition_failed]
         detail: {type: string}
         fields: {type: object, additionalProperties: {type: string}}

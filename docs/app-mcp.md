@@ -15,6 +15,12 @@ steps (a separate deployment); this page covers what exists.
 | `find_events` | Search by city, country, dates, category, keyword, sort and limit, with `cursor` paging. Same validation, defaults, caching and results as Discover and `GET /api/v1/events`. Signed in, a search without city, country or keyword uses the account's saved city, as Discover does, and reports it as `default_location`; keyword searches (an artist's tour) stay unrestricted. |
 | `list_categories` | Categories and their IDs for `find_events` `category_id`, as `GET /api/v1/categories`. |
 | `event_details` | One event by ID, as `GET /api/v1/events/{event_id}`, including the durable last-known fallback. |
+| `event_community` | An event's public totals (interested including private choices, active recommendations, visible questions and tips), as `GET /api/v1/events/{event_id}/community`. Signed in with `read`, `viewer` adds the caller's own saved, Interested and recommended state; otherwise it is `null`. |
+| `profile_activity` | One person's public posts, recommendations and public Interested choices, newest first, as `GET /api/v1/users/{user_id}/activity`. `user_id` comes from a profile URL; signed in, omitting it reads the caller's own. |
+
+`event_community` and `profile_activity` need accounts and MariaDB, and are
+listed with them. They share the HTTP routes' code, so results match those
+routes exactly.
 
 Signed-in tools act only on the account behind the request's token. The
 saved-event tools are listed when accounts and MariaDB are enabled; the reminder

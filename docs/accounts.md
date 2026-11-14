@@ -193,6 +193,34 @@ see [interest APIs and verification](event-interest.md).
 Personal tokens also search artists/venues and manage private follows through
 `/api/v1/me/follows`; see [follow APIs and verification](follows.md#api).
 
+### Community activity from other clients
+
+A script, CLI, native app or agent can do everything the web community does
+with a personal token: mark Interested, recommend, post, reply and react
+(see [interest](event-interest.md#api), [recommendations](event-recommendations.md#api)
+and [discussions](event-discussions.md#api)). Two reads save such a client from
+combining several calls:
+
+- `GET /api/v1/events/{id}/community` returns an event's public `counts`
+  (`interested`, including private choices without identities; active
+  `recommendations`; visible root `discussions`) and a separate `viewer` object
+  with your own `saved`, `interested`, `interest_visibility` and `recommended`
+  state. `viewer` is `null` without a credential. A bearer token that fails is
+  401, not an anonymous answer. Unknown events report zeros without a provider call.
+- `GET /api/v1/users/{id}/activity` lists one person's public contributions
+  newest first: visible posts and replies, active recommendations and public
+  Interested choices, as `discussion_post`, `recommendation` and `interest` items
+  with the event snapshot. It never includes private interest, saves, follows,
+  reminders, removed or hidden posts, or withdrawn recommendations, and it reads
+  the same for the owner as for anyone else. `limit` is 1–100 (default 20), and
+  `next_cursor` is bound to that person. It is a profile timeline, not a feed of
+  people you follow.
+
+Both are `private, no-store`, so a visibility change, removal or withdrawal
+shows on the next read. The [OpenAPI contract](openapi.md) has the schemas.
+Agents get the same reads as the `event_community` and `profile_activity`
+[agent tools](app-mcp.md#tools).
+
 ## Security and verification
 
 Identity is Google's verified **issuer + subject**, never email. Changed/reused

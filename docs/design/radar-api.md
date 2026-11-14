@@ -161,7 +161,7 @@ permitted fields; writes require verified identity and ownership/role checks.
 | --- | --- | --- |
 | GET, PATCH | `/me/profile` | Implemented: own profile and new-interest privacy default; allowlisted writes |
 | GET | `/users/{user_id}` | Implemented: ID, display name, bio only; no private account fields/activity |
-| GET | `/users/{user_id}/activity` | Paginated public contributions, recommendations, opted-in interests; not a personalized feed |
+| GET | `/users/{user_id}/activity` | Implemented: paginated public contributions, recommendations, opted-in interests; not a personalized feed |
 | GET | `/me/event-interests` | Implemented: owner's interest collection, including private entries |
 | GET, PUT, DELETE | `/me/event-interests/{event_id}` | Implemented: read/set/remove interest; explicit visibility or new-choice default, initially private |
 | GET | `/me/event-interests/states` | Implemented: batched counts and owner-only state, without provider calls |
@@ -169,7 +169,7 @@ permitted fields; writes require verified identity and ownership/role checks.
 | GET | `/events/{event_id}/interest` | Implemented: aggregate count including private choices, no identities |
 | GET | `/me/event-recommendations` | Implemented: owner's published endorsements for management |
 | GET, PUT, DELETE | `/me/event-recommendations/{event_id}` | Implemented: read/publish/replace reason/withdraw one public endorsement |
-| GET | `/events/{event_id}/community` | Aggregate counts and a separately scoped viewer state when authenticated |
+| GET | `/events/{event_id}/community` | Implemented: aggregate counts and a separately scoped viewer state when authenticated |
 | GET | `/events/{event_id}/interested-users` | Implemented: paginated public-opt-in interested identities only |
 | GET | `/events/{event_id}/recommendations` | Implemented: public endorsements, authors, optional reasons and explicit count |
 | GET | `/users/{user_id}/event-recommendations` | Implemented: public endorsements independently of interest visibility |
