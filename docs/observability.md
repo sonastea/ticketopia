@@ -51,6 +51,8 @@ version, SigNoz may show names with dots replaced by underscores.
 
 | Metric | Type | Attributes |
 | --- | --- | --- |
+| `ticketopia.http.server.requests` | counter | `method`, `route` (template, or `unmatched`), `status_class` (`2xx`…`5xx`) |
+| `ticketopia.http.server.duration` | histogram | `method`, `route`; event streams are not timed |
 | `ticketopia.mcp.tool.calls` | counter | `tool`, `outcome` (`ok`, `tool_error`, `error`), `signed_in` |
 | `ticketopia.mcp.tool.duration` | histogram | `tool` |
 | `ticketopia.mcp.refusals` | counter | `reason`, as in [agent tool metrics](app-mcp.md) |
@@ -72,6 +74,31 @@ Activity metrics appear when live activity is on, catalog and database metrics
 with MariaDB, and MCP and OAuth metrics when those endpoints serve requests.
 See [live activity rollout](live-activity-rollout.md) for what the activity
 figures mean.
+
+## Request logs
+
+Successful requests are not logged, and `/healthz` and `/readyz` never are.
+What is logged stays small however busy the site is:
+
+| Record | Level | When |
+| --- | --- | --- |
+| `HTTP request failed` | error | The first 5xx per route each minute, at once, with `error` |
+| `HTTP handler panicked` | error | Every panic, at once, with `panic` and a stack of at most 4 KB; the client gets a 500 |
+| `HTTP server errors` | error | Once a minute, per route and status, when a 5xx repeated |
+| `HTTP client errors` | warn | Once a minute: 429s, and 404s from known routes (possibly broken links) |
+| `HTTP client errors` | info | Once a minute: other 4xx, including paths matching no route |
+| `Slow HTTP requests` | warn | Once a minute, per route, for successful requests over 2 seconds (event streams excluded) |
+
+Records carry `method`, `path`, `status`, `count`, `durationMs` (the slowest in
+the minute) and `window`. `path` is the route template, such as
+`/events/:event_id`, never an ID; requests matching no route show
+`(no route)` with `examples` of the most frequent probed paths (for example
+`/wp-login.php ×20, /.env ×3`), at most 100 characters each and without
+query strings. A minute yields at most 100 summary lines; anything beyond is
+one `HTTP responses over the per-minute group limit` line with its count.
+
+For an at-a-glance view in SigNoz, save a logs view filtered to
+`service.name = ticketopia` and severity `warn` or `error`.
 
 ## Coolify: Ticketopia and SigNoz on separate machines
 

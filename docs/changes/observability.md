@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-11-13 — Request summary logs and HTTP metrics
+
+- Log failed and slow requests compactly: the first server error per route each
+  minute and every panic at once (panics now answer 500 and are logged as JSON
+  instead of Go's plain-text output, which the collector dropped), and once a
+  minute one line per route and status with a count, the slowest duration and,
+  for paths matching no route, the most probed examples. Successful requests
+  and health checks are not logged, and a minute yields at most 100 lines.
+  Field names (`path`, `status`, `durationMs`) match common SigNoz columns.
+- Export `ticketopia.http.server.requests` and `.duration` by method, route
+  template and status class. See the
+  [guide](../observability.md#request-logs).
+
 ### 2026-11-13 — OpenTelemetry metrics export and log shipping
 
 - Export operational metrics over OTLP/HTTP when the standard

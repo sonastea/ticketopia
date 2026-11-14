@@ -190,6 +190,11 @@ func (a *api) Routes() *echo.Echo {
 		e.IPExtractor = echo.ExtractIPDirect()
 	}
 	e.Use(traceRequests)
+	requests := newRequestLog(a.logger)
+	if a.runCtx != nil {
+		go requests.run(a.runCtx, time.Minute)
+	}
+	e.Use(requests.middleware)
 
 	e.GET("/healthz", healthHandler)
 	e.GET("/readyz", a.readinessHandler)
