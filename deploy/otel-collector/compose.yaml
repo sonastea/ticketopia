@@ -1,0 +1,19 @@
+# Log shipper for the Ticketopia Docker host; see docs/observability.md.
+# Deploy on the same machine as Ticketopia (for example as a Coolify Docker
+# Compose resource from this repository) with SIGNOZ_OTLP_ENDPOINT set.
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.165.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    # Docker's container log files are readable by root only.
+    user: "0:0"
+    environment:
+      SIGNOZ_OTLP_ENDPOINT: ${SIGNOZ_OTLP_ENDPOINT:?set SIGNOZ_OTLP_ENDPOINT to SigNoz's OTLP/HTTP address, for example http://10.0.0.5:4318}
+    volumes:
+      - ./config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - otelcol-storage:/var/lib/otelcol/file_storage
+    restart: unless-stopped
+
+volumes:
+  otelcol-storage:

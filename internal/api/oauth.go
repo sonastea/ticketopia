@@ -11,8 +11,16 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/oauth"
+	"github.com/sonastea/ticketopia/internal/telemetry"
 	"github.com/sonastea/ticketopia/views/account"
+	otelattribute "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
+
+// revocations counts answered revocation requests by outcome only; the
+// client host stays in the log, where its cardinality costs nothing.
+var revocations, _ = telemetry.Meter().Int64Counter("ticketopia.oauth.revocations", metric.WithUnit("{request}"),
+	metric.WithDescription("OAuth token revocation requests by outcome."))
 
 // authorizeFields are the authorization request parameters the consent form
 // carries back; everything is validated again when the person decides.
@@ -220,6 +228,7 @@ func (a *api) oauthRevoke(c echo.Context, form url.Values) error {
 		host = host[:100]
 	}
 	a.logger.Info().Str("outcome", string(outcome)).Str("client_host", host).Msg("OAuth token revocation")
+	revocations.Add(c.Request().Context(), 1, metric.WithAttributes(otelattribute.String("outcome", string(outcome))))
 	return c.NoContent(http.StatusOK)
 }
 

@@ -185,6 +185,9 @@ schema change.
   and `insufficient_scope`). Dimensions are fixed: no
   arguments, accounts or IPs. Use interval deltas, as for
   [live-activity telemetry](live-activity-rollout.md#operational-telemetry).
+  With an OTLP endpoint configured, the same counts, a duration histogram and
+  revocation outcomes are also exported as metrics; see
+  [observability](observability.md#metrics).
 - When Ticketopia itself is busy (for example its database does not answer in
   time), tools report "Ticketopia is busy right now… Retry after 5 seconds."
   rather than a provider failure.

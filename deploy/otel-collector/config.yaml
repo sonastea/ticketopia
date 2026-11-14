@@ -1,0 +1,66 @@
+# OpenTelemetry collector for a Docker (Coolify) host: reads Ticketopia's
+# structured JSON logs from Docker's json-file logs and forwards them to
+# SigNoz (or any OTLP/HTTP endpoint) at SIGNOZ_OTLP_ENDPOINT. Metrics do not
+# pass through here: the app exports them itself (docs/observability.md).
+extensions:
+  # Remembers each file's read offset, so a collector restart neither resends
+  # nor skips lines.
+  file_storage:
+    directory: /var/lib/otelcol/file_storage
+    create_directory: true
+
+receivers:
+  file_log/docker:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    start_at: end
+    storage: file_storage
+    operators:
+      # Unwraps Docker's {"log","stream","time"} envelope; the timestamp is
+      # Docker's, since Ticketopia's lines carry none.
+      - type: container
+        format: docker
+        add_metadata_from_filepath: false
+      - type: json_parser
+        if: 'body matches "^\\s*\\{"'
+        parse_from: body
+        parse_to: attributes
+        on_error: send_quiet
+      - type: severity_parser
+        if: 'attributes.level != nil'
+        parse_from: attributes.level
+        on_error: send_quiet
+      - type: move
+        if: 'attributes.message != nil'
+        from: attributes.message
+        to: body
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+  # Every Ticketopia log line carries "component" (api, migrations); other
+  # containers' lines on the host are dropped. Narrow or widen this if the
+  # host runs other apps with a component field, or if you want their logs.
+  filter/ticketopia:
+    error_mode: ignore
+    logs:
+      log_record:
+        - 'attributes["component"] == nil'
+  resource/ticketopia:
+    attributes:
+      - key: service.name
+        value: ticketopia
+        action: upsert
+  batch: {}
+
+exporters:
+  otlp_http/signoz:
+    endpoint: ${env:SIGNOZ_OTLP_ENDPOINT}
+
+service:
+  extensions: [file_storage]
+  pipelines:
+    logs:
+      receivers: [file_log/docker]
+      processors: [memory_limiter, filter/ticketopia, resource/ticketopia, batch]
+      exporters: [otlp_http/signoz]

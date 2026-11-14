@@ -169,6 +169,7 @@ func New(ctx context.Context, repo Repository, limit int, loggers ...zerolog.Log
 	s.memberSlots = map[string]int{}
 	s.keys = map[Location]string{}
 	s.logger = zerolog.Nop()
+	s.metrics.nameTimings()
 	if repo, ok := repo.(interface{ WatchMembership(func(string)) func() }); ok {
 		s.unwatchMembership = repo.WatchMembership(func(owner string) {
 			s.mu.Lock()

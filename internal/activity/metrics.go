@@ -1,9 +1,14 @@
 package activity
 
 import (
+	"context"
 	rtmetrics "runtime/metrics"
 	"sync/atomic"
 	"time"
+
+	"github.com/sonastea/ticketopia/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Fixed dimensions keep operational telemetry independent of recipient identity,
@@ -13,7 +18,14 @@ type timing struct {
 	count   atomic.Uint64
 	nanos   atomic.Uint64
 	buckets [7]atomic.Uint64
+	// operation is the exported histogram's attribute, set by New.
+	operation metric.MeasurementOption
 }
+
+// operationDuration mirrors the logged timings for telemetry export; it is a
+// no-op unless export is configured.
+var operationDuration, _ = telemetry.Meter().Float64Histogram("ticketopia.activity.operation.duration", metric.WithUnit("s"),
+	metric.WithDescription("Live activity operation duration by operation."), metric.WithExplicitBucketBoundaries(telemetry.DurationBuckets...))
 
 type TimingStats struct {
 	Count   uint64    `json:"count"`
@@ -33,6 +45,9 @@ func (t *timing) observe(start time.Time) {
 		i++
 	}
 	t.buckets[i].Add(1)
+	if t.operation != nil {
+		operationDuration.Record(context.Background(), d.Seconds(), t.operation)
+	}
 }
 func (t *timing) stats() TimingStats {
 	s := TimingStats{Count: t.count.Load(), Seconds: float64(t.nanos.Load()) / float64(time.Second)}
@@ -47,6 +62,18 @@ type metrics struct {
 	hits, misses, rejected, unavailable, overwritten, writeErrors                            atomic.Uint64
 	candidateLimit, memoryLimit, queueLimit, streamLimit, projectionFailed, membershipFailed atomic.Uint64
 	candidates, cohorts, owners, bytes                                                       atomic.Int64
+}
+
+// timings names every operation timing, for Stats and the exported histogram.
+func (m *metrics) timings() map[string]*timing {
+	return map[string]*timing{"projection": &m.projection, "selection": &m.selection, "membership": &m.membership, "counts": &m.counts,
+		"location": &m.location, "cleanup": &m.cleanup, "delivery": &m.delivery}
+}
+
+func (m *metrics) nameTimings() {
+	for name, t := range m.timings() {
+		t.operation = metric.WithAttributes(attribute.String("operation", name))
+	}
 }
 
 // Stats is safe during SQL reads and shutdown. Cache gauges describe the last
@@ -81,12 +108,16 @@ func (s *Service) Stats() Stats {
 	streams := len(s.subs)
 	s.mu.Unlock()
 	m := &s.metrics
+	operations := map[string]TimingStats{}
+	for name, t := range m.timings() {
+		operations[name] = t.stats()
+	}
 	return Stats{AsOf: time.Now().UTC(), SQLStatements: statements, Streams: streams, Pending: len(s.pending), SQLJobs: len(s.jobs),
 		Candidates: m.candidates.Load(), Cohorts: m.cohorts.Load(), Owners: m.owners.Load(), Bytes: m.bytes.Load(),
 		CacheHits: m.hits.Load(), CacheMisses: m.misses.Load(), HTTP429: m.rejected.Load(), HTTP503: m.unavailable.Load(),
 		Overwritten: m.overwritten.Load(), WriteErrors: m.writeErrors.Load(),
 		Failures:   map[string]uint64{"candidate_limit": m.candidateLimit.Load(), "memory_limit": m.memoryLimit.Load(), "queue_limit": m.queueLimit.Load(), "stream_limit": m.streamLimit.Load(), "projection_failed": m.projectionFailed.Load(), "membership_failed": m.membershipFailed.Load()},
-		Operations: map[string]TimingStats{"projection": m.projection.stats(), "selection": m.selection.stats(), "membership": m.membership.stats(), "counts": m.counts.stats(), "location": m.location.stats(), "cleanup": m.cleanup.stats(), "delivery": m.delivery.stats()},
+		Operations: operations,
 	}
 }
 

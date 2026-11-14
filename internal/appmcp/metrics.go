@@ -8,6 +8,20 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+)
+
+// Exported instruments mirror the logged counts with the same fixed
+// dimensions; they are no-ops unless telemetry export is configured.
+var (
+	toolCalls, _ = telemetry.Meter().Int64Counter("ticketopia.mcp.tool.calls", metric.WithUnit("{call}"),
+		metric.WithDescription("MCP tool calls by tool, outcome (ok, tool_error, error) and signed_in."))
+	toolDuration, _ = telemetry.Meter().Float64Histogram("ticketopia.mcp.tool.duration", metric.WithUnit("s"),
+		metric.WithDescription("MCP tool call duration by tool."), metric.WithExplicitBucketBoundaries(telemetry.DurationBuckets...))
+	refusals, _ = telemetry.Meter().Int64Counter("ticketopia.mcp.refusals", metric.WithUnit("{request}"),
+		metric.WithDescription("Requests refused at the /mcp boundary by reason."))
 )
 
 // Refusal reasons at the /mcp boundary, before any tool runs.
@@ -77,6 +91,13 @@ func (m *Metrics) observe(tool, outcome string, signedIn bool, d time.Duration) 
 	if m == nil {
 		return
 	}
+	normalized := outcome
+	if outcome != "ok" && outcome != "tool_error" {
+		normalized = "error"
+	}
+	ctx := context.Background()
+	toolCalls.Add(ctx, 1, metric.WithAttributes(attribute.String("tool", tool), attribute.String("outcome", normalized), attribute.Bool("signed_in", signedIn)))
+	toolDuration.Record(ctx, d.Seconds(), metric.WithAttributes(attribute.String("tool", tool)))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	s := m.tools[tool]
@@ -114,6 +135,7 @@ func (m *Metrics) Refuse(reason string) {
 	if m == nil {
 		return
 	}
+	refusals.Add(context.Background(), 1, metric.WithAttributes(attribute.String("reason", reason)))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.refusals[reason]++

@@ -40,6 +40,9 @@ type Pool struct {
 	closed atomic.Bool
 }
 
+// Stats reports the shared SQL pool's connections, for telemetry.
+func (p *Pool) Stats() sql.DBStats { return p.db.Stats() }
+
 func connect(ctx context.Context, c Config) (*sql.DB, error) {
 	d, err := c.driverConfig()
 	if err != nil {

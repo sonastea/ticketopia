@@ -20,8 +20,10 @@ cold-start target, and physical-device and screen-reader verification.
 ## Operational telemetry
 
 Every enabled replica emits a structured `Live activity metrics` log every
-15 seconds while its worker is running. The `activity` object contains cumulative
-counters and current/last-completed gauges:
+15 seconds while its worker is running; with an OTLP endpoint configured, the
+same figures are also exported as `ticketopia.activity.*` metrics, durations as
+histograms (see [observability](observability.md#metrics)). The `activity`
+object contains cumulative counters and current/last-completed gauges:
 
 - `streams`, `pending`, `sql_jobs`: current subscriptions, admitted reads and
   activity repository jobs (limits 256, 64 and 2 by default).

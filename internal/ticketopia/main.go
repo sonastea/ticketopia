@@ -21,6 +21,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/oauth"
 	"github.com/sonastea/ticketopia/internal/persistence"
 	"github.com/sonastea/ticketopia/internal/reminders"
+	"github.com/sonastea/ticketopia/internal/telemetry"
 )
 
 // activityRepository is the live activity repository. Only diagnostic builds
@@ -35,6 +36,28 @@ func Execute(ctx context.Context) int {
 		logger.Error().Msg("Error loading .env file")
 		return 1
 	}
+	telemetryConfig, err := telemetry.ConfigFromEnv()
+	if err != nil {
+		logger.Error().Err(err).Msg("Invalid telemetry configuration")
+		return 1
+	}
+	stopTelemetry, err := telemetry.Setup(ctx, telemetryConfig, sourceCommit(), logger)
+	if err != nil {
+		logger.Error().Err(err).Msg("Telemetry initialization failed")
+		return 1
+	}
+	// Deferred first, so it runs last: the final export includes shutdown.
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := stopTelemetry(flushCtx); err != nil {
+			logger.Warn().Err(err).Msg("Telemetry flush failed")
+		}
+	}()
+	if telemetryConfig.Enabled {
+		logger.Info().Str("endpoint", telemetryConfig.Endpoint).Msg("Exporting metrics over OTLP")
+	}
+	meter := telemetry.Meter()
 	config, err := persistence.ConfigFromEnv(false)
 	if err != nil {
 		logger.Error().Err(err).Msg("Invalid persistence configuration")
@@ -106,6 +129,10 @@ func Execute(ctx context.Context) int {
 				logger.Error().Err(err).Msg("Error closing database pool")
 			}
 		}()
+		if err := telemetry.ObserveDB(meter, pool.Stats); err != nil {
+			logger.Error().Err(err).Msg("Telemetry initialization failed")
+			return 1
+		}
 		options = append(options, api.WithPersistence(pool.Ready, events.New(pool.Events())))
 		providerConfig.Coordinator = pool.ProviderBudget(providerConfig.APIKey, providerConfig.DailyBudget)
 		catalogRepository = pool.Discovery()
@@ -131,6 +158,10 @@ func Execute(ctx context.Context) int {
 			if liveConfig.Enabled {
 				service := activity.New(ctx, activityRepository(ctx, pool.Activity()), liveConfig.MaxStreams, logger)
 				defer service.Close()
+				if err := observeActivity(meter, service); err != nil {
+					logger.Error().Err(err).Msg("Telemetry initialization failed")
+					return 1
+				}
 				options = append(options, api.WithLiveActivity(service, liveConfig.StartsPerMinute))
 			}
 			options = append(options, api.WithEventDiscussions(pool.Discussions()))
@@ -183,6 +214,11 @@ func Execute(ctx context.Context) int {
 		defer func() { cancel(); <-done }()
 	}
 	if catalogRepository != nil {
+		var catalog catalogStatus
+		if err := catalog.observe(meter); err != nil {
+			logger.Error().Err(err).Msg("Telemetry initialization failed")
+			return 1
+		}
 		workerCtx, cancel := context.WithCancel(ctx)
 		done := make(chan struct{})
 		go func() {
@@ -195,6 +231,7 @@ func Execute(ctx context.Context) int {
 					if err != nil {
 						logger.Warn().Err(err).Msg("Collection status unavailable")
 					} else {
+						catalog.set(stats)
 						logger.Info().Interface("collection", stats).Msg("Event catalog operational status")
 					}
 				}
@@ -216,6 +253,14 @@ func Execute(ctx context.Context) int {
 	return serve(ctx, srv, srv.ListenAndServe, logger)
 }
 
+// sourceCommit is the deployed revision for logs and telemetry.
+func sourceCommit() string {
+	if commit := strings.TrimSpace(os.Getenv("SOURCE_COMMIT")); commit != "" {
+		return commit
+	}
+	return "unknown"
+}
+
 // serve returns only after HTTP has drained (or has been forcibly closed).
 // Execute's resource defers therefore run after the HTTP lifecycle, not before.
 func serve(ctx context.Context, srv *http.Server, listen func() error, logger zerolog.Logger) int {
@@ -228,11 +273,7 @@ func serve(ctx context.Context, srv *http.Server, listen func() error, logger ze
 		close(srvCh)
 	}()
 
-	sourceCommit := strings.TrimSpace(os.Getenv("SOURCE_COMMIT"))
-	if sourceCommit == "" {
-		sourceCommit = "unknown"
-	}
-	logger.Info().Str("source_commit", sourceCommit).Msg("API started...")
+	logger.Info().Str("source_commit", sourceCommit()).Msg("API started...")
 
 	select {
 	case <-ctx.Done():
