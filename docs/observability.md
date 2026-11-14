@@ -79,14 +79,20 @@ figures mean.
    header on both senders (`OTEL_EXPORTER_OTLP_HEADERS` for the app, `headers`
    on the collector's `otlp_http/signoz` exporter). Check which ports Coolify's
    SigNoz resource publishes.
-2. **Ship logs.** Add a Docker Compose resource on the Ticketopia machine from
-   this repository with the compose file `deploy/otel-collector/compose.yaml`,
-   and set `SIGNOZ_OTLP_ENDPOINT` (for example `http://10.0.0.5:4318`). It runs
-   the pinned contrib collector as root, read-only on
-   `/var/lib/docker/containers`, starting at the end of existing files and
-   remembering its position in a volume across restarts. It needs no ports.
-   If the machine runs other apps whose JSON logs have a `component` field,
-   tighten the `filter/ticketopia` condition.
+2. **Ship logs.** Run `deploy/otel-collector` on the Ticketopia machine with
+   `SIGNOZ_OTLP_ENDPOINT` set (for example `http://10.0.0.5:4318`). It runs the
+   pinned contrib collector as root, read-only on `/var/lib/docker/containers`,
+   starting at the end of existing files and remembering its position in a
+   volume across restarts. It needs no ports. If the machine runs other apps
+   whose JSON logs have a `component` field, tighten the `filter/ticketopia`
+   condition.
+
+   Production runs it as the `otel-collector` Docker Compose service in the
+   Ticketopia project, not from the repository: the compose file embeds
+   `config.yaml` with Coolify's volume `content:` key, because Coolify may
+   mount a relative `./config.yaml` as an empty directory. Compose would also
+   reject `${env:…}` inside that content, so the embedded copy has the SigNoz
+   endpoint written in. Copy changes to `config.yaml` into the service by hand.
 3. **Export metrics.** Set `OTEL_EXPORTER_OTLP_ENDPOINT` to the same address on
    the Ticketopia application and redeploy; the startup log then contains
    `Exporting metrics over OTLP` with the endpoint. Optionally add
@@ -110,5 +116,6 @@ catalog callbacks. Locally against Docker with the pinned collector: a real
 Linux build exported process and MCP metrics (calls, duration histogram,
 refusals), including the final flush on stop, and the host collector forwarded
 the app's and a test container's JSON lines with fields and severity while
-dropping other containers' lines. Not yet verified against a running SigNoz or
-on the Coolify hosts.
+dropping other containers' lines. In production, the app and the collector
+service run with these settings; data arriving in SigNoz is still to be
+confirmed.
