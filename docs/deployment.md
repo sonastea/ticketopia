@@ -449,6 +449,10 @@ so watch MariaDB and raise its CPUs before adding replicas.
   GET `/readyz`.
 - Remove the old startup command that installed curl: the runtime has no `apt-get`
   or shell, and neither is necessary.
+- For agent access to the Coolify instance, `.opencode/opencode.json` declares
+  the `coolify-primordial` MCP server, disabled by default. To use it, export a
+  Coolify team API token as **`COOLIFY_TOKEN_PRIMORDIAL`**, then connect the server from
+  `/mcps` or set `"disabled": false` locally (do not commit that change).
 
 ## Kubernetes
 

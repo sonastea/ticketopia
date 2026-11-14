@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "coolify-primordial": {
+        "type": "remote",
+        "url": "https://outpost-primordial.sonastea.com/mcp",
+        "oauth": false,
+        "headers": { "Authorization": "Bearer {env:COOLIFY_TOKEN_PRIMORDIAL}" },
+        "disabled": true
+      }
+    }
+  }
+}
