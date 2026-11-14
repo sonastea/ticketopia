@@ -21,6 +21,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/events"
 	"github.com/sonastea/ticketopia/internal/follows"
@@ -58,6 +59,7 @@ type api struct {
 	radar             *radar.Service
 	interests         *interests.Service
 	recommendations   *recommendations.Service
+	drafts            *drafts.Service
 	discussions       *discussions.Service
 	eventActivity     *eventactivity.Service
 	discussionFollows *discussionfollows.Service
@@ -101,6 +103,12 @@ func WithEventInterests(repository interests.Repository) Option {
 
 func WithEventRecommendations(repository recommendations.Repository) Option {
 	return func(a *api) { a.recommendations = recommendations.New(repository, interestDetails{a}) }
+}
+
+// WithAgentDrafts stores agents' private drafts for the person to review and
+// publish at /me/drafts; it needs recommendations to publish them.
+func WithAgentDrafts(repository drafts.Repository) Option {
+	return func(a *api) { a.drafts = drafts.New(repository, interestDetails{a}) }
 }
 
 func WithEventDiscussions(repository discussions.Repository) Option {
@@ -206,6 +214,7 @@ func (a *api) Routes() *echo.Echo {
 	a.radarRoutes(e)
 	a.interestRoutes(e)
 	a.recommendationRoutes(e)
+	a.draftRoutes(e)
 	a.discussionRoutes(e)
 	a.discussionFollowRoutes(e)
 	a.moderationRoutes(e)

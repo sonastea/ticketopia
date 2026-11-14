@@ -2,8 +2,10 @@ package account
 
 import (
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/oauth"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/views/home"
 	"github.com/sonastea/ticketopia/views/layouts"
 	"net/url"
@@ -86,9 +88,35 @@ type ConsentPage struct {
 	// LocalRedirect is set when the app receives the result on this device.
 	LocalRedirect bool
 	// Write is set when the app asks to change saves and reminders.
-	Write               bool
+	Write bool
+	// Publish is set when the app asks to act publicly in the person's
+	// name; the checkbox for it starts unchecked.
+	Publish bool
+	// DisplayName is the public name posts would appear under.
+	DisplayName         string
 	Email, CSRF, Action string
 	Fields              []HiddenField
+}
+
+// DraftsPage lists the account's pending agent drafts.
+type DraftsPage struct {
+	Navigation layouts.AccountNavPermissions
+	Enabled    bool
+	CSRF       string
+	Drafts     []drafts.Draft
+	// Current is the account's recommendation per drafted event, nil when
+	// there is none; publishing a draft replaces its reason.
+	Current map[string]*recommendations.Item
+	// Notice confirms the last decision; EventID links to the event published on.
+	Notice, EventID string
+}
+
+// draftEventName falls back to the ID when a stored snapshot has no name.
+func draftEventName(d drafts.Draft) string {
+	if d.Event.Name != "" {
+		return d.Event.Name
+	}
+	return d.EventID
 }
 
 // HiddenField carries an authorization request parameter through the form.

@@ -20,6 +20,14 @@ live disables survive restarts/reruns; email permissions and delivery history re
 independent. Rollback means a schema-20-compatible image with the live kill switch
 off, preserving preferences rather than reversing the account reset.
 
+Schema 21 adds the OAuth tables for agent sign-in, and schema 22 adds agent
+publishing: nullable `event_recommendations.via_client_name`/`via_client_host`
+and the `agent_drafts` table. Both are additive. Because the app's readiness
+probe requires the exact schema version, do not migrate while older replicas
+serve: drain them, run the image's `migrate` through schema 22, reconcile the
+runtime grants (including INSERT/DELETE on `agent_drafts`), then start the new
+binary. See [agent tools](app-mcp.md#publishing-in-your-name).
+
 Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and
 60 combined snapshot/connection starts per trusted IP per minute (`LIVE_ACTIVITY_STARTS_PER_MINUTE`,
 1–600). Configure the existing trusted-proxy IP policy. Budget database pools and

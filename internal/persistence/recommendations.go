@@ -30,8 +30,8 @@ const recommendationColumns = `e.snapshot,` + recommendationFields
 // recommendationPageColumns read page rows carried through the limited keys,
 // plus the event ID. Only one row per event looks up its snapshot (see
 // firstOfEvent), so neither the sort nor the result repeats it.
-const recommendationPageColumns = `IF(page.first,(SELECT s.snapshot FROM event_snapshots s WHERE s.event_id=page.event_id),NULL),page.data_as_of,page.account_id,page.display_name,page.bio,page.reason,page.recommended_at,page.updated_at,page.event_id`
-const recommendationFields = `e.data_as_of,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at`
+const recommendationPageColumns = `IF(page.first,(SELECT s.snapshot FROM event_snapshots s WHERE s.event_id=page.event_id),NULL),page.data_as_of,page.account_id,page.display_name,page.bio,page.reason,page.recommended_at,page.updated_at,page.via,page.via_host,page.event_id`
+const recommendationFields = `e.data_as_of,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at,COALESCE(r.via_client_name,'') AS via,COALESCE(r.via_client_host,'') AS via_host`
 const recommendationJoin = ` FROM event_recommendations r JOIN event_snapshots e ON e.event_id=r.event_id JOIN accounts a ON a.account_id=r.account_id`
 
 func scanRecommendation(row interface{ Scan(...any) error }) (recommendations.Item, error) {
@@ -50,7 +50,7 @@ func scanRecommendation(row interface{ Scan(...any) error }) (recommendations.It
 // scans any columns after recommendationFields into extra.
 func scanRecommendationRow(row interface{ Scan(...any) error }, item *recommendations.Item, extra ...any) ([]byte, error) {
 	var snapshot []byte
-	err := row.Scan(append([]any{&snapshot, &item.Meta.DataAsOf, &item.Profile.ID, &item.Profile.DisplayName, &item.Profile.Bio, &item.Reason, &item.RecommendedAt, &item.UpdatedAt}, extra...)...)
+	err := row.Scan(append([]any{&snapshot, &item.Meta.DataAsOf, &item.Profile.ID, &item.Profile.DisplayName, &item.Profile.Bio, &item.Reason, &item.RecommendedAt, &item.UpdatedAt, &item.Via, &item.ViaHost}, extra...)...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, recommendations.ErrNotFound
 	}
@@ -65,11 +65,18 @@ func (r *RecommendationRepository) Get(ctx context.Context, owner, id string) (r
 	defer cancel()
 	return scanRecommendation(r.db.QueryRowContext(ctx, `SELECT `+recommendationColumns+recommendationJoin+` WHERE r.account_id=? AND r.event_id=? AND r.withdrawn_at IS NULL`, owner, id))
 }
+
+// Set publishes or edits the account's own words, without app attribution.
 func (r *RecommendationRepository) Set(ctx context.Context, owner string, detail models.EventDetail, reason string) (recommendations.Item, bool, error) {
-	reason, err := recommendations.Reason(reason)
+	return r.Write(ctx, owner, detail, recommendations.Write{Reason: reason})
+}
+
+func (r *RecommendationRepository) Write(ctx context.Context, owner string, detail models.EventDetail, w recommendations.Write) (recommendations.Item, bool, error) {
+	reason, err := recommendations.Reason(w.Reason)
 	if err != nil {
 		return recommendations.Item{}, false, err
 	}
+	w.Reason = reason
 	args, data, err := prepareSnapshot(detail)
 	if err != nil {
 		return recommendations.Item{}, false, recommendations.ErrUnavailable
@@ -77,9 +84,12 @@ func (r *RecommendationRepository) Set(ctx context.Context, owner string, detail
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	for attempt := range 3 {
-		item, created, retry, err := r.setOnce(ctx, owner, detail, reason, args, data)
+		item, created, retry, err := r.setOnce(ctx, owner, detail, w, args, data)
 		if err == nil {
 			return item, created, nil
+		}
+		if errors.Is(err, recommendations.ErrChanged) || errors.Is(err, recommendations.ErrDraftGone) {
+			return recommendations.Item{}, false, err
 		}
 		if !retry || attempt == 2 {
 			return recommendations.Item{}, false, safeError("recommendation write", err)
@@ -94,7 +104,16 @@ func (r *RecommendationRepository) Set(ctx context.Context, owner string, detail
 	}
 	panic("unreachable")
 }
-func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, detail models.EventDetail, reason string, args []any, data []byte) (recommendations.Item, bool, bool, error) {
+
+// viaValue stores an empty app name as NULL: a person's own writing.
+func viaValue(via string) any {
+	if via == "" {
+		return nil
+	}
+	return via
+}
+
+func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, detail models.EventDetail, w recommendations.Write, args []any, data []byte) (recommendations.Item, bool, bool, error) {
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return recommendations.Item{}, false, retryable(err), err
@@ -107,14 +126,48 @@ func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, de
 		return recommendations.Item{}, false, retryable(err), err
 	}
 	var active bool
-	err = tx.QueryRowContext(ctx, `SELECT withdrawn_at IS NULL FROM event_recommendations WHERE account_id=? AND event_id=? FOR UPDATE`, owner, detail.Item.ID).Scan(&active)
+	var current string
+	err = tx.QueryRowContext(ctx, `SELECT withdrawn_at IS NULL,reason FROM event_recommendations WHERE account_id=? AND event_id=? FOR UPDATE`, owner, detail.Item.ID).Scan(&active, &current)
 	first := errors.Is(err, sql.ErrNoRows)
 	if err != nil && !first {
 		return recommendations.Item{}, false, retryable(err), err
 	}
 	created := first || !active
+	// The person's review must still describe the row, checked under its lock.
+	if e := w.Expect; e != nil && !e.Matches(!created, current) {
+		return recommendations.Item{}, false, false, recommendations.ErrChanged
+	}
+	// The draft is consumed with the publication, or nothing happens. Lock the
+	// account first, as sign-out-everywhere does before cascading into drafts,
+	// so the two never wait on each other in opposite orders.
+	if w.Draft != "" {
+		var account string
+		if err := tx.QueryRowContext(ctx, `SELECT account_id FROM accounts WHERE account_id=? FOR UPDATE`, owner).Scan(&account); err != nil {
+			return recommendations.Item{}, false, retryable(err), err
+		}
+		result, err := tx.ExecContext(ctx, `DELETE FROM agent_drafts WHERE account_id=? AND draft_id=? AND expires_at>UTC_TIMESTAMP(6)`, owner, w.Draft)
+		if err != nil {
+			return recommendations.Item{}, false, retryable(err), err
+		}
+		if n, err := result.RowsAffected(); err != nil || n != 1 {
+			if err == nil {
+				err = recommendations.ErrDraftGone
+			}
+			return recommendations.Item{}, false, false, err
+		}
+	}
+	if !created && w.KeepExisting {
+		// Under the row lock: a concurrent edit is never overwritten.
+		item, err := scanRecommendation(tx.QueryRowContext(ctx, `SELECT `+recommendationColumns+recommendationJoin+` WHERE r.account_id=? AND r.event_id=?`, owner, detail.Item.ID))
+		if err != nil {
+			return recommendations.Item{}, false, false, err
+		}
+		return item, false, false, tx.Commit()
+	}
 	// Binary comparison detects case-only edits and ignores idempotent retries.
-	_, err = tx.ExecContext(ctx, `INSERT INTO event_recommendations (account_id,event_id,reason) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=IF(withdrawn_at IS NOT NULL OR BINARY reason<>BINARY VALUES(reason),UTC_TIMESTAMP(6),updated_at),reason=VALUES(reason),withdrawn_at=NULL`, owner, detail.Item.ID, reason)
+	// Attribution changes with the content it describes, so it is assigned
+	// first: later assignments see the updated reason and withdrawn_at.
+	_, err = tx.ExecContext(ctx, `INSERT INTO event_recommendations (account_id,event_id,reason,via_client_name,via_client_host) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE via_client_name=IF(withdrawn_at IS NOT NULL OR BINARY reason<>BINARY VALUES(reason),VALUES(via_client_name),via_client_name),via_client_host=IF(withdrawn_at IS NOT NULL OR BINARY reason<>BINARY VALUES(reason),VALUES(via_client_host),via_client_host),updated_at=IF(withdrawn_at IS NOT NULL OR BINARY reason<>BINARY VALUES(reason),UTC_TIMESTAMP(6),updated_at),reason=VALUES(reason),withdrawn_at=NULL`, owner, detail.Item.ID, w.Reason, viaValue(w.Via), viaValue(w.ViaHost))
 	if err != nil {
 		return recommendations.Item{}, false, retryable(err), err
 	}
@@ -163,25 +216,48 @@ func recordRecommendationActivity(ctx context.Context, tx *sql.Tx, owner string,
 	return o, err
 }
 func (r *RecommendationRepository) Remove(ctx context.Context, owner, id string) error {
+	_, err := r.withdraw(ctx, owner, id, false)
+	return err
+}
+
+// WithdrawAttributed withdraws the recommendation only while it is
+// attributed to an app and has no reason, in the same statement, so a
+// concurrent edit by the person is never erased. It reports whether it
+// withdrew one.
+func (r *RecommendationRepository) WithdrawAttributed(ctx context.Context, owner, id string) (bool, error) {
+	return r.withdraw(ctx, owner, id, true)
+}
+
+func (r *RecommendationRepository) withdraw(ctx context.Context, owner, id string, attributedOnly bool) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return safeError("recommendation withdrawal", err)
+		return false, safeError("recommendation withdrawal", err)
 	}
 	defer tx.Rollback()
-	_, err = tx.ExecContext(ctx, `UPDATE event_recommendations SET reason='',updated_at=UTC_TIMESTAMP(6),withdrawn_at=UTC_TIMESTAMP(6) WHERE account_id=? AND event_id=? AND withdrawn_at IS NULL`, owner, id)
-	if err != nil {
-		return safeError("recommendation withdrawal", err)
+	query := `UPDATE event_recommendations SET reason='',via_client_name=NULL,via_client_host=NULL,updated_at=UTC_TIMESTAMP(6),withdrawn_at=UTC_TIMESTAMP(6) WHERE account_id=? AND event_id=? AND withdrawn_at IS NULL`
+	if attributedOnly {
+		query += ` AND via_client_name IS NOT NULL AND reason=''`
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM live_recommendation_activity WHERE account_id=? AND event_id=?`, owner, id); err != nil {
-		return safeError("recommendation withdrawal", err)
+	result, err := tx.ExecContext(ctx, query, owner, id)
+	if err != nil {
+		return false, safeError("recommendation withdrawal", err)
+	}
+	withdrawn, err := result.RowsAffected()
+	if err != nil {
+		return false, safeError("recommendation withdrawal", err)
+	}
+	if withdrawn > 0 || !attributedOnly {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM live_recommendation_activity WHERE account_id=? AND event_id=?`, owner, id); err != nil {
+			return false, safeError("recommendation withdrawal", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
-		return safeError("recommendation withdrawal", err)
+		return false, safeError("recommendation withdrawal", err)
 	}
 	invalidateDiscoverCounts()
-	return nil
+	return withdrawn > 0, nil
 }
 func (r *RecommendationRepository) Count(ctx context.Context, id string) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)

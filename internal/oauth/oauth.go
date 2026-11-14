@@ -26,6 +26,11 @@ const (
 	ScopeRead = "read"
 	// ScopeWrite also allows changing saves and reminders.
 	ScopeWrite = "write"
+	// ScopePublish allows structured public actions in the person's name
+	// (public Interested choices, recommendations without a reason). It is
+	// never implied by write, never granted by default and never carried by
+	// API tokens; free text still goes through drafts the person publishes.
+	ScopePublish = "publish"
 
 	CodeLifetime   = 5 * time.Minute
 	AccessLifetime = time.Hour
@@ -42,7 +47,11 @@ const (
 )
 
 // Scopes lists every scope in canonical order.
-var Scopes = []string{ScopeRead, ScopeWrite}
+var Scopes = []string{ScopeRead, ScopeWrite, ScopePublish}
+
+// DefaultScopes are requested when a client names none: never publish, which
+// a client must ask for explicitly.
+var DefaultScopes = []string{ScopeRead, ScopeWrite}
 
 var (
 	// ErrNotFound is a grant that does not exist for the account.
@@ -107,6 +116,9 @@ type Request struct {
 // Write reports whether the request asks to change saves and reminders.
 func (r Request) Write() bool { return slices.Contains(r.Scopes, ScopeWrite) }
 
+// Publish reports whether the request asks to act publicly in the person's name.
+func (r Request) Publish() bool { return slices.Contains(r.Scopes, ScopePublish) }
+
 // LocalRedirect reports whether the client receives the code on this
 // device's loopback interface (desktop and command-line agents).
 func (r Request) LocalRedirect() bool {
@@ -160,11 +172,18 @@ func (g Grant) Host() string { return Client{ID: g.ClientID}.Host() }
 // Write reports whether the connection may change saves and reminders.
 func (g Grant) Write() bool { return slices.Contains(g.Scopes, ScopeWrite) }
 
+// Publish reports whether the connection may act publicly in the person's name.
+func (g Grant) Publish() bool { return slices.Contains(g.Scopes, ScopePublish) }
+
 // Access is a verified access token.
 type Access struct {
 	AccountID string
 	GrantID   string
 	Scopes    []string
+	// ClientName and ClientID identify the connected app, for attribution
+	// ("via ClientName") and logs (the ClientID's host).
+	ClientName string
+	ClientID   string
 }
 
 // Token is a token endpoint response.
@@ -260,12 +279,13 @@ func single(values url.Values, key string) (string, bool) {
 	return v[0], true
 }
 
-// ParseScopes accepts space-separated known scopes. Empty means every scope:
-// the consent page still lets the person withhold changes.
+// ParseScopes accepts space-separated known scopes. Empty means read and
+// write (DefaultScopes), never publish: the consent page still lets the
+// person withhold changes. Changing and publishing each imply reading.
 func ParseScopes(raw string) ([]string, bool) {
 	fields := strings.Fields(raw)
 	if len(fields) == 0 {
-		return slices.Clone(Scopes), true
+		return slices.Clone(DefaultScopes), true
 	}
 	var result []string
 	for _, f := range fields {
@@ -276,8 +296,8 @@ func ParseScopes(raw string) ([]string, bool) {
 			result = append(result, f)
 		}
 	}
-	// Changing saves implies reading them.
-	if slices.Contains(result, ScopeWrite) && !slices.Contains(result, ScopeRead) {
+	// Changing or publishing implies reading; publishing does not imply changing.
+	if (slices.Contains(result, ScopeWrite) || slices.Contains(result, ScopePublish)) && !slices.Contains(result, ScopeRead) {
 		result = append(result, ScopeRead)
 	}
 	slices.SortFunc(result, func(a, b string) int { return slices.Index(Scopes, a) - slices.Index(Scopes, b) })
@@ -338,7 +358,7 @@ func (s *Service) ParseAuthorization(ctx context.Context, values url.Values) (Re
 	scope, _ := single(values, "scope")
 	scopes, ok := ParseScopes(scope)
 	if !ok {
-		return r, oauthError("invalid_scope", "supported scopes are read and write")
+		return r, oauthError("invalid_scope", "supported scopes are read, write and publish")
 	}
 	r.Scopes = scopes
 	return r, nil
@@ -373,7 +393,9 @@ func (s *Service) redirect(r Request, values url.Values) string {
 }
 
 // Approve issues a code for the scopes the person allowed, a subset of the
-// request's, and returns the client redirect carrying it.
+// request's, and returns the client redirect carrying it. Each optional
+// scope needs both the client's request and the person's checkbox: write
+// for "Also allow changes", publish for "Also allow posting publicly".
 func (s *Service) Approve(ctx context.Context, account string, r Request, scopes []string) (string, error) {
 	granted := []string{}
 	for _, scope := range scopes {
@@ -464,7 +486,7 @@ func (s *Service) refresh(ctx context.Context, clientID string, form url.Values)
 	if scope := form.Get("scope"); scope != "" {
 		var ok bool
 		if requested, ok = ParseScopes(scope); !ok {
-			return Token{}, oauthError("invalid_scope", "supported scopes are read and write")
+			return Token{}, oauthError("invalid_scope", "supported scopes are read, write and publish")
 		}
 	}
 	now := s.now()
@@ -475,7 +497,7 @@ func (s *Service) refresh(ctx context.Context, clientID string, form url.Values)
 	case errors.Is(err, ErrInvalidGrant):
 		return Token{}, oauthError("invalid_grant", "the refresh token is invalid, expired or revoked")
 	case errors.Is(err, ErrInvalidScope):
-		return Token{}, oauthError("invalid_scope", "a refresh cannot add scopes; connect again to allow changes")
+		return Token{}, oauthError("invalid_scope", "a refresh cannot add scopes; connect again to allow changes or posting")
 	case err != nil:
 		return Token{}, err
 	}
@@ -501,7 +523,7 @@ func (s *Service) Authenticate(ctx context.Context, raw string) (Access, error) 
 	if err != nil {
 		return Access{}, err
 	}
-	return Access{AccountID: g.AccountID, GrantID: g.ID, Scopes: g.Scopes}, nil
+	return Access{AccountID: g.AccountID, GrantID: g.ID, Scopes: g.Scopes, ClientName: g.ClientName, ClientID: g.ClientID}, nil
 }
 
 // Grants lists the account's connected agents, newest first.

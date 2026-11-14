@@ -1,0 +1,87 @@
+package account
+
+import "fmt"
+import "net/url"
+import "github.com/sonastea/ticketopia/internal/drafts"
+import "github.com/sonastea/ticketopia/internal/recommendations"
+import "github.com/sonastea/ticketopia/views/layouts"
+import "github.com/sonastea/ticketopia/views/components/button"
+
+// Drafts lists text connected apps wrote for the person to review. Nothing
+// here is public until the person chooses Publish, which is a CSRF-protected
+// POST; the page itself never publishes.
+templ Drafts(p DraftsPage) {
+	@layouts.App("profile", "Agent drafts") {
+		<main id="main" class="destination-page account-page drafts-page">
+			<h1>Agent drafts</h1>
+			<p class="intro">Recommendation reasons your connected apps wrote for you. They're private until you publish them, and expire after seven days.</p>
+			@layouts.AccountNav("drafts", p.Navigation)
+			if !p.Enabled {
+				<p>Agent drafts need accounts and recommendations to be enabled on this server.</p>
+			} else {
+				if p.Notice != "" {
+					<p class="account-notice" role="status">
+						{ p.Notice }
+						if p.EventID != "" {
+							{ " " }<a href={ templ.URL("/events/" + url.PathEscape(p.EventID) + "?section=community") } class="text-link">See it on the event</a>
+						}
+					</p>
+				}
+				if len(p.Drafts) == 0 {
+					<h2>No drafts waiting.</h2>
+					<p>When an app you connected drafts a recommendation reason, it waits here for you to read before anything is posted.</p>
+					@button.Button(button.Props{Href: "/me", Variant: button.VariantOutline, Class: "action action-secondary"}) {
+						Manage connected apps
+					}
+				} else {
+					<p class="field-note">Publishing shows your display name, profile link and the reason on the event, in Community and on your profile, marked "via" the app that wrote it. It replaces your current reason for that event, shown with each draft. Disconnecting an app deletes its drafts.</p>
+					<ul class="draft-list">
+						for i, draft := range p.Drafts {
+							@draftItem(p, draft, fmt.Sprintf("draft-%d", i))
+						}
+					</ul>
+				}
+			}
+		</main>
+	}
+}
+
+templ draftItem(p DraftsPage, draft drafts.Draft, id string) {
+	<li aria-labelledby={ id + "-title" }>
+		<h2 id={ id + "-title" }><a href={ templ.URL("/events/" + url.PathEscape(draft.EventID) + "?section=community") } class="text-link">{ draftEventName(draft) }</a></h2>
+		<p class="field-note">
+			if draft.FromAPIToken() {
+				App unidentified; created using an API token
+			} else {
+				Recommendation reason from <strong>{ draft.ClientName }</strong> (<span class="account-connect-host">{ draft.ClientHost }</span>)
+			}
+			· <time datetime={ draft.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00") }>{ draft.CreatedAt.UTC().Format("Jan 2, 2006") }</time></p>
+		<blockquote class="recommendation-reason draft-text">{ draft.Text }</blockquote>
+		if current := p.Current[draft.EventID]; current != nil {
+			if current.Reason != "" {
+				<p class="field-note">Publishing replaces your current reason:</p>
+				<blockquote class="recommendation-reason draft-text draft-current">{ current.Reason }</blockquote>
+			} else {
+				<p class="field-note">You already recommend this event without a reason; publishing adds this one.</p>
+			}
+		} else {
+			<p class="field-note">You don't recommend this event yet; publishing recommends it.</p>
+		}
+		<p class="field-note">Not published. Expires <time datetime={ draft.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00") }>{ draft.ExpiresAt.UTC().Format("Jan 2, 2006") }</time>.</p>
+		<form action={ templ.URL("/me/drafts/" + draft.ID) } method="post" class="account-actions">
+			@CSRF(p.CSRF)
+			if current := p.Current[draft.EventID]; current != nil {
+				<input type="hidden" name="has_current" value="1"/>
+				<input type="hidden" name="current_hash" value={ recommendations.ReasonHash(current.Reason) }/>
+			} else {
+				<input type="hidden" name="has_current" value="0"/>
+			}
+			@button.Button(button.Props{Type: button.TypeSubmit, Class: "action", Attributes: templ.Attributes{"name": "action", "value": "publish", "aria-describedby": id + "-title"}}) {
+				Publish recommendation
+			}
+			@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"name": "action", "value": "discard", "formnovalidate": true, "aria-describedby": id + "-title"}}) {
+				Discard
+			}
+		</form>
+	</li>
+}

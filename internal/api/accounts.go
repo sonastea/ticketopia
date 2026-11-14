@@ -17,6 +17,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/follows"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/moderation"
@@ -388,6 +389,14 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 503, "saved_events_unavailable", "We couldn't load or change your saved events. Please try again shortly.", nil
 	case errors.Is(err, interests.ErrUnavailable):
 		return 503, "event_interests_unavailable", "We couldn't load or change event interest. Please try again shortly.", nil
+	case errors.Is(err, drafts.ErrNotFound), errors.Is(err, recommendations.ErrDraftGone):
+		return 404, "draft_not_found", "This draft was already published, discarded or expired.", nil
+	case errors.Is(err, drafts.ErrLimit):
+		return 409, "draft_limit", "There are already 20 drafts waiting for review. Publish or discard some first.", nil
+	case errors.Is(err, drafts.ErrUnavailable):
+		return 503, "drafts_unavailable", "Drafts couldn't load or change. Please try again shortly.", nil
+	case errors.Is(err, recommendations.ErrChanged):
+		return 409, "recommendation_changed", "Your recommendation for this event changed after you reviewed it. Review it again before publishing.", nil
 	case errors.Is(err, recommendations.ErrUnavailable):
 		return 503, "event_recommendations_unavailable", "We couldn't load or change recommendations. Please try again shortly.", nil
 	case errors.Is(err, discussions.ErrNotFound):

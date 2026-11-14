@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### 2026-11-14 — Agent publishing, phase 1
+
+- Add a third OAuth scope, `publish`: never implied by `write`, never requested
+  when a client names no scope, and never carried by API tokens (now an explicit
+  `read write` list). The consent page offers **Also allow posting publicly as
+  *name***, unchecked, only when an app asks; its "can't post anything publicly"
+  promise now matches the checkbox. Connected apps label such connections
+  **Can post publicly**. Existing connections keep their scopes; a refresh
+  cannot add `publish`.
+- With `publish`: `make_interest_public`, `recommend_event` (no reason; an
+  existing recommendation is returned unchanged) and `withdraw_recommendation`
+  (only what an app published without a reason: agents never erase the
+  person's words), at most 20 an hour per account per replica, each logged as `Agent published`
+  with only the tool and app host. With `write`: `make_interest_private`,
+  `draft_recommendation` and `discard_draft`; `my_recommendations` and
+  `my_drafts` read. `SignedInTools` maps each tool to its scope; the boundary
+  answers 403 `insufficient_scope` naming it, and tools check again.
+- Agents never publish words: a drafted reason waits privately at `/me/drafts`
+  (seven days, 20 per account, deleted with its connection) beside the reason it
+  would replace, until the person publishes it with a CSRF-protected form that
+  refuses a stale review and consumes the draft in the same transaction.
+  Recommendations an agent published, or whose reason it drafted, show
+  "via *app* (*host*)" on the event, profile and Community, and carry `via` and
+  `via_host` in the API (contract 1.24.0); API-token drafts say "via an API
+  client". Client names naming Ticketopia are refused. Schema 22 adds
+  `event_recommendations.via_client_name`/`via_client_host` and `agent_drafts`,
+  with runtime grants in every provisioning path. Discussions and Helpful are phase 2; see
+  the [guide](../app-mcp.md#publishing-in-your-name).
+
 ### 2026-11-13 — Radar, follow and Interested tools
 
 - Add signed-in tools: `my_radar`; `find_artists`, `find_venues`, `my_follows`,
@@ -41,41 +70,5 @@
   `private_key_jwt` but lists `none`, and was refused; it now signs in as a
   public client. Verified against the live ChatGPT, OpenCode and Claude Code
   documents on a local server; see the [guide](../app-mcp.md#oauth-sign-in).
-
-### 2026-11-12 — OAuth sign-in with Client ID Metadata Documents
-
-- Add an OAuth 2.1 authorization server (`MCP_OAUTH_ENABLED`, on by default
-  with accounts) so agents sign in through the browser: protected resource and
-  authorization server metadata, `/oauth/authorize` with S256 PKCE, RFC 9207
-  `iss`, and `/oauth/token` with rotating refresh tokens; replaying a rotated
-  refresh token revokes the connection. Clients identify
-  with Client ID Metadata Documents, fetched only from public HTTPS addresses;
-  DCR and client secrets are not supported.
-- A consent page names the app and its metadata host and lets people withhold
-  changes (`read` versus `write` scopes). With accounts, `/mcp` now requires
-  sign-in for every request by default (`MCP_REQUIRE_SIGN_IN`), answering
-  requests without a token with a 401 challenge, so agent traffic is attributed
-  and limited per account; with sign-in optional, only signed-in tool calls are
-  challenged. Changes through read-only connections get 403
-  `insufficient_scope`, and tools also refuse writes without the scope.
-- Remote `make load-test` runs send `TOKEN` on public tool calls too; review
-  servers keep sign-in optional so the local baseline stays anonymous.
-- Connections are listed under **Connected apps** on the account page and can be
-  disconnected; **Sign out everywhere** disconnects them all, serialized with
-  code redemption. Schema 21 adds `oauth_codes`, `oauth_grants` and
-  `oauth_refresh_history` with runtime grants in every provisioning path.
-- Tests cover the service rules, document fetching and SSRF refusal, a real MCP
-  SDK client signing in and stepping up from read-only, and code/refresh single
-  use, replay revocation and redemption racing sign-out across three replicas
-  against MariaDB. Real hosted clients still need a public deployment to verify;
-  see the [feature backlog](../goals/feature-backlog.md).
-
-### 2026-11-11 — Per-tool metrics and busy wording
-
-- Log an `MCP metrics` record each minute with changes: per-tool calls,
-  outcomes, signed-in share and duration buckets, plus boundary refusals by
-  reason, with fixed dimensions (unregistered tool names count as `unknown`).
-- `set_reminder` on an unsaved event says to save it first, and overload is
-  reported as Ticketopia being busy, not as a provider failure.
 
 Older entries: [agent tools archive](archive/app-mcp/).

@@ -11,7 +11,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 )
 
-const SupportedSchemaVersion = 21
+const SupportedSchemaVersion = 22
 
 // ErrUnavailable is dberr.ErrUnavailable, so callers that cannot import this
 // package (the API, whose tests this package imports) recognize it too.
@@ -154,10 +154,11 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT code_hash,account_id,client_id,client_name,redirect_uri,code_challenge,scopes,refresh,expires_at FROM oauth_codes LIMIT 0`,
 		`SELECT ` + grantColumns + ` FROM oauth_grants LIMIT 0`,
 		`SELECT refresh_hash,grant_id,used_at FROM oauth_refresh_history LIMIT 0`,
+		`SELECT draft_id,account_id,event_id,kind,body,client_name,client_host,grant_id,created_at,expires_at FROM agent_drafts LIMIT 0`,
 		`SELECT event_id, snapshot, data_as_of, community_city, community_country,activity_title FROM event_snapshots LIMIT 0`,
 		`SELECT account_id, event_id, saved_at FROM saved_events LIMIT 0`,
 		`SELECT account_id, event_id, interested_at, visibility FROM event_interests LIMIT 0`,
-		`SELECT account_id, event_id, reason, recommended_at, updated_at, withdrawn_at FROM event_recommendations LIMIT 0`,
+		`SELECT account_id, event_id, reason, recommended_at, updated_at, withdrawn_at, via_client_name, via_client_host FROM event_recommendations LIMIT 0`,
 		`SELECT event_id, first_recommended_at FROM recommendation_feed_events LIMIT 0`,
 		`SELECT account_id, window_start, new_publications, reactivations, total_new_publications, total_reactivations, last_published_at FROM recommendation_activity LIMIT 0`,
 		`SELECT account_id,event_id,published_at,expires_at FROM live_recommendation_activity LIMIT 0`,
@@ -194,7 +195,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		}
 	}
 	var count int
-	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','oauth_codes','oauth_grants','oauth_refresh_history','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','discussion_follows','discussion_notifications','discussion_notification_posts','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals','artists','artist_providers','venues','venue_providers','artist_follows','venue_follows','event_history_state','event_observations','collection_tasks','collection_runs','collection_pages','collection_run_events','provider_budgets') AND engine = 'InnoDB'`).Scan(&count)
+	err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('schema_state','goose_db_version','events','event_providers','accounts','account_identities','account_credentials','auth_flows','auth_rate_limits','oauth_codes','oauth_grants','oauth_refresh_history','agent_drafts','event_snapshots','saved_events','event_interests','event_recommendations','discussion_posts','post_helpful','discussion_follows','discussion_notifications','discussion_notification_posts','recommendation_feed_events','recommendation_activity','account_roles','account_role_events','moderation_reports','moderation_decisions','moderation_appeals','artists','artist_providers','venues','venue_providers','artist_follows','venue_follows','event_history_state','event_observations','collection_tasks','collection_runs','collection_pages','collection_run_events','provider_budgets') AND engine = 'InnoDB'`).Scan(&count)
 	if err != nil {
 		return safeError("schema validation", err)
 	}
@@ -202,7 +203,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 	if err := p.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('event_reminders','reminder_jobs','reminder_dispatch','live_recommendation_activity') AND engine='InnoDB'`).Scan(&reminderCount); err != nil {
 		return safeError("schema validation", err)
 	}
-	if count != 41 || reminderCount != 4 {
+	if count != 42 || reminderCount != 4 {
 		return fmt.Errorf("database schema requires InnoDB tables")
 	}
 	return nil

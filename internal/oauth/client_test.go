@@ -222,3 +222,18 @@ func TestDocumentsRefuseInternalAddresses(t *testing.T) {
 		t.Fatalf("localhost fetch: %v", err)
 	}
 }
+
+// Apps cannot present themselves as Ticketopia in consent or public "via"
+// labels; the rule is deterministic, not fuzzy.
+func TestReservedClientNames(t *testing.T) {
+	for _, name := range []string{"Ticketopia", "ticketopia helper", "Ticket-0pia", "TICKETOP1A", "T i c k e t o p i a", "Ticketop!a"} {
+		if !oauth.ReservedName(name) {
+			t.Errorf("%q not reserved", name)
+		}
+	}
+	for _, name := range []string{"Claude", "Ticket Pal", "Topia Tickets"} {
+		if oauth.ReservedName(name) {
+			t.Errorf("%q reserved", name)
+		}
+	}
+}

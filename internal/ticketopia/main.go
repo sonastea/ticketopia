@@ -154,7 +154,7 @@ func Execute(ctx context.Context) int {
 			options = append(options, api.WithEventInterests(pool.Interests()))
 			recommendations := pool.Recommendations()
 			recommendations.EnableLiveActivity(liveConfig.Enabled)
-			options = append(options, api.WithEventRecommendations(recommendations))
+			options = append(options, api.WithEventRecommendations(recommendations), api.WithAgentDrafts(pool.Drafts()))
 			if liveConfig.Enabled {
 				service := activity.New(ctx, activityRepository(ctx, pool.Activity()), liveConfig.MaxStreams, logger)
 				defer service.Close()

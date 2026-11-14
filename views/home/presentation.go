@@ -974,3 +974,11 @@ func hasGenre(genres []models.Genre, id string) bool {
 	}
 	return false
 }
+
+// viaLabel is "via Name (host)", or "via Name" for API clients without a host.
+func viaLabel(item recommendations.Item) string {
+	if item.ViaHost == "" {
+		return "via " + item.Via
+	}
+	return "via " + item.Via + " (" + item.ViaHost + ")"
+}

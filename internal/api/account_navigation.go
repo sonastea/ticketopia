@@ -13,5 +13,11 @@ func (a *api) accountNavigation(c echo.Context, viewerID string) layouts.Account
 		moderator, err := a.moderation.IsModerator(c.Request().Context(), viewerID)
 		p.Moderator = err == nil && moderator
 	}
+	// Like the moderator lookup, a failed count only hides the badge.
+	if p.Drafts = a.draftsEnabled(); p.Drafts && viewerID != "" {
+		if count, err := a.drafts.Count(c.Request().Context(), viewerID); err == nil {
+			p.PendingDrafts = count
+		}
+	}
 	return p
 }

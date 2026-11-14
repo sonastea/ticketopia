@@ -21,6 +21,11 @@ HTML and JSON, not a new backend.
 
 Non-goals: moderation, discussions or recommendations in the first release;
 any capability the web app lacks; agent access to other users' private data.
+*Superseded for recommendations:* agent publishing phase 1 (2026-11-14) adds
+recommendations without reasons and public Interested choices under a separate
+`publish` scope, with written reasons as drafts the person publishes on the web
+([guide](../app-mcp.md#publishing-in-your-name)). Discussions and Helpful
+remain later (phase 2).
 
 ## Placement
 

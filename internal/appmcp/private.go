@@ -26,23 +26,43 @@ type Reminders interface {
 	Remove(ctx context.Context, owner, event string) error
 }
 
-// SignedInTools are the tools acting on the caller's account; the value
-// reports whether the tool changes it, which needs the write scope.
-var SignedInTools = map[string]bool{
-	"my_saved_events": false, "save_event": true, "unsave_event": true,
-	"my_reminders": false, "set_reminder": true, "stop_reminder": true,
-	"my_radar":     false,
-	"find_artists": false, "find_venues": false, "my_follows": false,
-	"follow_artist_or_venue": true, "unfollow_artist_or_venue": true,
-	"my_interested_events": false, "mark_interested": true, "unmark_interested": true,
+// OAuth scopes a signed-in tool can require, matching the oauth package's.
+// API tokens carry read and write, never publish.
+const (
+	ScopeRead    = "read"
+	ScopeWrite   = "write"
+	ScopePublish = "publish"
+)
+
+// SignedInTools are the tools acting on the caller's account, each with the
+// scope it needs: read, write to change the account privately, or publish
+// to act publicly in the person's name. The HTTP boundary challenges for the
+// missing scope, and each tool checks it again.
+var SignedInTools = map[string]string{
+	"my_saved_events": ScopeRead, "save_event": ScopeWrite, "unsave_event": ScopeWrite,
+	"my_reminders": ScopeRead, "set_reminder": ScopeWrite, "stop_reminder": ScopeWrite,
+	"my_radar":     ScopeRead,
+	"find_artists": ScopeRead, "find_venues": ScopeRead, "my_follows": ScopeRead,
+	"follow_artist_or_venue": ScopeWrite, "unfollow_artist_or_venue": ScopeWrite,
+	"my_interested_events": ScopeRead, "mark_interested": ScopeWrite, "unmark_interested": ScopeWrite,
+	"make_interest_public": ScopePublish, "make_interest_private": ScopeWrite,
+	"recommend_event": ScopePublish, "withdraw_recommendation": ScopePublish, "my_recommendations": ScopeRead,
+	"draft_recommendation": ScopeWrite, "my_drafts": ScopeRead, "discard_draft": ScopeWrite,
 }
 
-// ScopeWrite is the OAuth scope that allows changes, matching oauth.ScopeWrite.
-// API tokens carry every scope.
-const ScopeWrite = "write"
+// errReadOnly and errNoPublish back up the HTTP boundary's insufficient_scope response.
+var (
+	errReadOnly  = errors.New("this connection is read-only: reconnect Ticketopia in your agent and allow changes to save, follow, mark Interested or set reminders")
+	errNoPublish = errors.New("this connection can't post publicly: the person can reconnect Ticketopia in your agent and allow posting publicly, or act on the web; written reasons always go through draft_recommendation")
+)
 
-// errReadOnly backs up the HTTP boundary's insufficient_scope response.
-var errReadOnly = errors.New("this connection is read-only: reconnect Ticketopia in your agent and allow changes to save, follow, mark Interested or set reminders")
+// scopeError is the tool error for a connection lacking scope.
+func scopeError(scope string) error {
+	if scope == ScopePublish {
+		return errNoPublish
+	}
+	return errReadOnly
+}
 
 // errSignIn is reported when a signed-in tool is called without a verified
 // API token; the HTTP boundary rejects invalid tokens before tools run.
@@ -144,6 +164,15 @@ type reminderState struct {
 // privateTool resolves the account from the verified API token and reports
 // errors in the account API's wording.
 func privateTool[In, Out any](d Deps, call func(ctx context.Context, owner string, in In) (Out, error)) mcp.ToolHandlerFor[In, Out] {
+	return privateToolWith(d, func(ctx context.Context, owner string, _ *mcp.CallToolRequest, in In) (Out, error) {
+		return call(ctx, owner, in)
+	})
+}
+
+// privateToolWith is privateTool for tools that also need the request, for
+// the connected app's name or host. The scope check uses the tool's entry in
+// SignedInTools, so no tool runs with less than it declares.
+func privateToolWith[In, Out any](d Deps, call func(ctx context.Context, owner string, req *mcp.CallToolRequest, in In) (Out, error)) mcp.ToolHandlerFor[In, Out] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
 		var zero Out
 		owner := ""
@@ -153,16 +182,13 @@ func privateTool[In, Out any](d Deps, call func(ctx context.Context, owner strin
 		if owner == "" {
 			return toolError(errSignIn.Error()), zero, nil
 		}
-		if SignedInTools[req.Params.Name] && !slices.Contains(req.Extra.TokenInfo.Scopes, ScopeWrite) {
-			return toolError(errReadOnly.Error()), zero, nil
+		if scope := SignedInTools[req.Params.Name]; scope == "" || !slices.Contains(req.Extra.TokenInfo.Scopes, scope) {
+			// An unlisted tool is refused rather than assumed harmless.
+			return toolError(scopeError(scope).Error()), zero, nil
 		}
-		out, err := call(ctx, owner, in)
+		out, err := call(ctx, owner, req, in)
 		if err != nil {
-			message := err.Error()
-			if d.DescribePrivate != nil {
-				message = d.DescribePrivate(err)
-			}
-			return toolError(message), zero, nil
+			return toolError(d.describePrivate(err)), zero, nil
 		}
 		return nil, out, nil
 	}

@@ -100,13 +100,13 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 			privateTool(d, func(ctx context.Context, owner string, in pageInput) (interests.List, error) {
 				return d.Interests.List(ctx, owner, false, in.values())
 			}))
-		// Agents never publish: connecting promises the app can't post anything
-		// publicly, so new choices are private and existing ones keep the
-		// visibility the person chose. Making a choice public stays on the web.
+		// mark_interested never publishes: new choices are private and existing
+		// ones keep the visibility the person chose. Making a choice public is
+		// make_interest_public, which needs the publish scope.
 		mcp.AddTool(server, &mcp.Tool{Name: "mark_interested", Title: "Mark Interested", OutputSchema: outputSchema[interestState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Mark an event Interested for the signed-in user. A new choice is private: it counts only toward the event's anonymous total. " +
-				"An existing choice keeps its visibility; only the person can make a choice public, on the event's page. " +
+				"An existing choice keeps its visibility. This never makes a choice public: that is make_interest_public, only when the user asks. " +
 				"Interested is separate from saving and does not save the event."},
 			privateTool(d, func(ctx context.Context, owner string, in eventInput) (interestState, error) {
 				item, created, err := d.Interests.Set(ctx, owner, in.EventID, nil, "private")

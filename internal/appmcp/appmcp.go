@@ -51,6 +51,15 @@ type Deps struct {
 	Follows   Follows
 	Catalog   Catalog
 	Interests Interests
+	// Recommendations and Drafts enable the recommendation and draft tools;
+	// Interests also enables the Interested visibility tools.
+	Recommendations Recommendations
+	Drafts          Drafts
+	// DraftsURL is the absolute page where the person reviews drafts
+	// (AUTH_BASE_URL/me/drafts). It only lists them: publishing is a POST.
+	DraftsURL string
+	// PublishLimit, when set, bounds publishing tool calls per account.
+	PublishLimit *PublishLimiter
 	// Accounts reads the caller's remembered city, which find_events
 	// defaults to.
 	Accounts Accounts
@@ -70,8 +79,10 @@ func NewServer(d Deps) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "ticketopia", Title: "Ticketopia", Version: "0.1.0"}, &mcp.ServerOptions{
 		Instructions: "Ticketopia finds live events (music, sports, arts and more) from Ticketmaster data. " +
 			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy. " +
-			"Signed in, my_radar suggests events from the user's follows and categories, and tools manage their saves, reminders, follows and Interested choices; " +
-			"these are the user's own, and nothing you change through these tools is shown publicly.",
+			"Signed in, my_radar suggests events from the user's follows and categories, and tools manage their saves, reminders, follows and Interested choices privately. " +
+			"Only make_interest_public, recommend_event and withdraw_recommendation act publicly in the user's name; they need the user's permission to post publicly, " +
+			"and you should use them only when the user asks. You never publish words: draft_recommendation saves a private draft, " +
+			"and the user reads and publishes it on Ticketopia at the review_url it returns.",
 	})
 	server.AddReceivingMiddleware(observe(d.Logger, d.Metrics))
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
@@ -109,6 +120,7 @@ func NewServer(d Deps) *mcp.Server {
 		}))
 	addPrivateTools(server, d)
 	addPersonalTools(server, d)
+	addPublishingTools(server, d)
 	return server
 }
 

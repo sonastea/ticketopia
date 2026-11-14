@@ -1,13 +1,20 @@
 package layouts
 
+import "fmt"
+
 // AccountNavPermissions contains presentation state only. Authorization stays in handlers.
 type AccountNavPermissions struct {
 	ModerationEnabled bool
 	Moderator bool
+	// Drafts lists agent drafts; PendingDrafts is their count, shown when above zero.
+	Drafts        bool
+	PendingDrafts int
 }
 
 type accountDestination struct {
 	Key, Href, Label string
+	// Count, when above zero, is shown beside the label (pending items).
+	Count int
 }
 
 type accountFamily struct {
@@ -16,15 +23,19 @@ type accountFamily struct {
 }
 
 func accountFamilies(p AccountNavPermissions) []accountFamily {
+	account := []accountDestination{{"profile", "/me", "Profile & privacy", 0}, {"preferences", "/me/preferences", "Preferences", 0}}
+	if p.Drafts {
+		account = append(account, accountDestination{"drafts", "/me/drafts", "Agent drafts", p.PendingDrafts})
+	}
 	families := []accountFamily{
-		{"Account", []accountDestination{{"profile", "/me", "Profile & privacy"}, {"preferences", "/me/preferences", "Preferences"}}},
-		{"Your events", []accountDestination{{"radar", "/radar", "Radar"}, {"interests", "/me/interests", "Interests"}, {"follows", "/follows", "Artists & venues"}}},
-		{"Updates", []accountDestination{{"reminders", "/me/reminders", "On-sale reminders"}, {"discussions", "/me/discussions", "Followed discussions"}, {"notifications", "/me/notifications", "Reply notifications"}}},
+		{"Account", account},
+		{"Your events", []accountDestination{{"radar", "/radar", "Radar", 0}, {"interests", "/me/interests", "Interests", 0}, {"follows", "/follows", "Artists & venues", 0}}},
+		{"Updates", []accountDestination{{"reminders", "/me/reminders", "On-sale reminders", 0}, {"discussions", "/me/discussions", "Followed discussions", 0}, {"notifications", "/me/notifications", "Reply notifications", 0}}},
 	}
 	if p.ModerationEnabled {
-		links := []accountDestination{{"reports", "/me/reports", "Your reports"}, {"outcomes", "/me/moderation", "Moderation outcomes"}}
+		links := []accountDestination{{"reports", "/me/reports", "Your reports", 0}, {"outcomes", "/me/moderation", "Moderation outcomes", 0}}
 		if p.Moderator {
-			links = append(links, accountDestination{"queue", "/moderation", "Moderator review queue"})
+			links = append(links, accountDestination{"queue", "/moderation", "Moderator review queue", 0})
 		}
 		families = append(families, accountFamily{"Safety", links})
 	}
@@ -63,7 +74,12 @@ templ AccountFamily(family accountFamily, current string) {
 		<p class="account-family-label">{ family.Label }</p>
 		<div class="account-nav">
 			for _, link := range family.Links {
-				<a href={ templ.URL(link.Href) } aria-current={ CurrentPage(link.Key == current) }>{ link.Label }</a>
+				<a href={ templ.URL(link.Href) } aria-current={ CurrentPage(link.Key == current) }>
+					{ link.Label }
+					if link.Count > 0 {
+						<span class="account-nav-count">{ fmt.Sprint(link.Count) }<span class="sr-only"> pending</span></span>
+					}
+				</a>
 			}
 		</div>
 	</div>

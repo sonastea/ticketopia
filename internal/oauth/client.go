@@ -281,6 +281,9 @@ func ParseDocument(id string, body []byte) (Client, error) {
 	if name == "" {
 		return Client{}, invalid("client_name is required")
 	}
+	if ReservedName(name) {
+		return Client{}, invalid("client_name must not name Ticketopia")
+	}
 	if len(doc.RedirectURIs) == 0 || len(doc.RedirectURIs) > 20 {
 		return Client{}, invalid("list between 1 and 20 redirect_uris")
 	}
@@ -290,6 +293,26 @@ func ParseDocument(id string, body []byte) (Client, error) {
 		}
 	}
 	return Client{ID: id, Name: name, RedirectURIs: doc.RedirectURIs, Refresh: slices.Contains(doc.GrantTypes, "refresh_token")}, nil
+}
+
+// ReservedName reports whether a client name claims to be Ticketopia, which
+// people would read as the site itself in consent and public "via" labels.
+// The rule is deterministic: case-folded letters and digits only, with 0 read
+// as o and 1, l and ! as i, so "Ticket-0pia" and "TICKETOP1A" match too.
+func ReservedName(name string) bool {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		switch r {
+		case '0':
+			r = 'o'
+		case '1', 'l', '!':
+			r = 'i'
+		}
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return strings.Contains(b.String(), "ticketopia")
 }
 
 // cleanName keeps a displayable client name: no control or format

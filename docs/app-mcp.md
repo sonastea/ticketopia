@@ -1,8 +1,8 @@
 # Agent tools (MCP)
 
 Ticketopia serves event tools, and once signed in (OAuth or an API token) the
-caller's own radar, saves, reminders, follows and Interested choices, to
-people's AI agents and editors over the
+caller's own radar, saves, reminders, follows, Interested choices,
+recommendations and drafts, to people's AI agents and editors over the
 [Model Context Protocol](https://modelcontextprotocol.io/) at **`/mcp`**. It is
 off unless `MCP_ENABLED=true`. The [design](design/app-mcp.md) describes later
 steps (a separate deployment); this page covers what exists.
@@ -31,17 +31,33 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `my_follows` | The caller's private artist and venue [follows](follows.md), optionally one `kind`, as `GET /api/v1/me/follows`. |
 | `follow_artist_or_venue` / `unfollow_artist_or_venue` | Follow (falling back to the stored catalog when the provider is unavailable) or unfollow one artist or venue by `kind` and `target_id`. |
 | `my_interested_events` | The caller's [Interested](event-interest.md) choices with their visibility, as `GET /api/v1/me/event-interests`. |
-| `mark_interested` / `unmark_interested` | Mark or remove Interested. Agents never publish: a new choice is private (counted only in the anonymous total) whatever the account's default, and an existing choice keeps its visibility. Only the person can make a choice public, on the web. |
+| `mark_interested` / `unmark_interested` | Mark or remove Interested. `mark_interested` never publishes: a new choice is private (counted only in the anonymous total) whatever the account's default, and an existing choice keeps its visibility. |
+| `make_interest_private` | Make a choice private, marking Interested first if needed (`write`). |
+| `make_interest_public` | Make a choice public, marking Interested first if needed (`publish`): the person's name appears among the event's interested people and on their profile. |
+| `my_recommendations` | The caller's public [recommendations](event-recommendations.md), each with its `via` app when an agent published it or wrote its reason, as `GET /api/v1/me/event-recommendations`. |
+| `recommend_event` | Publicly recommend an event without a reason (`publish`), attributed to the app and its host. An existing recommendation is returned unchanged, reason included. |
+| `withdraw_recommendation` | Withdraw the caller's recommendation only when an app published it without a reason (`publish`); one the person published or that has a reason is refused with a tool error pointing to the web. Idempotent. |
+| `draft_recommendation` | Store a private reason for the person to review (`write`), returning `review_url` (`AUTH_BASE_URL/me/drafts`). Nothing is published; see [drafts](#publishing-in-your-name). |
+| `my_drafts` / `discard_draft` | List the caller's pending drafts, or delete one (`write`). |
+
+Client metadata whose `client_name` names Ticketopia (case-folded letters and
+digits, with 0 read as o and 1, l and ! as i) is refused, so no app appears as
+the site itself in consent or public "via" labels.
 
 The radar, follow and Interested tools are listed when their services are, with
-accounts and MariaDB. Searching artists and venues needs sign-in, as on the
-web and API, because it reaches the provider.
+accounts and MariaDB; the recommendation tools with recommendations, and the
+draft tools with drafts too. Searching artists and venues needs sign-in, as on
+the web and API, because it reaches the provider.
 
 Read tools are annotated read-only. `unsave_event`, `stop_reminder`,
-`set_reminder` (changing a reminder replaces its timing), `unfollow_artist_or_venue`
-and `unmark_interested` are marked destructive; `save_event`,
-`follow_artist_or_venue` and `mark_interested` are additive. All writes are
-idempotent, need the `write` scope and return the resulting state.
+`set_reminder` (changing a reminder replaces its timing), `unfollow_artist_or_venue`,
+`unmark_interested`, `make_interest_private`, `withdraw_recommendation` and
+`discard_draft` are marked destructive; `save_event`, `follow_artist_or_venue`,
+`mark_interested`, `make_interest_public`, `recommend_event` and
+`draft_recommendation` are additive. All writes are idempotent (an identical
+pending draft is returned, not repeated) and return the resulting state.
+`make_interest_public`, `recommend_event` and `withdraw_recommendation` need
+the `publish` scope; the other writes need `write`.
 
 `find_events` dates are `YYYY-MM-DD` and match each event's local date, as on
 Discover. `start_date` defaults to today in UTC and `end_date` to 90 days later
@@ -75,8 +91,12 @@ Sign in with either:
   apps without custom headers connect. See [OAuth sign-in](#oauth-sign-in).
 - **An API token**: create one under **API access** on your account page (`/me`;
   see [accounts](accounts.md#sessions-and-api-clients)) and configure your client
-  to send `Authorization: Bearer <token>`. API tokens carry full read and write
-  access. Revoking the token cuts the agent off.
+  to send `Authorization: Bearer <token>`. API tokens carry read and write
+  access on `/mcp`, never `publish`: an agent using one can draft but not post
+  publicly through the agent tools. They are still full account credentials on
+  `/api/v1`, where they can publish recommendations with any reason, so give
+  agents OAuth instead wherever the client supports it. Revoking the token cuts
+  the agent off.
 
 A token that is sent must be valid: invalid, expired or revoked tokens get
 **401** with `WWW-Authenticate: Bearer`. Browser session cookies are never
@@ -97,8 +117,11 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
 - **Challenges.** A request without a token gets **401** with
   `resource_metadata` and `scope="read write"` in `WWW-Authenticate`, so clients
   start sign-in: every request while sign-in is required, otherwise only
-  signed-in tool calls. Changes through a read-only connection get **403**
-  `error="insufficient_scope"`, so clients can ask again.
+  signed-in tool calls. A tool needing a scope the token lacks gets **403**
+  `error="insufficient_scope"`, so clients can ask again: changes through a
+  read-only connection, and publishing tools through any connection or API
+  token without `publish`. Publishing tools ask for `scope="read write publish"`;
+  no other challenge mentions `publish`.
 - **Clients** identify themselves with a
   [Client ID Metadata Document](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration):
   an HTTPS `client_id` URL serving JSON with the same `client_id`, a
@@ -120,12 +143,18 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   people sign in first and return to the request. The consent page names the app
   and the host serving its metadata, lists what it can do, and offers **Also
   allow changes** when `write` is requested; leaving it off makes a read-only
-  connection. Responses carry `iss` (RFC 9207). The page cannot be framed.
+  connection. When `publish` is requested it also offers **Also allow posting
+  publicly as *display name***, unchecked by default, naming exactly what that
+  allows. Responses carry `iss` (RFC 9207). The page cannot be framed.
 - **Scopes**: `read` (public tools, radar, saved events, reminders, follows,
-  Interested events) and `write` (save and unsave, set and stop reminders,
-  follow and unfollow, mark and remove Interested, privately). An omitted scope
-  requests both. The consent page lists the same, and still promises the app
-  cannot post anything publicly.
+  Interested events, recommendations, drafts), `write` (save and unsave, set and
+  stop reminders, follow and unfollow, mark Interested privately, draft and
+  discard reasons) and `publish` (make Interested public, recommend without a
+  reason, withdraw a recommendation). `publish` implies `read`, not `write`. An
+  omitted scope requests `read write`, never `publish`. Unless posting is
+  allowed, the consent page promises the app cannot post anything publicly;
+  with the box ticked (detected with `:has()`), it says what the app can post.
+  Browsers without `:has()` show a statement true either way.
 - **Tokens** from `/oauth/token` (form-encoded, public clients only): access
   tokens (`tko_at_…`) last one hour; refresh tokens (`tko_rt_…`), issued when
   the client's document lists the `refresh_token` grant, rotate on every use.
@@ -138,7 +167,8 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   the code) but must match when sent. Only hashes are stored. Access tokens work
   only on `/mcp`, never on `/api/v1`.
 - **Connections.** Each approval creates a connection, listed under **Connected
-  apps** on the account page with its access; **Disconnect** stops its tokens
+  apps** on the account page with its access (**Can post publicly** when it
+  holds `publish`); existing connections keep exactly their scopes; **Disconnect** stops its tokens
   immediately. An account keeps at most ten; approving another removes the
   oldest. **Sign out everywhere** also disconnects every app, including any whose
   code exchange is in progress.
@@ -163,9 +193,49 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   attempts per IP per ten minutes.
 
 OAuth needs schema version 21 (`oauth_codes`, `oauth_grants`,
-`oauth_refresh_history`); run migrations
-and reconcile runtime grants before starting the new version, as for any
-schema change.
+`oauth_refresh_history`), and publishing schema 22 (`agent_drafts` and
+`event_recommendations.via_client_name`/`via_client_host`); run migrations and reconcile
+runtime grants before starting the new version, as for any schema change.
+
+## Publishing in your name
+
+Connecting an agent never lets it put words in public. Phase 1 covers
+Interested choices and recommendations; discussions and Helpful are later
+(see the [design](design/app-mcp.md)).
+
+- **Structured, reversible actions** publish directly when the connection holds
+  `publish`: making an Interested choice public, recommending without a reason,
+  and withdrawing a recommendation. Each account may make 20 such calls an hour
+  per replica; more get a tool error with `Retry after N seconds.` Each success
+  logs one `Agent published` record with only `tool` and `client_host`.
+- **Free text is never published by an agent.** `/mcp` is stateless, so MCP
+  elicitation (asking the person inside the call) is impossible, and only a web
+  page guarantees a person read the words. `draft_recommendation` stores a
+  private draft (plain text, up to 500 characters) and returns `review_url`.
+  At **Agent drafts** (`/me/drafts`, linked in the account navigation with a
+  count while drafts wait) the person reads each draft with its event and app
+  and chooses **Publish recommendation** or **Discard**, each a CSRF-protected
+  POST; the page never publishes on GET. Each draft shows the reason it would
+  replace, and the form carries a hash of what was shown: if the recommendation changed
+  since, nothing is published and the page asks for a fresh review. Publishing
+  validates the reason and event again and consumes the draft in the same
+  transaction, so a draft publishes at most once and a failure leaves it in
+  place. Drafts are private to their account, at most 20 at once, expire after
+  seven days, and are deleted with their connection (Disconnect, **Sign out
+  everywhere**, token revocation or eviction). Drafts made with an API token,
+  which identifies no app, say "App unidentified; created using an API token".
+- **Attribution.** A recommendation an agent published, or whose drafted reason
+  the person published, shows "via *app name* (*host*)" beside the author on the
+  event, profile and Community, and carries `via` and `via_host` in the API. The
+  name is the app's own claim; the host is its verified metadata host, in ASCII
+  (IDNA) form so lookalike characters show. API-token
+  drafts publish as "via an API client", without a host. `via` describes the
+  source of the current content, not permanent history: the person's change of
+  reason, and withdrawal, clear it. Interested choices carry no label.
+- **Agents never erase the person's words.** `recommend_event` returns an
+  existing recommendation unchanged, checked under its row lock, and
+  `withdraw_recommendation` only withdraws a recommendation an app published
+  without a reason, in the same statement.
 
 ## Protocol and limits
 

@@ -100,7 +100,10 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 							@CollectionEventFreshness(item.Meta)
 							@EventFacts(item.Event)
 						}
-						<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event</p>
+						<p class="recommendation-attribution">
+							<a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> recommends this event
+							@RecommendationVia(item)
+						</p>
 						if item.Reason!="" {
 							<p class="recommendation-reason">{ item.Reason }</p>
 						}
@@ -116,6 +119,16 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 				</li>
 			}
 		</ul>
+	}
+}
+
+// RecommendationVia names the connected app an agent published through, or
+// whose drafted reason the person published. The name is the app's own claim,
+// so the verified host is shown visibly beside it; both stay plain text,
+// never a link.
+templ RecommendationVia(item recommendations.Item) {
+	if item.Via != "" {
+		{ " " }<span class="recommendation-via">{ viaLabel(item) }</span>
 	}
 }
 
@@ -246,7 +259,10 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 										}
 										<figcaption class="byline">
 											@Avatar(initials(item.Profile.DisplayName))
-											<p class="recommendation-attribution"><a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> <span>recommends this event</span></p>
+											<p class="recommendation-attribution">
+												<a href={ templ.URL("/users/"+item.Profile.ID) } class="text-link">{ item.Profile.DisplayName }</a> <span>recommends this event</span>
+												@RecommendationVia(item)
+											</p>
 										</figcaption>
 									</figure>
 								</li>

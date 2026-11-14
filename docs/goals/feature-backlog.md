@@ -27,6 +27,16 @@ than in editors, and those apps connect only through OAuth. See the
   then Interested; the APIs exist, so each tool wraps a shared service.
   Implemented, with private-only Interested from agents
   ([guide](../app-mcp.md#tools)); check once a real client uses them.
+- [ ] Agent publishing, phase 1: a `publish` scope (never for API tokens) for
+  public Interested choices and recommending or withdrawing without a reason;
+  agent-written reasons as private drafts the person publishes at `/me/drafts`;
+  "via *app*" attribution. Implemented
+  ([guide](../app-mcp.md#publishing-in-your-name)); check once a real client
+  asks for `publish` on a public deployment.
+- [ ] Agent publishing, phase 2: discussion questions and replies through the
+  same drafts, Helpful as a `publish` action, and discussion read tools so agents
+  can find the post they act on. Revisit stateful MCP sessions only if in-agent
+  confirmation becomes a product requirement.
 - [ ] Default `find_events` to the signed-in account's remembered city.
   Implemented for searches without city, country or keyword; check with a
   real client.

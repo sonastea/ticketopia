@@ -452,4 +452,87 @@ func TestMetadataDescribesOneIssuerAndResource(t *testing.T) {
 		f.service.ResourceMetadataURL() != issuer+"/.well-known/oauth-protected-resource/mcp" {
 		t.Fatalf("resource metadata %+v", resource)
 	}
+	want := []string{"read", "write", "publish"}
+	if !slices.Equal(server.ScopesSupported, want) || !slices.Equal(resource.ScopesSupported, want) {
+		t.Fatalf("scopes supported: %v %v", server.ScopesSupported, resource.ScopesSupported)
+	}
+}
+
+// publish is never a default: a client that names no scope gets read and
+// write only, and publish implies read but not write.
+func TestParseScopesPublish(t *testing.T) {
+	for raw, want := range map[string][]string{
+		"":              {"read", "write"},
+		"publish":       {"read", "publish"},
+		"publish write": {"read", "write", "publish"},
+		"read publish":  {"read", "publish"},
+	} {
+		got, ok := oauth.ParseScopes(raw)
+		if !ok || !slices.Equal(got, want) {
+			t.Errorf("ParseScopes(%q) = %v %v, want %v", raw, got, ok, want)
+		}
+	}
+	f := newFixture(t, true)
+	r, err := f.service.ParseAuthorization(t.Context(), authorizeValues(map[string]string{"scope": ""}))
+	if err != nil || r.Publish() {
+		t.Fatalf("omitted scope offered publish: %+v %v", r, err)
+	}
+	r, err = f.service.ParseAuthorization(t.Context(), authorizeValues(map[string]string{"scope": "read write publish"}))
+	if err != nil || !r.Publish() || !r.Write() {
+		t.Fatalf("publish request: %+v %v", r, err)
+	}
+}
+
+// publish needs both the client's request and the person's checkbox.
+func TestApproveGrantsPublishOnlyWhenRequestedAndAllowed(t *testing.T) {
+	f := newFixture(t, true)
+	grant := func(scope string, allowed ...string) oauth.Token {
+		t.Helper()
+		r, err := f.service.ParseAuthorization(t.Context(), authorizeValues(map[string]string{"scope": scope}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		redirect, err := f.service.Approve(t.Context(), "account-1", r, allowed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		u, _ := url.Parse(redirect)
+		token, err := f.exchange(t, codeForm(u.Query().Get("code")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return token
+	}
+	if token := grant("read write publish", oauth.ScopeRead, oauth.ScopeWrite); token.Scope != "read write" {
+		t.Fatalf("publish without the checkbox: %q", token.Scope)
+	}
+	if token := grant("read write", oauth.ScopeRead, oauth.ScopeWrite, oauth.ScopePublish); token.Scope != "read write" {
+		t.Fatalf("publish the client never asked for: %q", token.Scope)
+	}
+	token := grant("read write publish", oauth.ScopeRead, oauth.ScopePublish)
+	if token.Scope != "read publish" {
+		t.Fatalf("publish allowed: %q", token.Scope)
+	}
+	access, err := f.service.Authenticate(t.Context(), token.AccessToken)
+	if err != nil || !slices.Equal(access.Scopes, []string{"read", "publish"}) || access.ClientName != "Agent" || access.ClientID != clientID {
+		t.Fatalf("access %+v %v", access, err)
+	}
+}
+
+// Existing connections keep exactly their scopes: a refresh can never add
+// publish, and the rejected refresh leaves the connection working.
+func TestRefreshCannotAddPublish(t *testing.T) {
+	f := newFixture(t, true)
+	token, _ := f.exchange(t, codeForm(f.approve(t, oauth.ScopeRead, oauth.ScopeWrite)))
+	for _, scope := range []string{"publish", "read write publish"} {
+		form := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {token.RefreshToken}, "client_id": {clientID}, "scope": {scope}}
+		if _, err := f.exchange(t, form); oauthCode(err) != "invalid_scope" {
+			t.Fatalf("scope %q: %v", scope, err)
+		}
+	}
+	form := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {token.RefreshToken}, "client_id": {clientID}}
+	next, err := f.exchange(t, form)
+	if err != nil || next.Scope != "read write" {
+		t.Fatalf("refresh without scope: %+v %v", next, err)
+	}
 }

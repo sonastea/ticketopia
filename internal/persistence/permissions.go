@@ -26,6 +26,7 @@ var runtimeTablePermissions = []struct {
 	{"oauth_codes", "", true},
 	{"oauth_grants", "access_hash", true},
 	{"oauth_refresh_history", "", true},
+	{"agent_drafts", "", true},
 	{"event_snapshots", "snapshot", false},
 	{"saved_events", "", true},
 	{"event_interests", "visibility", true},

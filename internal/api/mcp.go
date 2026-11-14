@@ -21,6 +21,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/oauth"
+	"golang.org/x/net/idna"
 	"golang.org/x/time/rate"
 )
 
@@ -87,6 +88,14 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 		if a.interests != nil {
 			deps.Interests = a.interests
 		}
+		if a.recommendations != nil {
+			deps.Recommendations = a.recommendations
+			// Drafts are published as recommendations, so they need both.
+			if a.drafts != nil {
+				deps.Drafts, deps.DraftsURL = a.drafts, strings.TrimRight(a.authConfig.BaseURL, "/")+"/me/drafts"
+			}
+		}
+		deps.PublishLimit = appmcp.NewPublishLimiter(appmcp.PublishesPerHour, a.clock)
 	}
 	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight), metrics)
 	e.Any("/mcp", echo.WrapHandler(mcpAuthenticated(appmcp.Handler(deps))), boundary)
@@ -98,11 +107,19 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 type mcpCallerKey struct{}
 
 // mcpCaller is the account behind a verified API token or OAuth access token.
-// API tokens carry every scope; OAuth connections carry what the person allowed.
+// API tokens carry read and write (apiTokenScopes); OAuth connections carry
+// what the person allowed, plus the app's name and client ID.
 type mcpCaller struct {
-	account string
-	scopes  []string
+	account    string
+	scopes     []string
+	clientName string
+	clientID   string
+	grantID    string
 }
+
+// apiTokenScopes are listed explicitly, never derived from oauth.Scopes, so
+// a new scope such as publish is never granted to API tokens by accident.
+var apiTokenScopes = []string{oauth.ScopeRead, oauth.ScopeWrite}
 
 func (c mcpCaller) can(scope string) bool { return slices.Contains(c.scopes, scope) }
 
@@ -117,7 +134,12 @@ func mcpAuthenticated(handler http.Handler) http.Handler {
 		if !ok {
 			return nil, auth.ErrInvalidToken
 		}
-		return &auth.TokenInfo{UserID: caller.account, Scopes: caller.scopes}, nil
+		info := &auth.TokenInfo{UserID: caller.account, Scopes: caller.scopes}
+		if caller.clientName != "" {
+			info.Extra = map[string]any{appmcp.ExtraClientName: caller.clientName, appmcp.ExtraClientHost: attributionHost(caller.clientID),
+				appmcp.ExtraGrantID: caller.grantID}
+		}
+		return info, nil
 	}, &auth.RequireBearerTokenOptions{AllowMissingExpiration: true})(handler)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "" {
@@ -126,6 +148,17 @@ func mcpAuthenticated(handler http.Handler) http.Handler {
 		}
 		handler.ServeHTTP(w, r)
 	})
+}
+
+// attributionHost is the client's metadata host in canonical ASCII (IDNA)
+// form, as shown publicly in "via" labels, so lookalike Unicode is visible
+// and every valid DNS name fits the stored 253 bytes.
+func attributionHost(clientID string) string {
+	host := strings.ToLower(oauth.Client{ID: clientID}.Host())
+	if ascii, err := idna.Lookup.ToASCII(host); err == nil {
+		return ascii
+	}
+	return host
 }
 
 // describeForAgents is the JSON API's error wording plus its Retry-After
@@ -165,7 +198,8 @@ func mcpError(c echo.Context, status int, retry int, message string) error {
 //     act with ambient sign-in;
 //   - with sign-in required, any request without a token gets a 401
 //     challenge; otherwise, with OAuth on, signed-in tool calls without one
-//     do; changes through a read-only connection get a 403;
+//     do; a tool needing a scope the token lacks (write, or publish, which
+//     API tokens never hold) gets a 403;
 //   - concurrent requests are bounded and excess is refused, not queued;
 //   - bodies are capped and responses kept out of caches.
 func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan struct{}, metrics *appmcp.Metrics) echo.MiddlewareFunc {
@@ -212,7 +246,7 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 			// With sign-in required, every request needs a token, so all agent
 			// traffic is attributed to an account and limited per account.
 			if caller == nil && a.signInRequired() {
-				c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("", strings.Join(oauth.Scopes, " ")))
+				c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("", strings.Join(oauth.DefaultScopes, " ")))
 				metrics.Refuse(appmcp.RefusedSignInRequired)
 				return mcpError(c, http.StatusUnauthorized, 0, "sign in to Ticketopia to use its agent tools")
 			}
@@ -226,10 +260,10 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 					metrics.Refuse(appmcp.RefusedBatch)
 					return mcpError(c, http.StatusBadRequest, 0, "JSON-RPC batch requests are not supported; send one request per POST")
 				}
-				if a.oauthEnabled() {
-					if handled, err := a.mcpAuthorizeCall(c, body, caller, metrics); handled {
-						return err
-					}
+				// Scope checks apply to API tokens too, with or without OAuth:
+				// API tokens never hold publish.
+				if handled, err := a.mcpAuthorizeCall(c, body, caller, metrics); handled {
+					return err
 				}
 				c.Request().Body = io.NopCloser(bytes.NewReader(body))
 			}
@@ -258,13 +292,13 @@ func (a *api) mcpCaller(c echo.Context, header string) (mcpCaller, error) {
 		if err != nil {
 			return mcpCaller{}, err
 		}
-		return mcpCaller{access.AccountID, access.Scopes}, nil
+		return mcpCaller{access.AccountID, access.Scopes, access.ClientName, access.ClientID, access.GrantID}, nil
 	}
 	p, err := a.authenticateRequest(c, fields[1], "api")
 	if err != nil {
 		return mcpCaller{}, err
 	}
-	return mcpCaller{p.Account.ID, slices.Clone(oauth.Scopes)}, nil
+	return mcpCaller{account: p.Account.ID, scopes: slices.Clone(apiTokenScopes)}, nil
 }
 
 // mcpChallenge is the WWW-Authenticate value for /mcp. With OAuth on it
@@ -285,9 +319,10 @@ func (a *api) mcpChallenge(errorCode, scope string) string {
 }
 
 // mcpAuthorizeCall answers with HTTP challenges so clients start sign-in
-// (401) or ask the person to allow changes (403 insufficient_scope) instead of
-// showing a tool error. Unless sign-in is required (checked earlier for every
-// request), initialize, tools/list and public tools stay anonymous.
+// (401, with OAuth on) or ask the person to allow changes or posting (403
+// insufficient_scope naming the scopes to request) instead of showing a tool
+// error. Unless sign-in is required (checked earlier for every request),
+// initialize, tools/list and public tools stay anonymous.
 // It reports whether it answered the request, which then must not continue.
 func (a *api) mcpAuthorizeCall(c echo.Context, body []byte, caller *mcpCaller, metrics *appmcp.Metrics) (bool, error) {
 	var call struct {
@@ -296,23 +331,36 @@ func (a *api) mcpAuthorizeCall(c echo.Context, body []byte, caller *mcpCaller, m
 			Name string `json:"name"`
 		} `json:"params"`
 	}
-	all := strings.Join(oauth.Scopes, " ")
 	if json.Unmarshal(body, &call) != nil || call.Method != "tools/call" {
 		return false, nil
 	}
-	write, signedIn := appmcp.SignedInTools[call.Params.Name]
+	scope, signedIn := appmcp.SignedInTools[call.Params.Name]
 	if !signedIn {
 		return false, nil
 	}
+	// Ask for publish only for the tools that need it, so ordinary sign-in
+	// never offers it.
+	requested := strings.Join(oauth.DefaultScopes, " ")
+	if scope == oauth.ScopePublish {
+		requested += " " + oauth.ScopePublish
+	}
 	if caller == nil {
-		c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("", all))
+		if !a.oauthEnabled() {
+			// Without OAuth the tool explains how to connect with an API token.
+			return false, nil
+		}
+		c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("", requested))
 		metrics.Refuse(appmcp.RefusedSignInRequired)
 		return true, mcpError(c, http.StatusUnauthorized, 0, "sign in to Ticketopia to use "+call.Params.Name)
 	}
-	if write && !caller.can(oauth.ScopeWrite) {
-		c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("insufficient_scope", all))
+	if !caller.can(scope) {
+		c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("insufficient_scope", requested))
 		metrics.Refuse(appmcp.RefusedInsufficientScope)
-		return true, mcpError(c, http.StatusForbidden, 0, "this connection is read-only; reconnect and allow changes to use "+call.Params.Name)
+		message := "this connection is read-only; reconnect and allow changes to use " + call.Params.Name
+		if scope == oauth.ScopePublish {
+			message = "this connection can't post publicly; reconnect and allow posting publicly to use " + call.Params.Name
+		}
+		return true, mcpError(c, http.StatusForbidden, 0, message)
 	}
 	return false, nil
 }

@@ -27,6 +27,8 @@ UPDATE oauth_grants SET access_hash=access_hash WHERE FALSE;
 DELETE FROM oauth_grants WHERE FALSE;
 INSERT INTO oauth_refresh_history SELECT * FROM oauth_refresh_history WHERE FALSE;
 DELETE FROM oauth_refresh_history WHERE FALSE;
+INSERT INTO agent_drafts SELECT * FROM agent_drafts WHERE FALSE;
+DELETE FROM agent_drafts WHERE FALSE;
 INSERT INTO event_snapshots SELECT * FROM event_snapshots WHERE FALSE;
 UPDATE event_snapshots SET snapshot = snapshot WHERE FALSE;
 INSERT INTO saved_events SELECT * FROM saved_events WHERE FALSE;

@@ -151,6 +151,11 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
   revocation ([implemented](docs/app-mcp.md#oauth-sign-in), on by default with
   accounts and required for every `/mcp` request; verify with hosted clients on
   a public deployment).
+- [ ] Let agents act publicly only with explicit consent: a separate `publish`
+  scope for public Interested choices and reason-free recommendations, and
+  agent-written reasons as drafts the person publishes on the web
+  ([implemented](docs/app-mcp.md#publishing-in-your-name); verify with a hosted
+  client).
 
 ### MariaDB persistence
 

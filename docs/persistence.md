@@ -8,6 +8,16 @@ not compare it. A bounded `Snapshots` batch read (at most 50 IDs, one SELECT on
 `event_snapshots`) supplies display-only artwork to Happening Now. See
 [discovery](discovery.md#responsive-navigation-and-event-details).
 
+Schema 22 adds nullable `event_recommendations.via_client_name` and
+`via_client_host` (the app an agent published through; existing rows stay
+`NULL`) and `agent_drafts`, private agent-written text awaiting the person's
+review, which needs runtime INSERT and DELETE grants (added to every
+provisioning path). A draft's `grant_id` references `oauth_grants` with
+`ON DELETE CASCADE`, so removing a connection removes its drafts; publishing
+deletes the draft in the recommendation's transaction. Expired drafts are
+deleted opportunistically when drafts are created. See
+[agent tools](app-mcp.md#publishing-in-your-name).
+
 Schema 20 adds nullable `event_reminders.enrolled_at`: when a reminder's current
 lead time took effect. Changing the lead or re-enabling a stopped reminder resets
 it; existing rows stay `NULL` and fall back to `created_at`, so nothing is

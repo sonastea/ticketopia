@@ -27,7 +27,7 @@ func recommendationCommunityQuery(q recommendations.Query) (string, []any) {
 
 func recommendationPreviewQuery(ids []any) (string, []any) {
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
-	query := `SELECT r.event_id,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at FROM
+	query := `SELECT r.event_id,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at,COALESCE(r.via_client_name,''),COALESCE(r.via_client_host,'') FROM
  (SELECT source.*,ROW_NUMBER() OVER(PARTITION BY source.event_id ORDER BY source.recommended_at DESC,source.account_id DESC) AS position
  FROM event_recommendations source WHERE source.withdrawn_at IS NULL AND source.event_id IN (` + placeholders + `)) r
 	 JOIN accounts a ON a.account_id=r.account_id WHERE r.position<=? ORDER BY r.event_id,r.position`
@@ -89,7 +89,7 @@ func (r *RecommendationRepository) Community(ctx context.Context, q recommendati
 	for rows.Next() {
 		var item recommendations.Item
 		var eventID string
-		if err := rows.Scan(&eventID, &item.Profile.ID, &item.Profile.DisplayName, &item.Profile.Bio, &item.Reason, &item.RecommendedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&eventID, &item.Profile.ID, &item.Profile.DisplayName, &item.Profile.Bio, &item.Reason, &item.RecommendedAt, &item.UpdatedAt, &item.Via, &item.ViaHost); err != nil {
 			return nil, safeError("recommendation previews", err)
 		}
 		i := positions[eventID]

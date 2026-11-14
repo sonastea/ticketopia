@@ -8,14 +8,21 @@ package layouts
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "fmt"
+
 // AccountNavPermissions contains presentation state only. Authorization stays in handlers.
 type AccountNavPermissions struct {
 	ModerationEnabled bool
 	Moderator         bool
+	// Drafts lists agent drafts; PendingDrafts is their count, shown when above zero.
+	Drafts        bool
+	PendingDrafts int
 }
 
 type accountDestination struct {
 	Key, Href, Label string
+	// Count, when above zero, is shown beside the label (pending items).
+	Count int
 }
 
 type accountFamily struct {
@@ -24,15 +31,19 @@ type accountFamily struct {
 }
 
 func accountFamilies(p AccountNavPermissions) []accountFamily {
+	account := []accountDestination{{"profile", "/me", "Profile & privacy", 0}, {"preferences", "/me/preferences", "Preferences", 0}}
+	if p.Drafts {
+		account = append(account, accountDestination{"drafts", "/me/drafts", "Agent drafts", p.PendingDrafts})
+	}
 	families := []accountFamily{
-		{"Account", []accountDestination{{"profile", "/me", "Profile & privacy"}, {"preferences", "/me/preferences", "Preferences"}}},
-		{"Your events", []accountDestination{{"radar", "/radar", "Radar"}, {"interests", "/me/interests", "Interests"}, {"follows", "/follows", "Artists & venues"}}},
-		{"Updates", []accountDestination{{"reminders", "/me/reminders", "On-sale reminders"}, {"discussions", "/me/discussions", "Followed discussions"}, {"notifications", "/me/notifications", "Reply notifications"}}},
+		{"Account", account},
+		{"Your events", []accountDestination{{"radar", "/radar", "Radar", 0}, {"interests", "/me/interests", "Interests", 0}, {"follows", "/follows", "Artists & venues", 0}}},
+		{"Updates", []accountDestination{{"reminders", "/me/reminders", "On-sale reminders", 0}, {"discussions", "/me/discussions", "Followed discussions", 0}, {"notifications", "/me/notifications", "Reply notifications", 0}}},
 	}
 	if p.ModerationEnabled {
-		links := []accountDestination{{"reports", "/me/reports", "Your reports"}, {"outcomes", "/me/moderation", "Moderation outcomes"}}
+		links := []accountDestination{{"reports", "/me/reports", "Your reports", 0}, {"outcomes", "/me/moderation", "Moderation outcomes", 0}}
 		if p.Moderator {
-			links = append(links, accountDestination{"queue", "/moderation", "Moderator review queue"})
+			links = append(links, accountDestination{"queue", "/moderation", "Moderator review queue", 0})
 		}
 		families = append(families, accountFamily{"Safety", links})
 	}
@@ -129,7 +140,7 @@ func AccountFamily(family accountFamily, current string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(family.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 62, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 73, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -142,7 +153,7 @@ func AccountFamily(family accountFamily, current string) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(family.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 63, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 74, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -160,7 +171,7 @@ func AccountFamily(family accountFamily, current string) templ.Component {
 			var templ_7745c5c3_Var5 templ.SafeURL
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(link.Href))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 66, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 77, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -173,7 +184,7 @@ func AccountFamily(family accountFamily, current string) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(CurrentPage(link.Key == current))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 66, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 77, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -186,18 +197,41 @@ func AccountFamily(family accountFamily, current string) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(link.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 66, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 78, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if link.Count > 0 {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span class=\"account-nav-count\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var8 string
+				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(link.Count))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layouts/account_nav.templ`, Line: 80, Col: 62}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<span class=\"sr-only\">pending</span></span>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

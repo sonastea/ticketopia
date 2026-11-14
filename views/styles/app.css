@@ -72,6 +72,7 @@
 .account-nav { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin-block: 1.5rem 2rem; border-block-end: 1px solid var(--line); }
 .account-nav a { min-block-size: 2.75rem; padding-block: .6rem; color: var(--muted-warm); }
 .account-nav a[aria-current="page"] { color: var(--brand); border-block-end: 2px solid var(--brand); font-weight: 750; }
+.account-nav-count { display: inline-block; min-inline-size: 1.5em; margin-inline-start: .35rem; padding-inline: .4em; border: 1px solid transparent; border-radius: 999px; background: var(--brand); color: var(--surface); font-size: .8125rem; font-weight: 700; line-height: 1.5; text-align: center; font-variant-numeric: tabular-nums; }
 .account-navigation { display: grid; gap: .75rem; margin-block: 1.5rem 2rem; }
 .account-navigation .account-nav { margin-block: 0; }
 .account-family { min-inline-size: 0; }
@@ -98,6 +99,14 @@
 .account-sign-in > .google-sign-in { justify-self: start; }
 .account-connect-list { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.25rem; list-style-type: disc; }
 .account-connect-host { font-weight: 650; }
+/* The consent page states what an app can post for the publish checkbox's
+   current state; without :has() it keeps the statement true in both. */
+.connect-public-off, .connect-public-on { display: none; }
+@supports selector(:has(*)) {
+  .connect-public-either { display: none; }
+  .account-connect form:not(:has([name="publish"]:checked)) .connect-public-off,
+  .account-connect form:has([name="publish"]:checked) .connect-public-on { display: block; }
+}
 .account-preferences { max-inline-size: 44rem; }
 .destination-page.reminders-page { max-inline-size: 70ch; }
 .reminders-page > h2 { margin-block-end: .75rem; }
@@ -112,6 +121,11 @@
 .reminder-list > li { padding-block: 1.5rem; border-block-start: 1px solid var(--line); }
 .reminder-list h2 { font-size: 1.125rem; font-weight: 750; }
 .reminder-list h2 > a { font: inherit; }
+.draft-list { list-style: none; padding: 0; margin: 0; }
+.draft-list > li { display: grid; gap: .5rem; padding-block: 1.5rem; border-block-start: 1px solid var(--line); }
+.draft-list h2 { font-size: 1.125rem; font-weight: 750; }
+.draft-list h2 > a { font: inherit; }
+.draft-text { margin-block: .25rem; margin-inline: 0; padding-inline-start: 1rem; border-inline-start: 3px solid var(--line); }
 /* City takes about twice Country's share and both wrap once the container is narrow. */
 .account-field-grid { display: flex; flex-wrap: wrap; gap: 1rem; }
 .account-field-grid > * { flex: 1 1 9rem; }
@@ -3548,6 +3562,7 @@ html:has(.filter-sheet:modal) {
 .recommendation-copy h3 a { font: inherit; }
 .recommendation-copy .event-summary { margin-block-start: .75rem; }
 .recommendation-attribution { margin-block-start: .75rem; }
+.recommendation-via { color: var(--muted); }
 .recommendation-reason { white-space: pre-wrap; overflow-wrap: break-word; max-inline-size: 70ch; margin-block: .5rem; margin-inline: 0; }
 .community-recommenders { list-style: none; padding: 0; margin-block: 1rem; margin-inline: 0; }
 .community-recommenders > li { margin-block: 0; }

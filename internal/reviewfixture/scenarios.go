@@ -3,6 +3,7 @@ package reviewfixture
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,12 +17,14 @@ import (
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/oauth"
 	"github.com/sonastea/ticketopia/internal/oauth/oauthtest"
 	"github.com/sonastea/ticketopia/internal/persistence"
 	"github.com/sonastea/ticketopia/internal/persistence/persistencetest"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
@@ -271,8 +274,13 @@ func (f *fixture) seed(sc scenario) error {
 		if i == 0 || i == 2 {
 			check3(p.Interests().Set(ctx, owner, d, []string{"public", "private"}[i/2]))
 		}
-		if i < 2 {
+		if i == 0 {
 			check3(p.Recommendations().Set(ctx, other, d, "Great sound and an easy trip home afterwards."))
+		}
+		// An agent published this one for the other account, with the
+		// person's permission to post publicly: it shows "via Review Agent".
+		if i == 1 {
+			check3(p.Recommendations().Write(ctx, other, d, recommendations.Write{Reason: "Great sound and an easy trip home afterwards.", Via: "Review Agent", ViaHost: "review-agent.example"}))
 		}
 	}
 	check3(p.Interests().Set(ctx, other, f.details[0], "public"))
@@ -324,10 +332,19 @@ func (f *fixture) seed(sc scenario) error {
 		"happening_now": "/happening-now", "reports": "/me/reports", "moderation_queue": "/moderation",
 		"oauth_authorize": reviewAuthorizePath(f.base),
 	}
-	// The owner has one read-only connected app, listed on the profile page.
-	accessHash := oauth.Hash(accounts.ID())
-	errs = append(errs, p.OAuth().CreateGrant(ctx, oauth.Grant{ID: accounts.ID(), AccountID: owner, ClientID: ReviewClientID, ClientName: "Review Agent",
-		Scopes: []string{oauth.ScopeRead}, CreatedAt: f.now, ExpiresAt: f.now.Add(oauth.GrantLifetime), AccessHash: accessHash, AccessUntil: f.now.Add(oauth.AccessLifetime)}, f.now))
+	f.paths["oauth_authorize_publish"] = reviewAuthorizePath(f.base, oauth.ScopeRead, oauth.ScopeWrite, oauth.ScopePublish)
+	f.paths["drafts"] = "/me/drafts"
+	// The owner has a read-only connected app and one that can post publicly,
+	// listed on the profile page, and one drafted reason waiting for review.
+	publishGrant := ""
+	for i, scopes := range [][]string{{oauth.ScopeRead}, {oauth.ScopeRead, oauth.ScopeWrite, oauth.ScopePublish}} {
+		publishGrant = accounts.ID()
+		errs = append(errs, p.OAuth().CreateGrant(ctx, oauth.Grant{ID: publishGrant, AccountID: owner, ClientID: ReviewClientID, ClientName: "Review Agent",
+			Scopes: scopes, CreatedAt: f.now.Add(time.Duration(i) * time.Second), ExpiresAt: f.now.Add(oauth.GrantLifetime), AccessHash: oauth.Hash(accounts.ID()), AccessUntil: f.now.Add(oauth.AccessLifetime)}, f.now))
+	}
+	_, err = p.Drafts().Create(ctx, f.details[2], drafts.Draft{ID: strings.Repeat("d", 32), EventID: f.details[2].Item.ID, Kind: drafts.KindRecommendation,
+		Text: "Small room, big sound. Worth the trip even on a weeknight.", ClientName: "Review Agent", ClientHost: "review-agent.example", GrantID: publishGrant, CreatedAt: f.now, ExpiresAt: f.now.Add(drafts.Lifetime)}, owner, f.now)
+	errs = append(errs, err)
 	if err := errors.Join(errs...); err != nil {
 		return err
 	}
@@ -735,11 +752,24 @@ const ReviewClientID = "https://review-agent.example/oauth/client.json"
 var reviewClients = oauthtest.Clients{ReviewClientID: {ID: ReviewClientID, Name: "Review Agent",
 	RedirectURIs: []string{"http://127.0.0.1/callback"}, Refresh: true}}
 
+// ReviewVerifier is the PKCE verifier behind reviewAuthorizePath's
+// challenge, so tests can exchange the code it yields.
+const ReviewVerifier = "review-fixture-verifier-0123456789-abcdefghijklmnop"
+
 // reviewAuthorizePath is an authorization request from the fixture agent,
-// asking to read and change, as a client would open it in the browser.
-func reviewAuthorizePath(base string) string {
+// asking to read and change (or the given scopes), as a client would open it
+// in the browser.
+func reviewAuthorizePath(base string, scopes ...string) string {
+	if len(scopes) == 0 {
+		scopes = []string{oauth.ScopeRead, oauth.ScopeWrite}
+	}
 	v := url.Values{"response_type": {"code"}, "client_id": {ReviewClientID}, "redirect_uri": {"http://127.0.0.1:53682/callback"},
-		"code_challenge": {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"}, "code_challenge_method": {"S256"},
-		"scope": {"read write"}, "state": {"review"}, "resource": {base + "/mcp"}}
+		"code_challenge": {reviewChallenge()}, "code_challenge_method": {"S256"},
+		"scope": {strings.Join(scopes, " ")}, "state": {"review"}, "resource": {base + "/mcp"}}
 	return oauth.AuthorizePath + "?" + v.Encode()
+}
+
+func reviewChallenge() string {
+	sum := sha256.Sum256([]byte(ReviewVerifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

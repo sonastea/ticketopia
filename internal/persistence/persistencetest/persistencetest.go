@@ -273,7 +273,7 @@ func (d *Database) GrantRuntime(ctx context.Context) error {
 		"accounts", "event_snapshots", "discussion_posts", "recommendation_feed_events", "recommendation_activity",
 		"moderation_reports", "moderation_appeals", "artists", "artist_providers", "venues", "venue_providers",
 		"event_history_state", "collection_tasks", "collection_runs", "provider_budgets", "discovery_scopes", "discovery_scope_events")
-	add("INSERT, DELETE", "live_recommendation_activity", "account_credentials", "auth_flows", "oauth_codes", "oauth_refresh_history", "saved_events",
+	add("INSERT, DELETE", "live_recommendation_activity", "account_credentials", "auth_flows", "oauth_codes", "oauth_refresh_history", "agent_drafts", "saved_events",
 		"artist_follows", "venue_follows", "event_search_places", "event_search_facets")
 	add("INSERT", "account_identities", "moderation_decisions", "discussion_notification_posts", "event_observations",
 		"collection_pages", "collection_run_events")

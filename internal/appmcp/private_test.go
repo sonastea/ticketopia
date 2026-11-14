@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
@@ -23,6 +25,10 @@ type fakeAccount struct {
 	// account is what Accounts returns for owner-id; accountErr fails it.
 	account    accounts.Account
 	accountErr error
+	// recommendation is the owner's existing recommendation, if any.
+	recommendation *recommendations.Item
+	limiter        *PublishLimiter
+	logger         zerolog.Logger
 }
 
 func (f *fakeAccount) record(call string) { f.calls = append(f.calls, call) }
@@ -58,9 +64,10 @@ func (f fakeReminders) Remove(_ context.Context, owner, event string) error {
 	return nil
 }
 
-// privateServer verifies "owner-token" (read and write) and "reader-token"
-// (read only) as account owner-id, as the API's boundary does, only for
-// requests carrying a token.
+// privateServer verifies "owner-token" (read and write), "reader-token"
+// (read only), "publisher-token" (read, write and publish, from Test Agent)
+// and "poster-token" (read and publish) as account owner-id, as the API's
+// boundary does, only for requests carrying a token.
 func privateServer(t *testing.T, f *fakeAccount) *httptest.Server {
 	t.Helper()
 	return privateServerWith(t, f, nil)
@@ -70,6 +77,7 @@ func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest
 	t.Helper()
 	handler := Handler(Deps{Events: &f.events, Details: &f.events, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
 		Radar: fakeRadar{f}, Follows: fakeFollows{f}, Catalog: fakeCatalog{f}, Interests: fakeInterests{f}, Accounts: fakeAccounts{f},
+		Recommendations: fakeRecommendations{f}, Drafts: fakeDrafts{f}, DraftsURL: "https://events.example/me/drafts", PublishLimit: f.limiter, Logger: f.logger,
 		Describe:        func(err error) string { return "public: " + err.Error() },
 		DescribeCatalog: func(err error) string { return "catalog: " + err.Error() },
 		DescribePrivate: func(err error) string { return "private: " + err.Error() }})
@@ -79,6 +87,13 @@ func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest
 			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read", "write"}, Expiration: time.Now().Add(time.Hour)}, nil
 		case "reader-token":
 			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read"}, Expiration: time.Now().Add(time.Hour)}, nil
+		case "publisher-token":
+			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read", "write", "publish"}, Expiration: time.Now().Add(time.Hour),
+				Extra: map[string]any{ExtraClientName: "Test Agent", ExtraClientHost: "agent.example", ExtraGrantID: "grant-1"}}, nil
+		case "poster-token":
+			// publish without write: public actions, but no private changes.
+			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read", "publish"}, Expiration: time.Now().Add(time.Hour),
+				Extra: map[string]any{ExtraClientName: "Test Agent", ExtraClientHost: "agent.example", ExtraGrantID: "grant-1"}}, nil
 		}
 		return nil, auth.ErrInvalidToken
 	}, nil)(handler)
@@ -100,6 +115,7 @@ type toolReply struct {
 		Content           []struct{ Text string }
 		Tools             []struct {
 			Name        string
+			Description string
 			Annotations struct {
 				ReadOnlyHint    bool  `json:"readOnlyHint"`
 				DestructiveHint *bool `json:"destructiveHint"`
@@ -240,9 +256,9 @@ func TestSignedInToolsMatchRegistration(t *testing.T) {
 			continue
 		}
 		listed++
-		write, ok := SignedInTools[tool.Name]
-		if !ok || write == tool.Annotations.ReadOnlyHint {
-			t.Errorf("%s: in SignedInTools=%v write=%v readOnlyHint=%v", tool.Name, ok, write, tool.Annotations.ReadOnlyHint)
+		scope, ok := SignedInTools[tool.Name]
+		if !ok || (scope == ScopeRead) != tool.Annotations.ReadOnlyHint {
+			t.Errorf("%s: in SignedInTools=%v scope=%q readOnlyHint=%v", tool.Name, ok, scope, tool.Annotations.ReadOnlyHint)
 		}
 	}
 	if listed != len(SignedInTools) {

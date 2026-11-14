@@ -89,3 +89,22 @@ func TestHappeningNowCardsUseStoredArtwork(t *testing.T) {
 		t.Error("the empty display line showed beside activity")
 	}
 }
+
+// Agent-published recommendations name their app beside the author on the
+// event, profile and Community views, as escaped plain text, never a link;
+// a person's own recommendation shows no "via".
+func TestRecommendationViaLabel(t *testing.T) {
+	event := models.Event{ID: "ticketmaster:Via", Name: "Via Night"}
+	agent := recommendations.Item{Event: event, Profile: accounts.PublicProfile{ID: "a", DisplayName: "Ada"}, Via: `<a href="x">Agent</a>`, ViaHost: "agent.example"}
+	own := recommendations.Item{Event: event, Profile: accounts.PublicProfile{ID: "b", DisplayName: "Grace"}, Reason: "Mine"}
+	list := recommendations.List{Items: []recommendations.Item{agent, own}}
+	for name, markup := range map[string]string{
+		"event":     renderNeighbor(t, RecommendationList(list, eventContext(event.ID), "/")),
+		"profile":   renderNeighbor(t, RecommendationList(list, listContext{Place: onProfile}, "/users/a")),
+		"community": renderNeighbor(t, CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: event, Count: 2, Recommendations: list.Items}}}, "/community", listContext{Place: inCommunity})),
+	} {
+		if strings.Count(markup, `class="recommendation-via"`) != 1 || !strings.Contains(markup, `<span class="recommendation-via">via &lt;a href=&#34;x&#34;&gt;Agent&lt;/a&gt; (agent.example)</span>`) {
+			t.Errorf("%s view via label:\n%s", name, markup)
+		}
+	}
+}

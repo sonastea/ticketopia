@@ -75,7 +75,9 @@ type Snapshot struct {
 var toolNames = []string{"find_events", "list_categories", "event_details",
 	"my_saved_events", "save_event", "unsave_event", "my_reminders", "set_reminder", "stop_reminder",
 	"my_radar", "find_artists", "find_venues", "my_follows", "follow_artist_or_venue", "unfollow_artist_or_venue",
-	"my_interested_events", "mark_interested", "unmark_interested"}
+	"my_interested_events", "mark_interested", "unmark_interested",
+	"make_interest_public", "make_interest_private", "my_recommendations", "recommend_event", "withdraw_recommendation",
+	"draft_recommendation", "my_drafts", "discard_draft"}
 
 func NewMetrics() *Metrics {
 	return &Metrics{tools: map[string]*ToolStats{}, refusals: map[string]uint64{}}

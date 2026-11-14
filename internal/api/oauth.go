@@ -111,7 +111,8 @@ func (a *api) oauthAuthorize(c echo.Context) error {
 
 func (a *api) renderConsent(c echo.Context, p accounts.Principal, r oauth.Request) error {
 	page := account.ConsentPage{ClientName: r.Client.Name, ClientHost: r.Client.Host(), RedirectHost: r.RedirectHost(),
-		LocalRedirect: r.LocalRedirect(), Write: r.Write(), Email: p.Account.Email, CSRF: p.CSRF, Action: oauth.AuthorizePath}
+		LocalRedirect: r.LocalRedirect(), Write: r.Write(), Publish: r.Publish(), DisplayName: p.Account.DisplayName,
+		Email: p.Account.Email, CSRF: p.CSRF, Action: oauth.AuthorizePath}
 	for _, key := range authorizeFields {
 		if v := c.QueryParam(key); v != "" {
 			page.Fields = append(page.Fields, account.HiddenField{Name: key, Value: v})
@@ -122,7 +123,7 @@ func (a *api) renderConsent(c echo.Context, p accounts.Principal, r oauth.Reques
 
 func (a *api) oauthDecide(c echo.Context) error {
 	consentHeaders(c)
-	if err := parseAccountForm(c, append([]string{"decision", "write"}, authorizeFields...)...); err != nil {
+	if err := parseAccountForm(c, append([]string{"decision", "write", "publish"}, authorizeFields...)...); err != nil {
 		return a.accountPageError(c, err)
 	}
 	p, err := a.principal(c, true)
@@ -151,6 +152,11 @@ func (a *api) oauthDecide(c echo.Context) error {
 	scopes := []string{oauth.ScopeRead}
 	if c.FormValue("write") == "on" {
 		scopes = append(scopes, oauth.ScopeWrite)
+	}
+	// Posting publicly needs its own, unchecked-by-default box; Approve also
+	// requires the app to have asked for it.
+	if c.FormValue("publish") == "on" {
+		scopes = append(scopes, oauth.ScopePublish)
 	}
 	redirect, err := a.oauth.Approve(c.Request().Context(), p.Account.ID, r, scopes)
 	if err != nil {

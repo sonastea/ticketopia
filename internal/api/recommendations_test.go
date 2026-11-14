@@ -21,8 +21,8 @@ import (
 // read projections. SQL integration tests exercise the durable counter semantics.
 type observedRecommendationStub struct{ *recommendationStub }
 
-func (r observedRecommendationStub) Set(ctx context.Context, owner string, d models.EventDetail, reason string) (recommendations.Item, bool, error) {
-	item, created, err := r.recommendationStub.Set(ctx, owner, d, reason)
+func (r observedRecommendationStub) Write(ctx context.Context, owner string, d models.EventDetail, w recommendations.Write) (recommendations.Item, bool, error) {
+	item, created, err := r.recommendationStub.Write(ctx, owner, d, w)
 	if created && err == nil {
 		item.Observation = &recommendations.Observation{WindowStart: time.Now().UTC(), NewPublications: 1, TotalNewPublications: 1}
 	}
@@ -34,6 +34,8 @@ type recommendationStub struct {
 	profiles    map[string]accounts.PublicProfile
 	unavailable bool
 	listCalls   int
+	// consume, when set, consumes Write.Draft as the repository's transaction does.
+	consume func(owner, draft string) bool
 }
 
 func (r *recommendationStub) Get(_ context.Context, owner, id string) (recommendations.Item, error) {
@@ -45,21 +47,41 @@ func (r *recommendationStub) Get(_ context.Context, owner, id string) (recommend
 	}
 	return recommendations.Item{}, recommendations.ErrNotFound
 }
-func (r *recommendationStub) Set(_ context.Context, owner string, d models.EventDetail, reason string) (recommendations.Item, bool, error) {
+func (r *recommendationStub) Write(_ context.Context, owner string, d models.EventDetail, w recommendations.Write) (recommendations.Item, bool, error) {
 	if r.items[owner] == nil {
 		r.items[owner] = map[string]recommendations.Item{}
 	}
 	item, exists := r.items[owner][d.Item.ID]
+	if e := w.Expect; e != nil && !e.Matches(exists, item.Reason) {
+		return recommendations.Item{}, false, recommendations.ErrChanged
+	}
+	if w.Draft != "" && (r.consume == nil || !r.consume(owner, w.Draft)) {
+		return recommendations.Item{}, false, recommendations.ErrDraftGone
+	}
+	if exists && w.KeepExisting {
+		return item, false, nil
+	}
 	if !exists {
 		at := time.Now().UTC()
 		item = recommendations.Item{Event: d.Item, Meta: d.Meta, Profile: r.profiles[owner], RecommendedAt: at, UpdatedAt: at}
 	}
-	if item.Reason != reason {
+	if !exists || item.Reason != w.Reason {
+		item.Via, item.ViaHost = w.Via, w.ViaHost
+	}
+	if item.Reason != w.Reason {
 		item.UpdatedAt = time.Now().UTC()
 	}
-	item.Reason = reason
+	item.Reason = w.Reason
 	r.items[owner][d.Item.ID] = item
 	return item, !exists, nil
+}
+func (r *recommendationStub) WithdrawAttributed(_ context.Context, owner, id string) (bool, error) {
+	item, ok := r.items[owner][id]
+	if !ok || item.Via == "" || item.Reason != "" {
+		return false, nil
+	}
+	delete(r.items[owner], id)
+	return true, nil
 }
 func (r *recommendationStub) Remove(_ context.Context, owner, id string) error {
 	delete(r.items[owner], id)

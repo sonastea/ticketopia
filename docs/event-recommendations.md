@@ -14,7 +14,7 @@ the existing public display-name contract, disclosed alongside the live audience
 ## Setup and upgrade
 
 Recommendations were introduced in schema 5; the current binary requires
-**clean schema 17 only**. Drain old apps, preserve a backup, run `ticketopia migrate`
+**clean schema 22 only**. Drain old apps, preserve a backup, run `ticketopia migrate`
 using migration credentials, reconcile grants, then start current apps. The additive
 migrations preserve accounts, sessions, preferences, saves, interest, and snapshots;
 they do not publish existing activity. Startup never migrates automatically and
@@ -48,6 +48,28 @@ and does not migrate the running development database.
   Withdrawal clears the reason but retains a private account/event publication
   marker. Republish reactivates that marker with its original publication time,
   never a newer feed position. The reactivation updates the edit time.
+
+## Agents and attribution
+
+A connected app the person allowed to post publicly (OAuth `publish` scope) can
+recommend an event without a reason, and withdraw only a recommendation an app
+published without a reason; recommending returns an existing recommendation
+unchanged. Agents never erase the person's words. An agent never publishes a
+reason: it drafts one, which waits privately at **Agent drafts** (`/me/drafts`)
+beside the reason it would replace, until the person chooses **Publish
+recommendation** (a CSRF-protected POST that refuses if the recommendation
+changed since the page was read, validates the reason and event again, and
+consumes the draft in the same transaction) or **Discard**. Drafts expire after
+seven days, at most 20 per account, and go with their app's connection. See
+[agent tools](app-mcp.md#publishing-in-your-name).
+
+Recommendations an agent published, or whose drafted reason the person
+published, store the app's name and verified metadata host
+(`via_client_name`, `via_client_host`, schema 22) and show "via *app* (*host*)"
+beside the author on the event, profile and Community, as plain text; API-token
+drafts show "via an API client". JSON carries `via` and `via_host`, omitted
+otherwise. `via` describes the current content's source: the person's own
+change of reason on the web, and withdrawal, clear it; unchanged retries keep it.
 
 Ordinary POST forms work without JavaScript. Failed validation/authentication/CSRF
 returns a retry/recovery page retaining the draft and safe event/return destination,
@@ -160,7 +182,8 @@ need a separate implementation decision.
 
 ## API
 
-The [OpenAPI contract](../internal/api/openapi.yaml) is version **1.8.0**.
+The [OpenAPI contract](../internal/api/openapi.yaml) is version **1.24.0**;
+recommendations gained optional `via` and `via_host` in 1.24.0.
 
 | Method | Route | Purpose |
 | --- | --- | --- |

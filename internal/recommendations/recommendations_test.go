@@ -31,20 +31,33 @@ func (r *repositoryFixture) Get(context.Context, string, string) (Item, error) {
 	}
 	return *r.item, nil
 }
-func (r *repositoryFixture) Set(_ context.Context, owner string, d models.EventDetail, reason string) (Item, bool, error) {
+func (r *repositoryFixture) Write(_ context.Context, owner string, d models.EventDetail, w Write) (Item, bool, error) {
 	r.writes++
 	created := r.item == nil
+	if !created && w.KeepExisting {
+		return *r.item, false, nil
+	}
 	if created {
 		at := time.Now().UTC()
 		r.item = &Item{Event: d.Item, Meta: d.Meta, Profile: accounts.PublicProfile{ID: owner}, RecommendedAt: at, UpdatedAt: at}
 	}
-	if r.item.Reason != reason {
+	if created || r.item.Reason != w.Reason {
+		r.item.Via = w.Via
+	}
+	if r.item.Reason != w.Reason {
 		r.item.UpdatedAt = time.Now().UTC()
 	}
-	r.item.Reason = reason
+	r.item.Reason = w.Reason
 	return *r.item, created, nil
 }
 func (r *repositoryFixture) Remove(context.Context, string, string) error { r.item = nil; return r.err }
+func (r *repositoryFixture) WithdrawAttributed(context.Context, string, string) (bool, error) {
+	if r.item == nil || r.item.Via == "" || r.item.Reason != "" {
+		return false, r.err
+	}
+	r.item = nil
+	return true, r.err
+}
 func (r *repositoryFixture) List(_ context.Context, _, _ string, q Query) ([]Item, error) {
 	r.query = q
 	return r.items, r.err
@@ -205,5 +218,87 @@ func TestGroupedFeedCursorValidationAndPublicObservationPrivacy(t *testing.T) {
 	data, err := json.Marshal(Item{Observation: &Observation{NewPublications: 123, Reactivations: 456}})
 	if err != nil || strings.Contains(string(data), "Observation") || strings.Contains(string(data), "publications") || strings.Contains(string(data), "reactivations") {
 		t.Fatal("operator data leaked", string(data), err)
+	}
+}
+
+// Recommending without a reason never erases an existing one: an agent's
+// KeepExisting publication returns the person's recommendation unchanged,
+// and new agent publications carry the app's name.
+func TestPublishKeepsExistingAndAttributes(t *testing.T) {
+	owner, id := accounts.ID(), "ticketmaster:Keep"
+	r := &repositoryFixture{}
+	d := &detailFixture{detail: models.EventDetail{Item: models.Event{ID: id}, Meta: models.Freshness{DataAsOf: time.Now().UTC()}}}
+	s := New(r, d)
+	if _, _, err := s.Set(t.Context(), owner, id, "My own words"); err != nil {
+		t.Fatal(err)
+	}
+	writes := r.writes
+	item, created, err := s.Publish(t.Context(), owner, id, Write{Via: "Agent", KeepExisting: true})
+	if err != nil || created || item.Reason != "My own words" || item.Via != "" || r.writes != writes {
+		t.Fatalf("kept: %+v created=%v writes=%d err=%v", item, created, r.writes, err)
+	}
+	r.item = nil
+	item, created, err = s.Publish(t.Context(), owner, id, Write{Via: "Agent", KeepExisting: true})
+	if err != nil || !created || item.Reason != "" || item.Via != "Agent" {
+		t.Fatalf("agent publication: %+v created=%v err=%v", item, created, err)
+	}
+	if _, _, err := s.Publish(t.Context(), owner, id, Write{Via: strings.Repeat("x", MaxVia+1)}); err == nil {
+		t.Fatal("overlong app name accepted")
+	}
+	// The JSON carries via only when set.
+	data, _ := json.Marshal(Item{})
+	if strings.Contains(string(data), `"via"`) {
+		t.Fatalf("empty via serialized: %s", data)
+	}
+	data, _ = json.Marshal(item)
+	if !strings.Contains(string(data), `"via":"Agent"`) {
+		t.Fatalf("via missing: %s", data)
+	}
+}
+
+// Agents withdraw only what an app published without a reason; the person's
+// own recommendations and reasons are never erased by an agent.
+func TestWithdrawForAgentKeepsThePersonsWords(t *testing.T) {
+	owner, id := accounts.ID(), "ticketmaster:Withdraw"
+	r := &repositoryFixture{}
+	s := New(r, nil)
+	if err := s.WithdrawForAgent(t.Context(), owner, id); err != nil {
+		t.Fatalf("missing recommendation: %v", err)
+	}
+	for _, item := range []Item{{Reason: "Mine"}, {}, {Reason: "Drafted", Via: "Agent"}} {
+		r.item = &item
+		if err := s.WithdrawForAgent(t.Context(), owner, id); !errors.Is(err, ErrPersonal) || r.item == nil {
+			t.Fatalf("%+v: %v", item, err)
+		}
+	}
+	r.item = &Item{Via: "Agent"}
+	if err := s.WithdrawForAgent(t.Context(), owner, id); err != nil || r.item != nil {
+		t.Fatalf("agent publication: %v", err)
+	}
+}
+
+// A person's review must still hold: a changed or vanished recommendation is
+// refused before writing. A draft publication always reaches the repository
+// (which consumes the draft), even when the reason is unchanged.
+func TestPublishChecksTheReviewAndAlwaysConsumesDrafts(t *testing.T) {
+	owner, id := accounts.ID(), "ticketmaster:Review"
+	r := &repositoryFixture{}
+	d := &detailFixture{detail: models.EventDetail{Item: models.Event{ID: id}, Meta: models.Freshness{DataAsOf: time.Now().UTC()}}}
+	s := New(r, d)
+	if _, _, err := s.Publish(t.Context(), owner, id, Write{Reason: "x", Expect: &Current{Active: true, ReasonHash: ReasonHash("")}}); !errors.Is(err, ErrChanged) || r.writes != 0 {
+		t.Fatalf("expected an existing recommendation: %v", err)
+	}
+	s.Set(t.Context(), owner, id, "Same")
+	writes := r.writes
+	for _, expect := range []Current{{Active: false}, {Active: true, ReasonHash: ReasonHash("Other")}} {
+		if _, _, err := s.Publish(t.Context(), owner, id, Write{Reason: "New", Expect: &expect}); !errors.Is(err, ErrChanged) || r.writes != writes {
+			t.Fatalf("%+v: %v", expect, err)
+		}
+	}
+	if _, _, err := s.Publish(t.Context(), owner, id, Write{Reason: "Same", Via: "Agent", ViaHost: "agent.example", Draft: "draft", Expect: &Current{Active: true, ReasonHash: ReasonHash("Same")}}); err != nil || r.writes != writes+1 {
+		t.Fatalf("unchanged draft publication skipped the repository: %v writes=%d", err, r.writes)
+	}
+	if _, _, err := s.Publish(t.Context(), owner, id, Write{ViaHost: "agent.example"}); err == nil {
+		t.Fatal("host without an app name accepted")
 	}
 }
