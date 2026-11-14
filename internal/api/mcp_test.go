@@ -307,3 +307,13 @@ func TestMCPRejectsUnusableTokens(t *testing.T) {
 		t.Fatalf("anonymous public call: %d", code)
 	}
 }
+
+// Artist and venue search errors read as /api/v1/artists and /venues do,
+// with the Retry-After delay a tool error cannot carry as a header.
+func TestDescribeCatalogForAgents(t *testing.T) {
+	invalid := describeCatalogForAgents(&discovery.ValidationError{Field: "keyword", Message: "enter a name, up to 120 bytes"})
+	busy := describeCatalogForAgents(&discovery.UnavailableError{RetryAfter: 30 * time.Second})
+	if !strings.Contains(invalid, "enter a name") || !strings.HasSuffix(busy, "Retry after 30 seconds.") || strings.Contains(busy, "refresh the events") {
+		t.Fatalf("invalid %q, busy %q", invalid, busy)
+	}
+}

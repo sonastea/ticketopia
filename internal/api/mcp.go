@@ -75,6 +75,19 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 			deps.Reminders = a.reminders
 		}
 	}
+	if a.enabled() {
+		deps.Accounts = a.accounts
+		if a.radar != nil {
+			deps.Radar = a.radar
+		}
+		if a.follows != nil {
+			deps.Follows, deps.Catalog = a.follows, a.events
+			deps.DescribeCatalog = describeCatalogForAgents
+		}
+		if a.interests != nil {
+			deps.Interests = a.interests
+		}
+	}
 	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight), metrics)
 	e.Any("/mcp", echo.WrapHandler(mcpAuthenticated(appmcp.Handler(deps))), boundary)
 	if a.oauthEnabled() {
@@ -123,6 +136,16 @@ func describeForAgents(err error) string {
 		message += fmt.Sprintf(" Retry after %d seconds.", seconds)
 	}
 	return message
+}
+
+// describeCatalogForAgents words artist and venue search errors as
+// /api/v1/artists and /venues do, plus their Retry-After delay.
+func describeCatalogForAgents(err error) string {
+	_, _, detail, _ := accountError(catalogError(err))
+	if seconds, ok := retryAfterSeconds(err); ok {
+		detail += fmt.Sprintf(" Retry after %d seconds.", seconds)
+	}
+	return detail
 }
 
 func mcpError(c echo.Context, status int, retry int, message string) error {

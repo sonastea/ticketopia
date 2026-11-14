@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### 2026-11-13 — Radar, follow and Interested tools
+
+- Add signed-in tools: `my_radar`; `find_artists`, `find_venues`, `my_follows`,
+  `follow_artist_or_venue` and `unfollow_artist_or_venue`; `my_interested_events`,
+  `mark_interested` and `unmark_interested`. They wrap the same services as the
+  account API, act only on the token's account, and their writes need the
+  `write` scope. Agents create only private Interested choices, keeping the
+  consent page's promise that a connected app cannot post anything publicly.
+- Signed in, `find_events` without city, country or keyword uses the account's
+  saved city and reports it as `default_location`.
+- The consent page and Connected apps list the new abilities. The review
+  fixture's provider stand-in answers venue searches, so the tools can be tried
+  locally. Tests cover the tools, scope refusals and the location default, plus
+  venue search, following, radar picks and private Interested against MariaDB;
+  see the [guide](../app-mcp.md#tools).
+
 ### 2026-11-13 — Token revocation endpoint (RFC 7009)
 
 - Agents disconnect themselves at `POST /oauth/revoke`, advertised as

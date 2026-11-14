@@ -11,13 +11,18 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/reminders"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
 
 type fakeAccount struct {
-	calls []string
+	calls  []string
+	events fakeEvents
+	// account is what Accounts returns for owner-id; accountErr fails it.
+	account    accounts.Account
+	accountErr error
 }
 
 func (f *fakeAccount) record(call string) { f.calls = append(f.calls, call) }
@@ -63,7 +68,10 @@ func privateServer(t *testing.T, f *fakeAccount) *httptest.Server {
 
 func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest.Server {
 	t.Helper()
-	handler := Handler(Deps{Events: &fakeEvents{}, Details: &fakeEvents{}, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
+	handler := Handler(Deps{Events: &f.events, Details: &f.events, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
+		Radar: fakeRadar{f}, Follows: fakeFollows{f}, Catalog: fakeCatalog{f}, Interests: fakeInterests{f}, Accounts: fakeAccounts{f},
+		Describe:        func(err error) string { return "public: " + err.Error() },
+		DescribeCatalog: func(err error) string { return "catalog: " + err.Error() },
 		DescribePrivate: func(err error) string { return "private: " + err.Error() }})
 	bearer := auth.RequireBearerToken(func(_ context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		switch token {

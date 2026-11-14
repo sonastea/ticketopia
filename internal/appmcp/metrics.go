@@ -73,7 +73,9 @@ type Snapshot struct {
 // toolNames are every tool this package can register; a test keeps the list
 // in step with NewServer.
 var toolNames = []string{"find_events", "list_categories", "event_details",
-	"my_saved_events", "save_event", "unsave_event", "my_reminders", "set_reminder", "stop_reminder"}
+	"my_saved_events", "save_event", "unsave_event", "my_reminders", "set_reminder", "stop_reminder",
+	"my_radar", "find_artists", "find_venues", "my_follows", "follow_artist_or_venue", "unfollow_artist_or_venue",
+	"my_interested_events", "mark_interested", "unmark_interested"}
 
 func NewMetrics() *Metrics {
 	return &Metrics{tools: map[string]*ToolStats{}, refusals: map[string]uint64{}}

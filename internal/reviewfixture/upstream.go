@@ -50,6 +50,9 @@ func (u *upstream) serve(w http.ResponseWriter, r *http.Request) {
 			listed = append(listed, providerJSON(e))
 		}
 	}
+	if u.serveCatalog(w, r) {
+		return
+	}
 	if raw, ok := strings.CutPrefix(r.URL.Path, "/events/"); ok {
 		id := "ticketmaster:" + strings.TrimSuffix(raw, ".json")
 		for _, e := range listed {
@@ -78,6 +81,68 @@ func (u *upstream) serve(w http.ResponseWriter, r *http.Request) {
 		"page": map[string]int{"number": page, "size": size, "totalElements": len(listed), "totalPages": max(1, (len(listed)+size-1)/size)}})
 }
 
+// serveCatalog answers artist and venue searches and lookups from the
+// fixture's events, so following and radar work as against the provider.
+// Fixture events name no performers, so artist searches find nothing.
+// Called with u.mu held.
+func (u *upstream) serveCatalog(w http.ResponseWriter, r *http.Request) bool {
+	venues, ids := map[string]models.Venue{}, []string{}
+	for _, e := range u.events {
+		for _, v := range e.Venues {
+			if _, seen := venues[v.ID]; !seen && !u.omitted[e.ID] {
+				venues[v.ID] = v
+				ids = append(ids, v.ID)
+			}
+		}
+	}
+	switch path := r.URL.Path; {
+	case path == "/attractions.json":
+		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+		_ = json.NewEncoder(w).Encode(map[string]any{"_embedded": map[string]any{"attractions": []any{}},
+			"page": map[string]int{"number": page, "size": 0, "totalElements": 0, "totalPages": 0}})
+	case strings.HasPrefix(path, "/attractions/"):
+		http.NotFound(w, r)
+	case path == "/venues.json":
+		q := r.URL.Query()
+		keyword, city := strings.ToLower(q.Get("keyword")), strings.ToLower(q.Get("city"))
+		page, _ := strconv.Atoi(q.Get("page"))
+		size, _ := strconv.Atoi(q.Get("size"))
+		if size <= 0 {
+			size = 20
+		}
+		matched := []map[string]any{}
+		for _, id := range ids {
+			v := venues[id]
+			if strings.Contains(strings.ToLower(v.Name), keyword) && (city == "" || strings.ToLower(v.City) == city) {
+				matched = append(matched, venueJSON(v))
+			}
+		}
+		items := []map[string]any{}
+		for i := page * size; i < min((page+1)*size, len(matched)); i++ {
+			items = append(items, matched[i])
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"_embedded": map[string]any{"venues": items},
+			"page": map[string]int{"number": page, "size": size, "totalElements": len(matched), "totalPages": (len(matched) + size - 1) / size}})
+	case strings.HasPrefix(path, "/venues/"):
+		id := "ticketmaster:" + strings.TrimSuffix(strings.TrimPrefix(path, "/venues/"), ".json")
+		v, ok := venues[id]
+		if !ok {
+			http.NotFound(w, r)
+			break
+		}
+		_ = json.NewEncoder(w).Encode(venueJSON(v))
+	default:
+		return false
+	}
+	return true
+}
+
+func venueJSON(v models.Venue) map[string]any {
+	return map[string]any{"id": strings.TrimPrefix(v.ID, "ticketmaster:"), "name": v.Name, "timezone": v.Timezone,
+		"address": map[string]string{"line1": v.Address}, "city": map[string]string{"name": v.City},
+		"state": map[string]string{"name": v.State}, "country": map[string]string{"name": v.Country, "countryCode": v.CountryCode}}
+}
+
 // providerJSON renders an event in the provider's embedded-resource layout.
 func providerJSON(e models.Event) map[string]any {
 	when := func(t *time.Time) string {
@@ -102,9 +167,7 @@ func providerJSON(e models.Event) map[string]any {
 	}
 	venues := []map[string]any{}
 	for _, v := range e.Venues {
-		venues = append(venues, map[string]any{"id": strings.TrimPrefix(v.ID, "ticketmaster:"), "name": v.Name,
-			"address": map[string]string{"line1": v.Address}, "city": map[string]string{"name": v.City},
-			"state": map[string]string{"name": v.State}, "country": map[string]string{"name": v.Country, "countryCode": v.CountryCode}})
+		venues = append(venues, venueJSON(v))
 	}
 	return map[string]any{"id": e.Source.ID, "name": e.Name, "url": e.Source.URL, "info": e.Info, "pleaseNote": e.PleaseNote,
 		"images": e.Images, "classifications": e.Classifications, "priceRanges": prices,

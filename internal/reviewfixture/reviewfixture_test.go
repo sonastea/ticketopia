@@ -420,6 +420,131 @@ func TestMariaDBPrivateToolsArePerAccount(t *testing.T) {
 	}
 }
 
+// The radar, follow and Interested tools act through the real services on
+// the token's account only: an agent finds a venue, follows it, sees its
+// events on the radar, and marks Interested only privately; find_events
+// defaults to the account's saved city. It uses a
+// stored-catalog scenario, whose stand-in provider answers venue searches.
+func TestMariaDBPersonalToolsArePerAccount(t *testing.T) {
+	database, ok := persistencetest.OptionsFromEnv(filepath.Join("..", "..", ".local", "mariadb", "certs", "ca.crt"))
+	if !ok {
+		t.Skip("set MARIADB_TEST_ADDR to run real MariaDB tests")
+	}
+	s, err := Start(t.Context(), Options{Scenario: "discover-last-known", Addr: "127.0.0.1:0", StateDir: t.TempDir(), Database: database})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	m := s.Manifest()
+	base, owner, other := m.BaseURL, m.Accounts["owner"].APIToken, m.Accounts["other"].APIToken
+	decode := func(r mcpReply, into any) {
+		t.Helper()
+		if r.Status != http.StatusOK || r.IsError || json.Unmarshal(r.Content, into) != nil {
+			t.Fatalf("tool reply: %+v", r)
+		}
+	}
+
+	// The owner's account remembers Chicago; an explicit location wins.
+	var search struct {
+		Items           []struct{ ID string }
+		DefaultLocation *struct{ City, Source string } `json:"default_location"`
+	}
+	decode(mcpTool(t, base, owner, "find_events", map[string]any{}), &search)
+	if search.DefaultLocation == nil || search.DefaultLocation.City != "Chicago" || len(search.Items) == 0 {
+		t.Fatalf("owner default search: %+v", search)
+	}
+	search.DefaultLocation = nil
+	decode(mcpTool(t, base, owner, "find_events", map[string]any{"city": "Chicago", "country": "US"}), &search)
+	if search.DefaultLocation != nil {
+		t.Fatalf("explicit city reported a default: %+v", search.DefaultLocation)
+	}
+
+	// Find a venue, follow it, and see its events on the radar.
+	var venues struct{ Items []struct{ ID, Name string } }
+	decode(mcpTool(t, base, owner, "find_venues", map[string]any{"keyword": "riverside", "city": "Chicago"}), &venues)
+	if len(venues.Items) != 1 || venues.Items[0].Name != "The Riverside Hall" {
+		t.Fatalf("venue search: %+v", venues)
+	}
+	venue := venues.Items[0].ID
+	var artists struct{ Items []any }
+	decode(mcpTool(t, base, owner, "find_artists", map[string]any{"keyword": "anyone"}), &artists)
+	if len(artists.Items) != 0 {
+		t.Fatalf("fixture artists: %+v", artists)
+	}
+	follow := map[string]any{"kind": "venue", "target_id": venue}
+	for _, created := range []string{`"created":true`, `"created":false`} {
+		if r := mcpTool(t, base, owner, "follow_artist_or_venue", follow); r.IsError || !strings.Contains(string(r.Content), created) {
+			t.Fatalf("follow (%s): %+v", created, r)
+		}
+	}
+	followed := func(token string) string {
+		return string(mcpTool(t, base, token, "my_follows", map[string]any{}).Content)
+	}
+	if !strings.Contains(followed(owner), venue) || strings.Contains(followed(other), venue) {
+		t.Fatal("follow not limited to its account")
+	}
+	var picks struct {
+		Mode  string
+		Items []struct {
+			Event   struct{ ID string }
+			Reasons []struct {
+				Code     string
+				TargetID string `json:"target_id"`
+			}
+		}
+	}
+	decode(mcpTool(t, base, owner, "my_radar", map[string]any{}), &picks)
+	matched := false
+	for _, item := range picks.Items {
+		for _, reason := range item.Reasons {
+			matched = matched || (reason.Code == "followed_venue" && reason.TargetID == venue)
+		}
+	}
+	if picks.Mode != "personalized" || !matched {
+		t.Fatalf("radar does not show the followed venue: %+v", picks)
+	}
+	if r := mcpTool(t, base, owner, "unfollow_artist_or_venue", follow); r.IsError || strings.Contains(followed(owner), venue) {
+		t.Fatalf("unfollow: %+v", r)
+	}
+
+	// Interested: each account sees only its own choices, and agents never
+	// make one public.
+	interested := func(token string) []string {
+		var list struct {
+			Items []struct{ Event struct{ ID string } }
+		}
+		decode(mcpTool(t, base, token, "my_interested_events", map[string]any{}), &list)
+		ids := []string{}
+		for _, item := range list.Items {
+			ids = append(ids, item.Event.ID)
+		}
+		return ids
+	}
+	if len(interested(owner)) != 2 || len(interested(other)) != 1 {
+		t.Fatalf("seeded interest: owner %v other %v", interested(owner), interested(other))
+	}
+	event := m.EventIDs[3]
+	var mark struct {
+		Created bool
+		Item    struct{ Visibility string }
+	}
+	decode(mcpTool(t, base, other, "mark_interested", map[string]any{"event_id": event}), &mark)
+	if !mark.Created || mark.Item.Visibility != "private" {
+		t.Fatalf("new choice is not private: %+v", mark)
+	}
+	// The owner's own public choice stays public when an agent marks it again.
+	decode(mcpTool(t, base, owner, "mark_interested", map[string]any{"event_id": m.EventIDs[0]}), &mark)
+	if mark.Created || mark.Item.Visibility != "public" {
+		t.Fatalf("existing public choice: %+v", mark)
+	}
+	if !slices.Contains(interested(other), event) || slices.Contains(interested(owner), event) {
+		t.Fatal("Interested not limited to its account")
+	}
+	if r := mcpTool(t, base, other, "unmark_interested", map[string]any{"event_id": event}); r.IsError || slices.Contains(interested(other), event) {
+		t.Fatalf("unmark: %+v", r)
+	}
+}
+
 // Each member's session signs in as that member alone, and can act
 // through the browser's form posts, as make simulate-users does.
 func checkMembers(t *testing.T, m Manifest) {

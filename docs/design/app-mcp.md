@@ -49,6 +49,9 @@ agent context):
 | `save_event` / `unsave_event` | signed in | same rules and idempotency as the saved-events API |
 | `my_reminders` | signed in | the caller's on-sale reminders and their states |
 | `set_reminder` / `stop_reminder` | signed in | same lead limits and readiness rules as the web app |
+| `my_radar` | signed in | the caller's radar with reasons (implemented later) |
+| `find_artists` / `find_venues`, `my_follows`, `follow_artist_or_venue` / `unfollow_artist_or_venue` | signed in | catalog search and private follows, as the follows API (implemented later) |
+| `my_interested_events`, `mark_interested` / `unmark_interested` | signed in | Interested choices; agents create only private ones (implemented later) |
 
 Responses carry the existing freshness metadata (`meta`, including per-event
 last-known labels), so agents can state when data is not live. Private data is
@@ -155,5 +158,6 @@ the system sustains.
   ChatGPT support CIMD; Cursor documents DCR or a pre-registered client only.
 - Rate-limit values per token and per IP, and whether paid or trusted users
   need higher ones.
-- Whether `find_events` should default to the account's remembered city when
-  signed in, as the web app does.
+- Resolved: signed in, `find_events` defaults to the account's saved city when
+  no city, country or keyword is given, and reports it as `default_location`;
+  keyword searches stay unrestricted so an artist's tour is found anywhere.

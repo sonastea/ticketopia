@@ -211,6 +211,15 @@ func (s *Service) Authenticate(ctx context.Context, raw, kind string) (Principal
 	}
 	return Principal{a, c, csrf(raw)}, nil
 }
+
+// Account reads an account by ID for a caller already authenticated as it,
+// such as an agent's OAuth connection, which carries only the account ID.
+func (s *Service) Account(ctx context.Context, id string) (Account, error) {
+	if !ValidID(id) {
+		return Account{}, ErrUnauthenticated
+	}
+	return s.repo.Get(ctx, id)
+}
 func (s *Service) Public(ctx context.Context, id string) (PublicProfile, error) {
 	if !ValidID(id) {
 		return PublicProfile{}, ErrNotFound

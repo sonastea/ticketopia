@@ -1,7 +1,8 @@
 # Agent tools (MCP)
 
 Ticketopia serves event tools, and once signed in (OAuth or an API token) the
-caller's own saves and reminders, to people's AI agents and editors over the
+caller's own radar, saves, reminders, follows and Interested choices, to
+people's AI agents and editors over the
 [Model Context Protocol](https://modelcontextprotocol.io/) at **`/mcp`**. It is
 off unless `MCP_ENABLED=true`. The [design](design/app-mcp.md) describes later
 steps (a separate deployment); this page covers what exists.
@@ -11,7 +12,7 @@ steps (a separate deployment); this page covers what exists.
 
 | Tool | Behavior |
 |---|---|
-| `find_events` | Search by city, country, dates, category, keyword, sort and limit, with `cursor` paging. Same validation, defaults, caching and results as Discover and `GET /api/v1/events`. |
+| `find_events` | Search by city, country, dates, category, keyword, sort and limit, with `cursor` paging. Same validation, defaults, caching and results as Discover and `GET /api/v1/events`. Signed in, a search without city, country or keyword uses the account's saved city, as Discover does, and reports it as `default_location`; keyword searches (an artist's tour) stay unrestricted. |
 | `list_categories` | Categories and their IDs for `find_events` `category_id`, as `GET /api/v1/categories`. |
 | `event_details` | One event by ID, as `GET /api/v1/events/{event_id}`, including the durable last-known fallback. |
 
@@ -25,10 +26,22 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `save_event` / `unsave_event` | Save or remove one event, idempotently, returning the resulting state. Removing also stops its reminder. |
 | `my_reminders` | The caller's on-sale reminders and their delivery states, as `GET /api/v1/me/reminders`. |
 | `set_reminder` / `stop_reminder` | Set (1–10080 minutes before the public sale) or stop a reminder; the event must be saved first, and delivery follows the account's email preferences. |
+| `my_radar` | The caller's [radar](radar.md): upcoming events near their saved city from their follows and categories, each with its reasons, as `GET /api/v1/me/radar`; nearby events without follows or categories, and empty (`needs_location`) without a saved city. |
+| `find_artists` / `find_venues` | Search the provider's artists, or venues optionally within a city and country, for IDs to follow, as `GET /api/v1/artists` and `/venues`, with their error wording plus any retry delay. |
+| `my_follows` | The caller's private artist and venue [follows](follows.md), optionally one `kind`, as `GET /api/v1/me/follows`. |
+| `follow_artist_or_venue` / `unfollow_artist_or_venue` | Follow (falling back to the stored catalog when the provider is unavailable) or unfollow one artist or venue by `kind` and `target_id`. |
+| `my_interested_events` | The caller's [Interested](event-interest.md) choices with their visibility, as `GET /api/v1/me/event-interests`. |
+| `mark_interested` / `unmark_interested` | Mark or remove Interested. Agents never publish: a new choice is private (counted only in the anonymous total) whatever the account's default, and an existing choice keeps its visibility. Only the person can make a choice public, on the web. |
 
-Read tools are annotated read-only. `unsave_event`, `stop_reminder` and
-`set_reminder` (changing a reminder replaces its timing) are marked destructive;
-`save_event` is additive. All writes are idempotent.
+The radar, follow and Interested tools are listed when their services are, with
+accounts and MariaDB. Searching artists and venues needs sign-in, as on the
+web and API, because it reaches the provider.
+
+Read tools are annotated read-only. `unsave_event`, `stop_reminder`,
+`set_reminder` (changing a reminder replaces its timing), `unfollow_artist_or_venue`
+and `unmark_interested` are marked destructive; `save_event`,
+`follow_artist_or_venue` and `mark_interested` are additive. All writes are
+idempotent, need the `write` scope and return the resulting state.
 
 `find_events` dates are `YYYY-MM-DD` and match each event's local date, as on
 Discover. `start_date` defaults to today in UTC and `end_date` to 90 days later
@@ -108,8 +121,11 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   and the host serving its metadata, lists what it can do, and offers **Also
   allow changes** when `write` is requested; leaving it off makes a read-only
   connection. Responses carry `iss` (RFC 9207). The page cannot be framed.
-- **Scopes**: `read` (public tools, saved events, reminders) and `write` (save,
-  unsave, set and stop reminders). An omitted scope requests both.
+- **Scopes**: `read` (public tools, radar, saved events, reminders, follows,
+  Interested events) and `write` (save and unsave, set and stop reminders,
+  follow and unfollow, mark and remove Interested, privately). An omitted scope
+  requests both. The consent page lists the same, and still promises the app
+  cannot post anything publicly.
 - **Tokens** from `/oauth/token` (form-encoded, public clients only): access
   tokens (`tko_at_…`) last one hour; refresh tokens (`tko_rt_…`), issued when
   the client's document lists the `refresh_token` grant, rotate on every use.

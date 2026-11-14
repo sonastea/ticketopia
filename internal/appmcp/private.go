@@ -31,6 +31,10 @@ type Reminders interface {
 var SignedInTools = map[string]bool{
 	"my_saved_events": false, "save_event": true, "unsave_event": true,
 	"my_reminders": false, "set_reminder": true, "stop_reminder": true,
+	"my_radar":     false,
+	"find_artists": false, "find_venues": false, "my_follows": false,
+	"follow_artist_or_venue": true, "unfollow_artist_or_venue": true,
+	"my_interested_events": false, "mark_interested": true, "unmark_interested": true,
 }
 
 // ScopeWrite is the OAuth scope that allows changes, matching oauth.ScopeWrite.
@@ -38,7 +42,7 @@ var SignedInTools = map[string]bool{
 const ScopeWrite = "write"
 
 // errReadOnly backs up the HTTP boundary's insufficient_scope response.
-var errReadOnly = errors.New("this connection is read-only: reconnect Ticketopia in your agent and allow changes to save events or set reminders")
+var errReadOnly = errors.New("this connection is read-only: reconnect Ticketopia in your agent and allow changes to save, follow, mark Interested or set reminders")
 
 // errSignIn is reported when a signed-in tool is called without a verified
 // API token; the HTTP boundary rejects invalid tokens before tools run.

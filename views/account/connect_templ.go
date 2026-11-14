@@ -140,12 +140,12 @@ func Consent(p ConsentPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<h2>What it can do</h2><ul class=\"account-connect-list\"><li>Search events and read their details</li><li>Read your saved events and on-sale reminders</li></ul>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<h2>What it can do</h2><ul class=\"account-connect-list\"><li>Search events and read their details</li><li>Read your radar, saved events, on-sale reminders, follows and Interested events</li></ul>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if p.Write {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"account-checkboxes\"><label><input type=\"checkbox\" name=\"write\" checked aria-labelledby=\"connect-write-label\" aria-describedby=\"connect-write-help\"> <span class=\"notification-copy\"><span id=\"connect-write-label\" class=\"notification-title\">Also allow changes</span> <span id=\"connect-write-help\" class=\"field-note\">Save and remove events, and set or stop on-sale reminders. Leave this off for read-only access.</span></span></label></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"account-checkboxes\"><label><input type=\"checkbox\" name=\"write\" checked aria-labelledby=\"connect-write-label\" aria-describedby=\"connect-write-help\"> <span class=\"notification-copy\"><span id=\"connect-write-label\" class=\"notification-title\">Also allow changes</span> <span id=\"connect-write-help\" class=\"field-note\">Save and remove events, set or stop on-sale reminders, follow artists and venues, and mark events Interested (privately). Leave this off for read-only access.</span></span></label></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -359,7 +359,7 @@ func Connections(p Page) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "><summary>Connected apps <span class=\"field-note\">AI agents you signed in to Ticketopia</span></summary><p class=\"field-note\">Connected apps can search events and use your saved events and reminders. Disconnecting stops them immediately.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "><summary>Connected apps <span class=\"field-note\">AI agents you signed in to Ticketopia</span></summary><p class=\"field-note\">Connected apps can search events and use your radar, saved events, reminders, follows and Interested events. Disconnecting stops them immediately.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

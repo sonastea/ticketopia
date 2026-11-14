@@ -25,7 +25,11 @@ than in editors, and those apps connect only through OAuth. See the
   this once a real client disconnects through it on a public deployment.
 - [ ] Agent tools for personalized radar (`my_radar`) and artist/venue follows,
   then Interested; the APIs exist, so each tool wraps a shared service.
+  Implemented, with private-only Interested from agents
+  ([guide](../app-mcp.md#tools)); check once a real client uses them.
 - [ ] Default `find_events` to the signed-in account's remembered city.
+  Implemented for searches without city, country or keyword; check with a
+  real client.
 - [ ] Connect Claude (web and Code), ChatGPT, VS Code, Cursor and OpenCode to a
   public HTTPS deployment before calling agent sign-in done.
 - [ ] Close the "manage personal and community activity from another client" goal:

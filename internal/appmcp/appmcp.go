@@ -43,11 +43,22 @@ type Deps struct {
 	// Describe turns a service error into the user-facing message the JSON API
 	// uses for it, including any retry delay, so agents see the same wording.
 	Describe func(error) string
-	// Saved and Reminders enable the signed-in tools; nil leaves them out.
+	// Saved, Reminders, Radar, Follows (with Catalog) and Interests enable
+	// their signed-in tools; nil leaves them out.
 	Saved     Saved
 	Reminders Reminders
+	Radar     Radar
+	Follows   Follows
+	Catalog   Catalog
+	Interests Interests
+	// Accounts reads the caller's remembered city, which find_events
+	// defaults to.
+	Accounts Accounts
 	// DescribePrivate words signed-in tool errors as the account API does.
 	DescribePrivate func(error) string
+	// DescribeCatalog words artist and venue search errors as the catalog
+	// API does, including any retry delay; Describe is used when nil.
+	DescribeCatalog func(error) string
 }
 
 // NewServer returns the MCP server with the public tools registered, plus the
@@ -58,21 +69,34 @@ func NewServer(d Deps) *mcp.Server {
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "ticketopia", Title: "Ticketopia", Version: "0.1.0"}, &mcp.ServerOptions{
 		Instructions: "Ticketopia finds live events (music, sports, arts and more) from Ticketmaster data. " +
-			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy.",
+			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy. " +
+			"Signed in, my_radar suggests events from the user's follows and categories, and tools manage their saves, reminders, follows and Interested choices; " +
+			"these are the user's own, and nothing you change through these tools is shown publicly.",
 	})
 	server.AddReceivingMiddleware(observe(d.Logger, d.Metrics))
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
-	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[models.EventList](), Annotations: readOnly,
+	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[eventSearch](), Annotations: readOnly,
 		Description: "Search events by city and country (ISO code such as US), dates, category, or keyword. " +
 			"Dates are YYYY-MM-DD and match each event's local date; start_date defaults to today in UTC and end_date to 90 days after it, at most 366 days. " +
+			"When signed in, a search without city, country or keyword uses the city saved in the user's account, reported as default_location. " +
 			"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
-		toolErrors(d, func(ctx context.Context, in findInput) (models.EventList, error) {
-			q, err := discovery.ParseQuery(in.values(), d.Now())
-			if err != nil {
-				return models.EventList{}, err
+		func(ctx context.Context, req *mcp.CallToolRequest, in findInput) (*mcp.CallToolResult, eventSearch, error) {
+			var out eventSearch
+			if in.City == "" && in.Country == "" && in.Keyword == "" {
+				out.DefaultLocation = d.rememberedCity(ctx, callerID(req))
+				if out.DefaultLocation != nil {
+					in.City, in.Country = out.DefaultLocation.City, out.DefaultLocation.Country
+				}
 			}
-			return d.Events.Events(ctx, q)
-		}))
+			q, err := discovery.ParseQuery(in.values(), d.Now())
+			if err == nil {
+				out.EventList, err = d.Events.Events(ctx, q)
+			}
+			if err != nil {
+				return d.describe(err), eventSearch{}, nil
+			}
+			return nil, out, nil
+		})
 	mcp.AddTool(server, &mcp.Tool{Name: "list_categories", Title: "List categories", OutputSchema: outputSchema[models.CategoryList](), Annotations: readOnly,
 		Description: "Event categories (such as Music, Sports, Arts & Theatre) and their genres, with the IDs find_events accepts as category_id."},
 		toolErrors(d, func(ctx context.Context, _ struct{}) (models.CategoryList, error) {
@@ -84,6 +108,7 @@ func NewServer(d Deps) *mcp.Server {
 			return d.Details.Detail(ctx, in.EventID)
 		}))
 	addPrivateTools(server, d)
+	addPersonalTools(server, d)
 	return server
 }
 
@@ -150,17 +175,48 @@ func outputSchema[T any]() *jsonschema.Schema {
 	return s
 }
 
+// eventSearch is find_events' result: the event list, plus the account's
+// city when the search defaulted to it.
+type eventSearch struct {
+	models.EventList
+	DefaultLocation *searchLocation `json:"default_location,omitempty"`
+}
+
+type searchLocation struct {
+	City    string `json:"city"`
+	Country string `json:"country"`
+	Source  string `json:"source" jsonschema:"account: the city saved in the user's account preferences"`
+}
+
+// rememberedCity is the caller's saved city, or nil when anonymous, without
+// a saved city, or when the account cannot be read: the search then runs as
+// it would anonymously rather than failing.
+func (d Deps) rememberedCity(ctx context.Context, owner string) *searchLocation {
+	if owner == "" || d.Accounts == nil {
+		return nil
+	}
+	account, err := d.Accounts.Account(ctx, owner)
+	if err != nil || account.Preferences.City == "" {
+		return nil
+	}
+	return &searchLocation{City: account.Preferences.City, Country: account.Preferences.Country, Source: "account"}
+}
+
+func (d Deps) describe(err error) *mcp.CallToolResult {
+	message := err.Error()
+	if d.Describe != nil {
+		message = d.Describe(err)
+	}
+	return toolError(message)
+}
+
 // toolErrors reports service errors as tool errors the agent can act on.
 func toolErrors[In, Out any](d Deps, call func(context.Context, In) (Out, error)) mcp.ToolHandlerFor[In, Out] {
 	return func(ctx context.Context, _ *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
 		out, err := call(ctx, in)
 		if err != nil {
-			message := err.Error()
-			if d.Describe != nil {
-				message = d.Describe(err)
-			}
 			var zero Out
-			return toolError(message), zero, nil
+			return d.describe(err), zero, nil
 		}
 		return nil, out, nil
 	}

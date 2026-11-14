@@ -103,7 +103,11 @@ make review-server scenario=event-edge-cases
   upstream and its snapshot aged ten days. Coverage stays fresh and complete, so
   only that row reads "Last-known as of …" and the list shows no last-known
   banner. Its event page gets a provider 404 and falls back to the snapshot. The
-  scenario fails to start if the stored read does not match this.
+  scenario fails to start if the stored read does not match this. The stand-in
+  also answers venue searches and lookups from the fixture events' venues (artist
+  searches find nothing; fixture events name no performers), so this and
+  `populated` are the scenarios to try `find_venues`, following and `my_radar`
+  through `/mcp`; in the other scenarios the provider is off.
 - `populated`: stored Discover as in `discover-last-known` (without the removed
   event), plus 40 signed-in members whose session cookies are in the manifest
   (`members`, `session_cookie`), for
