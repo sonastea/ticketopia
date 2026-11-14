@@ -14,6 +14,8 @@ receivers:
     include: [/var/lib/docker/containers/*/*-json.log]
     start_at: end
     storage: file_storage
+    # The container's log file name is a long ID that says nothing useful.
+    include_file_name: false
     operators:
       # Unwraps Docker's {"log","stream","time"} envelope; the timestamp is
       # Docker's, since Ticketopia's lines carry none.
@@ -29,6 +31,10 @@ receivers:
         if: 'attributes.level != nil'
         parse_from: attributes.level
         on_error: send_quiet
+      # Severity now carries the level.
+      - type: remove
+        if: 'attributes.level != nil'
+        field: attributes.level
       - type: move
         if: 'attributes.message != nil'
         from: attributes.message
@@ -41,11 +47,15 @@ processors:
   # Every Ticketopia log line carries "component" (api, migrations); other
   # containers' lines on the host are dropped. Narrow or widen this if the
   # host runs other apps with a component field, or if you want their logs.
+  # The periodic metric summaries are dropped too: the app exports the same
+  # figures as metrics, and the live activity one alone is a line every 15
+  # seconds. They stay on stdout for docker logs and the load tests.
   filter/ticketopia:
     error_mode: ignore
     logs:
       log_record:
         - 'attributes["component"] == nil'
+        - 'body == "Live activity metrics" or body == "MCP metrics" or body == "Event catalog operational status"'
   resource/ticketopia:
     attributes:
       - key: service.name

@@ -13,8 +13,13 @@ depends on SigNoz specifically, so any OTLP/HTTP backend or collector works.
   [`deploy/otel-collector`](../deploy/otel-collector/), which parses the JSON
   fields into log attributes, maps `level` to severity and `message` to the body,
   and forwards only lines with Ticketopia's `component` field.
-- The once-a-minute metric log records (`MCP metrics`, `Live activity metrics`,
-  `Event catalog operational status`) remain, so nothing is lost without a backend.
+- The periodic metric summaries stay on stdout (`Live activity metrics` every
+  15 seconds, `MCP metrics` at most once a minute, `Event catalog operational
+  status` every 15 minutes), so nothing is lost without a backend and the load
+  tests can still read them. The collector does not forward them: the same
+  figures arrive as metrics, and the live activity summary alone would be about
+  5,800 log records a day per replica. To save space it also leaves out the
+  container log file name and the `level` attribute, which severity replaces.
 
 ## App configuration
 
@@ -100,6 +105,8 @@ figures mean.
 4. In SigNoz, filter logs and metrics by `service.name = ticketopia`. Log
    attributes include every JSON field, for example `outcome` and `client_host`
    on `OAuth token revocation` records.
+5. Disk use in SigNoz is set by its retention periods (Settings → General),
+   separately for logs and metrics; shorter log retention saves the most.
 
 ## Kubernetes
 

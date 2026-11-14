@@ -17,7 +17,9 @@
 - Add `deploy/otel-collector`: a pinned contrib collector for a Docker or
   Coolify host that reads container logs, parses Ticketopia's JSON lines into
   attributes and severity, keeps only Ticketopia's lines and forwards them to
-  `SIGNOZ_OTLP_ENDPOINT`.
+  `SIGNOZ_OTLP_ENDPOINT`. To save disk space it drops the periodic metric
+  summary records, already exported as metrics, and the file name and `level`
+  attributes; they stay on stdout.
 - Verified with unit tests and locally with Docker against a stand-in OTLP
   receiver (metrics from a real build, including the shutdown flush, and shipped
   logs); not yet against a running SigNoz. See the
