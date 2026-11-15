@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"regexp"
 	"net/url"
+	"regexp"
 	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -79,6 +79,9 @@ var errThreadNotFound = callMistake{errors.New("no question or tip with this thr
 
 var errProfileNeeded = errors.New("user_id is required: pass the ID from a Ticketopia profile URL (/users/<id>), or sign in to read your own public activity")
 
+var errUserNeeded = callMistake{errors.New("user_id is required: pass a profile id from event_recommendations, event_interested_people or a discussion post, " +
+	"or the ID from a Ticketopia profile URL (/users/<id>), or sign in to read your own public profile")}
+
 // addCommunityTools registers the public community reads. They work without
 // sign-in, like the routes they mirror; signed in with read access, the
 // event read adds the caller's own state and profile_activity defaults to
@@ -98,8 +101,9 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 		mcp.AddTool(server, &mcp.Tool{Name: "profile_activity", Title: "Profile activity", OutputSchema: outputSchema[useractivity.List](), Annotations: readOnly,
 			Description: "One person's public contributions on Ticketopia, newest first: discussion posts and replies, recommendations, " +
 				"and events they made their Interested choice public for, each with the event. Never includes private interest, saves or follows. " +
-				"user_id is a profile id from event_recommendations or event_interested_people, or the ID in a profile URL (/users/<id>); omit it for the signed-in user's own public activity. " +
-				"For the next page, pass next_cursor as cursor with the same user_id and limit."},
+				"user_id is a profile id from event_recommendations, event_interested_people or a discussion post, or the ID in a profile URL (/users/<id>); " +
+				"omit it for the signed-in user's own public activity. To open a post's conversation, pass its thread_id (not its id) and its event's id to discussion_thread. " +
+				"For the next page, pass next_cursor as cursor with the same user_id."},
 			publicRead(d, func(ctx context.Context, viewer string, in profileActivityInput) (useractivity.List, error) {
 				user := in.UserID
 				if user == "" {
@@ -115,7 +119,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 		mcp.AddTool(server, &mcp.Tool{Name: "event_recommendations", Title: "Event recommendations", OutputSchema: outputSchema[recommendations.List](), Annotations: readOnly,
 			Description: "Public recommendations of one event by its ID from find_events, newest first: each person's public profile (its id works as " +
 				"profile_activity's user_id), their optional reason, and via when an app published it. count is the event's total. " +
-				"For the next page, pass next_cursor as cursor with the same event_id and limit."},
+				"For the next page, pass next_cursor as cursor with the same event_id."},
 			publicRead(d, func(ctx context.Context, _ string, in eventPageInput) (recommendations.List, error) {
 				return d.EventRecommendations.Event(ctx, in.EventID, in.values())
 			}))
@@ -124,7 +128,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 		mcp.AddTool(server, &mcp.Tool{Name: "event_interested_people", Title: "Event's interested people", OutputSchema: outputSchema[interests.Participants](), Annotations: readOnly,
 			Description: "People who made their Interested choice for one event public, newest first, with their public profile (its id works as " +
 				"profile_activity's user_id). Private choices are never listed, so this is usually fewer than event_community's interested count. " +
-				"For the next page, pass next_cursor as cursor with the same event_id and limit."},
+				"For the next page, pass next_cursor as cursor with the same event_id."},
 			publicRead(d, func(ctx context.Context, _ string, in eventPageInput) (interests.Participants, error) {
 				return d.InterestedPeople.Participants(ctx, in.EventID, in.values())
 			}))
@@ -133,7 +137,8 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 		mcp.AddTool(server, &mcp.Tool{Name: "event_discussions", Title: "Event questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
 			Description: "Public questions and tips about one event, newest first, each with its author's public profile, reply_count and helpful_count; " +
 				"signed in, helpful is the user's own Helpful choice. Removed or hidden roots that still have visible replies appear without text. " +
-				"count is the event's visible questions and tips. For the next page, pass next_cursor as cursor with the same event_id and limit."},
+				"count is the event's visible questions and tips. Open one with discussion_thread using its thread_id. " +
+				"For the next page, pass next_cursor as cursor with the same event_id and the same sign-in (cursors belong to the caller)."},
 			publicRead(d, func(ctx context.Context, viewer string, in eventPageInput) (discussions.List, error) {
 				// An empty event means every event to the service; this tool is one event's.
 				if err := saved.ValidateID(in.EventID); err != nil {
@@ -142,9 +147,10 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				return d.Discussions.List(ctx, viewer, in.EventID, "", in.values())
 			}))
 		mcp.AddTool(server, &mcp.Tool{Name: "discussion_thread", Title: "Discussion thread", OutputSchema: outputSchema[discussionThread](), Annotations: readOnly,
-			Description: "One question or tip by its id from event_discussions (thread_id), with its replies oldest first; parent_id and parent_name " +
-				"show which post a reply answers. count is the thread's visible replies. For more replies, pass next_cursor as cursor with the " +
-				"same event_id, thread_id and limit; thread is returned on every page."},
+			Description: "One question or tip with its replies oldest first, by thread_id: the thread_id of any post from event_discussions, community_discussions " +
+				"or profile_activity (for a reply, its thread_id, not its id), with that post's event_id. parent_id and parent_name show which post a reply answers. " +
+				"count is the thread's visible replies. For more replies, pass next_cursor as cursor with the same event_id, thread_id and sign-in; " +
+				"thread is returned on every page."},
 			publicRead(d, func(ctx context.Context, viewer string, in threadInput) (discussionThread, error) {
 				if discussions.PostID(in.ThreadID) != nil {
 					return discussionThread{}, &accounts.ValidationError{Field: "thread_id", Message: "use a question or tip id from event_discussions or community_discussions"}
@@ -160,9 +166,9 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				return discussionThread{Thread: root, Replies: replies}, err
 			}))
 		mcp.AddTool(server, &mcp.Tool{Name: "community_discussions", Title: "Community questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
-			Description: "Recent public questions and tips across events, newest first, each with its event; optionally narrow by city and country " +
-				"(ISO code such as US) or category_id from list_categories. Open one with discussion_thread using its event_id and id. " +
-				"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
+			Description: "Recent public questions and tips across events, newest first, each with its event. city, country (ISO code such as US) and category_id " +
+				"from list_categories each narrow the list on their own. Open one with discussion_thread using its event_id and thread_id. " +
+				"For the next page, pass next_cursor as cursor with the same filters and sign-in (cursors belong to the caller)."},
 			publicRead(d, func(ctx context.Context, viewer string, in communityInput) (discussions.List, error) {
 				return d.Discussions.List(ctx, viewer, "", "", in.values())
 			}))
@@ -170,8 +176,8 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 	if d.CommunityRecommendations != nil {
 		mcp.AddTool(server, &mcp.Tool{Name: "community_recommendations", Title: "Community recommendations", OutputSchema: outputSchema[recommendations.Feed](), Annotations: readOnly,
 			Description: "Events people recommend, one entry per event with its total count and up to three recommendations, newest first by when " +
-				"the event was first recommended. Optionally narrow by city and country (ISO code such as US) or category_id from list_categories. " +
-				"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
+				"the event was first recommended. city, country (ISO code such as US) and category_id from list_categories each narrow the feed on their own. " +
+				"For the next page, pass next_cursor as cursor with the same filters."},
 			publicRead(d, func(ctx context.Context, _ string, in communityInput) (recommendations.Feed, error) {
 				return d.CommunityRecommendations.Community(ctx, in.values())
 			}))
@@ -187,15 +193,15 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 					user = viewer
 				}
 				if user == "" {
-					return accounts.PublicProfile{}, errProfileNeeded
+					return accounts.PublicProfile{}, errUserNeeded
 				}
 				return d.Profiles.Public(ctx, user)
 			}))
 	}
 	if d.LiveActivity != nil {
 		mcp.AddTool(server, &mcp.Tool{Name: "happening_now", Title: "Happening now", OutputSchema: outputSchema[activity.Snapshot](), Annotations: readOnly,
-			Description: "Events people recommended in roughly the last hour, as on Ticketopia's Happening Now page: each with its title, city, " +
-				"recent recommendation count and at most a recommender's first name, expiring after a while. Optionally narrow by city with " +
+			Description: "Events people recommended in the last ten minutes, as on Ticketopia's Happening Now page: each with its title, city, " +
+				"recent recommendation count and at most a recommender's first name, and expires_at, when it leaves the list. Optionally narrow by city with " +
 				"country (ISO code such as US) and category_ids from list_categories. A current snapshot, not a history; call again for updates."},
 			func(ctx context.Context, _ *mcp.CallToolRequest, in liveInput) (*mcp.CallToolResult, activity.Snapshot, error) {
 				filter, err := in.filters()
