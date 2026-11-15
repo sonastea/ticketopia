@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/recommendations"
@@ -29,6 +30,14 @@ type EventRecommendations interface {
 // GET /api/v1/events/{id}/interested-users does.
 type InterestedPeople interface {
 	Participants(ctx context.Context, id string, values url.Values) (interests.Participants, error)
+}
+
+// Discussions reads public event conversations, as the discussion routes
+// under /api/v1/events/{id}/discussions and /api/v1/community/discussions
+// do; viewer only adds that account's Helpful state.
+type Discussions interface {
+	List(ctx context.Context, viewer, event, thread string, values url.Values) (discussions.List, error)
+	Thread(ctx context.Context, viewer, event, id string) (discussions.Post, error)
 }
 
 // ProfileActivity reads one person's public contributions, as
@@ -87,6 +96,15 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				"For the next page, pass next_cursor as cursor with the same event_id and limit."},
 			publicRead(d, func(ctx context.Context, _ string, in eventPageInput) (interests.Participants, error) {
 				return d.InterestedPeople.Participants(ctx, in.EventID, in.values())
+			}))
+	}
+	if d.Discussions != nil {
+		mcp.AddTool(server, &mcp.Tool{Name: "event_discussions", Title: "Event questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
+			Description: "Public questions and tips about one event, newest first, each with its author's public profile, reply_count and helpful_count; " +
+				"signed in, helpful is the user's own Helpful choice. Removed or hidden roots that still have visible replies appear without text. " +
+				"count is the event's visible questions and tips. For the next page, pass next_cursor as cursor with the same event_id and limit."},
+			publicRead(d, func(ctx context.Context, viewer string, in eventPageInput) (discussions.List, error) {
+				return d.Discussions.List(ctx, viewer, in.EventID, "", in.values())
 			}))
 	}
 }

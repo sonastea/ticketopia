@@ -19,6 +19,7 @@ steps (a separate deployment); this page covers what exists.
 | `profile_activity` | One person's public posts, recommendations and public Interested choices, newest first, as `GET /api/v1/users/{user_id}/activity`. `user_id` comes from a profile URL; signed in, omitting it reads the caller's own. |
 | `event_recommendations` | An event's public recommendations with each author's public profile (its `id` is a `profile_activity` `user_id`), optional reason, `via` attribution and the event's `count`, as `GET /api/v1/events/{event_id}/recommendations`. |
 | `event_interested_people` | People who made their Interested choice public, with public profiles, as `GET /api/v1/events/{event_id}/interested-users`. Private choices are never listed. |
+| `event_discussions` | An event's public questions and tips, newest first, with reply and Helpful counts, as `GET /api/v1/events/{event_id}/discussions`; signed in, `helpful` is the caller's own choice. |
 
 These community reads need accounts and MariaDB, and are listed with them.
 They share the HTTP routes' code, so results match those routes exactly.

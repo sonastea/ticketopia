@@ -10,6 +10,7 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/appmcp"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
@@ -172,6 +173,10 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 	a, account, recs, _, bearer, _, id := recommendationAPI(t)
 	WithEventActivity(&eventActivityStub{})(a)
 	WithUserActivity(&userActivityStub{items: []useractivity.Item{{Type: useractivity.TypeInterest, At: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), Event: models.Event{ID: id}}}})(a)
+	at := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+	post := discussions.Post{ID: accounts.ID(), EventID: id, Body: "Doors at 7?", CreatedAt: at, UpdatedAt: at, Profile: &accounts.PublicProfile{ID: account.account.ID, DisplayName: "Contributor"}}
+	post.ThreadID = post.ID
+	a.discussions = discussions.New(&discussionStub{post: post}, a.saved)
 	a.runCtx = t.Context()
 	WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 600, MaxInFlight: 8})(a)
 	routes := a.Routes()
@@ -188,6 +193,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		{"profile_activity", `{}`, "/api/v1/users/" + owner + "/activity"},
 		{"event_recommendations", `{"event_id":"` + id + `","limit":1}`, "/api/v1/events/" + id + "/recommendations?limit=1"},
 		{"event_interested_people", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/interested-users"},
+		{"event_discussions", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/discussions"},
 	} {
 		http := accountRequest(a, "GET", tc.path, "", "", bearer, "", "", "")
 		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+tc.tool+`","arguments":`+tc.args+`}}`,

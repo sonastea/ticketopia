@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
@@ -54,6 +55,22 @@ func (f fakeCommunity) Participants(_ context.Context, id string, v url.Values) 
 	return interests.Participants{Items: []interests.Participant{{Profile: accounts.PublicProfile{ID: "fan-id", DisplayName: "Fan"}}}}, nil
 }
 
+func (f fakeCommunity) List(_ context.Context, viewer, event, thread string, v url.Values) (discussions.List, error) {
+	f.record("discussions.List " + viewer + " " + event + " " + thread + " " + v.Encode())
+	if event == "ticketmaster:broken" {
+		return discussions.List{}, discussions.ErrUnavailable
+	}
+	return discussions.List{Items: []discussions.Post{{ID: "post-id", EventID: event, ThreadID: "post-id", Body: "Doors?"}}, Count: 1}, nil
+}
+
+func (f fakeCommunity) Thread(_ context.Context, viewer, event, id string) (discussions.Post, error) {
+	f.record("discussions.Thread " + viewer + " " + event + " " + id)
+	if event == "ticketmaster:broken" {
+		return discussions.Post{}, discussions.ErrUnavailable
+	}
+	return discussions.Post{ID: id, EventID: event, ThreadID: id, Body: "Doors?"}, nil
+}
+
 // Each public read passes its arguments through unchanged, works without a
 // token, and reports service errors in the account API's wording.
 func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
@@ -66,6 +83,7 @@ func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
 	}{
 		{"event_recommendations", map[string]any{"event_id": "ticketmaster:x", "limit": 2, "cursor": "c"}, "recommendations.Event ticketmaster:x cursor=c&limit=2"},
 		{"event_interested_people", map[string]any{"event_id": "ticketmaster:x", "limit": 3}, "interests.Participants ticketmaster:x limit=3"},
+		{"event_discussions", map[string]any{"event_id": "ticketmaster:x"}, "discussions.List  ticketmaster:x  "},
 	} {
 		f.calls = nil
 		reply := tool(t, base, "", tc.tool, tc.args)
@@ -122,6 +140,11 @@ func TestCommunityToolsArePublicAndScopeViewerToCaller(t *testing.T) {
 		t.Fatalf("calls %q", f.calls)
 	}
 
+	f.calls = nil
+	tool(t, base, "reader-token", "event_discussions", map[string]any{"event_id": "ticketmaster:x"})
+	if len(f.calls) != 1 || f.calls[0] != "discussions.List owner-id ticketmaster:x  " {
+		t.Fatalf("signed-in discussions read lost the viewer: %q", f.calls)
+	}
 	for _, listed := range rpc(t, base, "", "tools/list", map[string]any{}).Result.Tools {
 		if (listed.Name == "event_community" || listed.Name == "profile_activity") && !listed.Annotations.ReadOnlyHint {
 			t.Fatalf("%s is not read-only", listed.Name)
