@@ -69,6 +69,9 @@ func (f fakeCommunity) Thread(_ context.Context, viewer, event, id string) (disc
 	if event == "ticketmaster:broken" {
 		return discussions.Post{}, discussions.ErrUnavailable
 	}
+	if id == "00000000000000000000000000000000" {
+		return discussions.Post{}, discussions.ErrNotFound
+	}
 	return discussions.Post{ID: id, EventID: event, ThreadID: id, Body: "Doors?"}, nil
 }
 
@@ -94,6 +97,20 @@ func (f fakeCommunity) FilteredSnapshot(_ context.Context, filter activity.Filte
 		return activity.Snapshot{}, activity.ErrUnavailable
 	}
 	return activity.Snapshot{Items: []activity.Item{{EventID: "ticketmaster:x"}}}, nil
+}
+
+// discussion_thread names its own argument and says how to find a thread.
+func TestDiscussionThreadErrorsGuideTheCall(t *testing.T) {
+	base := privateServer(t, &fakeAccount{}).URL
+	for args, want := range map[string]string{
+		"nope":                             "thread_id: use a question or tip id",
+		"00000000000000000000000000000000": "a reply's thread_id (not its id)",
+	} {
+		reply := tool(t, base, "", "discussion_thread", map[string]any{"event_id": "ticketmaster:x", "thread_id": args})
+		if !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, want) {
+			t.Fatalf("%s: %+v", args, reply.Result)
+		}
+	}
 }
 
 // An empty event_id must not fall through to the service's all-events feed.
@@ -147,7 +164,7 @@ func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
 		{"event_discussions", map[string]any{"event_id": "ticketmaster:x"}, "discussions.List  ticketmaster:x  "},
 		{"community_recommendations", map[string]any{"city": "Chicago", "country": "US", "category_id": "music", "limit": 2}, "recommendations.Community category_id=music&city=Chicago&country=US&limit=2"},
 		{"community_discussions", map[string]any{"city": "Chicago", "country": "US"}, "discussions.List    city=Chicago&country=US"},
-		{"discussion_thread", map[string]any{"event_id": "ticketmaster:x", "thread_id": "t1"}, "discussions.Thread  ticketmaster:x t1|discussions.List  ticketmaster:x t1 "},
+		{"discussion_thread", map[string]any{"event_id": "ticketmaster:x", "thread_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "discussions.Thread  ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|discussions.List  ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "},
 	} {
 		f.calls = nil
 		reply := tool(t, base, "", tc.tool, tc.args)

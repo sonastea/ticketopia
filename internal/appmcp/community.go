@@ -69,6 +69,13 @@ type ProfileActivity interface {
 	ProfileActivity(ctx context.Context, user string, values url.Values) (useractivity.List, error)
 }
 
+// callMistake is an error in how the tool was called, reported verbatim
+// rather than in the account API's wording.
+type callMistake struct{ error }
+
+var errThreadNotFound = callMistake{errors.New("no question or tip with this thread_id on this event: use an id from event_discussions or " +
+	"community_discussions, or a reply's thread_id (not its id), with the event_id it belongs to")}
+
 var errProfileNeeded = errors.New("user_id is required: pass the ID from a Ticketopia profile URL (/users/<id>), or sign in to read your own public activity")
 
 // addCommunityTools registers the public community reads. They work without
@@ -138,7 +145,13 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				"show which post a reply answers. count is the thread's visible replies. For more replies, pass next_cursor as cursor with the " +
 				"same event_id, thread_id and limit; thread is returned on every page."},
 			publicRead(d, func(ctx context.Context, viewer string, in threadInput) (discussionThread, error) {
+				if discussions.PostID(in.ThreadID) != nil {
+					return discussionThread{}, &accounts.ValidationError{Field: "thread_id", Message: "use a question or tip id from event_discussions or community_discussions"}
+				}
 				root, err := d.Discussions.Thread(ctx, viewer, in.EventID, in.ThreadID)
+				if errors.Is(err, discussions.ErrNotFound) {
+					return discussionThread{}, errThreadNotFound
+				}
 				if err != nil {
 					return discussionThread{}, err
 				}
@@ -205,7 +218,8 @@ func publicRead[In, Out any](d Deps, call func(ctx context.Context, viewer strin
 		out, err := call(ctx, readingCaller(req), in)
 		if err != nil {
 			var zero Out
-			if errors.Is(err, errProfileNeeded) {
+			var mistake callMistake
+			if errors.Is(err, errProfileNeeded) || errors.As(err, &mistake) {
 				return toolError(err.Error()), zero, nil
 			}
 			return toolError(d.describePrivate(err)), zero, nil
