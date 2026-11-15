@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
@@ -85,6 +86,38 @@ func (f fakeCommunity) Public(_ context.Context, id string) (accounts.PublicProf
 		return accounts.PublicProfile{}, accounts.ErrNotFound
 	}
 	return accounts.PublicProfile{ID: id, DisplayName: "Someone"}, nil
+}
+
+func (f fakeCommunity) FilteredSnapshot(_ context.Context, filter activity.Filters) (activity.Snapshot, error) {
+	f.record("activity.Snapshot " + filter.Location.Mode + " " + filter.Location.City + " " + filter.Location.Country + " " + strings.Join(filter.CategoryIDs, ","))
+	if filter.Location.City == "Broken" {
+		return activity.Snapshot{}, activity.ErrUnavailable
+	}
+	return activity.Snapshot{Items: []activity.Item{{EventID: "ticketmaster:x"}}}, nil
+}
+
+// happening_now decodes filters with the route's validation and reports an
+// unavailable feed without fabricating an empty one.
+func TestHappeningNowFilters(t *testing.T) {
+	f := &fakeAccount{}
+	base := privateServer(t, f).URL
+	for _, args := range []map[string]any{{}, {"city": "Chicago", "country": "us", "category_ids": []string{"KZFzniwnSyZfZ7v7nJ"}}} {
+		if reply := tool(t, base, "", "happening_now", args); reply.Result.IsError {
+			t.Fatalf("%v: %+v", args, reply.Result)
+		}
+	}
+	for _, args := range []map[string]any{{"city": "Chicago"}, {"country": "US"}, {"category_ids": []string{"bad id!"}}} {
+		if reply := tool(t, base, "", "happening_now", args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "private: ") {
+			t.Fatalf("accepted %v: %+v", args, reply.Result)
+		}
+	}
+	if reply := tool(t, base, "", "happening_now", map[string]any{"city": "Broken", "country": "US"}); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "unavailable") {
+		t.Fatalf("unavailable feed: %+v", reply.Result)
+	}
+	want := "activity.Snapshot all   |activity.Snapshot city Chicago US KZFzniwnSyZfZ7v7nJ|activity.Snapshot city Broken US "
+	if strings.Join(f.calls, "|") != want {
+		t.Fatalf("calls %q", f.calls)
+	}
 }
 
 // Each public read passes its arguments through unchanged, works without a

@@ -8,7 +8,7 @@
   route, each calling the route's service method: `event_recommendations`,
   `event_interested_people`, `event_discussions` and `discussion_thread`
   (a thread with a page of its replies), `community_recommendations`,
-  `community_discussions` and `user_profile`. Their profile IDs feed `profile_activity`. See
+  `community_discussions`, `user_profile` and `happening_now`. Their profile IDs feed `profile_activity`. See
   [tools](../app-mcp.md#tools).
 
 ### 2026-11-14 — Event community and profile activity tools

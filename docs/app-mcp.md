@@ -24,6 +24,7 @@ steps (a separate deployment); this page covers what exists.
 | `community_recommendations` | Recommended events grouped per event, optionally by city, country and `category_id`, as `GET /api/v1/community/recommendations`. |
 | `community_discussions` | Recent questions and tips across events with the same filters, as `GET /api/v1/community/discussions`. |
 | `user_profile` | One public profile (ID, display name, bio; never email or settings), as `GET /api/v1/users/{user_id}`; signed in, omitting `user_id` reads the caller's own. |
+| `happening_now` | The public Happening Now snapshot, optionally by city with country and `category_ids`, as `GET /api/v1/community/activity` without credentials. Listed when live activity is on; it needs no accounts. |
 
 These community reads need accounts and MariaDB, and are listed with them.
 They share the HTTP routes' code, so results match those routes exactly.

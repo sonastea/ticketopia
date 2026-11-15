@@ -69,6 +69,10 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 	go metrics.Run(a.runCtx, a.logger, time.Minute)
 	deps := appmcp.Deps{Events: a.events, Details: interestDetails{a}, Now: a.clock, Logger: a.logger, Describe: describeForAgents, Metrics: metrics,
 		DescribePrivate: func(err error) string { _, _, detail, _ := accountError(err); return detail }}
+	// Happening Now is public and needs no accounts, as on the web.
+	if a.liveActivity != nil {
+		deps.LiveActivity = a.liveActivity
+	}
 	// Signed-in tools need accounts; assign only real services, never typed nils.
 	if a.enabled() && a.saved != nil {
 		deps.Saved = a.saved

@@ -2,12 +2,14 @@ package appmcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
@@ -51,6 +53,14 @@ type CommunityRecommendations interface {
 type Profiles interface {
 	Public(ctx context.Context, id string) (accounts.PublicProfile, error)
 }
+
+// LiveActivity reads the public Happening Now snapshot, as
+// GET /api/v1/community/activity does without credentials.
+type LiveActivity interface {
+	FilteredSnapshot(ctx context.Context, filter activity.Filters) (activity.Snapshot, error)
+}
+
+var errLiveUnavailable = errors.New("live activity is unavailable right now; try again shortly")
 
 // ProfileActivity reads one person's public contributions, as
 // GET /api/v1/users/{id}/activity does.
@@ -163,6 +173,23 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				return d.Profiles.Public(ctx, user)
 			}))
 	}
+	if d.LiveActivity != nil {
+		mcp.AddTool(server, &mcp.Tool{Name: "happening_now", Title: "Happening now", OutputSchema: outputSchema[activity.Snapshot](), Annotations: readOnly,
+			Description: "Events people recommended in roughly the last hour, as on Ticketopia's Happening Now page: each with its title, city, " +
+				"recent recommendation count and at most a recommender's first name, expiring after a while. Optionally narrow by city with " +
+				"country (ISO code such as US) and category_ids from list_categories. A current snapshot, not a history; call again for updates."},
+			func(ctx context.Context, _ *mcp.CallToolRequest, in liveInput) (*mcp.CallToolResult, activity.Snapshot, error) {
+				filter, err := in.filters()
+				if err != nil {
+					return toolError(d.describePrivate(err)), activity.Snapshot{}, nil
+				}
+				out, err := d.LiveActivity.FilteredSnapshot(ctx, filter)
+				if err != nil {
+					return toolError(errLiveUnavailable.Error()), activity.Snapshot{}, nil
+				}
+				return nil, out, nil
+			})
+	}
 }
 
 // publicRead is a public tool that, signed in with read access, knows the
@@ -243,4 +270,28 @@ func (in communityInput) values() url.Values {
 
 type userInput struct {
 	UserID string `json:"user_id,omitempty" jsonschema:"account ID from a profile URL (/users/<id>) or another tool's profile.id; omit for your own"`
+}
+
+type liveInput struct {
+	City        string   `json:"city,omitempty" jsonschema:"city name, for example Chicago; needs country"`
+	Country     string   `json:"country,omitempty" jsonschema:"two-letter country code, for example US; needs city"`
+	CategoryIDs []string `json:"category_ids,omitempty" jsonschema:"up to 16 category IDs from list_categories"`
+}
+
+// filters builds the route's public filter JSON and decodes it with the same
+// validation, so both accept and reject the same filters.
+func (in liveInput) filters() (activity.Filters, error) {
+	raw := map[string]any{}
+	if in.City != "" || in.Country != "" {
+		raw["location"] = map[string]string{"mode": "city", "city": in.City, "country": in.Country}
+	}
+	if in.CategoryIDs != nil {
+		raw["category_ids"] = in.CategoryIDs
+	}
+	data, _ := json.Marshal(raw)
+	f, err := activity.DecodePublicFilters(data)
+	if err != nil {
+		return f, &accounts.ValidationError{Field: "filter", Message: "use a city with its two-letter country, and at most 16 valid category IDs"}
+	}
+	return f, nil
 }

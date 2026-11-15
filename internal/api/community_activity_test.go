@@ -3,12 +3,15 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/interests"
@@ -240,6 +243,47 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		_ = json.Unmarshal(reply.Result.StructuredContent, &fromTool)
 		if !reflect.DeepEqual(fromHTTP, fromTool) {
 			t.Fatalf("%s differs from %s:\n tool %s\n http %s", tc.tool, tc.path, reply.Result.StructuredContent, http.Body.String())
+		}
+	}
+}
+
+// happening_now returns the anonymous /api/v1/community/activity snapshot for
+// the same filter. as_of is refreshed on every read, so only items compare.
+func TestHappeningNowToolMatchesHTTPRoute(t *testing.T) {
+	t.Setenv("IP_GEOLOCATION_ENABLED", "false")
+	service := activity.New(t.Context(), &liveRepository{}, 2)
+	defer service.Close()
+	routes := mcpRoutesFor(t, WithLiveActivity(service, 600), enabledMCP(600))
+	for _, tc := range []struct{ args, filter string }{
+		{`{}`, ""},
+		{`{"category_ids":["Music"]}`, `{"category_ids":["Music"]}`},
+	} {
+		path := "/api/v1/community/activity"
+		if tc.filter != "" {
+			path += "?filter=" + url.QueryEscape(tc.filter)
+		}
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"happening_now","arguments":`+tc.args+`}}`, nil)
+		var reply struct {
+			Result struct {
+				IsError           bool `json:"isError"`
+				StructuredContent struct {
+					Items json.RawMessage `json:"items"`
+				} `json:"structuredContent"`
+			} `json:"result"`
+		}
+		var fromHTTP struct {
+			Items json.RawMessage `json:"items"`
+		}
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &fromHTTP) != nil || json.Unmarshal(response.Body.Bytes(), &reply) != nil || reply.Result.IsError {
+			t.Fatalf("%s: http %d %s, mcp %s", tc.args, w.Code, w.Body.String(), response.Body.String())
+		}
+		var got, want any
+		_ = json.Unmarshal(reply.Result.StructuredContent.Items, &got)
+		_ = json.Unmarshal(fromHTTP.Items, &want)
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: tool items %s, route items %s", tc.args, reply.Result.StructuredContent.Items, fromHTTP.Items)
 		}
 	}
 }
