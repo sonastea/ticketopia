@@ -14,6 +14,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/recommendations"
+	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/internal/useractivity"
 )
 
@@ -126,6 +127,10 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				"signed in, helpful is the user's own Helpful choice. Removed or hidden roots that still have visible replies appear without text. " +
 				"count is the event's visible questions and tips. For the next page, pass next_cursor as cursor with the same event_id and limit."},
 			publicRead(d, func(ctx context.Context, viewer string, in eventPageInput) (discussions.List, error) {
+				// An empty event means every event to the service; this tool is one event's.
+				if err := saved.ValidateID(in.EventID); err != nil {
+					return discussions.List{}, err
+				}
 				return d.Discussions.List(ctx, viewer, in.EventID, "", in.values())
 			}))
 		mcp.AddTool(server, &mcp.Tool{Name: "discussion_thread", Title: "Discussion thread", OutputSchema: outputSchema[discussionThread](), Annotations: readOnly,

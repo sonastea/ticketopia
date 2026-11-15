@@ -96,6 +96,18 @@ func (f fakeCommunity) FilteredSnapshot(_ context.Context, filter activity.Filte
 	return activity.Snapshot{Items: []activity.Item{{EventID: "ticketmaster:x"}}}, nil
 }
 
+// An empty event_id must not fall through to the service's all-events feed.
+func TestEventDiscussionsRequiresAnEvent(t *testing.T) {
+	f := &fakeAccount{}
+	base := privateServer(t, f).URL
+	if reply := tool(t, base, "", "event_discussions", map[string]any{"event_id": ""}); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "event_id") {
+		t.Fatalf("empty event_id: %+v", reply.Result)
+	}
+	if len(f.calls) != 0 {
+		t.Fatalf("empty event_id reached the service: %q", f.calls)
+	}
+}
+
 // happening_now decodes filters with the route's validation and reports an
 // unavailable feed without fabricating an empty one.
 func TestHappeningNowFilters(t *testing.T) {
