@@ -124,6 +124,13 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				replies, err := d.Discussions.List(ctx, viewer, in.EventID, in.ThreadID, pageInput{Limit: in.Limit, Cursor: in.Cursor}.values())
 				return discussionThread{Thread: root, Replies: replies}, err
 			}))
+		mcp.AddTool(server, &mcp.Tool{Name: "community_discussions", Title: "Community questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
+			Description: "Recent public questions and tips across events, newest first, each with its event; optionally narrow by city and country " +
+				"(ISO code such as US) or category_id from list_categories. Open one with discussion_thread using its event_id and id. " +
+				"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
+			publicRead(d, func(ctx context.Context, viewer string, in communityInput) (discussions.List, error) {
+				return d.Discussions.List(ctx, viewer, "", "", in.values())
+			}))
 	}
 	if d.CommunityRecommendations != nil {
 		mcp.AddTool(server, &mcp.Tool{Name: "community_recommendations", Title: "Community recommendations", OutputSchema: outputSchema[recommendations.Feed](), Annotations: readOnly,

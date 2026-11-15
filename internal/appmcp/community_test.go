@@ -57,7 +57,7 @@ func (f fakeCommunity) Participants(_ context.Context, id string, v url.Values) 
 
 func (f fakeCommunity) List(_ context.Context, viewer, event, thread string, v url.Values) (discussions.List, error) {
 	f.record("discussions.List " + viewer + " " + event + " " + thread + " " + v.Encode())
-	if event == "ticketmaster:broken" {
+	if event == "ticketmaster:broken" || v.Get("city") == "broken" {
 		return discussions.List{}, discussions.ErrUnavailable
 	}
 	return discussions.List{Items: []discussions.Post{{ID: "post-id", EventID: event, ThreadID: "post-id", Body: "Doors?"}}, Count: 1}, nil
@@ -93,6 +93,7 @@ func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
 		{"event_interested_people", map[string]any{"event_id": "ticketmaster:x", "limit": 3}, "interests.Participants ticketmaster:x limit=3"},
 		{"event_discussions", map[string]any{"event_id": "ticketmaster:x"}, "discussions.List  ticketmaster:x  "},
 		{"community_recommendations", map[string]any{"city": "Chicago", "country": "US", "category_id": "music", "limit": 2}, "recommendations.Community category_id=music&city=Chicago&country=US&limit=2"},
+		{"community_discussions", map[string]any{"city": "Chicago", "country": "US"}, "discussions.List    city=Chicago&country=US"},
 		{"discussion_thread", map[string]any{"event_id": "ticketmaster:x", "thread_id": "t1"}, "discussions.Thread  ticketmaster:x t1|discussions.List  ticketmaster:x t1 "},
 	} {
 		f.calls = nil
