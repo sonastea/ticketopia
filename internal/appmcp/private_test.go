@@ -251,7 +251,7 @@ func TestReadOnlyTokensCannotWrite(t *testing.T) {
 func TestSignedInToolsMatchRegistration(t *testing.T) {
 	reply := rpc(t, privateServer(t, &fakeAccount{}).URL, "", "tools/list", map[string]any{})
 	public := map[string]bool{"find_events": true, "list_categories": true, "event_details": true, "event_community": true, "profile_activity": true,
-		"event_recommendations": true, "event_interested_people": true, "event_discussions": true}
+		"event_recommendations": true, "event_interested_people": true, "event_discussions": true, "discussion_thread": true}
 	listed := 0
 	for _, tool := range reply.Result.Tools {
 		if public[tool.Name] {

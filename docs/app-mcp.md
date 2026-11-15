@@ -20,6 +20,7 @@ steps (a separate deployment); this page covers what exists.
 | `event_recommendations` | An event's public recommendations with each author's public profile (its `id` is a `profile_activity` `user_id`), optional reason, `via` attribution and the event's `count`, as `GET /api/v1/events/{event_id}/recommendations`. |
 | `event_interested_people` | People who made their Interested choice public, with public profiles, as `GET /api/v1/events/{event_id}/interested-users`. Private choices are never listed. |
 | `event_discussions` | An event's public questions and tips, newest first, with reply and Helpful counts, as `GET /api/v1/events/{event_id}/discussions`; signed in, `helpful` is the caller's own choice. |
+| `discussion_thread` | One question or tip with a page of its replies (oldest first), as `GET …/discussions/{discussion_id}` and `…/replies` together; the thread is returned on every page. |
 
 These community reads need accounts and MariaDB, and are listed with them.
 They share the HTTP routes' code, so results match those routes exactly.

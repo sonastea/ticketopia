@@ -182,6 +182,30 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 	routes := a.Routes()
 	owner := account.account.ID
 	recs.items[owner] = map[string]recommendations.Item{id: {Event: models.Event{ID: id}, Profile: account.account.Public(), Reason: "Worth it", RecommendedAt: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)}}
+	// discussion_thread is the thread route and its replies route together.
+	{
+		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"discussion_thread","arguments":{"event_id":"`+id+`","thread_id":"`+post.ID+`"}}}`,
+			map[string]string{"Authorization": "Bearer " + bearer})
+		var reply struct {
+			Result struct {
+				IsError           bool `json:"isError"`
+				StructuredContent struct {
+					Thread, Replies json.RawMessage
+				} `json:"structuredContent"`
+			} `json:"result"`
+		}
+		_ = json.Unmarshal(response.Body.Bytes(), &reply)
+		thread := accountRequest(a, "GET", "/api/v1/events/"+id+"/discussions/"+post.ID, "", "", bearer, "", "", "")
+		replies := accountRequest(a, "GET", "/api/v1/events/"+id+"/discussions/"+post.ID+"/replies", "", "", bearer, "", "", "")
+		var gotThread, wantThread, gotReplies, wantReplies any
+		_ = json.Unmarshal(reply.Result.StructuredContent.Thread, &gotThread)
+		_ = json.Unmarshal(thread.Body.Bytes(), &wantThread)
+		_ = json.Unmarshal(reply.Result.StructuredContent.Replies, &gotReplies)
+		_ = json.Unmarshal(replies.Body.Bytes(), &wantReplies)
+		if reply.Result.IsError || thread.Code != 200 || replies.Code != 200 || !reflect.DeepEqual(gotThread, wantThread) || !reflect.DeepEqual(gotReplies, wantReplies) {
+			t.Fatalf("discussion_thread differs from its routes: %s", response.Body.String())
+		}
+	}
 	if w := accountRequest(a, "PUT", "/api/v1/me/event-interests/"+id, `{"visibility":"public"}`, "", bearer, "", "", ""); w.Code != 201 {
 		t.Fatal("public interest fixture", w.Code, w.Body.String())
 	}

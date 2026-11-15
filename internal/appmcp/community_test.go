@@ -84,10 +84,11 @@ func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
 		{"event_recommendations", map[string]any{"event_id": "ticketmaster:x", "limit": 2, "cursor": "c"}, "recommendations.Event ticketmaster:x cursor=c&limit=2"},
 		{"event_interested_people", map[string]any{"event_id": "ticketmaster:x", "limit": 3}, "interests.Participants ticketmaster:x limit=3"},
 		{"event_discussions", map[string]any{"event_id": "ticketmaster:x"}, "discussions.List  ticketmaster:x  "},
+		{"discussion_thread", map[string]any{"event_id": "ticketmaster:x", "thread_id": "t1"}, "discussions.Thread  ticketmaster:x t1|discussions.List  ticketmaster:x t1 "},
 	} {
 		f.calls = nil
 		reply := tool(t, base, "", tc.tool, tc.args)
-		if reply.Result.IsError || len(f.calls) != 1 || f.calls[0] != tc.want {
+		if reply.Result.IsError || strings.Join(f.calls, "|") != tc.want {
 			t.Fatalf("%s: %+v calls %q", tc.tool, reply.Result, f.calls)
 		}
 		broken := map[string]any{}

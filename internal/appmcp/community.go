@@ -106,6 +106,18 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			publicRead(d, func(ctx context.Context, viewer string, in eventPageInput) (discussions.List, error) {
 				return d.Discussions.List(ctx, viewer, in.EventID, "", in.values())
 			}))
+		mcp.AddTool(server, &mcp.Tool{Name: "discussion_thread", Title: "Discussion thread", OutputSchema: outputSchema[discussionThread](), Annotations: readOnly,
+			Description: "One question or tip by its id from event_discussions (thread_id), with its replies oldest first; parent_id and parent_name " +
+				"show which post a reply answers. count is the thread's visible replies. For more replies, pass next_cursor as cursor with the " +
+				"same event_id, thread_id and limit; thread is returned on every page."},
+			publicRead(d, func(ctx context.Context, viewer string, in threadInput) (discussionThread, error) {
+				root, err := d.Discussions.Thread(ctx, viewer, in.EventID, in.ThreadID)
+				if err != nil {
+					return discussionThread{}, err
+				}
+				replies, err := d.Discussions.List(ctx, viewer, in.EventID, in.ThreadID, pageInput{Limit: in.Limit, Cursor: in.Cursor}.values())
+				return discussionThread{Thread: root, Replies: replies}, err
+			}))
 	}
 }
 
@@ -150,4 +162,18 @@ type eventPageInput struct {
 
 func (in eventPageInput) values() url.Values {
 	return pageInput{Limit: in.Limit, Cursor: in.Cursor}.values()
+}
+
+type threadInput struct {
+	EventID  string  `json:"event_id" jsonschema:"event ID the thread belongs to"`
+	ThreadID string  `json:"thread_id" jsonschema:"question or tip id from event_discussions"`
+	Limit    *int    `json:"limit,omitempty" jsonschema:"replies per page, 1 to 100, default 20"`
+	Cursor   *string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page of replies"`
+}
+
+// discussionThread is a root post with one page of its replies, as
+// GET .../discussions/{id} and .../discussions/{id}/replies return them.
+type discussionThread struct {
+	Thread  discussions.Post `json:"thread"`
+	Replies discussions.List `json:"replies"`
 }
