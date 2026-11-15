@@ -62,9 +62,11 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		}))
 	mcp.AddTool(server, &mcp.Tool{Name: "follow_discussion", Title: "Follow discussion", OutputSchema: outputSchema[discussionFollowState](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
-		Description: "Follow a question or tip privately for the signed-in user, or change how often its replies notify them: immediate, daily, " +
-			"weekly or muted. Use its event_id and thread_id from event_discussions, community_discussions or profile_activity. Following is never " +
-			"shown to other people; new replies appear in my_notifications. Following again replaces the frequency."},
+		Description: "Follow a question or tip privately for the signed-in user, or change how often its replies notify them in my_notifications: " +
+			"immediate (one notification per new reply from someone else), daily (one grouped notification at the next midnight UTC), weekly " +
+			"(at the next Monday midnight UTC) or muted (keep the follow without notifications). Use its event_id and thread_id from event_discussions, " +
+			"community_discussions, profile_activity or, to change a follow, my_followed_discussions. Following is never shown to other people. " +
+			"Following again replaces the frequency."},
 		privateTool(d, func(ctx context.Context, owner string, in followDiscussionInput) (discussionFollowState, error) {
 			if err := threadTarget(in.ThreadID, nil); err != nil {
 				return discussionFollowState{}, err
@@ -112,8 +114,8 @@ func threadTarget(thread string, err error) error {
 
 type followDiscussionInput struct {
 	EventID   string `json:"event_id" jsonschema:"event ID the thread belongs to"`
-	ThreadID  string `json:"thread_id" jsonschema:"thread_id from event_discussions, community_discussions or profile_activity"`
-	Frequency string `json:"frequency" jsonschema:"immediate, daily, weekly or muted"`
+	ThreadID  string `json:"thread_id" jsonschema:"thread_id from event_discussions, community_discussions, profile_activity or my_followed_discussions"`
+	Frequency string `json:"frequency" jsonschema:"immediate (each reply), daily (midnight UTC), weekly (Monday midnight UTC) or muted"`
 }
 
 type unfollowDiscussionInput struct {

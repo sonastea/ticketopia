@@ -138,7 +138,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 		mcp.AddTool(server, &mcp.Tool{Name: "event_discussions", Title: "Event questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
 			Description: "Public questions and tips about one event, newest first, each with its author's public profile, reply_count and helpful_count; " +
 				"signed in, helpful is the user's own Helpful choice. Removed or hidden roots that still have visible replies appear without text. " +
-				"count is the event's visible questions and tips. Open one with discussion_thread using its thread_id. " +
+				"count is the event's visible questions and tips. Open one with discussion_thread using its thread_id; signed in, follow_discussion follows it. " +
 				"For the next page, pass next_cursor as cursor with the same event_id and the same sign-in (cursors belong to the caller)."},
 			publicRead(d, func(ctx context.Context, viewer string, in eventPageInput) (discussions.List, error) {
 				// An empty event means every event to the service; this tool is one event's.
@@ -151,7 +151,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			Description: "One question or tip with its replies oldest first, by thread_id: the thread_id of any post from event_discussions, community_discussions, " +
 				"profile_activity, my_followed_discussions or my_notifications (for a reply, its thread_id, not its id), with that post's event_id. parent_id and parent_name show which post a reply answers. " +
 				"count is the thread's visible replies. For more replies, pass next_cursor as cursor with the same event_id, thread_id and sign-in; " +
-				"thread is returned on every page."},
+				"thread is returned on every page. Signed in, follow_discussion follows the thread for reply notifications."},
 			publicRead(d, func(ctx context.Context, viewer string, in threadInput) (discussionThread, error) {
 				if discussions.PostID(in.ThreadID) != nil {
 					return discussionThread{}, &accounts.ValidationError{Field: "thread_id", Message: "use a question or tip id from event_discussions or community_discussions"}
