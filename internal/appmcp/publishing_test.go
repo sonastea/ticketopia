@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
@@ -55,25 +57,67 @@ func (f fakeDrafts) CreateRecommendation(_ context.Context, account, eventID, te
 	}
 	return drafts.Draft{ID: strings.Repeat("a", 32), EventID: eventID, Kind: drafts.KindRecommendation, Text: text, ClientName: client.Name, ClientHost: client.Host}, nil
 }
+func (f fakeDrafts) CreateQuestion(_ context.Context, account, eventID, body string, client drafts.Client) (drafts.Draft, error) {
+	f.record("drafts.CreateQuestion " + account + " " + eventID + " client=" + client.Name + " host=" + client.Host + " grant=" + client.GrantID)
+	if _, err := discussions.Body(body); err != nil {
+		return drafts.Draft{}, err
+	}
+	return drafts.Draft{ID: strings.Repeat("b", 32), EventID: eventID, Kind: drafts.KindQuestion, Text: body, ClientName: client.Name, ClientHost: client.Host}, nil
+}
+
+// CreateReply knows thread "1…1" with reply "2…2"; other IDs are not found.
+func (f fakeDrafts) CreateReply(_ context.Context, account, eventID, threadID, parentID, body string, client drafts.Client) (drafts.Draft, error) {
+	f.record("drafts.CreateReply " + account + " " + eventID + " " + threadID + " " + parentID + " client=" + client.Name)
+	switch {
+	case threadID != strings.Repeat("1", 32):
+		return drafts.Draft{}, discussions.ErrNotFound
+	case parentID != "" && parentID != strings.Repeat("2", 32):
+		return drafts.Draft{}, drafts.ErrParentNotFound
+	}
+	return drafts.Draft{ID: strings.Repeat("c", 32), EventID: eventID, Kind: drafts.KindReply, ThreadID: threadID, ParentID: parentID, Text: body, ClientName: client.Name}, nil
+}
+
+// React knows post "3…3"; other IDs are not found.
+func (f fakeCommunity) React(_ context.Context, who, id string, set bool) (discussions.Post, error) {
+	f.record(fmt.Sprintf("discussions.React %s %s %v", who, id, set))
+	if id != strings.Repeat("3", 32) {
+		return discussions.Post{}, discussions.ErrNotFound
+	}
+	count := 0
+	if set {
+		count = 1
+	}
+	return discussions.Post{ID: id, ThreadID: id, Helpful: set, HelpfulCount: count}, nil
+}
+
 func (f fakeDrafts) List(_ context.Context, account string) ([]drafts.Draft, error) {
 	f.record("drafts.List " + account)
 	return []drafts.Draft{}, nil
 }
-func (f fakeDrafts) Discard(_ context.Context, account, id string) error {
+
+// Discard knows draft "a…a"; other well-formed IDs were never pending.
+func (f fakeDrafts) Discard(_ context.Context, account, id string) (bool, error) {
 	f.record("drafts.Discard " + account + " " + id)
-	return nil
+	if !drafts.ValidID(id) {
+		return false, &accounts.ValidationError{Field: "draft_id", Message: "use a draft id from my_drafts"}
+	}
+	return id == strings.Repeat("a", 32), nil
 }
 
 var publishingTools = map[string]map[string]any{
 	"make_interest_public":    {"event_id": "ticketmaster:x"},
 	"recommend_event":         {"event_id": "ticketmaster:x"},
 	"withdraw_recommendation": {"event_id": "ticketmaster:x"},
+	"mark_helpful":            {"post_id": strings.Repeat("3", 32)},
+	"unmark_helpful":          {"post_id": strings.Repeat("3", 32)},
 }
 
 var draftAndVisibilityTools = map[string]map[string]any{
 	"make_interest_private": {"event_id": "ticketmaster:x"},
 	"my_recommendations":    {},
 	"draft_recommendation":  {"event_id": "ticketmaster:x", "reason": "Worth it"},
+	"draft_question":        {"event_id": "ticketmaster:x", "body": "Cloakroom?"},
+	"draft_reply":           {"event_id": "ticketmaster:x", "thread_id": strings.Repeat("1", 32), "body": "Yes"},
 	"my_drafts":             {},
 	"discard_draft":         {"draft_id": strings.Repeat("a", 32)},
 }
@@ -224,6 +268,119 @@ func TestDraftRecommendationNeverPublishes(t *testing.T) {
 	}
 }
 
+// draft_question and draft_reply only store drafts, identify the app from
+// the connection, and word thread and parent mistakes for the agent without
+// reaching discussions.
+func TestDiscussionDraftsNeverPublish(t *testing.T) {
+	f := &fakeAccount{}
+	base := privateServer(t, f).URL
+	thread, reply := strings.Repeat("1", 32), strings.Repeat("2", 32)
+
+	result := func(r toolReply) draftResult {
+		var out draftResult
+		_ = json.Unmarshal(r.Result.StructuredContent, &out)
+		return out
+	}
+	r := tool(t, base, "publisher-token", "draft_question", map[string]any{"event_id": "ticketmaster:x", "body": "Is there a cloakroom?"})
+	if out := result(r); r.Result.IsError || out.Published || out.ReviewURL != "https://events.example/me/drafts" || out.Draft.Kind != drafts.KindQuestion {
+		t.Fatalf("draft_question: %+v %s", r.Result, r.Result.StructuredContent)
+	}
+	r = tool(t, base, "publisher-token", "draft_reply", map[string]any{"event_id": "ticketmaster:x", "thread_id": thread, "parent_id": reply, "body": "Row A is best."})
+	if out := result(r); r.Result.IsError || out.Published || out.Draft.ThreadID != thread || out.Draft.ParentID != reply {
+		t.Fatalf("draft_reply: %+v %s", r.Result, r.Result.StructuredContent)
+	}
+	want := []string{
+		"drafts.CreateQuestion owner-id ticketmaster:x client=Test Agent host=agent.example grant=grant-1",
+		"drafts.CreateReply owner-id ticketmaster:x " + thread + " " + reply + " client=Test Agent",
+	}
+	if strings.Join(f.calls, "|") != strings.Join(want, "|") {
+		t.Fatalf("calls:\n%s", strings.Join(f.calls, "\n"))
+	}
+
+	for name, c := range map[string]struct {
+		args map[string]any
+		want string
+	}{
+		"empty body":        {map[string]any{"event_id": "ticketmaster:x", "body": "  "}, "write a question"},
+		"malformed thread":  {map[string]any{"event_id": "ticketmaster:x", "thread_id": "nope", "body": "x"}, "thread_id"},
+		"unknown thread":    {map[string]any{"event_id": "ticketmaster:x", "thread_id": strings.Repeat("9", 32), "body": "x"}, "no question or tip with this thread_id"},
+		"parent elsewhere":  {map[string]any{"event_id": "ticketmaster:x", "thread_id": thread, "parent_id": strings.Repeat("9", 32), "body": "x"}, "parent_id: no post"},
+		"read-only connect": {map[string]any{"event_id": "ticketmaster:x", "thread_id": thread, "body": "x"}, "can't make changes"},
+	} {
+		tool := "draft_reply"
+		token := "owner-token"
+		if name == "empty body" {
+			tool = "draft_question"
+		}
+		if name == "read-only connect" {
+			token = "reader-token"
+		}
+		r := rpc(t, base, token, "tools/call", map[string]any{"name": tool, "arguments": c.args})
+		if !r.Result.IsError || len(r.Result.StructuredContent) != 0 || !strings.Contains(r.Result.Content[0].Text, c.want) {
+			t.Errorf("%s: %+v", name, r.Result)
+		}
+	}
+	for _, call := range f.calls {
+		if strings.HasPrefix(call, "discussions.") || strings.HasPrefix(call, "recommendations.") {
+			t.Fatalf("drafting reached a publishing service: %v", f.calls)
+		}
+	}
+}
+
+// Helpful is a publish action on the token's account: it is limited and
+// logged like the others, and an unknown post is worded for the agent.
+func TestHelpfulToolsPublishForTheTokenAccount(t *testing.T) {
+	var logs bytes.Buffer
+	f := &fakeAccount{logger: zerolog.New(&logs)}
+	base := privateServer(t, f).URL
+	post := strings.Repeat("3", 32)
+
+	var state helpfulState
+	r := tool(t, base, "publisher-token", "mark_helpful", map[string]any{"post_id": post})
+	_ = json.Unmarshal(r.Result.StructuredContent, &state)
+	if r.Result.IsError || !state.Helpful || state.Post == nil || state.Post.HelpfulCount != 1 {
+		t.Fatalf("mark_helpful: %+v %s", r.Result, r.Result.StructuredContent)
+	}
+	r = tool(t, base, "poster-token", "unmark_helpful", map[string]any{"post_id": post})
+	state = helpfulState{}
+	_ = json.Unmarshal(r.Result.StructuredContent, &state)
+	if r.Result.IsError || state.Helpful || state.Post.HelpfulCount != 0 {
+		t.Fatalf("unmark_helpful: %+v %s", r.Result, r.Result.StructuredContent)
+	}
+	r = tool(t, base, "publisher-token", "mark_helpful", map[string]any{"post_id": strings.Repeat("9", 32)})
+	if !r.Result.IsError || !strings.Contains(r.Result.Content[0].Text, "post_id: no visible question, tip or reply") {
+		t.Fatalf("unknown post: %+v", r.Result)
+	}
+	want := []string{"discussions.React owner-id " + post + " true", "discussions.React owner-id " + post + " false", "discussions.React owner-id " + strings.Repeat("9", 32) + " true"}
+	if strings.Join(f.calls, "|") != strings.Join(want, "|") {
+		t.Fatalf("calls:\n%s", strings.Join(f.calls, "\n"))
+	}
+	if got := strings.Count(logs.String(), `"message":"Agent published"`); got != 2 {
+		t.Fatalf("Agent published records: %d\n%s", got, logs.String())
+	}
+
+	limited := &fakeAccount{limiter: NewPublishLimiter(1, nil)}
+	limitedBase := privateServer(t, limited).URL
+	tool(t, limitedBase, "publisher-token", "mark_helpful", map[string]any{"post_id": post})
+	if r := tool(t, limitedBase, "publisher-token", "unmark_helpful", map[string]any{"post_id": post}); !r.Result.IsError || !strings.Contains(r.Result.Content[0].Text, "Retry after") {
+		t.Fatalf("Helpful not limited: %+v", r.Result)
+	}
+}
+
+// discard_draft says whether a draft was pending, without telling unknown
+// IDs from other accounts' drafts, and names a malformed draft_id.
+func TestDiscardDraftReportsWhatChanged(t *testing.T) {
+	base := privateServer(t, &fakeAccount{}).URL
+	for id, want := range map[string]string{strings.Repeat("a", 32): `"discarded":true`, strings.Repeat("9", 32): `"discarded":false`} {
+		if r := tool(t, base, "owner-token", "discard_draft", map[string]any{"draft_id": id}); r.Result.IsError || !strings.Contains(string(r.Result.StructuredContent), want) {
+			t.Fatalf("%s: %+v %s", id, r.Result, r.Result.StructuredContent)
+		}
+	}
+	if r := tool(t, base, "owner-token", "discard_draft", map[string]any{"draft_id": "ticketmaster:x"}); !r.Result.IsError || !strings.Contains(r.Result.Content[0].Text, "draft_id") {
+		t.Fatalf("malformed id: %+v", r.Result)
+	}
+}
+
 // The publish limit is per account and answers with a retry delay.
 func TestPublishLimitPerAccount(t *testing.T) {
 	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
@@ -259,11 +416,19 @@ func TestPublishingDescriptions(t *testing.T) {
 	descriptions := map[string]string{}
 	for _, tool := range reply.Result.Tools {
 		descriptions[tool.Name] = tool.Description
+		// Agents never change the person's words: no tool edits or removes posts.
+		if strings.Contains(tool.Name, "edit") || strings.Contains(tool.Name, "delete") || tool.Name == "remove_post" {
+			t.Errorf("tool %s could change the person's posts", tool.Name)
+		}
 	}
 	for name, words := range map[string][]string{
 		"make_interest_public": {"public", "permission to post publicly"},
 		"recommend_event":      {"Publicly", "draft_recommendation", "unchanged"},
 		"draft_recommendation": {"Nothing is published", "review_url"},
+		"draft_question":       {"Nothing is published", "review_url", "draft_reply"},
+		"draft_reply":          {"Nothing is published", "review_url", "parent_id"},
+		"mark_helpful":         {"public", "nobody sees who", "permission to post publicly"},
+		"unmark_helpful":       {"permission to post publicly"},
 		"mark_interested":      {"never makes a choice public"},
 	} {
 		for _, word := range words {

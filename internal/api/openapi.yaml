@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.26.0
+  version: 1.27.0
   license:
     name: MIT
     identifier: MIT
@@ -2740,6 +2740,8 @@ components:
         parent_id: {$ref: '#/components/schemas/AccountID'}
         parent_name: {type: string, description: 'Public target name, Removed contribution, or Hidden contribution; never withheld author attribution.'}
         profile: {$ref: '#/components/schemas/PublicProfile'}
+        via: {type: string, maxLength: 80, description: "Name of the connected app (agent) whose draft the author reviewed and published as this post, as the app named itself, or `an API client` for an API token; omitted for the author's own writing, after the author edits the text, and for removed or hidden posts. Agents never post directly. Display it beside the author as plain text, never as a link, with via_host."}
+        via_host: {type: string, maxLength: 253, description: "Verified host of that app's client metadata document; omitted with via and for API clients."}
         body: {type: string, maxLength: 4000, description: Escaped plain text; empty for removed or hidden posts.}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
@@ -2889,6 +2891,8 @@ components:
             thread_id: {$ref: '#/components/schemas/AccountID'}
             parent_id: {$ref: '#/components/schemas/AccountID'}
             body: {type: string, maxLength: 4000, description: 'Plain text, never trusted HTML.'}
+            via: {type: string, maxLength: 80, description: As on DiscussionPost.}
+            via_host: {type: string, maxLength: 253, description: As on DiscussionPost.}
             created_at: {type: string, format: date-time}
             updated_at: {type: string, format: date-time}
         recommendation:

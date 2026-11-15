@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### 2026-11-15 — Agent publishing, phase 2
+
+- `draft_question` and `draft_reply` (`write`) store private question, tip and
+  reply drafts beside recommendation reasons; the person publishes or discards
+  them at `/me/drafts`, which shows what each reply answers and offers only
+  Discard once its conversation is gone. Publishing applies the discussion
+  rules and rate limit and consumes the draft in the same transaction, keyed by
+  the draft, so a draft becomes at most one post. `mark_helpful` and
+  `unmark_helpful` (`publish`) set the person's Helpful mark, limited and
+  logged like the other publish actions. Agents still never edit or remove
+  posts. Published posts show "via *app* (*host*)" in threads, Community and
+  moderation views and carry `via`/`via_host` (contract 1.27.0); the person's
+  edit or removal clears them. Schema 24. See the
+  [guide](../app-mcp.md#publishing-in-your-name).
+- Write tools refused for lacking `write` say the connection "can't make
+  changes" rather than "read-only", since it may still post publicly.
+  `discard_draft` reports `discarded: false` when nothing was pending and names
+  a malformed `draft_id`; on `/me/drafts`, discarding a draft that isn't pending
+  answers 404, as publishing does.
+
 ### 2026-11-15 — Signed-in discussion and preference tools
 
 - Add signed-in tools for account routes that had none, each calling the
@@ -71,29 +91,5 @@
   locally. Tests cover the tools, scope refusals and the location default, plus
   venue search, following, radar picks and private Interested against MariaDB;
   see the [guide](../app-mcp.md#tools).
-
-### 2026-11-13 — Token revocation endpoint (RFC 7009)
-
-- Agents disconnect themselves at `POST /oauth/revoke`, advertised as
-  `revocation_endpoint` in server metadata: either of a connection's current
-  tokens with the client's `client_id` ends the whole connection, as
-  **Disconnect** on the account page does; a refresh token already rotated away
-  does too, like a replay at the token endpoint. Unknown, expired or other
-  clients' tokens get the same empty 200 and change nothing. It shares the token
-  endpoint's public-client, form-body, CORS and per-IP rules; storage failures
-  get 503 with `Retry-After`. Each revocation is logged with its outcome and
-  the client's metadata host, never the token or account. No schema change.
-  Tests cover the service rules, the HTTP endpoint and logs, and cross-replica
-  revocation, including racing a refresh, against MariaDB; see the
-  [guide](../app-mcp.md#oauth-sign-in).
-
-### 2026-11-13 — Accept ChatGPT's client metadata
-
-- Client ID Metadata Documents that list `token_endpoint_auth_methods_supported`
-  (MCP SEP-3149) are accepted when the list includes `none`, whatever the legacy
-  `token_endpoint_auth_method` preference says. ChatGPT's document prefers
-  `private_key_jwt` but lists `none`, and was refused; it now signs in as a
-  public client. Verified against the live ChatGPT, OpenCode and Claude Code
-  documents on a local server; see the [guide](../app-mcp.md#oauth-sign-in).
 
 Older entries: [agent tools archive](archive/app-mcp/).

@@ -420,7 +420,7 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 503, "saved_events_unavailable", "We couldn't load or change your saved events. Please try again shortly.", nil
 	case errors.Is(err, interests.ErrUnavailable):
 		return 503, "event_interests_unavailable", "We couldn't load or change event interest. Please try again shortly.", nil
-	case errors.Is(err, drafts.ErrNotFound), errors.Is(err, recommendations.ErrDraftGone):
+	case errors.Is(err, drafts.ErrNotFound), errors.Is(err, recommendations.ErrDraftGone), errors.Is(err, discussions.ErrDraftGone):
 		return 404, "draft_not_found", "This draft was already published, discarded or expired.", nil
 	case errors.Is(err, drafts.ErrLimit):
 		return 409, "draft_limit", "There are already 20 drafts waiting for review. Publish or discard some first.", nil
@@ -432,7 +432,7 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 503, "event_recommendations_unavailable", "We couldn't load or change recommendations. Please try again shortly.", nil
 	case errors.Is(err, discussionfollows.ErrNotificationNotFound):
 		return 404, "notification_not_found", "This notification couldn't be found.", nil
-	case errors.Is(err, discussions.ErrNotFound):
+	case errors.Is(err, discussions.ErrNotFound), errors.Is(err, drafts.ErrParentNotFound):
 		return 404, "post_not_found", "This contribution couldn't be found or changed.", nil
 	case errors.Is(err, discussions.ErrConflict):
 		return 409, "idempotency_conflict", "This retry key was used for a different contribution. Use a new key for a new post.", nil

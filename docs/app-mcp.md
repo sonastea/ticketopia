@@ -51,7 +51,10 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `recommend_event` | Publicly recommend an event without a reason (`publish`), attributed to the app and its host. An existing recommendation is returned unchanged, reason included. |
 | `withdraw_recommendation` | Withdraw the caller's recommendation only when an app published it without a reason (`publish`); one the person published or that has a reason is refused with a tool error pointing to the web. Idempotent. |
 | `draft_recommendation` | Store a private reason for the person to review (`write`), returning `review_url` (`AUTH_BASE_URL/me/drafts`). Nothing is published; see [drafts](#publishing-in-your-name). |
-| `my_drafts` / `discard_draft` | List the caller's pending drafts, or delete one (`write`). |
+| `draft_question` | Store a private question or tip on an event for the person to review (`write`), returning `review_url`. Nothing is published. |
+| `draft_reply` | Store a private reply in a question or tip's conversation (`write`), by `event_id` and `thread_id`, answering the reply `parent_id` when given; the thread must be a question or tip on that event and the parent a post in it. Nothing is published. |
+| `my_drafts` / `discard_draft` | List the caller's pending drafts of every kind (`recommendation`, `question`, `reply`), or delete one (`write`). `discarded` is `false` when no pending draft had that id (already gone, or never the caller's, without saying which); a malformed id is an error naming `draft_id`. |
+| `mark_helpful` / `unmark_helpful` | Set or remove the caller's Helpful mark on a question, tip or reply by `post_id` (`publish`), as `PUT`/`DELETE /api/v1/posts/{post_id}/reactions/helpful`, returning the post with its public `helpful_count`. Removed and hidden posts can't be marked. |
 | `my_followed_discussions` | The questions and tips the caller [follows](followed-discussions.md) privately, with frequency and the question, as `GET /api/v1/me/discussions`. |
 | `my_notifications` | New replies in followed discussions, read or unread, with a site path to each reply, as `GET /api/v1/me/notifications`. Listing marks nothing read. |
 | `mark_notification_read` | Mark one notification read (`write`), idempotently, as `PUT /api/v1/me/notifications/{notification_id}/read`. |
@@ -64,19 +67,22 @@ the site itself in consent or public "via" labels.
 
 The radar, follow and Interested tools are listed when their services are, with
 accounts and MariaDB; the recommendation tools with recommendations, and the
-draft tools with drafts too. Searching artists and venues needs sign-in, as on
+draft tools with drafts too. `draft_question`, `draft_reply` and the Helpful
+tools also need discussions. No tool edits or removes posts
+(`PATCH`/`DELETE /api/v1/posts/{post_id}`): only the person changes their words. Searching artists and venues needs sign-in, as on
 the web and API, because it reaches the provider.
 
 Read tools are annotated read-only. `unsave_event`, `stop_reminder`,
 `set_reminder` (changing a reminder replaces its timing), `unfollow_artist_or_venue`,
 `unmark_interested`, `make_interest_private`, `withdraw_recommendation`,
-`discard_draft`, `follow_discussion` (changing a follow replaces its frequency)
+`discard_draft`, `unmark_helpful`, `follow_discussion` (changing a follow replaces its frequency)
 and `unfollow_discussion` are marked destructive; `save_event`, `follow_artist_or_venue`,
-`mark_interested`, `make_interest_public`, `recommend_event`,
-`draft_recommendation` and `mark_notification_read` are additive. All writes are idempotent (an identical
+`mark_interested`, `make_interest_public`, `recommend_event`, `mark_helpful`,
+`draft_recommendation`, `draft_question`, `draft_reply` and `mark_notification_read` are additive. All writes are idempotent (an identical
 pending draft is returned, not repeated) and return the resulting state.
-`make_interest_public`, `recommend_event` and `withdraw_recommendation` need
-the `publish` scope; the other writes need `write`.
+`make_interest_public`, `recommend_event`, `withdraw_recommendation`,
+`mark_helpful` and `unmark_helpful` need the `publish` scope; the other writes
+need `write`.
 
 `find_events` dates are `YYYY-MM-DD` and match each event's local date, as on
 Discover. `start_date` defaults to today in UTC and `end_date` to 90 days later
@@ -169,8 +175,9 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
 - **Scopes**: `read` (public tools, radar, saved events, reminders, follows,
   Interested events, recommendations, drafts), `write` (save and unsave, set and
   stop reminders, follow and unfollow, mark Interested privately, draft and
-  discard reasons) and `publish` (make Interested public, recommend without a
-  reason, withdraw a recommendation). `publish` implies `read`, not `write`. An
+  discard reasons, questions, tips and replies) and `publish` (make Interested
+  public, recommend without a reason, withdraw a recommendation, mark or
+  unmark Helpful). `publish` implies `read`, not `write`. An
   omitted scope requests `read write`, never `publish`. Unless posting is
   allowed, the consent page promises the app cannot post anything publicly;
   with the box ticked (detected with `:has()`), it says what the app can post.
@@ -213,49 +220,65 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   attempts per IP per ten minutes.
 
 OAuth needs schema version 21 (`oauth_codes`, `oauth_grants`,
-`oauth_refresh_history`), and publishing schema 22 (`agent_drafts` and
-`event_recommendations.via_client_name`/`via_client_host`); run migrations and reconcile
+`oauth_refresh_history`), publishing schema 22 (`agent_drafts` and
+`event_recommendations.via_client_name`/`via_client_host`), and discussion
+drafts schema 24 (`agent_drafts.thread_id`/`parent_id` and
+`discussion_posts.via_client_name`/`via_client_host`); run migrations and reconcile
 runtime grants before starting the new version, as for any schema change.
 
 ## Publishing in your name
 
-Connecting an agent never lets it put words in public. Phase 1 covers
-Interested choices and recommendations; discussions and Helpful are later
+Connecting an agent never lets it put words in public. It covers Interested
+choices, recommendations, discussion questions, tips and replies, and Helpful
 (see the [design](design/app-mcp.md)).
 
 - **Structured, reversible actions** publish directly when the connection holds
   `publish`: making an Interested choice public, recommending without a reason,
-  and withdrawing a recommendation. Each account may make 20 such calls an hour
-  per replica; more get a tool error with `Retry after N seconds.` Each success
-  logs one `Agent published` record with only `tool` and `client_host`.
+  withdrawing a recommendation, and marking or unmarking a post Helpful (a
+  public count with no text; nobody sees who marked it). Each account may make
+  20 such calls an hour per replica; more get a tool error with
+  `Retry after N seconds.` Each success logs one `Agent published` record with
+  only `tool` and `client_host`.
 - **Free text is never published by an agent.** `/mcp` is stateless, so MCP
   elicitation (asking the person inside the call) is impossible, and only a web
-  page guarantees a person read the words. `draft_recommendation` stores a
-  private draft (plain text, up to 500 characters) and returns `review_url`.
-  At **Agent drafts** (`/me/drafts`, linked in the account navigation with a
-  count while drafts wait) the person reads each draft with its event and app
-  and chooses **Publish recommendation** or **Discard**, each a CSRF-protected
-  POST; the page never publishes on GET. Each draft shows the reason it would
-  replace, and the form carries a hash of what was shown: if the recommendation changed
-  since, nothing is published and the page asks for a fresh review. Publishing
-  validates the reason and event again and consumes the draft in the same
-  transaction, so a draft publishes at most once and a failure leaves it in
-  place. Drafts are private to their account, at most 20 at once, expire after
-  seven days, and are deleted with their connection (Disconnect, **Sign out
-  everywhere**, token revocation or eviction). Drafts made with an API token,
-  which identifies no app, say "App unidentified; created using an API token".
+  page guarantees a person read the words. `draft_recommendation` (a reason,
+  plain text up to 500 characters), `draft_question` and `draft_reply` (plain
+  text up to 4000 characters, as on the web) store a private draft and return
+  `review_url`. At **Agent drafts** (`/me/drafts`, linked in the account
+  navigation with a count while drafts wait) the person reads each draft with
+  its event and app and chooses **Publish recommendation**, **Publish question
+  or tip** or **Publish reply**, or **Discard**, each a CSRF-protected POST; the
+  page never publishes on GET. A reason shows the reason it would replace, and
+  the form carries a hash of what was shown: if the recommendation changed
+  since, nothing is published and the page asks for a fresh review. A reply
+  shows the question, tip or reply it answers; once that is gone from the event,
+  the draft can only be discarded. Publishing validates the text and target
+  again, applies the discussion rate limit to questions and replies, and
+  consumes the draft in the same transaction, so a draft publishes at most once
+  (a reply's or question's retry key is derived from the draft) and a failure
+  leaves it in place. Published replies notify the conversation's followers as
+  any reply does. Drafts are private to their account, at most 20 at once of
+  every kind, expire after seven days, and are deleted with their connection
+  (Disconnect, **Sign out everywhere**, token revocation or eviction). Drafts
+  made with an API token, which identifies no app, say "App unidentified;
+  created using an API token".
 - **Attribution.** A recommendation an agent published, or whose drafted reason
   the person published, shows "via *app name* (*host*)" beside the author on the
-  event, profile and Community, and carries `via` and `via_host` in the API. The
-  name is the app's own claim; the host is its verified metadata host, in ASCII
-  (IDNA) form so lookalike characters show. API-token
-  drafts publish as "via an API client", without a host. `via` describes the
-  source of the current content, not permanent history: the person's change of
-  reason, and withdrawal, clear it. Interested choices carry no label.
-- **Agents never erase the person's words.** `recommend_event` returns an
-  existing recommendation unchanged, checked under its row lock, and
+  event, profile and Community, and carries `via` and `via_host` in the API. So
+  does a question, tip or reply published from a draft, in its thread, the
+  event's questions and tips, Community and moderation views, and in
+  `/api/v1` posts and profile activity. The name is the app's own claim; the
+  host is its verified metadata host, in ASCII (IDNA) form so lookalike
+  characters show. API-token drafts publish as "via an API client", without a
+  host. `via` describes the source of the current content, not permanent
+  history: the person's change of reason or post text, withdrawal and removal
+  clear it. Interested choices and Helpful carry no label.
+- **Agents never erase or change the person's words.** `recommend_event`
+  returns an existing recommendation unchanged, checked under its row lock, and
   `withdraw_recommendation` only withdraws a recommendation an app published
-  without a reason, in the same statement.
+  without a reason, in the same statement. No tool edits or removes a post
+  (`PATCH`/`DELETE /api/v1/posts/{post_id}` have no agent tool), including posts
+  published from an agent's draft: once published, they are the person's.
 
 ## Protocol and limits
 

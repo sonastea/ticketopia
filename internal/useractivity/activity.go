@@ -42,10 +42,14 @@ func Rank(kind string) int {
 }
 
 type Post struct {
-	ID        string    `json:"id"`
-	ThreadID  string    `json:"thread_id"`
-	ParentID  string    `json:"parent_id,omitempty"`
-	Body      string    `json:"body"`
+	ID       string `json:"id"`
+	ThreadID string `json:"thread_id"`
+	ParentID string `json:"parent_id,omitempty"`
+	Body     string `json:"body"`
+	// Via and ViaHost name the connected app whose draft the person
+	// published as this post, as on discussions.Post.
+	Via       string    `json:"via,omitempty"`
+	ViaHost   string    `json:"via_host,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

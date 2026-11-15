@@ -168,7 +168,7 @@ func TestReadOnlyTokensCannotFollowOrMarkInterested(t *testing.T) {
 	target := map[string]any{"kind": "venue", "target_id": "ticketmaster:K8"}
 	for name, args := range map[string]map[string]any{"follow_artist_or_venue": target, "unfollow_artist_or_venue": target,
 		"mark_interested": event, "unmark_interested": event} {
-		if reply := tool(t, base, "reader-token", name, args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "read-only") {
+		if reply := tool(t, base, "reader-token", name, args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "can't make changes") {
 			t.Fatalf("%s with read-only token: %+v", name, reply.Result)
 		}
 	}

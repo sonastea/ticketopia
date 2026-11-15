@@ -2,6 +2,7 @@ package account
 
 import (
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/oauth"
@@ -107,8 +108,12 @@ type DraftsPage struct {
 	// Current is the account's recommendation per drafted event, nil when
 	// there is none; publishing a draft replaces its reason.
 	Current map[string]*recommendations.Item
-	// Notice confirms the last decision; EventID links to the event published on.
-	Notice, EventID string
+	// Posts are reply drafts' thread roots and parents by ID, nil when one
+	// no longer exists on its event; such a draft can only be discarded.
+	Posts map[string]*discussions.Post
+	// Notice confirms the last decision; NoticeURL, labelled NoticeLink,
+	// opens what was published.
+	Notice, NoticeURL, NoticeLink string
 }
 
 // draftEventName falls back to the ID when a stored snapshot has no name.
@@ -117,6 +122,78 @@ func draftEventName(d drafts.Draft) string {
 		return d.Event.Name
 	}
 	return d.EventID
+}
+
+// draftEventURL opens the part of the event a draft would publish to.
+func draftEventURL(d drafts.Draft) string {
+	switch d.Kind {
+	case drafts.KindQuestion:
+		return "/events/" + url.PathEscape(d.EventID) + "?section=discussion"
+	case drafts.KindReply:
+		return home.ThreadURL(d.EventID, d.ThreadID, "")
+	}
+	return "/events/" + url.PathEscape(d.EventID) + "?section=community"
+}
+
+// draftKindLabel names what a draft would publish, for its source line.
+func draftKindLabel(d drafts.Draft) string {
+	switch d.Kind {
+	case drafts.KindQuestion:
+		return "Question or tip"
+	case drafts.KindReply:
+		return "Reply"
+	}
+	return "Recommendation reason"
+}
+
+// draftPublishLabel is the draft's Publish button.
+func draftPublishLabel(d drafts.Draft) string {
+	switch d.Kind {
+	case drafts.KindQuestion:
+		return "Publish question or tip"
+	case drafts.KindReply:
+		return "Publish reply"
+	}
+	return "Publish recommendation"
+}
+
+// replyContext is what a reply draft answers: the reply it targets, or the
+// thread's question or tip. ok is false when either no longer exists, so
+// the draft cannot be published.
+func (p DraftsPage) replyContext(d drafts.Draft) (target *discussions.Post, ok bool) {
+	root := p.Posts[d.ThreadID]
+	if root == nil {
+		return nil, false
+	}
+	if d.ParentID == "" {
+		return root, true
+	}
+	parent := p.Posts[d.ParentID]
+	return parent, parent != nil
+}
+
+// publishable reports whether the draft can be published as it stands: a
+// reply needs its conversation and target still on the event.
+func (p DraftsPage) publishable(d drafts.Draft) bool {
+	if d.Kind != drafts.KindReply {
+		return true
+	}
+	_, ok := p.replyContext(d)
+	return ok
+}
+
+// replyLead names a reply target's author before its quoted text, or says
+// the text is no longer visible.
+func replyLead(post *discussions.Post) string {
+	switch {
+	case post.Removed:
+		return "replying to a contribution its author removed."
+	case post.Hidden:
+		return "replying to a contribution a moderator hid."
+	case post.Profile != nil:
+		return "replying to " + post.Profile.DisplayName + ":"
+	}
+	return "replying to this contribution:"
 }
 
 // HiddenField carries an authorization request parameter through the form.

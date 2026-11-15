@@ -150,7 +150,7 @@ func Consent(p ConsentPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if p.Write {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<label><input type=\"checkbox\" name=\"write\" checked aria-labelledby=\"connect-write-label\" aria-describedby=\"connect-write-help\"> <span class=\"notification-copy\"><span id=\"connect-write-label\" class=\"notification-title\">Also allow changes</span> <span id=\"connect-write-help\" class=\"field-note\">Save and remove events, set or stop on-sale reminders, follow artists and venues, mark events Interested (privately), and draft recommendation reasons for you to review. Leave this off to keep it from changing anything in your account.</span></span></label> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<label><input type=\"checkbox\" name=\"write\" checked aria-labelledby=\"connect-write-label\" aria-describedby=\"connect-write-help\"> <span class=\"notification-copy\"><span id=\"connect-write-label\" class=\"notification-title\">Also allow changes</span> <span id=\"connect-write-help\" class=\"field-note\">Save and remove events, set or stop on-sale reminders, follow artists and venues, mark events Interested (privately), and draft recommendation reasons, questions, tips and replies for you to review. Leave this off to keep it from changing anything in your account.</span></span></label> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -169,14 +169,14 @@ func Consent(p ConsentPage) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span> <span id=\"connect-publish-help\" class=\"field-note\">Make your Interested choices public, recommend events without a reason, and withdraw your recommendations. Its recommendations show \"via ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span> <span id=\"connect-publish-help\" class=\"field-note\">Make your Interested choices public, recommend events without a reason, withdraw your recommendations, and mark questions, tips and replies Helpful. Its recommendations show \"via ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(p.ClientName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 44, Col: 212}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 44, Col: 254}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -189,13 +189,13 @@ func Consent(p ConsentPage) templ.Component {
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(p.ClientHost)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 44, Col: 230}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 44, Col: 272}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ")\" publicly. Anything it writes, such as a reason, comes back to you as a draft to review before it's posted.</span></span></label>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ")\" publicly. Anything it writes, such as a reason, a question or a reply, comes back to you as a draft to review before it's posted. It can never edit or remove your posts.</span></span></label>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -206,7 +206,7 @@ func Consent(p ConsentPage) templ.Component {
 				}
 			}
 			if p.Publish {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "  <p class=\"field-note connect-public connect-public-either\">It can't see your email or change your profile or preferences. It can't post anything publicly unless you allow posting publicly above, and even then anything it writes waits for you as a draft.</p><p class=\"field-note connect-public connect-public-off\">It can't see your email, change your profile or preferences, or post anything publicly.</p><p class=\"field-note connect-public connect-public-on\">It can't see your email or change your profile or preferences. Publicly, it can only make your Interested choices public and recommend or withdraw recommendations without a reason; anything it writes waits for you as a draft.</p><p class=\"field-note\">It stays connected until you disconnect it on your profile page, or after 30 days without use.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "  <p class=\"field-note connect-public connect-public-either\">It can't see your email or change your profile or preferences. It can't post anything publicly unless you allow posting publicly above, and even then anything it writes waits for you as a draft.</p><p class=\"field-note connect-public connect-public-off\">It can't see your email, change your profile or preferences, or post anything publicly.</p><p class=\"field-note connect-public connect-public-on\">It can't see your email or change your profile or preferences. Publicly, it can only make your Interested choices public, recommend or withdraw recommendations without a reason, and mark posts Helpful; anything it writes waits for you as a draft.</p><p class=\"field-note\">It stays connected until you disconnect it on your profile page, or after 30 days without use.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -425,7 +425,7 @@ func Connections(p Page) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "><summary>Connected apps <span class=\"field-note\">AI agents you signed in to Ticketopia</span></summary><p class=\"field-note\">Connected apps can search events and use your radar, saved events, reminders, follows and Interested events. Apps you allowed to post publicly can also make Interested choices public and recommend events without a reason; reasons they write wait in <a href=\"/me/drafts\" class=\"text-link\">your drafts</a>. Disconnecting stops them immediately.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "><summary>Connected apps <span class=\"field-note\">AI agents you signed in to Ticketopia</span></summary><p class=\"field-note\">Connected apps can search events and use your radar, saved events, reminders, follows and Interested events. Apps you allowed to post publicly can also make Interested choices public, recommend events without a reason and mark posts Helpful; reasons, questions and replies they write wait in <a href=\"/me/drafts\" class=\"text-link\">your drafts</a>. Disconnecting stops them immediately.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

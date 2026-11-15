@@ -42,7 +42,8 @@ const postTail = `,e.data_as_of,
  (SELECT COUNT(*) FROM discussion_posts replies WHERE replies.root_id=p.post_id AND replies.removed_at IS NULL AND replies.hidden_at IS NULL),
  (SELECT COUNT(*) FROM post_helpful h WHERE h.post_id=p.post_id),
  EXISTS(SELECT 1 FROM post_helpful h WHERE h.post_id=p.post_id AND h.account_id=?),
- COALESCE((SELECT CASE WHEN parent.removed_at IS NOT NULL THEN 'Removed contribution' WHEN parent.hidden_at IS NOT NULL THEN 'Hidden contribution' ELSE author.display_name END FROM discussion_posts parent JOIN accounts author ON author.account_id=parent.account_id WHERE parent.post_id=p.parent_id),'')`
+ COALESCE((SELECT CASE WHEN parent.removed_at IS NOT NULL THEN 'Removed contribution' WHEN parent.hidden_at IS NOT NULL THEN 'Hidden contribution' ELSE author.display_name END FROM discussion_posts parent JOIN accounts author ON author.account_id=parent.account_id WHERE parent.post_id=p.parent_id),''),
+ COALESCE(p.via_client_name,''),COALESCE(p.via_client_host,'')`
 const postJoin = ` FROM discussion_posts p JOIN accounts a ON a.account_id=p.account_id JOIN event_snapshots e ON e.event_id=p.event_id`
 
 func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
@@ -61,7 +62,7 @@ func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
 func scanPostRow(row interface{ Scan(...any) error }, p *discussions.Post) ([]byte, error) {
 	var profile accounts.PublicProfile
 	var data []byte
-	err := row.Scan(&p.ID, &p.EventID, &p.ThreadID, &p.ParentID, &profile.ID, &profile.DisplayName, &profile.Bio, &p.Body, &p.CreatedAt, &p.UpdatedAt, &p.Removed, &p.Hidden, &data, &p.Meta.DataAsOf, &p.ReplyCount, &p.HelpfulCount, &p.Helpful, &p.ParentName)
+	err := row.Scan(&p.ID, &p.EventID, &p.ThreadID, &p.ParentID, &profile.ID, &profile.DisplayName, &profile.Bio, &p.Body, &p.CreatedAt, &p.UpdatedAt, &p.Removed, &p.Hidden, &data, &p.Meta.DataAsOf, &p.ReplyCount, &p.HelpfulCount, &p.Helpful, &p.ParentName, &p.Via, &p.ViaHost)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, discussions.ErrNotFound
 	}
@@ -75,6 +76,7 @@ func scanPostRow(row interface{ Scan(...any) error }, p *discussions.Post) ([]by
 		}
 		p.Body = ""
 		p.ParentName = ""
+		p.Via, p.ViaHost = "", ""
 		p.HelpfulCount = 0
 		p.Helpful = false
 	} else {
@@ -152,7 +154,7 @@ func (r *DiscussionRepository) Create(ctx context.Context, c discussions.Create,
 	defer cancel()
 	for attempt := range 3 {
 		p, fresh, err := r.createOnce(ctx, c, d)
-		if err == nil || errors.Is(err, discussions.ErrNotFound) || errors.Is(err, discussions.ErrConflict) || errors.Is(err, discussions.ErrUnavailable) {
+		if err == nil || errors.Is(err, discussions.ErrNotFound) || errors.Is(err, discussions.ErrConflict) || errors.Is(err, discussions.ErrUnavailable) || errors.Is(err, discussions.ErrDraftGone) {
 			return p, fresh, err
 		}
 		if !retryable(err) {
@@ -182,6 +184,20 @@ func (r *DiscussionRepository) createOnce(ctx context.Context, c discussions.Cre
 	}
 	if !errors.Is(err, discussions.ErrNotFound) {
 		return discussions.Post{}, false, err
+	}
+	// The draft is consumed with the post, or nothing happens, under the
+	// account lock taken above, as recommendation drafts are.
+	if c.Draft != "" {
+		result, err := tx.ExecContext(ctx, `DELETE FROM agent_drafts WHERE account_id=? AND draft_id=? AND expires_at>UTC_TIMESTAMP(6)`, c.Owner, c.Draft)
+		if err != nil {
+			return discussions.Post{}, false, err
+		}
+		if n, err := result.RowsAffected(); err != nil || n != 1 {
+			if err == nil {
+				err = discussions.ErrDraftGone
+			}
+			return discussions.Post{}, false, err
+		}
 	}
 	if c.ThreadID == "" {
 		if d == nil {
@@ -218,7 +234,8 @@ func (r *DiscussionRepository) createOnce(ctx context.Context, c discussions.Cre
 		}
 	}
 	id := accounts.ID()
-	_, err = tx.ExecContext(ctx, `INSERT INTO discussion_posts (post_id,account_id,event_id,root_id,parent_id,body,idempotency_key,request_hash) VALUES (?,?,?,NULLIF(?,''),NULLIF(?,''),?,?,?)`, id, c.Owner, c.EventID, c.ThreadID, c.ParentID, c.Body, c.Key, c.Hash[:])
+	_, err = tx.ExecContext(ctx, `INSERT INTO discussion_posts (post_id,account_id,event_id,root_id,parent_id,body,idempotency_key,request_hash,via_client_name,via_client_host) VALUES (?,?,?,NULLIF(?,''),NULLIF(?,''),?,?,?,?,?)`,
+		id, c.Owner, c.EventID, c.ThreadID, c.ParentID, c.Body, c.Key, c.Hash[:], viaValue(c.Via), viaValue(c.ViaHost))
 	if err != nil {
 		return discussions.Post{}, false, err
 	}
@@ -252,7 +269,9 @@ func (r *DiscussionRepository) Edit(ctx context.Context, owner, id, body string)
 	if err != nil {
 		return discussions.Post{}, safeError("discussion edit", err)
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET review_version=review_version+IF(BINARY body<>BINARY ?,1,0),updated_at=IF(BINARY body<>BINARY ?,UTC_TIMESTAMP(6),updated_at),body=? WHERE post_id=?`, body, body, body, id)
+	// Attribution describes the current words: the person's change clears it.
+	// Assignments run left to right, so these compare against the old body.
+	_, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET via_client_name=IF(BINARY body<>BINARY ?,NULL,via_client_name),via_client_host=IF(BINARY body<>BINARY ?,NULL,via_client_host),review_version=review_version+IF(BINARY body<>BINARY ?,1,0),updated_at=IF(BINARY body<>BINARY ?,UTC_TIMESTAMP(6),updated_at),body=? WHERE post_id=?`, body, body, body, body, body, id)
 	if err != nil {
 		return discussions.Post{}, safeError("discussion edit", err)
 	}
@@ -281,7 +300,7 @@ func (r *DiscussionRepository) Remove(ctx context.Context, owner, id string) err
 	if err != nil {
 		return safeError("discussion removal", err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET body='',review_version=review_version+IF(removed_at IS NULL,1,0),updated_at=IF(removed_at IS NULL,UTC_TIMESTAMP(6),updated_at),removed_at=COALESCE(removed_at,UTC_TIMESTAMP(6)) WHERE post_id=?`, id); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE discussion_posts SET body='',via_client_name=NULL,via_client_host=NULL,review_version=review_version+IF(removed_at IS NULL,1,0),updated_at=IF(removed_at IS NULL,UTC_TIMESTAMP(6),updated_at),removed_at=COALESCE(removed_at,UTC_TIMESTAMP(6)) WHERE post_id=?`, id); err != nil {
 		return safeError("discussion removal", err)
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM post_helpful WHERE post_id=?`, id); err != nil {

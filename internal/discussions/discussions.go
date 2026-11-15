@@ -26,27 +26,38 @@ var (
 	ErrNotFound    = errors.New("discussion post not found")
 	ErrUnavailable = errors.New("discussions unavailable")
 	ErrConflict    = errors.New("idempotency key already used for another contribution")
+	// ErrDraftGone is an Attribution.Draft already published, discarded or expired.
+	ErrDraftGone = errors.New("draft already published, discarded or expired")
 )
 
 const MaxBody = 4000
 
+// MaxVia bounds a stored app name, matching OAuth client names and
+// recommendation attribution.
+const MaxVia = recommendations.MaxVia
+
 type Post struct {
-	ID           string                  `json:"id"`
-	EventID      string                  `json:"event_id"`
-	ThreadID     string                  `json:"thread_id"`
-	ParentID     string                  `json:"parent_id,omitempty"`
-	ParentName   string                  `json:"parent_name,omitempty"`
-	Profile      *accounts.PublicProfile `json:"profile,omitempty"`
-	Body         string                  `json:"body"`
-	CreatedAt    time.Time               `json:"created_at"`
-	UpdatedAt    time.Time               `json:"updated_at"`
-	Removed      bool                    `json:"removed"`
-	Hidden       bool                    `json:"hidden"`
-	ReplyCount   int                     `json:"reply_count"`
-	HelpfulCount int                     `json:"helpful_count"`
-	Helpful      bool                    `json:"helpful"`
-	Event        models.Event            `json:"event"`
-	Meta         models.Freshness        `json:"meta"`
+	ID         string                  `json:"id"`
+	EventID    string                  `json:"event_id"`
+	ThreadID   string                  `json:"thread_id"`
+	ParentID   string                  `json:"parent_id,omitempty"`
+	ParentName string                  `json:"parent_name,omitempty"`
+	Profile    *accounts.PublicProfile `json:"profile,omitempty"`
+	// Via names the connected app whose draft the person published as this
+	// post; empty for a person's own writing. Agents never post directly.
+	Via string `json:"via,omitempty"`
+	// ViaHost is that app's verified metadata host, empty for API-token drafts.
+	ViaHost      string           `json:"via_host,omitempty"`
+	Body         string           `json:"body"`
+	CreatedAt    time.Time        `json:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
+	Removed      bool             `json:"removed"`
+	Hidden       bool             `json:"hidden"`
+	ReplyCount   int              `json:"reply_count"`
+	HelpfulCount int              `json:"helpful_count"`
+	Helpful      bool             `json:"helpful"`
+	Event        models.Event     `json:"event"`
+	Meta         models.Freshness `json:"meta"`
 }
 type List struct {
 	Items      []Post  `json:"items"`
@@ -68,6 +79,19 @@ type Query struct {
 type Create struct {
 	Owner, EventID, ThreadID, ParentID, Body, Key string
 	Hash                                          [32]byte
+	Attribution
+}
+
+// Attribution is the connected app whose draft the person publishes on the
+// web, and that draft, consumed in the same transaction as the post. It is
+// empty for a person's own writing.
+type Attribution struct {
+	// Via is the app's self-declared name, ViaHost its verified metadata host
+	// (empty for API-token drafts).
+	Via, ViaHost string
+	// Draft is the person's agent draft deleted with the publication, or
+	// ErrDraftGone if it no longer exists, so a draft publishes at most once.
+	Draft string
 }
 type Repository interface {
 	Snapshot(context.Context) (time.Time, error)
@@ -123,6 +147,15 @@ func owner(id string) error {
 	return nil
 }
 func (s *Service) Create(ctx context.Context, who, event, thread, parent, body, key string) (Post, bool, error) {
+	return s.Publish(ctx, who, event, thread, parent, body, key, Attribution{})
+}
+
+// Publish is Create for an agent's draft the person reviewed and chose to
+// publish: the post carries the app's attribution and consumes the draft.
+func (s *Service) Publish(ctx context.Context, who, event, thread, parent, body, key string, a Attribution) (Post, bool, error) {
+	if utf8.RuneCountInString(a.Via) > MaxVia || !utf8.ValidString(a.Via) || len(a.ViaHost) > 253 || (a.Via == "" && (a.ViaHost != "" || a.Draft != "")) {
+		return Post{}, false, invalid("via", "use an app name up to 80 characters")
+	}
 	if err := owner(who); err != nil {
 		return Post{}, false, err
 	}
@@ -172,7 +205,7 @@ func (s *Service) Create(ctx context.Context, who, event, thread, parent, body, 
 		}
 		detail = &d
 	}
-	return s.repo.Create(ctx, Create{who, event, thread, parent, body, key, hash}, detail)
+	return s.repo.Create(ctx, Create{Owner: who, EventID: event, ThreadID: thread, ParentID: parent, Body: body, Key: key, Hash: hash, Attribution: a}, detail)
 }
 func (s *Service) Thread(ctx context.Context, viewer, event, id string) (Post, error) {
 	if err := saved.ValidateID(event); err != nil {

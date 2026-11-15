@@ -35,8 +35,11 @@ than in editors, and those apps connect only through OAuth. See the
   asks for `publish` on a public deployment.
 - [ ] Agent publishing, phase 2: discussion questions and replies through the
   same drafts, Helpful as a `publish` action, and discussion read tools so agents
-  can find the post they act on. Revisit stateful MCP sessions only if in-agent
-  confirmation becomes a product requirement.
+  can find the post they act on. Implemented, with "via *app*" on published
+  posts and no agent edits or removals
+  ([guide](../app-mcp.md#publishing-in-your-name)); check once a real client
+  drafts a reply and marks Helpful on a public deployment. Revisit stateful MCP
+  sessions only if in-agent confirmation becomes a product requirement.
 - [ ] Default `find_events` to the signed-in account's remembered city.
   Implemented for searches without city, country or keyword; check with a
   real client.

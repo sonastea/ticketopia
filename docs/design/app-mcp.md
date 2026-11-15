@@ -24,8 +24,10 @@ any capability the web app lacks; agent access to other users' private data.
 *Superseded for recommendations:* agent publishing phase 1 (2026-11-14) adds
 recommendations without reasons and public Interested choices under a separate
 `publish` scope, with written reasons as drafts the person publishes on the web
-([guide](../app-mcp.md#publishing-in-your-name)). Discussions and Helpful
-remain later (phase 2).
+([guide](../app-mcp.md#publishing-in-your-name)). Phase 2 (2026-11-15) adds
+questions, tips and replies as the same reviewed drafts, attributed "via" the
+app when the person publishes them, and Helpful as a `publish` action; agents
+still never edit or remove posts.
 
 ## Placement
 

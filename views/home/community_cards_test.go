@@ -7,6 +7,7 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"golang.org/x/net/html"
@@ -104,6 +105,28 @@ func TestRecommendationViaLabel(t *testing.T) {
 		"community": renderNeighbor(t, CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: event, Count: 2, Recommendations: list.Items}}}, "/community", listContext{Place: inCommunity})),
 	} {
 		if strings.Count(markup, `class="recommendation-via"`) != 1 || !strings.Contains(markup, `<span class="recommendation-via">via &lt;a href=&#34;x&#34;&gt;Agent&lt;/a&gt; (agent.example)</span>`) {
+			t.Errorf("%s view via label:\n%s", name, markup)
+		}
+	}
+}
+
+// A post published from an app's draft names the app beside the author in
+// the thread and in Community, as escaped plain text; API-token drafts have
+// no host, and the person's own posts show no "via".
+func TestPostViaLabel(t *testing.T) {
+	event := models.Event{ID: "ticketmaster:Via", Name: "Via Night"}
+	profile := &accounts.PublicProfile{ID: "a", DisplayName: "Ada"}
+	agent := discussions.Post{ID: "p1", ThreadID: "p1", EventID: event.ID, Event: event, Profile: profile, Body: "Cloakroom?", Via: `<b>Agent</b>`, ViaHost: "agent.example"}
+	token := discussions.Post{ID: "p2", ThreadID: "p2", EventID: event.ID, Event: event, Profile: profile, Body: "Parking?", Via: "an API client"}
+	own := discussions.Post{ID: "p3", ThreadID: "p3", EventID: event.ID, Event: event, Profile: profile, Body: "Mine"}
+	list := discussions.List{Items: []discussions.Post{agent, token, own}}
+	for name, markup := range map[string]string{
+		"event":     renderNeighbor(t, DiscussionRoots(list, listContext{Place: inEvent, EventID: event.ID}, "/")),
+		"community": renderNeighbor(t, DiscussionRoots(list, listContext{Place: inCommunity}, "/community/discussions")),
+		"thread":    renderNeighbor(t, DiscussionPost(agent, DiscussionView{Enabled: true}, "/")) + renderNeighbor(t, DiscussionPost(token, DiscussionView{Enabled: true}, "/")) + renderNeighbor(t, DiscussionPost(own, DiscussionView{Enabled: true}, "/")),
+	} {
+		if strings.Count(markup, `class="post-via"`) != 2 || !strings.Contains(markup, `<span class="post-via">via &lt;b&gt;Agent&lt;/b&gt; (agent.example)</span>`) ||
+			!strings.Contains(markup, `<span class="post-via">via an API client</span>`) {
 			t.Errorf("%s view via label:\n%s", name, markup)
 		}
 	}

@@ -34,7 +34,7 @@ type draftStub struct {
 
 func newDraftStub() *draftStub { return &draftStub{drafts: map[string]map[string]drafts.Draft{}} }
 
-func (r *draftStub) Create(_ context.Context, _ models.EventDetail, d drafts.Draft, account string, now time.Time) (drafts.Draft, error) {
+func (r *draftStub) Create(_ context.Context, _ *models.EventDetail, d drafts.Draft, account string, now time.Time) (drafts.Draft, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.drafts[account] == nil {
@@ -75,11 +75,12 @@ func (r *draftStub) Get(_ context.Context, account, id string, now time.Time) (d
 	}
 	return d, nil
 }
-func (r *draftStub) Delete(_ context.Context, account, id string) error {
+func (r *draftStub) Delete(_ context.Context, account, id string) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	_, ok := r.drafts[account][id]
 	delete(r.drafts[account], id)
-	return nil
+	return ok, nil
 }
 func (r *draftStub) Count(ctx context.Context, account string, now time.Time) (int, error) {
 	items, _ := r.List(ctx, account, now)
@@ -122,7 +123,7 @@ func newPublishFixture(t *testing.T, oauthOn bool) *publishFixture {
 	}
 	app.recommendations = recommendations.New(f.recommendations, app.saved)
 	app.interests = interests.New(f.interests, app.saved)
-	app.drafts = drafts.New(f.drafts, app.saved)
+	app.drafts = drafts.New(f.drafts, app.saved, draftThreads{app})
 	f.oauthFixture = &oauthFixture{app: app, routes: app.Routes(), grants: grants, browser: browser, csrf: csrf, apiToken: bearer, savedEvent: event.ID, accountStorage: repo, store: store}
 	return f
 }

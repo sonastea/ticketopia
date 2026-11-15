@@ -1,7 +1,8 @@
 // Package drafts holds free text an agent wrote for the person to review.
-// Agents never publish words: draft_recommendation stores a private draft,
-// and only the signed-in person publishes it, on the web (/me/drafts),
-// through a CSRF-protected form. Drafts expire after Lifetime.
+// Agents never publish words: draft_recommendation, draft_question and
+// draft_reply store a private draft, and only the signed-in person publishes
+// it, on the web (/me/drafts), through a CSRF-protected form. Drafts expire
+// after Lifetime.
 package drafts
 
 import (
@@ -15,14 +16,19 @@ import (
 	"unicode/utf8"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
 
 const (
-	// KindRecommendation is a recommendation reason. Phase 2 adds discussion kinds.
+	// KindRecommendation is a recommendation reason.
 	KindRecommendation = "recommendation"
+	// KindQuestion is a new question or tip on an event.
+	KindQuestion = "question"
+	// KindReply is a reply in an existing question or tip's thread.
+	KindReply = "reply"
 	// Lifetime is how long a draft waits for review.
 	Lifetime = 7 * 24 * time.Hour
 	// MaxPending bounds an account's unexpired drafts; creating more fails.
@@ -49,7 +55,11 @@ type Draft struct {
 	EventID string       `json:"event_id"`
 	Event   models.Event `json:"event"`
 	Kind    string       `json:"kind"`
-	Text    string       `json:"text"`
+	// ThreadID is a reply's question or tip; ParentID the reply it answers
+	// within that thread, empty when it answers the question or tip itself.
+	ThreadID string `json:"thread_id,omitempty"`
+	ParentID string `json:"parent_id,omitempty"`
+	Text     string `json:"text"`
 	// ClientName and ClientHost identify the connected app that wrote it
 	// (its self-declared name and verified metadata host); publishing
 	// attributes the recommendation to them. API-token drafts have no host
@@ -64,17 +74,19 @@ type Draft struct {
 }
 
 type Repository interface {
-	// Create stores d with its event's snapshot, after deleting the account's
-	// expired drafts, unless the account already holds MaxPending (ErrLimit).
-	// An identical pending draft (event, kind, text, connection) is returned instead
-	// of adding another, so retries are idempotent.
-	Create(ctx context.Context, detail models.EventDetail, d Draft, account string, now time.Time) (Draft, error)
+	// Create stores d with its event's snapshot (nil when the event's stored
+	// snapshot is used, as for replies), after deleting the account's expired
+	// drafts, unless the account already holds MaxPending (ErrLimit). An
+	// identical pending draft (event, kind, thread, parent, text, connection)
+	// is returned instead of adding another, so retries are idempotent.
+	Create(ctx context.Context, detail *models.EventDetail, d Draft, account string, now time.Time) (Draft, error)
 	// List returns the account's unexpired drafts, newest first.
 	List(ctx context.Context, account string, now time.Time) ([]Draft, error)
 	// Get returns one unexpired draft of the account, or ErrNotFound.
 	Get(ctx context.Context, account, id string, now time.Time) (Draft, error)
-	// Delete removes one draft of the account; a missing one changes nothing.
-	Delete(ctx context.Context, account, id string) error
+	// Delete removes one draft of the account, reporting whether one was
+	// removed; a missing one (or another account's) changes nothing.
+	Delete(ctx context.Context, account, id string) (bool, error)
 	// Count is the account's unexpired drafts.
 	Count(ctx context.Context, account string, now time.Time) (int, error)
 }
@@ -84,14 +96,24 @@ type Details interface {
 	Detail(context.Context, string) (models.EventDetail, error)
 }
 
+// Threads reads a reply draft's conversation with the discussion routes'
+// rules, so a draft answers a real question or tip on its event.
+type Threads interface {
+	Thread(ctx context.Context, viewer, event, id string) (discussions.Post, error)
+	Parent(ctx context.Context, viewer, event, thread, id string) (discussions.Post, error)
+}
+
 type Service struct {
 	repo    Repository
 	details Details
+	threads Threads
 	now     func() time.Time
 }
 
-func New(repo Repository, details Details) *Service {
-	return &Service{repo: repo, details: details, now: func() time.Time { return time.Now().UTC() }}
+// New returns the drafts service; threads may be nil, leaving reply drafts
+// unavailable.
+func New(repo Repository, details Details, threads Threads) *Service {
+	return &Service{repo: repo, details: details, threads: threads, now: func() time.Time { return time.Now().UTC() }}
 }
 
 // SetNow fixes the clock, for tests and review fixtures.
@@ -172,18 +194,100 @@ func (s *Service) CreateRecommendation(ctx context.Context, account, eventID, te
 	if err != nil {
 		return Draft{}, err
 	}
-	if s.details == nil {
-		return Draft{}, ErrUnavailable
-	}
-	detail, err := s.details.Detail(ctx, eventID)
+	detail, err := s.event(ctx, eventID)
 	if err != nil {
 		return Draft{}, err
 	}
-	if detail.Item.ID != eventID {
+	return s.create(ctx, account, &detail, Draft{EventID: eventID, Event: detail.Item, Kind: KindRecommendation, Text: text}, client)
+}
+
+// CreateQuestion stores a private draft of a new question or tip on an
+// event, with the discussion body rules (plain text, 1 to 4000 characters).
+func (s *Service) CreateQuestion(ctx context.Context, account, eventID, body string, client Client) (Draft, error) {
+	if err := owner(account); err != nil {
+		return Draft{}, err
+	}
+	if err := saved.ValidateID(eventID); err != nil {
+		return Draft{}, err
+	}
+	body, err := discussions.Body(body)
+	if err != nil {
+		return Draft{}, err
+	}
+	detail, err := s.event(ctx, eventID)
+	if err != nil {
+		return Draft{}, err
+	}
+	return s.create(ctx, account, &detail, Draft{EventID: eventID, Event: detail.Item, Kind: KindQuestion, Text: body}, client)
+}
+
+// CreateReply stores a private draft of a reply in a question or tip's
+// thread, answering parentID within it when set. The thread must be a
+// question or tip on eventID, and the parent a post in that thread, as for
+// replies on the web; the thread's stored event snapshot is used, so no
+// provider read is needed. Not-found errors are discussions.ErrNotFound,
+// wrapped in ErrParentNotFound for the parent.
+func (s *Service) CreateReply(ctx context.Context, account, eventID, threadID, parentID, body string, client Client) (Draft, error) {
+	if err := owner(account); err != nil {
+		return Draft{}, err
+	}
+	if err := saved.ValidateID(eventID); err != nil {
+		return Draft{}, err
+	}
+	if !accounts.ValidID(threadID) {
+		return Draft{}, &accounts.ValidationError{Field: "thread_id", Message: "use a question or tip id"}
+	}
+	if parentID != "" && !accounts.ValidID(parentID) {
+		return Draft{}, &accounts.ValidationError{Field: "parent_id", Message: "use a reply id from the same thread, or omit it to answer the question or tip"}
+	}
+	body, err := discussions.Body(body)
+	if err != nil {
+		return Draft{}, err
+	}
+	if s.threads == nil {
 		return Draft{}, ErrUnavailable
 	}
+	root, err := s.threads.Thread(ctx, account, eventID, threadID)
+	if err != nil {
+		return Draft{}, err
+	}
+	// Answering the root is the same reply as omitting parent_id.
+	if parentID == threadID {
+		parentID = ""
+	}
+	if parentID != "" {
+		if _, err := s.threads.Parent(ctx, account, eventID, threadID, parentID); err != nil {
+			if errors.Is(err, discussions.ErrNotFound) {
+				return Draft{}, ErrParentNotFound
+			}
+			return Draft{}, err
+		}
+	}
+	return s.create(ctx, account, nil, Draft{EventID: eventID, Event: root.Event, Kind: KindReply, ThreadID: threadID, ParentID: parentID, Text: body}, client)
+}
+
+// ErrParentNotFound is a reply draft's parent_id that is not a post in its thread.
+var ErrParentNotFound = errors.New("reply parent not found in this thread")
+
+// event reads an event for a draft that stores its snapshot.
+func (s *Service) event(ctx context.Context, eventID string) (models.EventDetail, error) {
+	if s.details == nil {
+		return models.EventDetail{}, ErrUnavailable
+	}
+	detail, err := s.details.Detail(ctx, eventID)
+	if err != nil {
+		return models.EventDetail{}, err
+	}
+	if detail.Item.ID != eventID {
+		return models.EventDetail{}, ErrUnavailable
+	}
+	return detail, nil
+}
+
+// create identifies the app and stores the validated draft.
+func (s *Service) create(ctx context.Context, account string, detail *models.EventDetail, d Draft, client Client) (Draft, error) {
 	now := s.now()
-	d := Draft{ID: newID(), EventID: eventID, Event: detail.Item, Kind: KindRecommendation, Text: text, CreatedAt: now, ExpiresAt: now.Add(Lifetime)}
+	d.ID, d.CreatedAt, d.ExpiresAt = newID(), now, now.Add(Lifetime)
 	// An OAuth connection is always identified as itself, never downgraded to
 	// an API token: its drafts must go with it.
 	switch {
@@ -196,6 +300,13 @@ func (s *Service) CreateRecommendation(ctx context.Context, account, eventID, te
 	}
 	return s.repo.Create(ctx, detail, d, account, now)
 }
+
+// Discussion reports whether the draft publishes as a discussion post.
+func (d Draft) Discussion() bool { return d.Kind == KindQuestion || d.Kind == KindReply }
+
+// PublishKey is the discussion idempotency key of the draft's post: one
+// draft is one contribution, so a repeated publication finds the same post.
+func (d Draft) PublishKey() string { return "agent-draft-" + d.ID }
 
 func (s *Service) List(ctx context.Context, account string) ([]Draft, error) {
 	if err := owner(account); err != nil {
@@ -214,13 +325,16 @@ func (s *Service) Get(ctx context.Context, account, id string) (Draft, error) {
 	return s.repo.Get(ctx, account, id, s.now())
 }
 
-// Discard deletes a draft; discarding a missing one changes nothing.
-func (s *Service) Discard(ctx context.Context, account, id string) error {
+// Discard deletes a draft, reporting whether one was pending. Discarding a
+// missing one, or another account's, changes nothing and reports false,
+// without saying which. A malformed ID is a validation error, so a caller
+// passing a post or event ID learns of the mistake.
+func (s *Service) Discard(ctx context.Context, account, id string) (bool, error) {
 	if err := owner(account); err != nil {
-		return err
+		return false, err
 	}
 	if !ValidID(id) {
-		return nil
+		return false, &accounts.ValidationError{Field: "draft_id", Message: "use a draft id from my_drafts"}
 	}
 	return s.repo.Delete(ctx, account, id)
 }

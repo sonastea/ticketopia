@@ -14,6 +14,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
@@ -976,9 +977,16 @@ func hasGenre(genres []models.Genre, id string) bool {
 }
 
 // viaLabel is "via Name (host)", or "via Name" for API clients without a host.
-func viaLabel(item recommendations.Item) string {
-	if item.ViaHost == "" {
-		return "via " + item.Via
+func viaLabel(item recommendations.Item) string { return viaText(item.Via, item.ViaHost) }
+
+// postViaLabel names the app whose draft the person published as this post.
+func postViaLabel(post discussions.Post) string { return viaText(post.Via, post.ViaHost) }
+
+// viaText is the public attribution label: the app's own name, then its
+// verified host when there is one.
+func viaText(via, host string) string {
+	if host == "" {
+		return "via " + via
 	}
-	return "via " + item.Via + " (" + item.ViaHost + ")"
+	return "via " + via + " (" + host + ")"
 }

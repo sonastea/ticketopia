@@ -115,7 +115,8 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 			deps.InterestedPeople = a.interests
 		}
 		if a.discussionsEnabled() {
-			deps.Discussions = a.discussions
+			// Discussions with Drafts also enable drafting questions and replies.
+			deps.Discussions, deps.Helpful = a.discussions, a.discussions
 			if a.discussionFollows != nil {
 				deps.FollowedDiscussions = a.discussionFollows
 			}
@@ -382,7 +383,8 @@ func (a *api) mcpAuthorizeCall(c echo.Context, body []byte, caller *mcpCaller, m
 	if !caller.can(scope) {
 		c.Response().Header().Set("WWW-Authenticate", a.mcpChallenge("insufficient_scope", requested))
 		metrics.Refuse(appmcp.RefusedInsufficientScope)
-		message := "this connection is read-only; reconnect and allow changes to use " + call.Params.Name
+		// Not "read-only": a connection without write may still post publicly.
+		message := "this connection can't make changes; reconnect and allow changes to use " + call.Params.Name
 		if scope == oauth.ScopePublish {
 			message = "this connection can't post publicly; reconnect and allow posting publicly to use " + call.Params.Name
 			if caller.apiToken {

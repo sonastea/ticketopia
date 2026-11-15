@@ -39,7 +39,7 @@ func TestMariaDBDraftsCapExpiryAndOwnership(t *testing.T) {
 		wg.Go(func() {
 			d := draft(fmt.Sprintf("Reason %d", i), now)
 			d.ID = fmt.Sprintf("%032x", i+1)
-			_, err := pools[i%3].Drafts().Create(t.Context(), detail, d, owner.ID, now)
+			_, err := pools[i%3].Drafts().Create(t.Context(), &detail, d, owner.ID, now)
 			if errors.Is(err, drafts.ErrLimit) {
 				mu.Lock()
 				limited++
@@ -61,7 +61,7 @@ func TestMariaDBDraftsCapExpiryAndOwnership(t *testing.T) {
 	}
 	same := draft(pending[0].Text, now)
 	same.ID = fmt.Sprintf("%032x", 999)
-	if got, err := pools[1].Drafts().Create(t.Context(), detail, same, owner.ID, now); err != nil || got.ID != pending[0].ID || got.Event.ID != detail.Item.ID {
+	if got, err := pools[1].Drafts().Create(t.Context(), &detail, same, owner.ID, now); err != nil || got.ID != pending[0].ID || got.Event.ID != detail.Item.ID {
 		t.Fatalf("identical draft: %+v %v", got, err)
 	}
 
@@ -76,8 +76,8 @@ func TestMariaDBDraftsCapExpiryAndOwnership(t *testing.T) {
 	if _, err := pools[0].Drafts().Get(t.Context(), other.ID, list[0].ID, now); !errors.Is(err, drafts.ErrNotFound) {
 		t.Fatalf("other read a draft: %v", err)
 	}
-	if err := pools[0].Drafts().Delete(t.Context(), other.ID, list[0].ID); err != nil {
-		t.Fatal(err)
+	if deleted, err := pools[0].Drafts().Delete(t.Context(), other.ID, list[0].ID); err != nil || deleted {
+		t.Fatalf("other deleting a draft: %v %v", deleted, err)
 	}
 	if _, err := pools[0].Drafts().Get(t.Context(), owner.ID, list[0].ID, now); err != nil {
 		t.Fatalf("other deleted a draft: %v", err)
@@ -92,7 +92,7 @@ func TestMariaDBDraftsCapExpiryAndOwnership(t *testing.T) {
 		t.Fatalf("expired draft read: %v", err)
 	}
 	fresh := draft("After expiry", later)
-	if _, err := pools[0].Drafts().Create(t.Context(), detail, fresh, owner.ID, later); err != nil {
+	if _, err := pools[0].Drafts().Create(t.Context(), &detail, fresh, owner.ID, later); err != nil {
 		t.Fatal(err)
 	}
 	var stored int
@@ -199,7 +199,7 @@ func TestMariaDBDraftsFollowTheirConnection(t *testing.T) {
 		if grant == "" {
 			d.ClientName, d.ClientHost = drafts.APIClientName, ""
 		}
-		if _, err := p.Drafts().Create(t.Context(), detail, d, owner.ID, now); err != nil {
+		if _, err := p.Drafts().Create(t.Context(), &detail, d, owner.ID, now); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -241,7 +241,7 @@ func TestMariaDBDraftsFollowTheirConnection(t *testing.T) {
 	// A draft for a connection already removed is refused, not orphaned.
 	d := drafts.Draft{ID: fmt.Sprintf("%032x", 9), EventID: detail.Item.ID, Kind: drafts.KindRecommendation, Text: "Late", ClientName: "Agent",
 		ClientHost: "agent.example", GrantID: first.ID, CreatedAt: now, ExpiresAt: now.Add(drafts.Lifetime)}
-	if _, err := p.Drafts().Create(t.Context(), detail, d, owner.ID, now); err == nil {
+	if _, err := p.Drafts().Create(t.Context(), &detail, d, owner.ID, now); err == nil {
 		t.Fatal("draft stored for a removed connection")
 	}
 }
@@ -258,7 +258,7 @@ func TestMariaDBDraftPublicationIsTransactional(t *testing.T) {
 	detail := savedDetail("DraftPublishCase")
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	id := fmt.Sprintf("%032x", 7)
-	if _, err := pools[0].Drafts().Create(t.Context(), detail, drafts.Draft{ID: id, EventID: detail.Item.ID, Kind: drafts.KindRecommendation, Text: "Drafted",
+	if _, err := pools[0].Drafts().Create(t.Context(), &detail, drafts.Draft{ID: id, EventID: detail.Item.ID, Kind: drafts.KindRecommendation, Text: "Drafted",
 		ClientName: "an API client", CreatedAt: now, ExpiresAt: now.Add(drafts.Lifetime)}, owner.ID, now); err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func TestMariaDBDraftPublicationRacingSignOutEverywhere(t *testing.T) {
 			t.Fatal(err)
 		}
 		id := fmt.Sprintf("%032x", 100+i)
-		if _, err := pools[0].Drafts().Create(t.Context(), detail, drafts.Draft{ID: id, EventID: detail.Item.ID, Kind: drafts.KindRecommendation, Text: "Race",
+		if _, err := pools[0].Drafts().Create(t.Context(), &detail, drafts.Draft{ID: id, EventID: detail.Item.ID, Kind: drafts.KindRecommendation, Text: "Race",
 			ClientName: "Agent", ClientHost: "agent.example", GrantID: g.ID, CreatedAt: now, ExpiresAt: now.Add(drafts.Lifetime)}, owner.ID, now); err != nil {
 			t.Fatal(err)
 		}

@@ -60,6 +60,9 @@ type Deps struct {
 	DraftsURL string
 	// PublishLimit, when set, bounds publishing tool calls per account.
 	PublishLimit *PublishLimiter
+	// Helpful enables mark_helpful and unmark_helpful; with Drafts,
+	// Discussions also enables draft_question and draft_reply.
+	Helpful Helpful
 	// EventCommunity and ProfileActivity enable the public community read
 	// tools, which add the caller's own state when signed in.
 	EventCommunity           EventCommunity
@@ -95,9 +98,9 @@ func NewServer(d Deps) *mcp.Server {
 			"event_interested_people, event_discussions and discussion_thread show them; community_recommendations, community_discussions and " +
 			"happening_now browse across events; user_profile and profile_activity describe a person, by a profile id those tools return. " +
 			"Signed in, my_radar suggests events from the user's follows and categories, and tools manage their saves, reminders, follows and Interested choices privately. " +
-			"Only make_interest_public, recommend_event and withdraw_recommendation act publicly in the user's name; they need the user's permission to post publicly, " +
-			"and you should use them only when the user asks. You never publish words: draft_recommendation saves a private draft, " +
-			"and the user reads and publishes it on Ticketopia at the review_url it returns.",
+			"Only make_interest_public, recommend_event, withdraw_recommendation, mark_helpful and unmark_helpful act publicly in the user's name; they need the user's permission to post publicly, " +
+			"and you should use them only when the user asks. You never publish words: draft_recommendation, draft_question and draft_reply save a private draft, " +
+			"and the user reads and publishes it on Ticketopia at the review_url it returns. You cannot edit or remove the user's posts; they do that on Ticketopia.",
 	})
 	server.AddReceivingMiddleware(observe(d.Logger, d.Metrics))
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}

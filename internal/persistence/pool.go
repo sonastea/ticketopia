@@ -11,7 +11,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 )
 
-const SupportedSchemaVersion = 23
+const SupportedSchemaVersion = 24
 
 // ErrUnavailable is dberr.ErrUnavailable, so callers that cannot import this
 // package (the API, whose tests this package imports) recognize it too.
@@ -154,7 +154,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT code_hash,account_id,client_id,client_name,redirect_uri,code_challenge,scopes,refresh,expires_at FROM oauth_codes LIMIT 0`,
 		`SELECT ` + grantColumns + ` FROM oauth_grants LIMIT 0`,
 		`SELECT refresh_hash,grant_id,used_at FROM oauth_refresh_history LIMIT 0`,
-		`SELECT draft_id,account_id,event_id,kind,body,client_name,client_host,grant_id,created_at,expires_at FROM agent_drafts LIMIT 0`,
+		`SELECT draft_id,account_id,event_id,kind,thread_id,parent_id,body,client_name,client_host,grant_id,created_at,expires_at FROM agent_drafts LIMIT 0`,
 		`SELECT event_id, snapshot, data_as_of, community_city, community_country,activity_title FROM event_snapshots LIMIT 0`,
 		`SELECT account_id, event_id, saved_at FROM saved_events LIMIT 0`,
 		`SELECT account_id, event_id, interested_at, visibility FROM event_interests LIMIT 0`,
@@ -162,7 +162,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT event_id, first_recommended_at FROM recommendation_feed_events LIMIT 0`,
 		`SELECT account_id, window_start, new_publications, reactivations, total_new_publications, total_reactivations, last_published_at FROM recommendation_activity LIMIT 0`,
 		`SELECT account_id,event_id,published_at,expires_at FROM live_recommendation_activity LIMIT 0`,
-		`SELECT post_id, account_id, event_id, root_id, parent_id, body, idempotency_key, request_hash, created_at, updated_at, removed_at, hidden_at, review_version FROM discussion_posts LIMIT 0`,
+		`SELECT post_id, account_id, event_id, root_id, parent_id, body, idempotency_key, request_hash, created_at, updated_at, removed_at, hidden_at, review_version, via_client_name, via_client_host FROM discussion_posts LIMIT 0`,
 		`SELECT account_id, post_id FROM post_helpful LIMIT 0`,
 		`SELECT account_id,thread_id,frequency,created_at FROM discussion_follows LIMIT 0`,
 		`SELECT notification_id,account_id,thread_id,batch_key,available_at,read_at FROM discussion_notifications LIMIT 0`,

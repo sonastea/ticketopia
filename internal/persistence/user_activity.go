@@ -29,7 +29,7 @@ type userActivitySource struct {
 
 var userActivitySources = []userActivitySource{
 	{useractivity.TypeDiscussionPost, "p.created_at", "p.post_id",
-		`SELECT 1 AS item_rank,p.created_at AS at,p.post_id AS item_key,p.event_id,p.body,COALESCE(p.root_id,p.post_id) AS thread_id,COALESCE(p.parent_id,'') AS parent_id,p.updated_at,'' AS via,'' AS via_host
+		`SELECT 1 AS item_rank,p.created_at AS at,p.post_id AS item_key,p.event_id,p.body,COALESCE(p.root_id,p.post_id) AS thread_id,COALESCE(p.parent_id,'') AS parent_id,p.updated_at,COALESCE(p.via_client_name,'') AS via,COALESCE(p.via_client_host,'') AS via_host
 		 FROM discussion_posts p WHERE p.account_id=? AND p.removed_at IS NULL AND p.hidden_at IS NULL`},
 	{useractivity.TypeRecommendation, "r.recommended_at", "r.event_id",
 		`SELECT 2,r.recommended_at,r.event_id,r.event_id,r.reason,'','',r.updated_at,COALESCE(r.via_client_name,''),COALESCE(r.via_client_host,'')
@@ -97,7 +97,7 @@ func (r *UserActivityRepository) List(ctx context.Context, owner string, q usera
 		switch rank {
 		case useractivity.Rank(useractivity.TypeDiscussionPost):
 			item.Type = useractivity.TypeDiscussionPost
-			item.Post = &useractivity.Post{ID: key, ThreadID: thread, ParentID: parent, Body: body, CreatedAt: item.At, UpdatedAt: updated}
+			item.Post = &useractivity.Post{ID: key, ThreadID: thread, ParentID: parent, Body: body, Via: via, ViaHost: viaHost, CreatedAt: item.At, UpdatedAt: updated}
 		case useractivity.Rank(useractivity.TypeRecommendation):
 			item.Type = useractivity.TypeRecommendation
 			item.Recommendation = &useractivity.Recommendation{Reason: body, Via: via, ViaHost: viaHost, RecommendedAt: item.At, UpdatedAt: updated}

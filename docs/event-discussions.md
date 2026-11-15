@@ -58,6 +58,13 @@ Helpful can be set or removed independently per user/post. It is a positive
 acknowledgment, not an event endorsement or negative vote. Counts never imply
 private saves or publish private interest identities.
 
+A connected app may [draft](app-mcp.md#publishing-in-your-name) a question, tip
+or reply; it becomes a post only when the author publishes it at `/me/drafts`,
+and then shows "via *app* (*host*)" beside the author (`via`/`via_host` in the
+API) until the author edits or removes it. With the author's permission to post
+publicly, an app may also set or remove their Helpful mark. Apps never edit or
+remove posts.
+
 [Private reporting and moderation](moderation.md) adds Report privately, own
 receipts/outcomes, and authorized keep/hide/restore with author review requests.
 Hidden posts withhold text, attribution, and Helpful state/counts publicly, while

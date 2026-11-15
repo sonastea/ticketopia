@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-11-15 — Discussion post attribution, contract v1.27.0
+
+- `DiscussionPost`, and `post` in `ProfileActivityItem`, gain optional `via`
+  and `via_host`: the connected app whose drafted question, tip or reply the
+  author reviewed and published on `/me/drafts`, and its verified metadata
+  host. They are omitted for the author's own writing, after the author edits
+  the text, and for removed or hidden posts. Clients should show both beside
+  the author as plain text. No route changes; agent tools (`/mcp`) never post
+  directly, though API tokens remain full account credentials on `/api/v1`.
+
 ### 2026-11-15 — Notification not-found code, contract v1.26.0
 
 - `PUT /api/v1/me/notifications/{notification_id}/read` answers 404

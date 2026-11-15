@@ -78,7 +78,7 @@ func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest
 	handler := Handler(Deps{Events: &f.events, Details: &f.events, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
 		Radar: fakeRadar{f}, Follows: fakeFollows{f}, Catalog: fakeCatalog{f}, Interests: fakeInterests{f}, Accounts: fakeAccounts{f},
 		EventCommunity: fakeCommunity{f}, ProfileActivity: fakeCommunity{f}, EventRecommendations: fakeCommunity{f}, InterestedPeople: fakeCommunity{f}, Discussions: fakeCommunity{f}, CommunityRecommendations: fakeCommunity{f}, Profiles: fakeCommunity{f}, LiveActivity: fakeCommunity{f}, FollowedDiscussions: fakeFollowed{f},
-		Recommendations: fakeRecommendations{f}, Drafts: fakeDrafts{f}, DraftsURL: "https://events.example/me/drafts", PublishLimit: f.limiter, Logger: f.logger,
+		Recommendations: fakeRecommendations{f}, Drafts: fakeDrafts{f}, Helpful: fakeCommunity{f}, DraftsURL: "https://events.example/me/drafts", PublishLimit: f.limiter, Logger: f.logger,
 		Describe:        func(err error) string { return "public: " + err.Error() },
 		DescribeCatalog: func(err error) string { return "catalog: " + err.Error() },
 		DescribePrivate: func(err error) string { return "private: " + err.Error() }})
@@ -234,7 +234,7 @@ func TestReadOnlyTokensCannotWrite(t *testing.T) {
 	event := map[string]any{"event_id": "ticketmaster:x"}
 	for name, args := range map[string]map[string]any{"save_event": event, "unsave_event": event,
 		"set_reminder": {"event_id": "ticketmaster:x", "lead_minutes": 30}, "stop_reminder": event} {
-		if reply := tool(t, base, "reader-token", name, args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "read-only") {
+		if reply := tool(t, base, "reader-token", name, args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "can't make changes") {
 			t.Fatalf("%s with read-only token: %+v", name, reply.Result)
 		}
 	}

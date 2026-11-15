@@ -106,10 +106,16 @@ templ DiscussionRoots(list discussions.List,c listContext,returnURL string) {
 	}
 }
 
+// PostAttribution names the author and, when the person published an app's
+// draft, that app: its own claimed name beside its verified host, as plain
+// text, never a link.
 templ PostAttribution(post discussions.Post) {
 	<p class="discussion-attribution">
 		if post.Profile!=nil {
 			<a href={ templ.URL("/users/"+post.Profile.ID) } class="text-link">{ post.Profile.DisplayName }</a>
+		}
+		if post.Via!="" {
+			<span class="post-via">{ postViaLabel(post) }</span>
 		}
 		<time datetime={ post.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ post.CreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time>
 		if !post.CreatedAt.Equal(post.UpdatedAt) {

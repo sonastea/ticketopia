@@ -48,14 +48,17 @@ var SignedInTools = map[string]string{
 	"make_interest_public": ScopePublish, "make_interest_private": ScopeWrite,
 	"recommend_event": ScopePublish, "withdraw_recommendation": ScopePublish, "my_recommendations": ScopeRead,
 	"draft_recommendation": ScopeWrite, "my_drafts": ScopeRead, "discard_draft": ScopeWrite,
+	"draft_question": ScopeWrite, "draft_reply": ScopeWrite, "mark_helpful": ScopePublish, "unmark_helpful": ScopePublish,
 	"my_followed_discussions": ScopeRead, "my_notifications": ScopeRead, "mark_notification_read": ScopeWrite,
 	"my_preferences": ScopeRead, "follow_discussion": ScopeWrite, "unfollow_discussion": ScopeWrite,
 }
 
 // errReadOnly and errNoPublish back up the HTTP boundary's insufficient_scope response.
 var (
-	errReadOnly  = errors.New("this connection is read-only: reconnect Ticketopia in your agent and allow changes to save, follow, mark Interested or set reminders")
-	errNoPublish = errors.New("this connection can't post publicly: the person can reconnect Ticketopia in your agent and allow posting publicly, or act on the web; written reasons always go through draft_recommendation")
+	// A connection without write may still read, and may hold publish, so it
+	// is described by what it can't do rather than as read-only.
+	errReadOnly  = errors.New("this connection can't make changes: reconnect Ticketopia in your agent and allow changes to save, follow, mark Interested, set reminders or write drafts")
+	errNoPublish = errors.New("this connection can't post publicly: the person can reconnect Ticketopia in your agent and allow posting publicly, or act on the web; words always go through drafts (draft_recommendation, draft_question, draft_reply)")
 )
 
 // scopeError is the tool error for a connection lacking scope.

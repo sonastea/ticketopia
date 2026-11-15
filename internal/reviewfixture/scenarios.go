@@ -342,9 +342,20 @@ func (f *fixture) seed(sc scenario) error {
 		errs = append(errs, p.OAuth().CreateGrant(ctx, oauth.Grant{ID: publishGrant, AccountID: owner, ClientID: ReviewClientID, ClientName: "Review Agent",
 			Scopes: scopes, CreatedAt: f.now.Add(time.Duration(i) * time.Second), ExpiresAt: f.now.Add(oauth.GrantLifetime), AccessHash: oauth.Hash(accounts.ID()), AccessUntil: f.now.Add(oauth.AccessLifetime)}, f.now))
 	}
-	_, err = p.Drafts().Create(ctx, f.details[2], drafts.Draft{ID: strings.Repeat("d", 32), EventID: f.details[2].Item.ID, Kind: drafts.KindRecommendation,
+	_, err = p.Drafts().Create(ctx, &f.details[2], drafts.Draft{ID: strings.Repeat("d", 32), EventID: f.details[2].Item.ID, Kind: drafts.KindRecommendation,
 		Text: "Small room, big sound. Worth the trip even on a weeknight.", ClientName: "Review Agent", ClientHost: "review-agent.example", GrantID: publishGrant, CreatedAt: f.now, ExpiresAt: f.now.Add(drafts.Lifetime)}, owner, f.now)
 	errs = append(errs, err)
+	// A drafted question and a reply to the balcony thread's answer wait too,
+	// older than the reason so it stays first.
+	_, err = p.Drafts().Create(ctx, &f.details[1], drafts.Draft{ID: strings.Repeat("e", 32), EventID: f.details[1].Item.ID, Kind: drafts.KindQuestion,
+		Text: "Is there a cloakroom, and does it take card?", ClientName: "Review Agent", ClientHost: "review-agent.example", GrantID: publishGrant,
+		CreatedAt: f.now.Add(-2 * time.Minute), ExpiresAt: f.now.Add(drafts.Lifetime - 2*time.Minute)}, owner, f.now)
+	errs = append(errs, err)
+	_, err = p.Drafts().Create(ctx, nil, drafts.Draft{ID: strings.Repeat("f", 32), EventID: event, Kind: drafts.KindReply, ThreadID: root.ID, ParentID: answer.ID,
+		Text: "Seconding this: row A of the front balcony has the clearest sightline.", ClientName: "Review Agent", ClientHost: "review-agent.example", GrantID: publishGrant,
+		CreatedAt: f.now.Add(-time.Minute), ExpiresAt: f.now.Add(drafts.Lifetime - time.Minute)}, owner, f.now)
+	errs = append(errs, err)
+	f.paths["draft_thread"] = "/events/" + url.PathEscape(event) + "/discussions/" + root.ID
 	if err := errors.Join(errs...); err != nil {
 		return err
 	}

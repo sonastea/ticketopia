@@ -26,7 +26,10 @@ and the `agent_drafts` table. Both are additive. Because the app's readiness
 probe requires the exact schema version, do not migrate while older replicas
 serve: drain them, run the image's `migrate` through schema 22, reconcile the
 runtime grants (including INSERT/DELETE on `agent_drafts`), then start the new
-binary. See [agent tools](app-mcp.md#publishing-in-your-name).
+binary. Schema 24 (discussion drafts and post attribution) adds only nullable
+columns to `discussion_posts` and `agent_drafts`: drain, migrate through
+schema 24 and start, with no grant changes. See
+[agent tools](app-mcp.md#publishing-in-your-name).
 
 Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and
 60 combined snapshot/connection starts per trusted IP per minute (`LIVE_ACTIVITY_STARTS_PER_MINUTE`,

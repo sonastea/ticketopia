@@ -1,9 +1,9 @@
 package account
 
 import "fmt"
-import "net/url"
 import "github.com/sonastea/ticketopia/internal/drafts"
 import "github.com/sonastea/ticketopia/internal/recommendations"
+import "github.com/sonastea/ticketopia/views/home"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 
@@ -14,7 +14,7 @@ templ Drafts(p DraftsPage) {
 	@layouts.App("profile", "Agent drafts") {
 		<main id="main" class="destination-page account-page drafts-page">
 			<h1>Agent drafts</h1>
-			<p class="intro">Recommendation reasons your connected apps wrote for you. They're private until you publish them, and expire after seven days.</p>
+			<p class="intro">Recommendation reasons, questions, tips and replies your connected apps wrote for you. They're private until you publish them, and expire after seven days.</p>
 			@layouts.AccountNav("drafts", p.Navigation)
 			if !p.Enabled {
 				<p>Agent drafts need accounts and recommendations to be enabled on this server.</p>
@@ -22,19 +22,19 @@ templ Drafts(p DraftsPage) {
 				if p.Notice != "" {
 					<p class="account-notice" role="status">
 						{ p.Notice }
-						if p.EventID != "" {
-							{ " " }<a href={ templ.URL("/events/" + url.PathEscape(p.EventID) + "?section=community") } class="text-link">See it on the event</a>
+						if p.NoticeURL != "" {
+							{ " " }<a href={ templ.URL(p.NoticeURL) } class="text-link">{ p.NoticeLink }</a>
 						}
 					</p>
 				}
 				if len(p.Drafts) == 0 {
 					<h2>No drafts waiting.</h2>
-					<p>When an app you connected drafts a recommendation reason, it waits here for you to read before anything is posted.</p>
+					<p>When an app you connected drafts a recommendation reason, a question, a tip or a reply, it waits here for you to read before anything is posted.</p>
 					@button.Button(button.Props{Href: "/me", Variant: button.VariantOutline, Class: "action action-secondary"}) {
 						Manage connected apps
 					}
 				} else {
-					<p class="field-note">Publishing shows your display name, profile link and the reason on the event, in Community and on your profile, marked "via" the app that wrote it. It replaces your current reason for that event, shown with each draft. Disconnecting an app deletes its drafts.</p>
+					<p class="field-note">Publishing posts the draft publicly under your display name and profile link, marked "via" the app that wrote it. A recommendation reason replaces your current reason for that event, shown with the draft. Disconnecting an app deletes its drafts.</p>
 					<ul class="draft-list">
 						for i, draft := range p.Drafts {
 							@draftItem(p, draft, fmt.Sprintf("draft-%d", i))
@@ -48,36 +48,56 @@ templ Drafts(p DraftsPage) {
 
 templ draftItem(p DraftsPage, draft drafts.Draft, id string) {
 	<li aria-labelledby={ id + "-title" }>
-		<h2 id={ id + "-title" }><a href={ templ.URL("/events/" + url.PathEscape(draft.EventID) + "?section=community") } class="text-link">{ draftEventName(draft) }</a></h2>
+		<h2 id={ id + "-title" }><a href={ templ.URL(draftEventURL(draft)) } class="text-link">{ draftEventName(draft) }</a></h2>
 		<p class="field-note">
+			{ draftKindLabel(draft) }
 			if draft.FromAPIToken() {
-				App unidentified; created using an API token
+				· App unidentified; created using an API token
 			} else {
-				Recommendation reason from <strong>{ draft.ClientName }</strong> (<span class="account-connect-host">{ draft.ClientHost }</span>)
+				from <strong>{ draft.ClientName }</strong> (<span class="account-connect-host">{ draft.ClientHost }</span>)
 			}
 			· <time datetime={ draft.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00") }>{ draft.CreatedAt.UTC().Format("Jan 2, 2006") }</time></p>
 		<blockquote class="recommendation-reason draft-text">{ draft.Text }</blockquote>
-		if current := p.Current[draft.EventID]; current != nil {
-			if current.Reason != "" {
-				<p class="field-note">Publishing replaces your current reason:</p>
-				<blockquote class="recommendation-reason draft-text draft-current">{ current.Reason }</blockquote>
-			} else {
-				<p class="field-note">You already recommend this event without a reason; publishing adds this one.</p>
-			}
-		} else {
-			<p class="field-note">You don't recommend this event yet; publishing recommends it.</p>
+		{{ publishable := p.publishable(draft) }}
+		switch draft.Kind {
+			case drafts.KindQuestion:
+				<p class="field-note">Publishing posts this as a new question or tip on the event.</p>
+			case drafts.KindReply:
+				if target, ok := p.replyContext(draft); ok {
+					<p class="field-note">Publishing adds it to <a href={ templ.URL(home.ThreadURL(draft.EventID, draft.ThreadID, "")) } class="text-link">this conversation</a>, { replyLead(target) }</p>
+					if !target.Removed && !target.Hidden {
+						<blockquote class="recommendation-reason draft-text draft-current">{ target.Body }</blockquote>
+					}
+				} else {
+					<p class="field-note">The conversation or reply this answers is no longer on the event, so it can't be published. You can discard it.</p>
+				}
+			default:
+				if current := p.Current[draft.EventID]; current != nil {
+					if current.Reason != "" {
+						<p class="field-note">Publishing replaces your current reason:</p>
+						<blockquote class="recommendation-reason draft-text draft-current">{ current.Reason }</blockquote>
+					} else {
+						<p class="field-note">You already recommend this event without a reason; publishing adds this one.</p>
+					}
+				} else {
+					<p class="field-note">You don't recommend this event yet; publishing recommends it.</p>
+				}
 		}
 		<p class="field-note">Not published. Expires <time datetime={ draft.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00") }>{ draft.ExpiresAt.UTC().Format("Jan 2, 2006") }</time>.</p>
 		<form action={ templ.URL("/me/drafts/" + draft.ID) } method="post" class="account-actions">
 			@CSRF(p.CSRF)
-			if current := p.Current[draft.EventID]; current != nil {
-				<input type="hidden" name="has_current" value="1"/>
-				<input type="hidden" name="current_hash" value={ recommendations.ReasonHash(current.Reason) }/>
-			} else {
-				<input type="hidden" name="has_current" value="0"/>
+			if draft.Kind == drafts.KindRecommendation {
+				if current := p.Current[draft.EventID]; current != nil {
+					<input type="hidden" name="has_current" value="1"/>
+					<input type="hidden" name="current_hash" value={ recommendations.ReasonHash(current.Reason) }/>
+				} else {
+					<input type="hidden" name="has_current" value="0"/>
+				}
 			}
-			@button.Button(button.Props{Type: button.TypeSubmit, Class: "action", Attributes: templ.Attributes{"name": "action", "value": "publish", "aria-describedby": id + "-title"}}) {
-				Publish recommendation
+			if publishable {
+				@button.Button(button.Props{Type: button.TypeSubmit, Class: "action", Attributes: templ.Attributes{"name": "action", "value": "publish", "aria-describedby": id + "-title"}}) {
+					{ draftPublishLabel(draft) }
+				}
 			}
 			@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"name": "action", "value": "discard", "formnovalidate": true, "aria-describedby": id + "-title"}}) {
 				Discard

@@ -278,3 +278,154 @@ func TestMariaDBAgentPublishing(t *testing.T) {
 		t.Fatalf("cap is not per account: %+v", r)
 	}
 }
+
+// draftForm reads the hidden fields of one draft's form on /me/drafts.
+func draftForm(t *testing.T, page, id string) url.Values {
+	t.Helper()
+	start := strings.Index(page, `action="/me/drafts/`+id+`"`)
+	if start < 0 {
+		t.Fatalf("no form for draft %s", id)
+	}
+	form := page[start:]
+	form = form[:strings.Index(form, "</form>")]
+	fields := url.Values{}
+	for _, match := range formInput.FindAllStringSubmatch(form, -1) {
+		fields.Set(match[1], html.UnescapeString(match[2]))
+	}
+	return fields
+}
+
+// Questions, tips and replies an agent drafts stay private until the owner
+// publishes them on /me/drafts, then appear in the conversation "via" the
+// app. Helpful is a publish action: API tokens are refused at the boundary,
+// and an allowed app's mark changes only the public count.
+func TestMariaDBAgentDiscussionPublishing(t *testing.T) {
+	database, ok := persistencetest.OptionsFromEnv(filepath.Join("..", "..", ".local", "mariadb", "certs", "ca.crt"))
+	if !ok {
+		t.Skip("set MARIADB_TEST_ADDR to run real MariaDB tests")
+	}
+	s, err := Start(t.Context(), Options{Scenario: "discover-last-known", Addr: "127.0.0.1:0", StateDir: t.TempDir(), Database: database})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	m := s.Manifest()
+	base, owner := m.BaseURL, m.Accounts["owner"]
+	b := signedIn(t, m, "owner")
+	access := connectWithPublish(t, m, b)
+	event, thread, questionEvent := m.EventIDs[0], m.DiscussionThreadID, m.EventIDs[5]
+	threadAPI := "/api/v1/events/" + url.PathEscape(event) + "/discussions/" + thread
+
+	// The seeded reply draft shows what it answers.
+	page := get(t, m, "owner", "/me/drafts")
+	for _, want := range []string{"Seconding this: row A", "replying to", "Front balcony is great.", "Publish reply", "Is there a cloakroom", "Publish question or tip"} {
+		if !strings.Contains(page, html.EscapeString(want)) {
+			t.Fatalf("drafts page lacks %q", want)
+		}
+	}
+
+	// Helpful: refused for API tokens, public count only for the app.
+	helpful := func() int {
+		var post struct {
+			HelpfulCount int `json:"helpful_count"`
+		}
+		if err := json.Unmarshal([]byte(publicJSON(t, base, threadAPI)), &post); err != nil {
+			t.Fatal(err)
+		}
+		return post.HelpfulCount
+	}
+	before := helpful()
+	if r := mcpTool(t, base, owner.APIToken, "mark_helpful", map[string]any{"post_id": thread}); r.Status != http.StatusForbidden {
+		t.Fatalf("API token marked Helpful: %+v", r)
+	}
+	if r := mcpTool(t, base, access, "mark_helpful", map[string]any{"post_id": thread}); r.IsError || !strings.Contains(string(r.Content), `"helpful":true`) || helpful() != before+1 {
+		t.Fatalf("mark_helpful: %+v", r)
+	}
+	if r := mcpTool(t, base, access, "mark_helpful", map[string]any{"post_id": thread}); r.IsError || helpful() != before+1 {
+		t.Fatalf("mark_helpful again: %+v", r)
+	}
+	if r := mcpTool(t, base, access, "unmark_helpful", map[string]any{"post_id": thread}); r.IsError || helpful() != before {
+		t.Fatalf("unmark_helpful: %+v", r)
+	}
+	if r := mcpTool(t, base, access, "mark_helpful", map[string]any{"post_id": strings.Repeat("0", 32)}); !r.IsError || !strings.Contains(r.Text, "post_id") {
+		t.Fatalf("unknown post: %+v", r)
+	}
+
+	// A drafted reply is private until published.
+	const replyWords = "Agent-drafted reply: the <front> balcony & row A"
+	r := mcpTool(t, base, access, "draft_reply", map[string]any{"event_id": event, "thread_id": thread, "body": replyWords})
+	var drafted struct {
+		Draft     struct{ ID, Kind string }
+		Published bool
+	}
+	if r.IsError || json.Unmarshal(r.Content, &drafted) != nil || drafted.Published || drafted.Draft.Kind != "reply" {
+		t.Fatalf("draft_reply: %+v", r)
+	}
+	if r := mcpTool(t, base, access, "draft_reply", map[string]any{"event_id": questionEvent, "thread_id": thread, "body": "x"}); !r.IsError || !strings.Contains(r.Text, "thread_id") {
+		t.Fatalf("thread on another event: %+v", r)
+	}
+	replies := threadAPI + "/replies"
+	if strings.Contains(publicJSON(t, base, replies), "Agent-drafted reply") || strings.Contains(get(t, m, "other", "/me/drafts"), "Agent-drafted reply") {
+		t.Fatal("reply draft is visible to others")
+	}
+	fields := draftForm(t, get(t, m, "owner", "/me/drafts"), drafted.Draft.ID)
+	if fields.Get("csrf_token") == "" || fields.Has("has_current") {
+		t.Fatalf("reply draft form: %v", fields)
+	}
+	fields.Set("action", "publish")
+	status, header, _ := b.do(http.MethodPost, "/me/drafts/"+drafted.Draft.ID, fields)
+	if status != http.StatusSeeOther || !strings.HasPrefix(header.Get("Location"), "/me/drafts?") || !strings.Contains(header.Get("Location"), "saved=reply") {
+		t.Fatalf("publish reply: %d %v", status, header)
+	}
+	if status, _, _ := b.do(http.MethodPost, "/me/drafts/"+drafted.Draft.ID, fields); status != http.StatusNotFound {
+		t.Fatalf("republished: %d", status)
+	}
+	var list struct {
+		Items []struct {
+			Body, Via string
+			ViaHost   string `json:"via_host"`
+			Profile   struct{ ID string }
+		}
+	}
+	if err := json.Unmarshal([]byte(publicJSON(t, base, replies)), &list); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, item := range list.Items {
+		if item.Body == replyWords {
+			found = item.Via == "Review Agent" && item.ViaHost == "review-agent.example" && item.Profile.ID == owner.ID
+		}
+	}
+	if !found {
+		t.Fatalf("published reply: %+v", list)
+	}
+	if _, _, body := (browser{t, m, nil}).do(http.MethodGet, "/events/"+url.PathEscape(event)+"/discussions/"+thread, nil); !strings.Contains(body, `<span class="post-via">via Review Agent (review-agent.example)</span>`) ||
+		!strings.Contains(body, html.EscapeString(replyWords)) {
+		t.Fatal("thread page lacks the published reply's via label")
+	}
+	notice := get(t, m, "owner", header.Get("Location"))
+	if !strings.Contains(notice, "Your reply was published.") || !strings.Contains(notice, "See it in the conversation") {
+		t.Fatal("publish notice missing")
+	}
+
+	// A drafted question publishes as a new thread on its event.
+	r = mcpTool(t, base, access, "draft_question", map[string]any{"event_id": questionEvent, "body": "Agent-drafted question: is there a coat check?"})
+	if r.IsError || json.Unmarshal(r.Content, &drafted) != nil || drafted.Draft.Kind != "question" {
+		t.Fatalf("draft_question: %+v", r)
+	}
+	eventDiscussions := "/api/v1/events/" + url.PathEscape(questionEvent) + "/discussions"
+	if strings.Contains(publicJSON(t, base, eventDiscussions), "Agent-drafted question") {
+		t.Fatal("question draft is public")
+	}
+	fields = draftForm(t, get(t, m, "owner", "/me/drafts"), drafted.Draft.ID)
+	fields.Set("action", "publish")
+	if status, header, _ := b.do(http.MethodPost, "/me/drafts/"+drafted.Draft.ID, fields); status != http.StatusSeeOther || !strings.Contains(header.Get("Location"), "saved=question") {
+		t.Fatalf("publish question: %d %v", status, header)
+	}
+	if body := publicJSON(t, base, eventDiscussions); !strings.Contains(body, "Agent-drafted question") || !strings.Contains(body, `"via":"Review Agent"`) {
+		t.Fatalf("published question: %s", body)
+	}
+	if body := publicJSON(t, base, "/api/v1/users/"+owner.ID+"/activity"); !strings.Contains(body, `"via":"Review Agent"`) {
+		t.Fatalf("profile activity lacks via: %s", body)
+	}
+}

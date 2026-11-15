@@ -8,6 +8,14 @@ not compare it. A bounded `Snapshots` batch read (at most 50 IDs, one SELECT on
 `event_snapshots`) supplies display-only artwork to Happening Now. See
 [discovery](discovery.md#responsive-navigation-and-event-details).
 
+Schema 24 adds nullable `discussion_posts.via_client_name`/`via_client_host`
+(the app whose drafted question, tip or reply the author published; existing
+rows stay `NULL`, and the author's edit or removal clears them) and
+`agent_drafts.thread_id`/`parent_id` for reply drafts. Publishing a discussion
+draft deletes it in the post's transaction, under the account lock, as for
+recommendation drafts. Existing table-level grants cover both. See
+[agent tools](app-mcp.md#publishing-in-your-name).
+
 Schema 23 adds the `discussion_posts.discussion_author (account_id, created_at,
 post_id)` index for a person's public activity timeline
 (`GET /api/v1/users/{id}/activity`), which merges their visible posts, active
@@ -365,8 +373,10 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 23 only**. Versions 0–22 and 24+ are rejected;
-Partial schemas/missing columns or non-InnoDB tables fail startup. The v22-to-v23
+This binary supports **clean schema version 24 only**. Versions 0–23 and 25+ are rejected;
+Partial schemas/missing columns or non-InnoDB tables fail startup. The v23-to-v24
+upgrade only adds nullable columns: drain v23 replicas, migrate, then start v24;
+existing runtime grants suffice. The v22-to-v23
 upgrade only adds an index: drain v22 replicas, migrate, then start v23; existing
 runtime grants suffice. The additive
 v19-to-v20 upgrade still requires drained v19 replicas, then migrate and start. The

@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### 2026-11-15 — Discussion drafts and post attribution, schema v24
+
+- Add nullable `discussion_posts.via_client_name`/`via_client_host`, the app
+  whose draft the author published, and `agent_drafts.thread_id`/`parent_id`
+  for reply drafts. Additive and nullable: existing table-level runtime grants
+  suffice. Drain v23 replicas, migrate, then start v24. See
+  [persistence](../persistence.md) and
+  [agent publishing](../app-mcp.md#publishing-in-your-name).
+
 ### 2026-11-14 — Public activity timeline index, schema v23
 
 - Add `discussion_posts.discussion_author (account_id, created_at, post_id)` so

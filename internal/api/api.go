@@ -108,9 +108,28 @@ func WithEventRecommendations(repository recommendations.Repository) Option {
 }
 
 // WithAgentDrafts stores agents' private drafts for the person to review and
-// publish at /me/drafts; it needs recommendations to publish them.
+// publish at /me/drafts; it needs recommendations to publish reasons, and
+// discussions to publish questions, tips and replies.
 func WithAgentDrafts(repository drafts.Repository) Option {
-	return func(a *api) { a.drafts = drafts.New(repository, interestDetails{a}) }
+	return func(a *api) { a.drafts = drafts.New(repository, interestDetails{a}, draftThreads{a}) }
+}
+
+// draftThreads reads reply drafts' conversations through the discussions
+// service, resolved per call so option order does not matter.
+type draftThreads struct{ a *api }
+
+func (t draftThreads) Thread(ctx context.Context, viewer, event, id string) (discussions.Post, error) {
+	if t.a.discussions == nil {
+		return discussions.Post{}, discussions.ErrUnavailable
+	}
+	return t.a.discussions.Thread(ctx, viewer, event, id)
+}
+
+func (t draftThreads) Parent(ctx context.Context, viewer, event, thread, id string) (discussions.Post, error) {
+	if t.a.discussions == nil {
+		return discussions.Post{}, discussions.ErrUnavailable
+	}
+	return t.a.discussions.Parent(ctx, viewer, event, thread, id)
 }
 
 func WithEventDiscussions(repository discussions.Repository) Option {
