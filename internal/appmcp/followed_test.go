@@ -92,6 +92,10 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 			t.Fatalf("follow %s: %+v", thread, reply.Result)
 		}
 	}
+	if reply := tool(t, base, "owner-token", "follow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": "nope", "frequency": "hourly"}); !reply.Result.IsError ||
+		!strings.Contains(reply.Result.Content[0].Text, "thread_id:") || !strings.Contains(reply.Result.Content[0].Text, "frequency:") {
+		t.Fatalf("two mistakes: %+v", reply.Result)
+	}
 	reply := tool(t, base, "reader-token", "my_preferences", map[string]any{})
 	if body := string(reply.Result.StructuredContent); !strings.Contains(body, `"city":"Chicago"`) || strings.Contains(body, "private@example.com") {
 		t.Fatalf("my_preferences: %s", body)

@@ -68,8 +68,13 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 			"community_discussions, profile_activity or, to change a follow, my_followed_discussions. Following is never shown to other people. " +
 			"Following again replaces the frequency."},
 		privateTool(d, func(ctx context.Context, owner string, in followDiscussionInput) (discussionFollowState, error) {
-			if err := threadTarget(in.ThreadID, nil); err != nil {
-				return discussionFollowState{}, err
+			// Report both argument mistakes at once, so an agent fixes them in one retry.
+			threadErr, frequencyErr := threadTarget(in.ThreadID, nil), discussionfollows.Frequency(in.Frequency)
+			if threadErr != nil && frequencyErr != nil {
+				return discussionFollowState{}, callMistake{errors.New(threadErr.Error() + "; " + frequencyErr.Error())}
+			}
+			if threadErr != nil {
+				return discussionFollowState{}, threadErr
 			}
 			follow, err := d.FollowedDiscussions.Set(ctx, owner, in.EventID, in.ThreadID, in.Frequency)
 			if err != nil {
