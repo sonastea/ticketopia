@@ -70,6 +70,8 @@ type Deps struct {
 	CommunityRecommendations CommunityRecommendations
 	Profiles                 Profiles
 	LiveActivity             LiveActivity
+	// FollowedDiscussions enables the signed-in followed-discussion tools.
+	FollowedDiscussions FollowedDiscussions
 	// Accounts reads the caller's remembered city, which find_events
 	// defaults to.
 	Accounts Accounts
@@ -135,6 +137,7 @@ func NewServer(d Deps) *mcp.Server {
 	addPersonalTools(server, d)
 	addPublishingTools(server, d)
 	addCommunityTools(server, d)
+	addFollowedTools(server, d)
 	return server
 }
 

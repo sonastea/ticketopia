@@ -116,6 +116,9 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 		}
 		if a.discussionsEnabled() {
 			deps.Discussions = a.discussions
+			if a.discussionFollows != nil {
+				deps.FollowedDiscussions = a.discussionFollows
+			}
 		}
 	}
 	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight), metrics)

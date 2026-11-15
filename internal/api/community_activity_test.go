@@ -13,6 +13,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/appmcp"
+	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
@@ -180,6 +181,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 	post := discussions.Post{ID: accounts.ID(), EventID: id, Body: "Doors at 7?", CreatedAt: at, UpdatedAt: at, Profile: &accounts.PublicProfile{ID: account.account.ID, DisplayName: "Contributor"}}
 	post.ThreadID = post.ID
 	a.discussions = discussions.New(&discussionStub{post: post}, a.saved)
+	a.discussionFollows = discussionfollows.New(&fixedFollowStub{follow: discussionfollows.Follow{EventID: id, ThreadID: post.ID, Frequency: "daily", CreatedAt: at, Root: post}})
 	a.runCtx = t.Context()
 	WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 600, MaxInFlight: 8})(a)
 	routes := a.Routes()
@@ -224,6 +226,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		{"event_interested_people", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/interested-users"},
 		{"event_discussions", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/discussions"},
 		{"community_recommendations", `{"limit":5}`, "/api/v1/community/recommendations?limit=5"},
+		{"my_followed_discussions", `{"limit":5}`, "/api/v1/me/discussions?limit=5"},
 		{"community_discussions", `{"city":"Chicago"}`, "/api/v1/community/discussions?city=Chicago"},
 	} {
 		http := accountRequest(a, "GET", tc.path, "", "", bearer, "", "", "")
@@ -286,4 +289,15 @@ func TestHappeningNowToolMatchesHTTPRoute(t *testing.T) {
 			t.Fatalf("%s: tool items %s, route items %s", tc.args, reply.Result.StructuredContent.Items, fromHTTP.Items)
 		}
 	}
+}
+
+// fixedFollowStub answers the same follow and notification on every read, so
+// tool and route results compare exactly.
+type fixedFollowStub struct {
+	discussionfollows.Repository
+	follow discussionfollows.Follow
+}
+
+func (r *fixedFollowStub) List(context.Context, string, discussionfollows.Query) ([]discussionfollows.Follow, error) {
+	return []discussionfollows.Follow{r.follow}, nil
 }

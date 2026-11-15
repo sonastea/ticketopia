@@ -52,6 +52,7 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `withdraw_recommendation` | Withdraw the caller's recommendation only when an app published it without a reason (`publish`); one the person published or that has a reason is refused with a tool error pointing to the web. Idempotent. |
 | `draft_recommendation` | Store a private reason for the person to review (`write`), returning `review_url` (`AUTH_BASE_URL/me/drafts`). Nothing is published; see [drafts](#publishing-in-your-name). |
 | `my_drafts` / `discard_draft` | List the caller's pending drafts, or delete one (`write`). |
+| `my_followed_discussions` | The questions and tips the caller [follows](followed-discussions.md) privately, with frequency and the question, as `GET /api/v1/me/discussions`. |
 
 Client metadata whose `client_name` names Ticketopia (case-folded letters and
 digits, with 0 read as o and 1, l and ! as i) is refused, so no app appears as

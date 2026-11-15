@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2026-11-15 — Signed-in discussion and preference tools
+
+- Add signed-in tools for account routes that had none, each calling the
+  route's service method: `my_followed_discussions` (`read`). See
+  [tools](../app-mcp.md#tools).
+
 ### 2026-11-15 — Public community read tools
 
 - Add public, read-only tools for community reads that had only an HTTP
