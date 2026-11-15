@@ -21,6 +21,7 @@ steps (a separate deployment); this page covers what exists.
 | `event_interested_people` | People who made their Interested choice public, with public profiles, as `GET /api/v1/events/{event_id}/interested-users`. Private choices are never listed. |
 | `event_discussions` | An event's public questions and tips, newest first, with reply and Helpful counts, as `GET /api/v1/events/{event_id}/discussions`; signed in, `helpful` is the caller's own choice. |
 | `discussion_thread` | One question or tip with a page of its replies (oldest first), as `GET …/discussions/{discussion_id}` and `…/replies` together; the thread is returned on every page. |
+| `community_recommendations` | Recommended events grouped per event, optionally by city, country and `category_id`, as `GET /api/v1/community/recommendations`. |
 
 These community reads need accounts and MariaDB, and are listed with them.
 They share the HTTP routes' code, so results match those routes exactly.

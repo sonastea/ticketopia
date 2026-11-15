@@ -40,6 +40,12 @@ type Discussions interface {
 	Thread(ctx context.Context, viewer, event, id string) (discussions.Post, error)
 }
 
+// CommunityRecommendations reads the grouped community feed, as
+// GET /api/v1/community/recommendations does.
+type CommunityRecommendations interface {
+	Community(ctx context.Context, values url.Values) (recommendations.Feed, error)
+}
+
 // ProfileActivity reads one person's public contributions, as
 // GET /api/v1/users/{id}/activity does.
 type ProfileActivity interface {
@@ -119,6 +125,15 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				return discussionThread{Thread: root, Replies: replies}, err
 			}))
 	}
+	if d.CommunityRecommendations != nil {
+		mcp.AddTool(server, &mcp.Tool{Name: "community_recommendations", Title: "Community recommendations", OutputSchema: outputSchema[recommendations.Feed](), Annotations: readOnly,
+			Description: "Events people recommend, one entry per event with its total count and up to three recommendations, newest first by when " +
+				"the event was first recommended. Optionally narrow by city and country (ISO code such as US) or category_id from list_categories. " +
+				"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
+			publicRead(d, func(ctx context.Context, _ string, in communityInput) (recommendations.Feed, error) {
+				return d.CommunityRecommendations.Community(ctx, in.values())
+			}))
+	}
 }
 
 // publicRead is a public tool that, signed in with read access, knows the
@@ -176,4 +191,23 @@ type threadInput struct {
 type discussionThread struct {
 	Thread  discussions.Post `json:"thread"`
 	Replies discussions.List `json:"replies"`
+}
+
+// communityInput is a city/country/category-scoped community collection.
+type communityInput struct {
+	City       string  `json:"city,omitempty" jsonschema:"city name, for example Chicago"`
+	Country    string  `json:"country,omitempty" jsonschema:"two-letter country code, for example US"`
+	CategoryID string  `json:"category_id,omitempty" jsonschema:"category ID from list_categories"`
+	Limit      *int    `json:"limit,omitempty" jsonschema:"results per page, 1 to 100, default 20"`
+	Cursor     *string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page; repeat the same other arguments"`
+}
+
+func (in communityInput) values() url.Values {
+	v := pageInput{Limit: in.Limit, Cursor: in.Cursor}.values()
+	for key, value := range map[string]string{"city": in.City, "country": in.Country, "category_id": in.CategoryID} {
+		if value != "" {
+			v.Set(key, value)
+		}
+	}
+	return v
 }

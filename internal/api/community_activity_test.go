@@ -218,6 +218,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		{"event_recommendations", `{"event_id":"` + id + `","limit":1}`, "/api/v1/events/" + id + "/recommendations?limit=1"},
 		{"event_interested_people", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/interested-users"},
 		{"event_discussions", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/discussions"},
+		{"community_recommendations", `{"limit":5}`, "/api/v1/community/recommendations?limit=5"},
 	} {
 		http := accountRequest(a, "GET", tc.path, "", "", bearer, "", "", "")
 		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+tc.tool+`","arguments":`+tc.args+`}}`,

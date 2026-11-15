@@ -71,6 +71,14 @@ func (f fakeCommunity) Thread(_ context.Context, viewer, event, id string) (disc
 	return discussions.Post{ID: id, EventID: event, ThreadID: id, Body: "Doors?"}, nil
 }
 
+func (f fakeCommunity) Community(_ context.Context, v url.Values) (recommendations.Feed, error) {
+	f.record("recommendations.Community " + v.Encode())
+	if v.Get("city") == "broken" {
+		return recommendations.Feed{}, recommendations.ErrUnavailable
+	}
+	return recommendations.Feed{Items: []recommendations.EventGroup{{Event: models.Event{ID: "ticketmaster:x"}, Count: 1}}}, nil
+}
+
 // Each public read passes its arguments through unchanged, works without a
 // token, and reports service errors in the account API's wording.
 func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
@@ -84,6 +92,7 @@ func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
 		{"event_recommendations", map[string]any{"event_id": "ticketmaster:x", "limit": 2, "cursor": "c"}, "recommendations.Event ticketmaster:x cursor=c&limit=2"},
 		{"event_interested_people", map[string]any{"event_id": "ticketmaster:x", "limit": 3}, "interests.Participants ticketmaster:x limit=3"},
 		{"event_discussions", map[string]any{"event_id": "ticketmaster:x"}, "discussions.List  ticketmaster:x  "},
+		{"community_recommendations", map[string]any{"city": "Chicago", "country": "US", "category_id": "music", "limit": 2}, "recommendations.Community category_id=music&city=Chicago&country=US&limit=2"},
 		{"discussion_thread", map[string]any{"event_id": "ticketmaster:x", "thread_id": "t1"}, "discussions.Thread  ticketmaster:x t1|discussions.List  ticketmaster:x t1 "},
 	} {
 		f.calls = nil
@@ -96,6 +105,10 @@ func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
 			broken[k] = v
 		}
 		broken["event_id"] = "ticketmaster:broken"
+		if _, scoped := tc.args["city"]; scoped {
+			delete(broken, "event_id")
+			broken["city"] = "broken"
+		}
 		if reply := tool(t, base, "owner-token", tc.tool, broken); !reply.Result.IsError || !strings.HasPrefix(reply.Result.Content[0].Text, "private: ") {
 			t.Fatalf("%s error not worded as the API: %+v", tc.tool, reply.Result)
 		}

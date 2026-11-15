@@ -7,7 +7,7 @@
 - Add public, read-only tools for community reads that had only an HTTP
   route, each calling the route's service method: `event_recommendations`,
   `event_interested_people`, `event_discussions` and `discussion_thread`
-  (a thread with a page of its replies). Their profile IDs feed `profile_activity`. See
+  (a thread with a page of its replies) and `community_recommendations`. Their profile IDs feed `profile_activity`. See
   [tools](../app-mcp.md#tools).
 
 ### 2026-11-14 — Event community and profile activity tools

@@ -105,7 +105,7 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 			deps.ProfileActivity = communityReads{a}
 		}
 		if a.recommendationsEnabled() {
-			deps.EventRecommendations = a.recommendations
+			deps.EventRecommendations, deps.CommunityRecommendations = a.recommendations, a.recommendations
 		}
 		if a.interestEnabled() {
 			deps.InterestedPeople = a.interests
