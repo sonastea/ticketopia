@@ -6,7 +6,7 @@ one entry per feature. Related changes stay in the same feature document. Browse
 
 - 2026-11-15 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-15 — [Followed discussions](changes/followed-discussions.md)
-- 2026-11-14 — [OpenAPI contract](changes/openapi.md)
+- 2026-11-15 — [OpenAPI contract](changes/openapi.md)
 - 2026-11-14 — [Database and persistence](changes/database.md)
 - 2026-11-13 — [Observability](changes/observability.md)
 - 2026-11-12 — [UI components](changes/ui-components.md)

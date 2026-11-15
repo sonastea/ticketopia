@@ -78,7 +78,7 @@ func TestMariaDBDiscussionFollowsDeliveryPrivacyAndFrequency(t *testing.T) {
 		t.Fatal("notification copied content or author", string(data))
 	}
 	id := inbox.Items[0].ID
-	if err = s.Read(t.Context(), other.ID, id); !errors.Is(err, discussions.ErrNotFound) {
+	if err = s.Read(t.Context(), other.ID, id); !errors.Is(err, discussionfollows.ErrNotificationNotFound) {
 		t.Fatal("cross-owner read", err)
 	}
 	for range 2 {
@@ -102,7 +102,7 @@ func TestMariaDBDiscussionFollowsDeliveryPrivacyAndFrequency(t *testing.T) {
 	if got, err := s.Notifications(t.Context(), follower.ID, nil); err != nil || len(got.Items) != 0 {
 		t.Fatal("hidden reply delivered", got, err)
 	}
-	if err = s.Read(t.Context(), follower.ID, id); !errors.Is(err, discussions.ErrNotFound) {
+	if err = s.Read(t.Context(), follower.ID, id); !errors.Is(err, discussionfollows.ErrNotificationNotFound) {
 		t.Fatal("hidden read", err)
 	}
 	execSQL(t, p.db, `UPDATE discussion_posts SET hidden_at=NULL WHERE post_id=?`, reply)

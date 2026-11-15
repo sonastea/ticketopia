@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/discussions"
 )
 
 func TestDigestBoundaries(t *testing.T) {
@@ -33,6 +34,8 @@ type fixture struct {
 	items []Notification
 	who   string
 }
+
+func (f *fixture) Read(context.Context, string, string) error { return discussions.ErrNotFound }
 
 func (f *fixture) Notifications(_ context.Context, who string, q Query) ([]Notification, error) {
 	f.who = who
@@ -80,5 +83,8 @@ func TestReadNamesNotificationID(t *testing.T) {
 	var invalid *accounts.ValidationError
 	if err := s.Read(t.Context(), accounts.ID(), "nope"); !errors.As(err, &invalid) || invalid.Field != "notification_id" {
 		t.Fatal(err)
+	}
+	if err := s.Read(t.Context(), accounts.ID(), accounts.ID()); !errors.Is(err, ErrNotificationNotFound) {
+		t.Fatal("missing notification reported as", err)
 	}
 }

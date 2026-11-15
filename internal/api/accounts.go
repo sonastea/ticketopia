@@ -430,6 +430,8 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 409, "recommendation_changed", "Your recommendation for this event changed after you reviewed it. Review it again before publishing.", nil
 	case errors.Is(err, recommendations.ErrUnavailable):
 		return 503, "event_recommendations_unavailable", "We couldn't load or change recommendations. Please try again shortly.", nil
+	case errors.Is(err, discussionfollows.ErrNotificationNotFound):
+		return 404, "notification_not_found", "This notification couldn't be found.", nil
 	case errors.Is(err, discussions.ErrNotFound):
 		return 404, "post_not_found", "This contribution couldn't be found or changed.", nil
 	case errors.Is(err, discussions.ErrConflict):

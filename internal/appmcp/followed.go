@@ -7,7 +7,6 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
-	"github.com/sonastea/ticketopia/internal/discussions"
 )
 
 // errNotificationNotFound covers unknown, not-yet-due and other accounts'
@@ -51,7 +50,7 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 			"Read state is private."},
 		privateTool(d, func(ctx context.Context, owner string, in notificationInput) (notificationState, error) {
 			err := d.FollowedDiscussions.Read(ctx, owner, in.NotificationID)
-			if errors.Is(err, discussions.ErrNotFound) {
+			if errors.Is(err, discussionfollows.ErrNotificationNotFound) {
 				// The route's "contribution" wording would point an agent at a post.
 				return notificationState{}, errNotificationNotFound
 			}

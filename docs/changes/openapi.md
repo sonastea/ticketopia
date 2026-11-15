@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-11-15 — Notification not-found code, contract v1.26.0
+
+- `PUT /api/v1/me/notifications/{notification_id}/read` answers 404
+  `notification_not_found` ("This notification couldn't be found.") instead of
+  `post_not_found`, and a malformed ID names `notification_id` in `fields`.
+  Add the `NotificationNotFound` response and problem code.
+
 ### 2026-11-14 — Event community and profile activity reads, contract v1.25.0
 
 - Add `GET /api/v1/events/{event_id}/community` (`EventCommunity`): public

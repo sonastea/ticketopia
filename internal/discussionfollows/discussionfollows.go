@@ -18,6 +18,10 @@ import (
 
 var ErrUnavailable = errors.New("followed discussions unavailable")
 
+// ErrNotificationNotFound covers unknown, not-yet-delivered, hidden and other
+// accounts' notifications alike, so it reveals nothing about another account.
+var ErrNotificationNotFound = errors.New("notification not found")
+
 type Follow struct {
 	EventID   string    `json:"event_id"`
 	ThreadID  string    `json:"thread_id"`
@@ -199,5 +203,9 @@ func (s *Service) Read(ctx context.Context, who, id string) error {
 	if !accounts.ValidID(id) {
 		return &accounts.ValidationError{Field: "notification_id", Message: "use a notification id from your notifications"}
 	}
-	return s.repo.Read(ctx, who, id)
+	err := s.repo.Read(ctx, who, id)
+	if errors.Is(err, discussions.ErrNotFound) {
+		return ErrNotificationNotFound
+	}
+	return err
 }

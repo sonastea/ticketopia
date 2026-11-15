@@ -2,12 +2,13 @@
 
 ## Unreleased
 
-### 2026-11-15 — Notification ID errors name notification_id
+### 2026-11-15 — Notification errors name the notification
 
 - Marking a notification read with a malformed ID answers 400 with
   `fields.notification_id` ("use a notification id from your notifications")
-  instead of `post_id`, on the web route and the `mark_notification_read`
-  agent tool.
+  instead of `post_id`, and an unknown or other account's notification 404
+  `notification_not_found` ("This notification couldn't be found.") instead
+  of the post wording, on the API and the `mark_notification_read` agent tool.
 
 ### 2026-10-29 — Batched reply fan-out and followed-conversation pages
 

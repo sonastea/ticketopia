@@ -8,7 +8,6 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
-	"github.com/sonastea/ticketopia/internal/discussions"
 )
 
 type fakeFollowed struct{ *fakeAccount }
@@ -26,7 +25,7 @@ func (f fakeFollowed) Notifications(_ context.Context, who string, v url.Values)
 func (f fakeFollowed) Read(_ context.Context, who, id string) error {
 	f.record("follows.Read " + who + " " + id)
 	if id == "unknown" {
-		return discussions.ErrNotFound
+		return discussionfollows.ErrNotificationNotFound
 	}
 	return nil
 }
