@@ -152,7 +152,7 @@ func TestMCPAPITokensCannotPublish(t *testing.T) {
 		for _, name := range []string{"make_interest_public", "recommend_event", "withdraw_recommendation"} {
 			r := mcpPost(t, f.routes, toolCall(name, `{"event_id":"`+f.savedEvent+`"}`), bearer)
 			if r.Code != http.StatusForbidden || !strings.Contains(r.Header().Get("WWW-Authenticate"), `error="insufficient_scope"`) ||
-				!strings.Contains(r.Body.String(), "post publicly") {
+				!strings.Contains(r.Body.String(), "API tokens can't post publicly") {
 				t.Fatalf("oauth=%v %s: %d %v %s", oauthOn, name, r.Code, r.Header(), r.Body.String())
 			}
 		}

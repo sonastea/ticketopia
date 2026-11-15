@@ -136,6 +136,8 @@ type mcpCaller struct {
 	clientName string
 	clientID   string
 	grantID    string
+	// apiToken is set for account API tokens, which can never hold publish.
+	apiToken bool
 }
 
 // apiTokenScopes are listed explicitly, never derived from oauth.Scopes, so
@@ -313,13 +315,13 @@ func (a *api) mcpCaller(c echo.Context, header string) (mcpCaller, error) {
 		if err != nil {
 			return mcpCaller{}, err
 		}
-		return mcpCaller{access.AccountID, access.Scopes, access.ClientName, access.ClientID, access.GrantID}, nil
+		return mcpCaller{account: access.AccountID, scopes: access.Scopes, clientName: access.ClientName, clientID: access.ClientID, grantID: access.GrantID}, nil
 	}
 	p, err := a.authenticateRequest(c, fields[1], "api")
 	if err != nil {
 		return mcpCaller{}, err
 	}
-	return mcpCaller{account: p.Account.ID, scopes: slices.Clone(apiTokenScopes)}, nil
+	return mcpCaller{account: p.Account.ID, scopes: slices.Clone(apiTokenScopes), apiToken: true}, nil
 }
 
 // mcpChallenge is the WWW-Authenticate value for /mcp. With OAuth on it
@@ -380,6 +382,10 @@ func (a *api) mcpAuthorizeCall(c echo.Context, body []byte, caller *mcpCaller, m
 		message := "this connection is read-only; reconnect and allow changes to use " + call.Params.Name
 		if scope == oauth.ScopePublish {
 			message = "this connection can't post publicly; reconnect and allow posting publicly to use " + call.Params.Name
+			if caller.apiToken {
+				// Reconnecting cannot help: no API token is ever granted publish.
+				message = "API tokens can't post publicly; to use " + call.Params.Name + ", connect through OAuth sign-in and allow posting publicly, or act on the Ticketopia website"
+			}
 		}
 		return true, mcpError(c, http.StatusForbidden, 0, message)
 	}
