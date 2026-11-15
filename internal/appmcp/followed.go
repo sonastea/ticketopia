@@ -2,11 +2,17 @@ package appmcp
 
 import (
 	"context"
+	"errors"
 	"net/url"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
+	"github.com/sonastea/ticketopia/internal/discussions"
 )
+
+// errNotificationNotFound covers unknown, not-yet-due and other accounts'
+// notifications alike, so it reveals nothing about another account.
+var errNotificationNotFound = callMistake{errors.New("notification_id: no notification with this id for you; use an id from my_notifications")}
 
 // FollowedDiscussions are the caller's private discussion follows and their
 // reply notifications, as /api/v1/me/discussions and /me/notifications.
@@ -43,7 +49,12 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		Description: "Mark one of the signed-in user's reply notifications read, by its id from my_notifications. Marking it again changes nothing. " +
 			"Read state is private."},
 		privateTool(d, func(ctx context.Context, owner string, in notificationInput) (notificationState, error) {
-			return notificationState{NotificationID: in.NotificationID, Read: true}, d.FollowedDiscussions.Read(ctx, owner, in.NotificationID)
+			err := d.FollowedDiscussions.Read(ctx, owner, in.NotificationID)
+			if errors.Is(err, discussions.ErrNotFound) {
+				// The route's "contribution" wording would point an agent at a post.
+				return notificationState{}, errNotificationNotFound
+			}
+			return notificationState{NotificationID: in.NotificationID, Read: true}, err
 		}))
 }
 

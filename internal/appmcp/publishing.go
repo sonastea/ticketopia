@@ -214,6 +214,10 @@ func (d Deps) describePrivate(err error) string {
 	if errors.As(err, &limit) {
 		return limit.Error()
 	}
+	var mistake callMistake
+	if errors.As(err, &mistake) {
+		return mistake.Error()
+	}
 	if errors.Is(err, recommendations.ErrPersonal) {
 		return "the person wrote or published this recommendation themselves, so only they can withdraw it, on the event's page"
 	}

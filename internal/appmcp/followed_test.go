@@ -8,6 +8,7 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
+	"github.com/sonastea/ticketopia/internal/discussions"
 )
 
 type fakeFollowed struct{ *fakeAccount }
@@ -24,6 +25,9 @@ func (f fakeFollowed) Notifications(_ context.Context, who string, v url.Values)
 
 func (f fakeFollowed) Read(_ context.Context, who, id string) error {
 	f.record("follows.Read " + who + " " + id)
+	if id == "unknown" {
+		return discussions.ErrNotFound
+	}
 	return nil
 }
 
@@ -57,6 +61,10 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 		if reply := tool(t, base, token, tc.tool, tc.args); reply.Result.IsError || strings.Join(f.calls, "|") != tc.want {
 			t.Fatalf("%s: %+v calls %q", tc.tool, reply.Result, f.calls)
 		}
+	}
+	if reply := tool(t, base, "owner-token", "mark_notification_read", map[string]any{"notification_id": "unknown"}); !reply.Result.IsError ||
+		!strings.HasPrefix(reply.Result.Content[0].Text, "notification_id: no notification with this id") {
+		t.Fatalf("unknown notification: %+v", reply.Result)
 	}
 	reply := tool(t, base, "reader-token", "my_preferences", map[string]any{})
 	if body := string(reply.Result.StructuredContent); !strings.Contains(body, `"city":"Chicago"`) || strings.Contains(body, "private@example.com") {
