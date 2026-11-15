@@ -194,8 +194,10 @@ func (s *Service) Read(ctx context.Context, who, id string) error {
 	if !accounts.ValidID(who) {
 		return accounts.ErrUnauthenticated
 	}
-	if err := discussions.PostID(id); err != nil {
-		return err
+	// Notification IDs share the post ID format, but errors name what the
+	// caller sent.
+	if !accounts.ValidID(id) {
+		return &accounts.ValidationError{Field: "notification_id", Message: "use a notification id from your notifications"}
 	}
 	return s.repo.Read(ctx, who, id)
 }

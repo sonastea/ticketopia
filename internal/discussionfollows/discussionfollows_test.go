@@ -72,3 +72,13 @@ func TestPrivatePaginationAndReplyLinks(t *testing.T) {
 		}
 	}
 }
+
+// A malformed notification id is named as such, not as a post id, and never
+// reaches the repository.
+func TestReadNamesNotificationID(t *testing.T) {
+	s := New(&fixture{})
+	var invalid *accounts.ValidationError
+	if err := s.Read(t.Context(), accounts.ID(), "nope"); !errors.As(err, &invalid) || invalid.Field != "notification_id" {
+		t.Fatal(err)
+	}
+}

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-11-15 — Notification ID errors name notification_id
+
+- Marking a notification read with a malformed ID answers 400 with
+  `fields.notification_id` ("use a notification id from your notifications")
+  instead of `post_id`, on the web route and the `mark_notification_read`
+  agent tool.
+
 ### 2026-10-29 — Batched reply fan-out and followed-conversation pages
 
 - Enqueue reply notifications with one recipient read plus two multi-row writes per
