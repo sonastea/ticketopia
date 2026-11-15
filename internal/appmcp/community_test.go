@@ -9,6 +9,7 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
+	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/useractivity"
@@ -45,6 +46,14 @@ func (f fakeCommunity) Event(_ context.Context, id string, v url.Values) (recomm
 	return recommendations.List{Items: []recommendations.Item{{Event: models.Event{ID: id}, Profile: accounts.PublicProfile{ID: "author-id", DisplayName: "Author"}, Reason: "Great"}}, Count: &count}, nil
 }
 
+func (f fakeCommunity) Participants(_ context.Context, id string, v url.Values) (interests.Participants, error) {
+	f.record("interests.Participants " + id + " " + v.Encode())
+	if id == "ticketmaster:broken" {
+		return interests.Participants{}, interests.ErrUnavailable
+	}
+	return interests.Participants{Items: []interests.Participant{{Profile: accounts.PublicProfile{ID: "fan-id", DisplayName: "Fan"}}}}, nil
+}
+
 // Each public read passes its arguments through unchanged, works without a
 // token, and reports service errors in the account API's wording.
 func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
@@ -56,6 +65,7 @@ func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
 		want string
 	}{
 		{"event_recommendations", map[string]any{"event_id": "ticketmaster:x", "limit": 2, "cursor": "c"}, "recommendations.Event ticketmaster:x cursor=c&limit=2"},
+		{"event_interested_people", map[string]any{"event_id": "ticketmaster:x", "limit": 3}, "interests.Participants ticketmaster:x limit=3"},
 	} {
 		f.calls = nil
 		reply := tool(t, base, "", tc.tool, tc.args)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
+	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/useractivity"
 )
@@ -22,6 +23,12 @@ type EventCommunity interface {
 // GET /api/v1/events/{id}/recommendations does.
 type EventRecommendations interface {
 	Event(ctx context.Context, id string, values url.Values) (recommendations.List, error)
+}
+
+// InterestedPeople reads an event's public Interested identities, as
+// GET /api/v1/events/{id}/interested-users does.
+type InterestedPeople interface {
+	Participants(ctx context.Context, id string, values url.Values) (interests.Participants, error)
 }
 
 // ProfileActivity reads one person's public contributions, as
@@ -51,7 +58,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 		mcp.AddTool(server, &mcp.Tool{Name: "profile_activity", Title: "Profile activity", OutputSchema: outputSchema[useractivity.List](), Annotations: readOnly,
 			Description: "One person's public contributions on Ticketopia, newest first: discussion posts and replies, recommendations, " +
 				"and events they made their Interested choice public for, each with the event. Never includes private interest, saves or follows. " +
-				"user_id is a profile id from event_recommendations, or the ID in a profile URL (/users/<id>); omit it for the signed-in user's own public activity. " +
+				"user_id is a profile id from event_recommendations or event_interested_people, or the ID in a profile URL (/users/<id>); omit it for the signed-in user's own public activity. " +
 				"For the next page, pass next_cursor as cursor with the same user_id and limit."},
 			publicRead(d, func(ctx context.Context, viewer string, in profileActivityInput) (useractivity.List, error) {
 				user := in.UserID
@@ -71,6 +78,15 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				"For the next page, pass next_cursor as cursor with the same event_id and limit."},
 			publicRead(d, func(ctx context.Context, _ string, in eventPageInput) (recommendations.List, error) {
 				return d.EventRecommendations.Event(ctx, in.EventID, in.values())
+			}))
+	}
+	if d.InterestedPeople != nil {
+		mcp.AddTool(server, &mcp.Tool{Name: "event_interested_people", Title: "Event's interested people", OutputSchema: outputSchema[interests.Participants](), Annotations: readOnly,
+			Description: "People who made their Interested choice for one event public, newest first, with their public profile (its id works as " +
+				"profile_activity's user_id). Private choices are never listed, so this is usually fewer than event_community's interested count. " +
+				"For the next page, pass next_cursor as cursor with the same event_id and limit."},
+			publicRead(d, func(ctx context.Context, _ string, in eventPageInput) (interests.Participants, error) {
+				return d.InterestedPeople.Participants(ctx, in.EventID, in.values())
 			}))
 	}
 }

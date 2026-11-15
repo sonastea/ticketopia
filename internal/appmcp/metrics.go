@@ -78,7 +78,7 @@ var toolNames = []string{"find_events", "list_categories", "event_details",
 	"my_interested_events", "mark_interested", "unmark_interested",
 	"make_interest_public", "make_interest_private", "my_recommendations", "recommend_event", "withdraw_recommendation",
 	"draft_recommendation", "my_drafts", "discard_draft", "event_community", "profile_activity",
-	"event_recommendations"}
+	"event_recommendations", "event_interested_people"}
 
 func NewMetrics() *Metrics {
 	return &Metrics{tools: map[string]*ToolStats{}, refusals: map[string]uint64{}}

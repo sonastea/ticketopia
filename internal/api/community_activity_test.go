@@ -177,6 +177,9 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 	routes := a.Routes()
 	owner := account.account.ID
 	recs.items[owner] = map[string]recommendations.Item{id: {Event: models.Event{ID: id}, Profile: account.account.Public(), Reason: "Worth it", RecommendedAt: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)}}
+	if w := accountRequest(a, "PUT", "/api/v1/me/event-interests/"+id, `{"visibility":"public"}`, "", bearer, "", "", ""); w.Code != 201 {
+		t.Fatal("public interest fixture", w.Code, w.Body.String())
+	}
 	for _, tc := range []struct {
 		tool, args, path string
 	}{
@@ -184,6 +187,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		{"profile_activity", `{"user_id":"` + owner + `"}`, "/api/v1/users/" + owner + "/activity"},
 		{"profile_activity", `{}`, "/api/v1/users/" + owner + "/activity"},
 		{"event_recommendations", `{"event_id":"` + id + `","limit":1}`, "/api/v1/events/" + id + "/recommendations?limit=1"},
+		{"event_interested_people", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/interested-users"},
 	} {
 		http := accountRequest(a, "GET", tc.path, "", "", bearer, "", "", "")
 		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+tc.tool+`","arguments":`+tc.args+`}}`,
