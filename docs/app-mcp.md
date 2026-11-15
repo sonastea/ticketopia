@@ -23,6 +23,7 @@ steps (a separate deployment); this page covers what exists.
 | `discussion_thread` | One question or tip with a page of its replies (oldest first), as `GET …/discussions/{discussion_id}` and `…/replies` together; the thread is returned on every page. |
 | `community_recommendations` | Recommended events grouped per event, optionally by city, country and `category_id`, as `GET /api/v1/community/recommendations`. |
 | `community_discussions` | Recent questions and tips across events with the same filters, as `GET /api/v1/community/discussions`. |
+| `user_profile` | One public profile (ID, display name, bio; never email or settings), as `GET /api/v1/users/{user_id}`; signed in, omitting `user_id` reads the caller's own. |
 
 These community reads need accounts and MariaDB, and are listed with them.
 They share the HTTP routes' code, so results match those routes exactly.

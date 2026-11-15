@@ -68,6 +68,7 @@ type Deps struct {
 	InterestedPeople         InterestedPeople
 	Discussions              Discussions
 	CommunityRecommendations CommunityRecommendations
+	Profiles                 Profiles
 	// Accounts reads the caller's remembered city, which find_events
 	// defaults to.
 	Accounts Accounts

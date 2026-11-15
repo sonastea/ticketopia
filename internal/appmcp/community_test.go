@@ -79,6 +79,14 @@ func (f fakeCommunity) Community(_ context.Context, v url.Values) (recommendatio
 	return recommendations.Feed{Items: []recommendations.EventGroup{{Event: models.Event{ID: "ticketmaster:x"}, Count: 1}}}, nil
 }
 
+func (f fakeCommunity) Public(_ context.Context, id string) (accounts.PublicProfile, error) {
+	f.record("accounts.Public " + id)
+	if id == "missing" {
+		return accounts.PublicProfile{}, accounts.ErrNotFound
+	}
+	return accounts.PublicProfile{ID: id, DisplayName: "Someone"}, nil
+}
+
 // Each public read passes its arguments through unchanged, works without a
 // token, and reports service errors in the account API's wording.
 func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
@@ -149,8 +157,16 @@ func TestCommunityToolsArePublicAndScopeViewerToCaller(t *testing.T) {
 	if reply := tool(t, base, "", "profile_activity", map[string]any{"user_id": "missing"}); !reply.Result.IsError {
 		t.Fatalf("missing profile: %+v", reply.Result)
 	}
+	if reply := tool(t, base, "", "user_profile", map[string]any{}); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "/users/<id>") {
+		t.Fatalf("anonymous own profile: %+v", reply.Result)
+	}
+	tool(t, base, "reader-token", "user_profile", map[string]any{})
+	if reply := tool(t, base, "", "user_profile", map[string]any{"user_id": "missing"}); !reply.Result.IsError {
+		t.Fatalf("missing user_profile: %+v", reply.Result)
+	}
 	want := []string{"community.Event  ticketmaster:x", "community.Event owner-id ticketmaster:x", "community.Event  ticketmaster:broken",
-		"community.Profile someone limit=5", "community.Profile owner-id cursor=next", "community.Profile missing "}
+		"community.Profile someone limit=5", "community.Profile owner-id cursor=next", "community.Profile missing ",
+		"accounts.Public owner-id", "accounts.Public missing"}
 	if strings.Join(f.calls, "|") != strings.Join(want, "|") {
 		t.Fatalf("calls %q", f.calls)
 	}

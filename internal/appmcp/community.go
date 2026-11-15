@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
@@ -44,6 +45,11 @@ type Discussions interface {
 // GET /api/v1/community/recommendations does.
 type CommunityRecommendations interface {
 	Community(ctx context.Context, values url.Values) (recommendations.Feed, error)
+}
+
+// Profiles reads one public profile, as GET /api/v1/users/{id} does.
+type Profiles interface {
+	Public(ctx context.Context, id string) (accounts.PublicProfile, error)
 }
 
 // ProfileActivity reads one person's public contributions, as
@@ -141,6 +147,22 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				return d.CommunityRecommendations.Community(ctx, in.values())
 			}))
 	}
+	if d.Profiles != nil {
+		mcp.AddTool(server, &mcp.Tool{Name: "user_profile", Title: "User profile", OutputSchema: outputSchema[accounts.PublicProfile](), Annotations: readOnly,
+			Description: "One person's public profile: id, display name and bio, never email or private settings. user_id is a profile id from " +
+				"event_recommendations, event_interested_people or a discussion post, or the ID in a profile URL (/users/<id>); " +
+				"omit it for the signed-in user's own public profile. profile_activity lists what they contributed."},
+			publicRead(d, func(ctx context.Context, viewer string, in userInput) (accounts.PublicProfile, error) {
+				user := in.UserID
+				if user == "" {
+					user = viewer
+				}
+				if user == "" {
+					return accounts.PublicProfile{}, errProfileNeeded
+				}
+				return d.Profiles.Public(ctx, user)
+			}))
+	}
 }
 
 // publicRead is a public tool that, signed in with read access, knows the
@@ -217,4 +239,8 @@ func (in communityInput) values() url.Values {
 		}
 	}
 	return v
+}
+
+type userInput struct {
+	UserID string `json:"user_id,omitempty" jsonschema:"account ID from a profile URL (/users/<id>) or another tool's profile.id; omit for your own"`
 }

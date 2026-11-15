@@ -215,6 +215,8 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		{"event_community", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/community"},
 		{"profile_activity", `{"user_id":"` + owner + `"}`, "/api/v1/users/" + owner + "/activity"},
 		{"profile_activity", `{}`, "/api/v1/users/" + owner + "/activity"},
+		{"user_profile", `{"user_id":"` + owner + `"}`, "/api/v1/users/" + owner},
+		{"user_profile", `{}`, "/api/v1/users/" + owner},
 		{"event_recommendations", `{"event_id":"` + id + `","limit":1}`, "/api/v1/events/" + id + "/recommendations?limit=1"},
 		{"event_interested_people", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/interested-users"},
 		{"event_discussions", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/discussions"},

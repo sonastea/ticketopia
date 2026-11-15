@@ -77,7 +77,7 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 		}
 	}
 	if a.enabled() {
-		deps.Accounts = a.accounts
+		deps.Accounts, deps.Profiles = a.accounts, a.accounts
 		if a.radar != nil {
 			deps.Radar = a.radar
 		}
