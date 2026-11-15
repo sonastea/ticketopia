@@ -28,7 +28,11 @@
     an agent tool in `internal/appmcp`, sharing one service method with its
     handler. Mirror the route's auth and visibility. Tools that act on the
     caller's account go in `SignedInTools` with the right scope; public reads
-    don't. Register the name in `toolNames`.
+    don't. Register the name in `toolNames`. When tools are added or changed,
+    have a subagent use them as a person's agent would, following
+    `docs/app-mcp.md#verifying-new-tools-with-an-agent`. Run it locally on the
+    review server before committing. After the person deploys, run it against
+    production using read-only tools only, unless they approve writes.
   - `docs/deployment.md`: deployment/infrastructure work only.
 - Consult goals, ideas, and proposed designs only for relevant planned requirements;
   distinguish plans from implemented behavior. Read `docs/changes/` and archives
