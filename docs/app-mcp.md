@@ -320,3 +320,44 @@ key, with a high rate limit for local tooling. It enables OAuth with a fixture
 app (`paths.oauth_authorize` opens its consent page) but keeps sign-in optional,
 so load scripts can call public tools anonymously. Each fixture account has an API
 token in the manifest (`accounts.<name>.api_token`) for the signed-in tools.
+
+## Verifying new tools with an agent
+
+Unit tests prove a tool's code. They don't show how an agent actually uses it.
+When a change adds or changes tools, an agent (a subagent of the session doing
+the work) uses them the way a person's agent would: it starts from
+`find_events` or `event_details`, then calls the new tool with what those return
+and follows up as a person would ask. It does this twice.
+
+**1. Locally, before committing.** Apply a review scenario through the
+`ticketopia-review` MCP server (`scenario_apply`), or run
+`make review-server scenario=<name>` and read `manifest.json` from
+`REVIEW_SERVER_STATE_DIR` (`baseline` seeds public
+activity, while `discover-last-known` or `populated` are needed for provider-backed
+tools such as `find_venues` and `my_radar`). Then call `paths.mcp` over HTTP:
+
+- anonymously, and with the `owner` and `other` tokens from the manifest, so
+  results are checked for the right caller and nothing private crosses
+  accounts;
+- every new tool, with a valid call, an empty or unknown target, a malformed
+  argument and a bad `limit`/`cursor`, checking the error wording an agent
+  would see;
+- writes through to their read-back (for example `mark_interested`, then
+  `event_community` and `profile_activity`), including scope refusals with an
+  OAuth or read-only connection where the tool needs `write` or `publish`;
+- each tool against its `/api/v1` route with the same token, which must match.
+
+Writes are safe here: the schema is thrown away.
+
+**2. Against production, once deployed.** Confirm in Coolify that the commit
+finished deploying and `/readyz` answers 200. Then run the same read paths
+against `https://topia.sonastea.com/mcp`, with the token from the
+repository's ignored `.envrc` (`TICKETOPIA_TOKEN`, loaded with `direnv exec .`).
+Never print it. Without a token, `/mcp` must answer 401 with the OAuth
+challenge. Use only read-only tools and invalid-input calls. Writes change a
+real account and `publish` tools act publicly, so run them only when the person
+asks for that run.
+
+The agent reports each call and its outcome, compares results with the API,
+and lists anything it couldn't exercise (such as no production data to
+paginate).
