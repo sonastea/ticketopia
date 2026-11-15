@@ -6,7 +6,7 @@
 
 - Add signed-in tools for account routes that had none, each calling the
   route's service method: `my_followed_discussions` and `my_notifications`
-  (`read`). See
+  (`read`), and `mark_notification_read` (`write`). See
   [tools](../app-mcp.md#tools).
 
 ### 2026-11-15 — Public community read tools

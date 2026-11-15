@@ -54,6 +54,7 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `my_drafts` / `discard_draft` | List the caller's pending drafts, or delete one (`write`). |
 | `my_followed_discussions` | The questions and tips the caller [follows](followed-discussions.md) privately, with frequency and the question, as `GET /api/v1/me/discussions`. |
 | `my_notifications` | New replies in followed discussions, read or unread, with a site path to each reply, as `GET /api/v1/me/notifications`. Listing marks nothing read. |
+| `mark_notification_read` | Mark one notification read (`write`), idempotently, as `PUT /api/v1/me/notifications/{notification_id}/read`. |
 
 Client metadata whose `client_name` names Ticketopia (case-folded letters and
 digits, with 0 read as o and 1, l and ! as i) is refused, so no app appears as
@@ -68,8 +69,8 @@ Read tools are annotated read-only. `unsave_event`, `stop_reminder`,
 `set_reminder` (changing a reminder replaces its timing), `unfollow_artist_or_venue`,
 `unmark_interested`, `make_interest_private`, `withdraw_recommendation` and
 `discard_draft` are marked destructive; `save_event`, `follow_artist_or_venue`,
-`mark_interested`, `make_interest_public`, `recommend_event` and
-`draft_recommendation` are additive. All writes are idempotent (an identical
+`mark_interested`, `make_interest_public`, `recommend_event`,
+`draft_recommendation` and `mark_notification_read` are additive. All writes are idempotent (an identical
 pending draft is returned, not repeated) and return the resulting state.
 `make_interest_public`, `recommend_event` and `withdraw_recommendation` need
 the `publish` scope; the other writes need `write`.

@@ -13,6 +13,7 @@ import (
 type FollowedDiscussions interface {
 	List(ctx context.Context, who string, values url.Values) (discussionfollows.Page[discussionfollows.Follow], error)
 	Notifications(ctx context.Context, who string, values url.Values) (discussionfollows.Page[discussionfollows.Notification], error)
+	Read(ctx context.Context, who, id string) error
 }
 
 // addFollowedTools registers the signed-in followed-discussion tools, each
@@ -37,4 +38,20 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		privateTool(d, func(ctx context.Context, owner string, in pageInput) (discussionfollows.Page[discussionfollows.Notification], error) {
 			return d.FollowedDiscussions.Notifications(ctx, owner, in.values())
 		}))
+	mcp.AddTool(server, &mcp.Tool{Name: "mark_notification_read", Title: "Mark notification read", OutputSchema: outputSchema[notificationState](),
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
+		Description: "Mark one of the signed-in user's reply notifications read, by its id from my_notifications. Marking it again changes nothing. " +
+			"Read state is private."},
+		privateTool(d, func(ctx context.Context, owner string, in notificationInput) (notificationState, error) {
+			return notificationState{NotificationID: in.NotificationID, Read: true}, d.FollowedDiscussions.Read(ctx, owner, in.NotificationID)
+		}))
+}
+
+type notificationInput struct {
+	NotificationID string `json:"notification_id" jsonschema:"id from my_notifications"`
+}
+
+type notificationState struct {
+	NotificationID string `json:"notification_id"`
+	Read           bool   `json:"read"`
 }

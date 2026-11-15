@@ -21,6 +21,11 @@ func (f fakeFollowed) Notifications(_ context.Context, who string, v url.Values)
 	return discussionfollows.Page[discussionfollows.Notification]{Items: []discussionfollows.Notification{{ID: "n", EventID: "ticketmaster:x"}}}, nil
 }
 
+func (f fakeFollowed) Read(_ context.Context, who, id string) error {
+	f.record("follows.Read " + who + " " + id)
+	return nil
+}
+
 // Followed-discussion tools act only for the token's account and need sign-in.
 func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 	f := &fakeAccount{}
@@ -32,12 +37,21 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 	}{
 		{"my_followed_discussions", map[string]any{"limit": 3}, "follows.List owner-id limit=3"},
 		{"my_notifications", map[string]any{"cursor": "c"}, "follows.Notifications owner-id cursor=c"},
+		{"mark_notification_read", map[string]any{"notification_id": "n1"}, "follows.Read owner-id n1"},
 	} {
 		if reply := tool(t, base, "", tc.tool, tc.args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "Authorization: Bearer") {
 			t.Fatalf("%s without token: %+v", tc.tool, reply.Result)
 		}
 		f.calls = nil
-		if reply := tool(t, base, "reader-token", tc.tool, tc.args); reply.Result.IsError || strings.Join(f.calls, "|") != tc.want {
+		token := "reader-token"
+		if SignedInTools[tc.tool] == ScopeWrite {
+			// A read-only connection is refused before the service is reached.
+			if reply := tool(t, base, token, tc.tool, tc.args); !reply.Result.IsError || len(f.calls) != 0 {
+				t.Fatalf("%s with read only: %+v calls %q", tc.tool, reply.Result, f.calls)
+			}
+			token = "owner-token"
+		}
+		if reply := tool(t, base, token, tc.tool, tc.args); reply.Result.IsError || strings.Join(f.calls, "|") != tc.want {
 			t.Fatalf("%s: %+v calls %q", tc.tool, reply.Result, f.calls)
 		}
 	}

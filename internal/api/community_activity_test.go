@@ -181,12 +181,18 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 	post := discussions.Post{ID: accounts.ID(), EventID: id, Body: "Doors at 7?", CreatedAt: at, UpdatedAt: at, Profile: &accounts.PublicProfile{ID: account.account.ID, DisplayName: "Contributor"}}
 	post.ThreadID = post.ID
 	a.discussions = discussions.New(&discussionStub{post: post}, a.saved)
-	a.discussionFollows = discussionfollows.New(&fixedFollowStub{follow: discussionfollows.Follow{EventID: id, ThreadID: post.ID, Frequency: "daily", CreatedAt: at, Root: post}})
+	follows := &fixedFollowStub{follow: discussionfollows.Follow{EventID: id, ThreadID: post.ID, Frequency: "daily", CreatedAt: at, Root: post}}
+	a.discussionFollows = discussionfollows.New(follows)
 	a.runCtx = t.Context()
 	WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 600, MaxInFlight: 8})(a)
 	routes := a.Routes()
 	owner := account.account.ID
 	recs.items[owner] = map[string]recommendations.Item{id: {Event: models.Event{ID: id}, Profile: account.account.Public(), Reason: "Worth it", RecommendedAt: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)}}
+	// mark_notification_read writes for the token's account, as the PUT route does.
+	if r := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"mark_notification_read","arguments":{"notification_id":"`+post.ID+`"}}}`,
+		map[string]string{"Authorization": "Bearer " + bearer}); r.Code != 200 || strings.Contains(r.Body.String(), `"isError":true`) || len(follows.read) != 1 || follows.read[0] != owner+" "+post.ID {
+		t.Fatalf("mark_notification_read: %d %s %q", r.Code, r.Body.String(), follows.read)
+	}
 	// discussion_thread is the thread route and its replies route together.
 	{
 		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"discussion_thread","arguments":{"event_id":"`+id+`","thread_id":"`+post.ID+`"}}}`,
@@ -297,6 +303,12 @@ func TestHappeningNowToolMatchesHTTPRoute(t *testing.T) {
 type fixedFollowStub struct {
 	discussionfollows.Repository
 	follow discussionfollows.Follow
+	read   []string
+}
+
+func (r *fixedFollowStub) Read(_ context.Context, who, id string) error {
+	r.read = append(r.read, who+" "+id)
+	return nil
 }
 
 func (r *fixedFollowStub) Notifications(context.Context, string, discussionfollows.Query) ([]discussionfollows.Notification, error) {
