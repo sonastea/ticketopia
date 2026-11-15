@@ -83,6 +83,9 @@ type Deps struct {
 	// DescribeCatalog words artist and venue search errors as the catalog
 	// API does, including any retry delay; Describe is used when nil.
 	DescribeCatalog func(error) string
+
+	// arguments collects input schemas as NewServer registers tools.
+	arguments argumentSchemas
 }
 
 // NewServer returns the MCP server with the public tools registered, plus the
@@ -102,9 +105,10 @@ func NewServer(d Deps) *mcp.Server {
 			"and you should use them only when the user asks. You never publish words: draft_recommendation, draft_question and draft_reply save a private draft, " +
 			"and the user reads and publishes it on Ticketopia at the review_url it returns. You cannot edit or remove the user's posts; they do that on Ticketopia.",
 	})
-	server.AddReceivingMiddleware(observe(d.Logger, d.Metrics))
+	d.arguments = argumentSchemas{}
+	server.AddReceivingMiddleware(observe(d.Logger, d.Metrics), checkArguments(d.arguments))
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
-	mcp.AddTool(server, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[eventSearch](), Annotations: readOnly,
+	addTool(server, d, &mcp.Tool{Name: "find_events", Title: "Find events", OutputSchema: outputSchema[eventSearch](), Annotations: readOnly,
 		Description: "Search events by city and country (ISO code such as US), dates, category, or keyword. " +
 			"Dates are YYYY-MM-DD and match each event's local date; start_date defaults to today in UTC and end_date to 90 days after it, at most 366 days. " +
 			"When signed in, a search without city, country or keyword uses the city saved in the user's account, reported as default_location. " +
@@ -126,12 +130,12 @@ func NewServer(d Deps) *mcp.Server {
 			}
 			return nil, out, nil
 		})
-	mcp.AddTool(server, &mcp.Tool{Name: "list_categories", Title: "List categories", OutputSchema: outputSchema[models.CategoryList](), Annotations: readOnly,
+	addTool(server, d, &mcp.Tool{Name: "list_categories", Title: "List categories", OutputSchema: outputSchema[models.CategoryList](), Annotations: readOnly,
 		Description: "Event categories (such as Music, Sports, Arts & Theatre) and their genres, with the IDs find_events accepts as category_id."},
 		toolErrors(d, func(ctx context.Context, _ struct{}) (models.CategoryList, error) {
 			return d.Events.Categories(ctx)
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "event_details", Title: "Event details", OutputSchema: outputSchema[models.EventDetail](), Annotations: readOnly,
+	addTool(server, d, &mcp.Tool{Name: "event_details", Title: "Event details", OutputSchema: outputSchema[models.EventDetail](), Annotations: readOnly,
 		Description: "Details for one event by its ID from find_events (for example ticketmaster:G5v...), including prices, sale dates, venue, freshness and recent changes."},
 		toolErrors(d, func(ctx context.Context, in detailsInput) (models.EventDetail, error) {
 			return d.Details.Detail(ctx, in.EventID)

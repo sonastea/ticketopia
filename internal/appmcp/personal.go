@@ -47,7 +47,7 @@ type Accounts interface {
 // services available, each acting only on the token's account.
 func addPersonalTools(server *mcp.Server, d Deps) {
 	if d.Radar != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "my_radar", Title: "My radar", OutputSchema: outputSchema[radar.List](),
+		addTool(server, d, &mcp.Tool{Name: "my_radar", Title: "My radar", OutputSchema: outputSchema[radar.List](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "Upcoming events picked for the signed-in user over the next 90 days, near the city saved in their account, " +
 				"from the artists and venues they follow and their chosen categories, each with the reasons it matched (mode personalized). " +
@@ -60,24 +60,24 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 	}
 	if d.Follows != nil && d.Catalog != nil {
 		// Searches reach the provider, as on the web, so they need sign-in too.
-		mcp.AddTool(server, &mcp.Tool{Name: "find_artists", Title: "Find artists", OutputSchema: outputSchema[models.CatalogList](),
+		addTool(server, d, &mcp.Tool{Name: "find_artists", Title: "Find artists", OutputSchema: outputSchema[models.CatalogList](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 			Description: "Search performers (artists, bands, teams, comedians) by name, for their IDs to follow. " +
 				"For the next page, pass next_cursor as cursor with the same other arguments."},
 			catalogTool(d, "artist", func(in artistSearch) url.Values { return in.values() }))
-		mcp.AddTool(server, &mcp.Tool{Name: "find_venues", Title: "Find venues", OutputSchema: outputSchema[models.CatalogList](),
+		addTool(server, d, &mcp.Tool{Name: "find_venues", Title: "Find venues", OutputSchema: outputSchema[models.CatalogList](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 			Description: "Search venues by name, optionally within a city and country, for their IDs to follow. " +
 				"For the next page, pass next_cursor as cursor with the same other arguments."},
 			catalogTool(d, "venue", func(in venueSearch) url.Values { return in.values() }))
-		mcp.AddTool(server, &mcp.Tool{Name: "my_follows", Title: "My follows", OutputSchema: outputSchema[follows.List](),
+		addTool(server, d, &mcp.Tool{Name: "my_follows", Title: "My follows", OutputSchema: outputSchema[follows.List](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "The artists and venues the signed-in user follows privately, newest first; kind narrows to artist or venue. " +
 				"For the next page, pass next_cursor as cursor with the same kind and limit."},
 			privateTool(d, func(ctx context.Context, owner string, in followsInput) (follows.List, error) {
 				return d.Follows.List(ctx, owner, in.values())
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "follow_artist_or_venue", Title: "Follow artist or venue", OutputSchema: outputSchema[followState](),
+		addTool(server, d, &mcp.Tool{Name: "follow_artist_or_venue", Title: "Follow artist or venue", OutputSchema: outputSchema[followState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Follow an artist or venue privately, by its ID from find_artists or find_venues, so its events appear in my_radar. " +
 				"Following again keeps the original follow. Follows are never shown to other people."},
@@ -85,7 +85,7 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 				item, created, err := d.Follows.Follow(ctx, owner, in.Kind, in.TargetID)
 				return followState{Kind: in.Kind, TargetID: in.TargetID, Following: true, Created: created, Item: &item}, err
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "unfollow_artist_or_venue", Title: "Unfollow artist or venue", OutputSchema: outputSchema[followState](),
+		addTool(server, d, &mcp.Tool{Name: "unfollow_artist_or_venue", Title: "Unfollow artist or venue", OutputSchema: outputSchema[followState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Stop following an artist or venue. Unfollowing one that is not followed changes nothing."},
 			privateTool(d, func(ctx context.Context, owner string, in followInput) (followState, error) {
@@ -93,7 +93,7 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.Accounts != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "my_preferences", Title: "My preferences", OutputSchema: outputSchema[accounts.Preferences](),
+		addTool(server, d, &mcp.Tool{Name: "my_preferences", Title: "My preferences", OutputSchema: outputSchema[accounts.Preferences](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "The signed-in user's private preferences, as GET /api/v1/me/preferences returns them: saved city and country (which " +
 				"find_events and my_radar default to), timezone, chosen category_ids (see list_categories), and email reminder, weekly digest " +
@@ -104,7 +104,7 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.Interests != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "my_interested_events", Title: "My Interested events", OutputSchema: outputSchema[interests.List](),
+		addTool(server, d, &mcp.Tool{Name: "my_interested_events", Title: "My Interested events", OutputSchema: outputSchema[interests.List](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "Events the signed-in user marked Interested, newest first, each with its visibility (private, or public on their profile). " +
 				"For the next page, pass next_cursor as cursor with the same limit."},
@@ -114,7 +114,7 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 		// mark_interested never publishes: new choices are private and existing
 		// ones keep the visibility the person chose. Making a choice public is
 		// make_interest_public, which needs the publish scope.
-		mcp.AddTool(server, &mcp.Tool{Name: "mark_interested", Title: "Mark Interested", OutputSchema: outputSchema[interestState](),
+		addTool(server, d, &mcp.Tool{Name: "mark_interested", Title: "Mark Interested", OutputSchema: outputSchema[interestState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Mark an event Interested for the signed-in user. A new choice is private: it counts only toward the event's anonymous total. " +
 				"An existing choice keeps its visibility. This never makes a choice public: that is make_interest_public, only when the user asks. " +
@@ -123,7 +123,7 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 				item, created, err := d.Interests.Set(ctx, owner, in.EventID, nil, "private")
 				return interestState{EventID: in.EventID, Interested: true, Created: created, Item: &item}, err
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "unmark_interested", Title: "Remove Interested", OutputSchema: outputSchema[interestState](),
+		addTool(server, d, &mcp.Tool{Name: "unmark_interested", Title: "Remove Interested", OutputSchema: outputSchema[interestState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Remove the user's Interested choice for an event, public or private. Removing one that is not set changes nothing."},
 			privateTool(d, func(ctx context.Context, owner string, in eventInput) (interestState, error) {

@@ -15,7 +15,7 @@ steps (a separate deployment); this page covers what exists.
 | `find_events` | Search by city, country, dates, category, keyword, sort and limit, with `cursor` paging. Same validation, defaults, caching and results as Discover and `GET /api/v1/events`. Signed in, a search without city, country or keyword uses the account's saved city, as Discover does, and reports it as `default_location`; keyword searches (an artist's tour) stay unrestricted. |
 | `list_categories` | Categories and their IDs for `find_events` `category_id`, as `GET /api/v1/categories`. |
 | `event_details` | One event by ID, as `GET /api/v1/events/{event_id}`, including the durable last-known fallback. |
-| `event_community` | An event's public totals (interested including private choices, active recommendations, visible questions and tips), as `GET /api/v1/events/{event_id}/community`. Signed in with `read`, `viewer` adds the caller's own saved, Interested and recommended state; otherwise it is `null`. |
+| `event_community` | An event's public totals (interested including private choices, active recommendations, visible questions and tips), as `GET /api/v1/events/{event_id}/community`. Signed in with `read`, `viewer` adds the caller's own saved, Interested and recommended state; otherwise it is `null`. An ID that names no event is not found; zeros mean the event is quiet, or that it couldn't be checked while the provider is unavailable. |
 | `profile_activity` | One person's public posts, recommendations and public Interested choices, newest first, as `GET /api/v1/users/{user_id}/activity`. `user_id` comes from a profile URL; signed in, omitting it reads the caller's own. |
 | `event_recommendations` | An event's public recommendations with each author's public profile (its `id` is a `profile_activity` `user_id`), optional reason, `via` attribution and the event's `count`, as `GET /api/v1/events/{event_id}/recommendations`. |
 | `event_interested_people` | People who made their Interested choice public, with public profiles, as `GET /api/v1/events/{event_id}/interested-users`. Private choices are never listed. |
@@ -93,11 +93,16 @@ arguments; a cursor is bound to its filters.
 Results keep the API's freshness metadata: list `meta` and, for stored Discover
 lists, per-event `meta` with `stale` for last-known events. Each tool publishes
 an output schema, and results are validated against it. Errors are tool errors
-with the API's wording (for example `limit: must be an integer from 1 to 100`),
+with the API's wording (for example `limit: use an integer from 1 to 100`),
 plus `Retry after N seconds.` when the provider is cooling down, so agents can
 correct or pace their requests. Signed-in tool errors use the account API's
-wording. A failed call carries only its message, with no structured result, so
-a zero value (such as `following: false`) is never mistaken for the answer.
+wording. Arguments that don't fit a tool are refused before it runs, in the same
+`field: message` form, naming every problem in name order and joined by `; `:
+unknown arguments are named together with the tool's arguments, a missing one
+says `required` with its description, and a wrong type, including a list's
+items, says what to send (a mistyped `limit` says `use an integer from 1 to
+100`). A failed call carries only its message, with no structured result, so a
+zero value (such as `following: false`) is never mistaken for the answer.
 
 ## Signing in
 

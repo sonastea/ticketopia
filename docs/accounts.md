@@ -210,7 +210,10 @@ combining several calls:
   `recommendations`; visible root `discussions`) and a separate `viewer` object
   with your own `saved`, `interested`, `interest_visibility` and `recommended`
   state. `viewer` is `null` without a credential. A bearer token that fails is
-  401, not an anonymous answer. Unknown events report zeros without a provider call.
+  401, not an anonymous answer. An event with no activity is checked as event
+  details are (cached, with the last-known snapshot), so an ID that names no
+  event is 404 `event_not_found`; a quiet event reports zeros, as does any event
+  while that check can't reach the provider.
 - `GET /api/v1/users/{id}/activity` lists one person's public contributions
   newest first: visible posts and replies, active recommendations and public
   Interested choices, as `discussion_post`, `recommendation` and `interest` items

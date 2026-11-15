@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
@@ -30,9 +31,12 @@ func (a *api) userActivityEnabled() bool { return a.enabled() && a.userActivity 
 
 // eventCommunity reads one event's public totals in two local queries and,
 // when owner is set, that account's own save, interest and recommendation.
-// Unknown events report zero totals: no provider lookup is made. Interest
-// totals include private choices without identities, as on /interest. The
-// HTTP route and the agents' event_community tool share it.
+// An event with no community activity and no viewer state is looked up as
+// event details are (cached, with the last-known fallback), so an unknown
+// event is not found rather than zero; if that lookup fails for any other
+// reason the zeros stand. Interest totals include private choices without
+// identities, as on /interest. The HTTP route and the agents'
+// event_community tool share it.
 func (a *api) eventCommunity(ctx context.Context, owner, id string) (eventactivity.Community, error) {
 	if !a.eventCommunityEnabled() {
 		return eventactivity.Community{}, eventactivity.ErrUnavailable
@@ -54,22 +58,26 @@ func (a *api) eventCommunity(ctx context.Context, owner, id string) (eventactivi
 		Recommendations: previews[id].Recommendations,
 		Discussions:     previews[id].Questions,
 	}}
-	if owner == "" {
-		return result, nil
+	if owner != "" {
+		saves, err := a.saved.States(ctx, owner, []string{id})
+		if err != nil {
+			return eventactivity.Community{}, err
+		}
+		_, err = a.recommendations.Get(ctx, owner, id)
+		if err != nil && !errors.Is(err, recommendations.ErrNotFound) {
+			return eventactivity.Community{}, err
+		}
+		result.Viewer = &eventactivity.CommunityViewer{
+			Saved:              saves[id],
+			Interested:         interest.Interested,
+			InterestVisibility: interest.Visibility,
+			Recommended:        err == nil,
+		}
 	}
-	saves, err := a.saved.States(ctx, owner, []string{id})
-	if err != nil {
-		return eventactivity.Community{}, err
-	}
-	_, err = a.recommendations.Get(ctx, owner, id)
-	if err != nil && !errors.Is(err, recommendations.ErrNotFound) {
-		return eventactivity.Community{}, err
-	}
-	result.Viewer = &eventactivity.CommunityViewer{
-		Saved:              saves[id],
-		Interested:         interest.Interested,
-		InterestVisibility: interest.Visibility,
-		Recommended:        err == nil,
+	if result.Counts == (eventactivity.CommunityCounts{}) && (result.Viewer == nil || *result.Viewer == (eventactivity.CommunityViewer{})) {
+		if _, err := a.saved.Detail(ctx, id); errors.Is(err, discovery.ErrNotFound) {
+			return eventactivity.Community{}, err
+		}
 	}
 	return result, nil
 }

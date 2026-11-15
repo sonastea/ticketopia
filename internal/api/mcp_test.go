@@ -73,7 +73,7 @@ func TestMCPToolCallMatchesAPIValidation(t *testing.T) {
 	response := mcpRequest(t, mcpRoutesFor(t, WithMCP(appmcp.Config{Enabled: true})), "")
 	body := response.Body.String()
 	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(body, `"isError":true`) || !strings.Contains(body, "limit: must be an integer from 1 to 100") {
+		!strings.Contains(body, `"isError":true`) || !strings.Contains(body, "limit: use an integer from 1 to 100") {
 		t.Fatalf("status %d cache %q body %s", response.Code, response.Header().Get("Cache-Control"), body)
 	}
 }
@@ -212,7 +212,7 @@ func TestMCPToolErrorsCarryRetryDelay(t *testing.T) {
 	if got := describeForAgents(&discovery.UnavailableError{RetryAfter: 90 * time.Second}); !strings.HasSuffix(got, "Retry after 90 seconds.") {
 		t.Fatalf("unavailable: %q", got)
 	}
-	if got := describeForAgents(&discovery.ValidationError{Field: "limit", Message: "must be an integer from 1 to 100"}); strings.Contains(got, "Retry") {
+	if got := describeForAgents(&discovery.ValidationError{Field: "limit", Message: "use an integer from 1 to 100"}); strings.Contains(got, "Retry") {
 		t.Fatalf("validation: %q", got)
 	}
 }

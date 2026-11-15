@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-11-15 — Clearer argument and not-found errors
+
+- Arguments that don't fit a tool (unknown, missing or of the wrong type) are
+  refused in the API's `field: message` wording, naming every problem, instead
+  of the SDK's schema messages. `limit` errors read `use an integer from 1 to
+  100` and malformed event IDs `use a ticketmaster: prefixed ID` everywhere,
+  in tools and `/api/v1` alike. `event_community` and its route report an ID
+  that names no event as not found (contract 1.28.0), not as zeros; this
+  costs a cached event lookup for events without activity. See
+  [tools](../app-mcp.md#tools).
+
 ### 2026-11-15 — Agent publishing, phase 2
 
 - `draft_question` and `draft_reply` (`write`) store private question, tip and
@@ -75,21 +86,5 @@
   `event_recommendations.via_client_name`/`via_client_host` and `agent_drafts`,
   with runtime grants in every provisioning path. Discussions and Helpful are phase 2; see
   the [guide](../app-mcp.md#publishing-in-your-name).
-
-### 2026-11-13 — Radar, follow and Interested tools
-
-- Add signed-in tools: `my_radar`; `find_artists`, `find_venues`, `my_follows`,
-  `follow_artist_or_venue` and `unfollow_artist_or_venue`; `my_interested_events`,
-  `mark_interested` and `unmark_interested`. They wrap the same services as the
-  account API, act only on the token's account, and their writes need the
-  `write` scope. Agents create only private Interested choices, keeping the
-  consent page's promise that a connected app cannot post anything publicly.
-- Signed in, `find_events` without city, country or keyword uses the account's
-  saved city and reports it as `default_location`.
-- The consent page and Connected apps list the new abilities. The review
-  fixture's provider stand-in answers venue searches, so the tools can be tried
-  locally. Tests cover the tools, scope refusals and the location default, plus
-  venue search, following, radar picks and private Interested against MariaDB;
-  see the [guide](../app-mcp.md#tools).
 
 Older entries: [agent tools archive](archive/app-mcp/).

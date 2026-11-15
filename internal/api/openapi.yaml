@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.27.0
+  version: 1.28.0
   license:
     name: MIT
     identifier: MIT
@@ -1341,8 +1341,10 @@ paths:
         token it holds only the caller's own save, interest and recommendation
         state. A sent bearer token that fails returns 401 rather than an
         anonymous answer; an expired browser session reads anonymously. No query
-        parameters or provider calls; unknown event IDs report zero totals. All
-        responses are private, no-store.
+        parameters. An event with no activity and no viewer state is looked up
+        as event details are (cached, with the last-known snapshot): an ID that
+        names no event is 404 `event_not_found`, while an unavailable lookup
+        keeps the zero totals. All responses are private, no-store.
       security: [{}, {sessionCookie: []}, {bearerToken: []}]
       parameters:
         - {name: event_id, in: path, required: true, schema: {$ref: '#/components/schemas/ResourceID'}}
@@ -1354,6 +1356,11 @@ paths:
               schema: {$ref: '#/components/schemas/EventCommunity'}
         '400': {$ref: '#/components/responses/AccountBadRequest'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404':
+          description: No event has this ID (code event_not_found).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
         '503': {$ref: '#/components/responses/CommunityActivityUnavailable'}
   /api/v1/events/{event_id}/interested-users:
     get:

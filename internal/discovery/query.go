@@ -110,7 +110,7 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	if value := text("limit"); value != "" {
 		limit, err := strconv.Atoi(value)
 		if err != nil || limit < 1 || limit > 100 {
-			return q, &ValidationError{"limit", "must be an integer from 1 to 100"}
+			return q, &ValidationError{"limit", "use an integer from 1 to 100"}
 		}
 		q.Limit = limit
 	}

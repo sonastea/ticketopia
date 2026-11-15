@@ -145,7 +145,7 @@ func TestHappeningNowFilters(t *testing.T) {
 	}{
 		{map[string]any{"city": "Chicago"}, "country:"}, {map[string]any{"country": "US"}, "city:"},
 		{map[string]any{"city": "Chicago", "country": "USA"}, "country:"},
-		{map[string]any{"category_ids": []string{"bad id!"}}, "category_ids:"}, {map[string]any{"category_ids": many}, "category_ids:"},
+		{map[string]any{"category_ids": []string{"bad id!"}}, "category_ids:"}, {map[string]any{"category_ids": many}, "category_ids:"}, {map[string]any{"category_ids": []int{1, 2}}, "category_ids: use a list of strings"},
 	} {
 		if reply := tool(t, base, "", "happening_now", tc.args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, tc.field) {
 			t.Fatalf("%v: %+v", tc.args, reply.Result)

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 2026-11-15 — Event community not-found, contract v1.28.0
+
+- `GET /api/v1/events/{event_id}/community` answers 404 `event_not_found` for
+  an ID that names no event; an event with no activity still reports zeros,
+  as does any event while the provider can't be reached. Every collection's
+  limit error now reads `limit: use an integer from 1 to 100` (event search,
+  notifications and followed discussions said otherwise), and every malformed
+  event ID `event_id: use a ticketmaster: prefixed ID`.
+
 ### 2026-11-15 — Discussion post attribution, contract v1.27.0
 
 - `DiscussionPost`, and `post` in `ProfileActivityItem`, gain optional `via`
@@ -79,14 +88,5 @@
 - Add optional `Event.tint` (`#rrggbb`), an artwork-derived header colour
   normalized to a fixed OKLCH lightness and computed once when the event is cached
   or stored. Clients may ignore it. See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-07 — Private reporting and moderation contract v1.8.0
-
-- Document owner-only receipts/outcomes, private author review requests, authorized
-  queue/case reads, and atomic keep/hide/restore with stale-context rejection.
-- Add safe hidden-post projections and independent bounded history cursors;
-  distinguish shared reasons from moderator-only evidence/notes and author appeals.
-  See [moderation](../moderation.md#api).
-- Validate the contract with only the two existing health-probe warnings.
 
 Older entries: [OpenAPI contract archive](archive/openapi/).

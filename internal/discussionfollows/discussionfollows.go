@@ -119,7 +119,7 @@ func (s *Service) Remove(ctx context.Context, who, event, thread string) error {
 func ParseQuery(values url.Values, scope string) (Query, error) {
 	q := Query{Limit: 20}
 	bad := func(field string) (Query, error) {
-		return q, &accounts.ValidationError{Field: field, Message: "use limit 1–100 and the next cursor from this private collection"}
+		return q, &accounts.ValidationError{Field: field, Message: "use only limit and the next cursor from this private collection"}
 	}
 	for key, values := range values {
 		if (key != "limit" && key != "cursor") || len(values) != 1 {
@@ -129,18 +129,19 @@ func ParseQuery(values url.Values, scope string) (Query, error) {
 	if raw, ok := values["limit"]; ok {
 		n, err := strconv.Atoi(raw[0])
 		if err != nil || n < 1 || n > 100 {
-			return bad("limit")
+			return q, &accounts.ValidationError{Field: "limit", Message: "use an integer from 1 to 100"}
 		}
 		q.Limit = n
 	}
 	if raw, ok := values["cursor"]; ok {
+		badCursor := &accounts.ValidationError{Field: "cursor", Message: "use the next cursor from this private collection"}
 		if len(raw[0]) > 1024 {
-			return bad("cursor")
+			return q, badCursor
 		}
 		data, err := base64.RawURLEncoding.Strict().DecodeString(raw[0])
 		var c Cursor
 		if err != nil || json.Unmarshal(data, &c) != nil || c.Scope != scope || !accounts.ValidID(c.ID) || c.At.IsZero() || c.At.Year() < 1000 || c.At.Year() > 9999 {
-			return bad("cursor")
+			return q, badCursor
 		}
 		q.Cursor = &c
 	}

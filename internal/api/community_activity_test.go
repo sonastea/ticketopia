@@ -13,11 +13,14 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/activity"
 	"github.com/sonastea/ticketopia/internal/appmcp"
+	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
+	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/internal/useractivity"
 )
 
@@ -349,4 +352,40 @@ func (r *fixedFollowStub) Notifications(context.Context, string, discussionfollo
 
 func (r *fixedFollowStub) List(context.Context, string, discussionfollows.Query) ([]discussionfollows.Follow, error) {
 	return []discussionfollows.Follow{r.follow}, nil
+}
+
+type quietActivity struct{}
+
+func (quietActivity) Previews(context.Context, []string) (map[string]eventactivity.Preview, error) {
+	return map[string]eventactivity.Preview{}, nil
+}
+
+type detailFailure struct{ err error }
+
+func (d detailFailure) Event(context.Context, string) (models.EventDetail, error) {
+	return models.EventDetail{}, d.err
+}
+
+// An event nobody has acted on still reads as zeros, but an ID that names no
+// event is not found, as event details are, so a caller can tell a quiet
+// event from a wrong ID. A failed lookup never turns a real event into 404.
+func TestEventCommunityTellsQuietEventsFromUnknownOnes(t *testing.T) {
+	a, _, _, _, bearer, _, id := recommendationAPI(t)
+	WithEventActivity(quietActivity{})(a)
+	for _, token := range []string{"", bearer} {
+		w := accountRequest(a, "GET", "/api/v1/events/"+id+"/community", "", "", token, "", "", "")
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"counts":{"interested":0,"recommendations":0,"discussions":0}`) {
+			t.Fatal("quiet event", token != "", w.Code, w.Body.String())
+		}
+		w = accountRequest(a, "GET", "/api/v1/events/ticketmaster:Unknown/community", "", "", token, "", "", "")
+		if w.Code != 404 || !strings.Contains(w.Body.String(), `"event_not_found"`) {
+			t.Fatal("unknown event", token != "", w.Code, w.Body.String())
+		}
+	}
+	snapshots := a.saved
+	a.saved = saved.New(&savedStub{items: map[string]map[string]saved.Item{}}, detailFailure{&discovery.UnavailableError{RetryAfter: time.Minute}})
+	if w := accountRequest(a, "GET", "/api/v1/events/ticketmaster:Unknown/community", "", "", "", "", "", ""); w.Code != 200 {
+		t.Fatal("an unavailable provider hid a quiet event", w.Code, w.Body.String())
+	}
+	a.saved = snapshots
 }

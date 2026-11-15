@@ -68,7 +68,7 @@ func New(repo Repository, discovery Discovery) *Service { return &Service{repo, 
 
 func ValidateID(id string) error {
 	if !eventID.MatchString(id) {
-		return &accounts.ValidationError{Field: "event_id", Message: "use a Ticketmaster event ID"}
+		return &accounts.ValidationError{Field: "event_id", Message: "use a ticketmaster: prefixed ID"}
 	}
 	return nil
 }

@@ -90,7 +90,7 @@ var errUserNeeded = callMistake{errors.New("user_id is required: pass a profile 
 func addCommunityTools(server *mcp.Server, d Deps) {
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no}
 	if d.EventCommunity != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "event_community", Title: "Event community", OutputSchema: outputSchema[eventactivity.Community](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "event_community", Title: "Event community", OutputSchema: outputSchema[eventactivity.Community](), Annotations: readOnly,
 			Description: "An event's community totals by its ID from find_events: people Interested (including private choices, never who), " +
 				"active public recommendations, and visible questions and tips. Signed in, viewer adds the user's own saved, Interested " +
 				"(with its visibility) and recommended state; viewer is null otherwise. Unknown events report zeros."},
@@ -99,7 +99,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.ProfileActivity != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "profile_activity", Title: "Profile activity", OutputSchema: outputSchema[useractivity.List](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "profile_activity", Title: "Profile activity", OutputSchema: outputSchema[useractivity.List](), Annotations: readOnly,
 			Description: "One person's public contributions on Ticketopia, newest first: discussion posts and replies, recommendations, " +
 				"and events they made their Interested choice public for, each with the event. Never includes private interest, saves or follows. " +
 				"user_id is a profile id from event_recommendations, event_interested_people or a discussion post, or the ID in a profile URL (/users/<id>); " +
@@ -117,7 +117,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.EventRecommendations != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "event_recommendations", Title: "Event recommendations", OutputSchema: outputSchema[recommendations.List](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "event_recommendations", Title: "Event recommendations", OutputSchema: outputSchema[recommendations.List](), Annotations: readOnly,
 			Description: "Public recommendations of one event by its ID from find_events, newest first: each person's public profile (its id works as " +
 				"profile_activity's user_id), their optional reason, and via when an app published it. count is the event's total. " +
 				"For the next page, pass next_cursor as cursor with the same event_id."},
@@ -126,7 +126,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.InterestedPeople != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "event_interested_people", Title: "Event's interested people", OutputSchema: outputSchema[interests.Participants](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "event_interested_people", Title: "Event's interested people", OutputSchema: outputSchema[interests.Participants](), Annotations: readOnly,
 			Description: "People who made their Interested choice for one event public, newest first, with their public profile (its id works as " +
 				"profile_activity's user_id). Private choices are never listed, so this is usually fewer than event_community's interested count. " +
 				"For the next page, pass next_cursor as cursor with the same event_id."},
@@ -135,7 +135,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.Discussions != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "event_discussions", Title: "Event questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "event_discussions", Title: "Event questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
 			Description: "Public questions and tips about one event, newest first, each with its author's public profile, reply_count and helpful_count; " +
 				"signed in, helpful is the user's own Helpful choice. Removed or hidden roots that still have visible replies appear without text. " +
 				"count is the event's visible questions and tips. Open one with discussion_thread using its thread_id; signed in, follow_discussion follows it. " +
@@ -147,7 +147,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				}
 				return d.Discussions.List(ctx, viewer, in.EventID, "", in.values())
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "discussion_thread", Title: "Discussion thread", OutputSchema: outputSchema[discussionThread](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "discussion_thread", Title: "Discussion thread", OutputSchema: outputSchema[discussionThread](), Annotations: readOnly,
 			Description: "One question or tip with its replies oldest first, by thread_id: the thread_id of any post from event_discussions, community_discussions, " +
 				"profile_activity, my_followed_discussions or my_notifications (for a reply, its thread_id, not its id), with that post's event_id. parent_id and parent_name show which post a reply answers. " +
 				"count is the thread's visible replies. For more replies, pass next_cursor as cursor with the same event_id, thread_id and sign-in; " +
@@ -166,7 +166,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				replies, err := d.Discussions.List(ctx, viewer, in.EventID, in.ThreadID, pageInput{Limit: in.Limit, Cursor: in.Cursor}.values())
 				return discussionThread{Thread: root, Replies: replies}, err
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "community_discussions", Title: "Community questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "community_discussions", Title: "Community questions and tips", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
 			Description: "Recent public questions and tips across events, newest first, each with its event. city, country (ISO code such as US) and category_id " +
 				"from list_categories each narrow the list on their own. Open one with discussion_thread using its event_id and thread_id. " +
 				"For the next page, pass next_cursor as cursor with the same filters and sign-in (cursors belong to the caller)."},
@@ -175,7 +175,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.CommunityRecommendations != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "community_recommendations", Title: "Community recommendations", OutputSchema: outputSchema[recommendations.Feed](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "community_recommendations", Title: "Community recommendations", OutputSchema: outputSchema[recommendations.Feed](), Annotations: readOnly,
 			Description: "Events people recommend, one entry per event with its total count and up to three recommendations, newest first by when " +
 				"the event was first recommended. city, country (ISO code such as US) and category_id from list_categories each narrow the feed on their own. " +
 				"For the next page, pass next_cursor as cursor with the same filters."},
@@ -184,7 +184,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.Profiles != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "user_profile", Title: "User profile", OutputSchema: outputSchema[accounts.PublicProfile](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "user_profile", Title: "User profile", OutputSchema: outputSchema[accounts.PublicProfile](), Annotations: readOnly,
 			Description: "One person's public profile: id, display name and bio, never email or private settings. user_id is a profile id from " +
 				"event_recommendations, event_interested_people or a discussion post, or the ID in a profile URL (/users/<id>); " +
 				"omit it for the signed-in user's own public profile. profile_activity lists what they contributed."},
@@ -200,7 +200,7 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.LiveActivity != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "happening_now", Title: "Happening now", OutputSchema: outputSchema[activity.Snapshot](), Annotations: readOnly,
+		addTool(server, d, &mcp.Tool{Name: "happening_now", Title: "Happening now", OutputSchema: outputSchema[activity.Snapshot](), Annotations: readOnly,
 			Description: "Events people recommended in the last ten minutes, as on Ticketopia's Happening Now page: each with its title, city, " +
 				"recent recommendation count and at most a recommender's first name, and expires_at, when it leaves the list. Optionally narrow by city with " +
 				"country (ISO code such as US) and category_ids from list_categories. A current snapshot, not a history; call again for updates."},

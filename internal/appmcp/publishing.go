@@ -118,7 +118,7 @@ const publicNote = "Only use this when the person asked for it in this conversat
 // removes the person's posts.
 func addPublishingTools(server *mcp.Server, d Deps) {
 	if d.Interests != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "make_interest_public", Title: "Make Interested public", OutputSchema: outputSchema[interestState](),
+		addTool(server, d, &mcp.Tool{Name: "make_interest_public", Title: "Make Interested public", OutputSchema: outputSchema[interestState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Make the signed-in user's Interested choice for an event public, marking it Interested first if needed. " +
 				"Public means their display name and profile link appear among the event's interested people and on their public profile. " +
@@ -128,7 +128,7 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 				item, created, err := d.Interests.Set(ctx, owner, in.EventID, &visibility, "private")
 				return interestState{EventID: in.EventID, Interested: true, Created: created, Item: &item}, err
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "make_interest_private", Title: "Make Interested private", OutputSchema: outputSchema[interestState](),
+		addTool(server, d, &mcp.Tool{Name: "make_interest_private", Title: "Make Interested private", OutputSchema: outputSchema[interestState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Make the signed-in user's Interested choice for an event private, marking it Interested first if needed. " +
 				"A private choice counts only toward the event's anonymous total; their name leaves the event and their profile."},
@@ -139,14 +139,14 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.Recommendations != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "my_recommendations", Title: "My recommendations", OutputSchema: outputSchema[recommendations.List](),
+		addTool(server, d, &mcp.Tool{Name: "my_recommendations", Title: "My recommendations", OutputSchema: outputSchema[recommendations.List](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "The signed-in user's public event recommendations, newest first, each with its reason and, when an app published it or wrote its reason, via (the app's name). " +
 				"For the next page, pass next_cursor as cursor with the same limit."},
 			privateTool(d, func(ctx context.Context, owner string, in pageInput) (recommendations.List, error) {
 				return d.Recommendations.Own(ctx, owner, in.values())
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "recommend_event", Title: "Recommend event", OutputSchema: outputSchema[recommendationState](),
+		addTool(server, d, &mcp.Tool{Name: "recommend_event", Title: "Recommend event", OutputSchema: outputSchema[recommendationState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Publicly recommend an event as the signed-in user, without a reason. Their display name and profile link appear on the event, in Community and on their profile, " +
 				"marked as via this app with its host. An existing recommendation is returned unchanged, reason included. " +
@@ -156,7 +156,7 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 				item, created, err := d.Recommendations.Publish(ctx, owner, in.EventID, recommendations.Write{Via: tokenExtra(req, ExtraClientName), ViaHost: tokenExtra(req, ExtraClientHost), KeepExisting: true})
 				return recommendationState{EventID: in.EventID, Recommended: true, Created: created, Item: &item}, err
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "withdraw_recommendation", Title: "Withdraw recommendation", OutputSchema: outputSchema[recommendationState](),
+		addTool(server, d, &mcp.Tool{Name: "withdraw_recommendation", Title: "Withdraw recommendation", OutputSchema: outputSchema[recommendationState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Withdraw the signed-in user's public recommendation of an event, only when an app published it without a reason. " +
 				"A recommendation the person published or gave a reason for is left alone: they can withdraw it on the event's page. " +
@@ -166,7 +166,7 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.Drafts != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "draft_recommendation", Title: "Draft recommendation", OutputSchema: outputSchema[draftResult](),
+		addTool(server, d, &mcp.Tool{Name: "draft_recommendation", Title: "Draft recommendation", OutputSchema: outputSchema[draftResult](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Save a private draft of a recommendation reason (plain text, up to 500 characters) for the signed-in user to review. Nothing is published: " +
 				"tell the person to open review_url, where they can read, publish or discard it. Publishing replaces any reason they already have for that event. " + draftNote},
@@ -177,7 +177,7 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 		if d.Discussions != nil {
 			addDiscussionDraftTools(server, d)
 		}
-		mcp.AddTool(server, &mcp.Tool{Name: "my_drafts", Title: "My drafts", OutputSchema: outputSchema[draftList](),
+		addTool(server, d, &mcp.Tool{Name: "my_drafts", Title: "My drafts", OutputSchema: outputSchema[draftList](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "The signed-in user's private drafts awaiting review, newest first, from any connected app: kind is recommendation (a reason), " +
 				"question (a question or tip) or reply (with its thread_id and, when it answers a reply, parent_id). Each is unpublished until the person publishes it at review_url."},
@@ -185,7 +185,7 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 				items, err := d.Drafts.List(ctx, owner)
 				return draftList{Items: items, ReviewURL: d.DraftsURL}, err
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "discard_draft", Title: "Discard draft", OutputSchema: outputSchema[draftState](),
+		addTool(server, d, &mcp.Tool{Name: "discard_draft", Title: "Discard draft", OutputSchema: outputSchema[draftState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Delete one of the signed-in user's unpublished drafts by its id from my_drafts. discarded is true when a pending draft was deleted, " +
 				"and false when none had this id (already published, discarded or expired, or never a draft of this user): nothing changes then. Published recommendations and posts are not affected."},
@@ -206,7 +206,7 @@ var draftNote = fmt.Sprintf("Drafts expire after seven days, or when the user di
 // Agents never post words: each is a private draft the person reads and
 // publishes on the web, attributed to the app that wrote it.
 func addDiscussionDraftTools(server *mcp.Server, d Deps) {
-	mcp.AddTool(server, &mcp.Tool{Name: "draft_question", Title: "Draft question or tip", OutputSchema: outputSchema[draftResult](),
+	addTool(server, d, &mcp.Tool{Name: "draft_question", Title: "Draft question or tip", OutputSchema: outputSchema[draftResult](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 		Description: "Save a private draft of a new question or tip on an event (plain text, up to 4000 characters) for the signed-in user to review. Nothing is published: " +
 			"tell the person to open review_url, where they can read, publish or discard it. Published, it appears in the event's questions and tips under their name, " +
@@ -215,7 +215,7 @@ func addDiscussionDraftTools(server *mcp.Server, d Deps) {
 			draft, err := d.Drafts.CreateQuestion(ctx, owner, in.EventID, in.Body, draftClient(req))
 			return d.drafted(draft), err
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "draft_reply", Title: "Draft reply", OutputSchema: outputSchema[draftResult](),
+	addTool(server, d, &mcp.Tool{Name: "draft_reply", Title: "Draft reply", OutputSchema: outputSchema[draftResult](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 		Description: "Save a private draft of a reply in a question or tip's conversation (plain text, up to 4000 characters) for the signed-in user to review. Nothing is published: " +
 			"tell the person to open review_url, where they see what it answers and can publish or discard it. Use the event_id and thread_id from event_discussions, " +
@@ -245,7 +245,7 @@ var errPostNotFound = callMistake{errors.New("post_id: no visible question, tip 
 // addHelpfulTools registers Helpful, a public signal without words, so it
 // is a publish action rather than a draft.
 func addHelpfulTools(server *mcp.Server, d Deps) {
-	mcp.AddTool(server, &mcp.Tool{Name: "mark_helpful", Title: "Mark Helpful", OutputSchema: outputSchema[helpfulState](),
+	addTool(server, d, &mcp.Tool{Name: "mark_helpful", Title: "Mark Helpful", OutputSchema: outputSchema[helpfulState](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 		Description: "Mark a question, tip or reply Helpful as the signed-in user, by its id (post_id) from event_discussions, discussion_thread or community_discussions. " +
 			"Helpful is public: it adds to the post's helpful_count that everyone sees, though nobody sees who marked it. Marking again changes nothing. " +
@@ -253,7 +253,7 @@ func addHelpfulTools(server *mcp.Server, d Deps) {
 		publishTool(d, func(ctx context.Context, owner string, _ *mcp.CallToolRequest, in postInput) (helpfulState, error) {
 			return d.react(ctx, owner, in.PostID, true)
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "unmark_helpful", Title: "Remove Helpful", OutputSchema: outputSchema[helpfulState](),
+	addTool(server, d, &mcp.Tool{Name: "unmark_helpful", Title: "Remove Helpful", OutputSchema: outputSchema[helpfulState](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 		Description: "Remove the signed-in user's Helpful mark from a question, tip or reply, by its id (post_id). Its public helpful_count goes down by one. " +
 			"Removing a mark that isn't there changes nothing. Needs the connection's permission to post publicly. " + publicNote},

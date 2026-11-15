@@ -31,7 +31,7 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 	if d.FollowedDiscussions == nil {
 		return
 	}
-	mcp.AddTool(server, &mcp.Tool{Name: "my_followed_discussions", Title: "My followed discussions", OutputSchema: outputSchema[discussionfollows.Page[discussionfollows.Follow]](),
+	addTool(server, d, &mcp.Tool{Name: "my_followed_discussions", Title: "My followed discussions", OutputSchema: outputSchema[discussionfollows.Page[discussionfollows.Follow]](),
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 		Description: "Questions and tips the signed-in user follows privately, newest follow first, each with its event_id, thread_id, " +
 			"notification frequency (immediate, daily, weekly or muted) and the question itself. Open one with discussion_thread using its " +
@@ -39,7 +39,7 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		privateTool(d, func(ctx context.Context, owner string, in pageInput) (discussionfollows.Page[discussionfollows.Follow], error) {
 			return d.FollowedDiscussions.List(ctx, owner, in.values())
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "my_notifications", Title: "My reply notifications", OutputSchema: outputSchema[discussionfollows.Page[discussionfollows.Notification]](),
+	addTool(server, d, &mcp.Tool{Name: "my_notifications", Title: "My reply notifications", OutputSchema: outputSchema[discussionfollows.Page[discussionfollows.Notification]](),
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 		Description: "Reply notifications for discussions the signed-in user follows, read and unread, newest first: each with the event name, " +
 			"reply_count (the replies it covers), read, the reply's post_id, and url, a path on the Ticketopia site (prefix the site's address to link it). " +
@@ -48,7 +48,7 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		privateTool(d, func(ctx context.Context, owner string, in pageInput) (discussionfollows.Page[discussionfollows.Notification], error) {
 			return d.FollowedDiscussions.Notifications(ctx, owner, in.values())
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "mark_notification_read", Title: "Mark notification read", OutputSchema: outputSchema[notificationState](),
+	addTool(server, d, &mcp.Tool{Name: "mark_notification_read", Title: "Mark notification read", OutputSchema: outputSchema[notificationState](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 		Description: "Mark one of the signed-in user's reply notifications read, by its id from my_notifications. Marking it again changes nothing. " +
 			"Read state is private."},
@@ -60,7 +60,7 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 			}
 			return notificationState{NotificationID: in.NotificationID, Read: true}, err
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "follow_discussion", Title: "Follow discussion", OutputSchema: outputSchema[discussionFollowState](),
+	addTool(server, d, &mcp.Tool{Name: "follow_discussion", Title: "Follow discussion", OutputSchema: outputSchema[discussionFollowState](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 		Description: "Follow a question or tip privately for the signed-in user, or change how often its replies notify them in my_notifications: " +
 			"immediate (one notification per new reply from someone else), daily (one grouped notification at the next midnight UTC), weekly " +
@@ -82,7 +82,7 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 			}
 			return discussionFollowState{EventID: in.EventID, ThreadID: in.ThreadID, Following: true, Follow: &follow}, nil
 		}))
-	mcp.AddTool(server, &mcp.Tool{Name: "unfollow_discussion", Title: "Unfollow discussion", OutputSchema: outputSchema[discussionFollowState](),
+	addTool(server, d, &mcp.Tool{Name: "unfollow_discussion", Title: "Unfollow discussion", OutputSchema: outputSchema[discussionFollowState](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 		Description: "Stop following a question or tip, by its event_id and thread_id from my_followed_discussions. Its replies stop notifying the " +
 			"signed-in user. Unfollowing one that is not followed changes nothing."},

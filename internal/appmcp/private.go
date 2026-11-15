@@ -82,20 +82,20 @@ var (
 // Each acts only on the account behind the request's API token.
 func addPrivateTools(server *mcp.Server, d Deps) {
 	if d.Saved != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "my_saved_events", Title: "My saved events", OutputSchema: outputSchema[saved.List](),
+		addTool(server, d, &mcp.Tool{Name: "my_saved_events", Title: "My saved events", OutputSchema: outputSchema[saved.List](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "The signed-in user's private saved events, newest first. For the next page, pass next_cursor as cursor with the same limit."},
 			privateTool(d, func(ctx context.Context, owner string, in pageInput) (saved.List, error) {
 				return d.Saved.List(ctx, owner, in.values())
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "save_event", Title: "Save event", OutputSchema: outputSchema[savedState](),
+		addTool(server, d, &mcp.Tool{Name: "save_event", Title: "Save event", OutputSchema: outputSchema[savedState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Save an event to the signed-in user's private saved events. Saving again keeps the original save. Saving does not reserve tickets or turn on reminders."},
 			privateTool(d, func(ctx context.Context, owner string, in eventInput) (savedState, error) {
 				item, created, err := d.Saved.Save(ctx, owner, in.EventID)
 				return savedState{Saved: true, Created: created, EventID: in.EventID, Item: &item}, err
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "unsave_event", Title: "Remove saved event", OutputSchema: outputSchema[savedState](),
+		addTool(server, d, &mcp.Tool{Name: "unsave_event", Title: "Remove saved event", OutputSchema: outputSchema[savedState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Remove an event from the signed-in user's saved events. This also stops its on-sale reminder. Removing an event that is not saved changes nothing."},
 			privateTool(d, func(ctx context.Context, owner string, in eventInput) (savedState, error) {
@@ -103,21 +103,21 @@ func addPrivateTools(server *mcp.Server, d Deps) {
 			}))
 	}
 	if d.Reminders != nil {
-		mcp.AddTool(server, &mcp.Tool{Name: "my_reminders", Title: "My reminders", OutputSchema: outputSchema[reminders.Page](),
+		addTool(server, d, &mcp.Tool{Name: "my_reminders", Title: "My reminders", OutputSchema: outputSchema[reminders.Page](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
 			Description: "The signed-in user's public on-sale email reminders with their delivery state. For the next page, pass next_cursor as cursor with the same limit."},
 			privateTool(d, func(ctx context.Context, owner string, in pageInput) (reminders.Page, error) {
 				return d.Reminders.List(ctx, owner, in.values())
 			}))
 		// Destructive: changing an existing reminder replaces its timing.
-		mcp.AddTool(server, &mcp.Tool{Name: "set_reminder", Title: "Set on-sale reminder", OutputSchema: outputSchema[reminders.Item](),
+		addTool(server, d, &mcp.Tool{Name: "set_reminder", Title: "Set on-sale reminder", OutputSchema: outputSchema[reminders.Item](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Set or change the email reminder for an event's public on-sale time, lead_minutes before it (1 to 10080, up to seven days). " +
 				"The event must be saved first (save_event). Delivery also depends on the user's email and notification preferences, shown in the result's state."},
 			privateTool(d, func(ctx context.Context, owner string, in reminderInput) (reminders.Item, error) {
 				return d.Reminders.Set(ctx, owner, in.EventID, in.LeadMinutes)
 			}))
-		mcp.AddTool(server, &mcp.Tool{Name: "stop_reminder", Title: "Stop on-sale reminder", OutputSchema: outputSchema[reminderState](),
+		addTool(server, d, &mcp.Tool{Name: "stop_reminder", Title: "Stop on-sale reminder", OutputSchema: outputSchema[reminderState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
 			Description: "Stop the on-sale reminder for an event; the event stays saved. A message already being sent cannot be recalled. Stopping a reminder that is not set changes nothing."},
 			privateTool(d, func(ctx context.Context, owner string, in eventInput) (reminderState, error) {
