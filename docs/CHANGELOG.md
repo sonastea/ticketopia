@@ -4,8 +4,8 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-11-15 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-15 — [Followed discussions](changes/followed-discussions.md)
-- 2026-11-14 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-14 — [OpenAPI contract](changes/openapi.md)
 - 2026-11-14 — [Database and persistence](changes/database.md)
 - 2026-11-13 — [Observability](changes/observability.md)

@@ -148,8 +148,8 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				return d.Discussions.List(ctx, viewer, in.EventID, "", in.values())
 			}))
 		mcp.AddTool(server, &mcp.Tool{Name: "discussion_thread", Title: "Discussion thread", OutputSchema: outputSchema[discussionThread](), Annotations: readOnly,
-			Description: "One question or tip with its replies oldest first, by thread_id: the thread_id of any post from event_discussions, community_discussions " +
-				"or profile_activity (for a reply, its thread_id, not its id), with that post's event_id. parent_id and parent_name show which post a reply answers. " +
+			Description: "One question or tip with its replies oldest first, by thread_id: the thread_id of any post from event_discussions, community_discussions, " +
+				"profile_activity, my_followed_discussions or my_notifications (for a reply, its thread_id, not its id), with that post's event_id. parent_id and parent_name show which post a reply answers. " +
 				"count is the thread's visible replies. For more replies, pass next_cursor as cursor with the same event_id, thread_id and sign-in; " +
 				"thread is returned on every page."},
 			publicRead(d, func(ctx context.Context, viewer string, in threadInput) (discussionThread, error) {
@@ -264,7 +264,7 @@ func (in eventPageInput) values() url.Values {
 
 type threadInput struct {
 	EventID  string  `json:"event_id" jsonschema:"event ID the thread belongs to"`
-	ThreadID string  `json:"thread_id" jsonschema:"thread_id of a post from event_discussions, community_discussions or profile_activity (for a reply, its thread_id, not its id)"`
+	ThreadID string  `json:"thread_id" jsonschema:"thread_id from event_discussions, community_discussions, profile_activity, my_followed_discussions or my_notifications (for a reply, its thread_id, not its id)"`
 	Limit    *int    `json:"limit,omitempty" jsonschema:"replies per page, 1 to 100, default 20"`
 	Cursor   *string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page of replies"`
 }

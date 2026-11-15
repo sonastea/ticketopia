@@ -38,9 +38,10 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		}))
 	mcp.AddTool(server, &mcp.Tool{Name: "my_notifications", Title: "My reply notifications", OutputSchema: outputSchema[discussionfollows.Page[discussionfollows.Notification]](),
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
-		Description: "New replies in discussions the signed-in user follows, newest first: each with the event name, reply_count, whether it is read, " +
-			"its post_id, and url, a path on the Ticketopia site to the reply. Open the conversation with discussion_thread using event_id and thread_id. " +
-			"Reading this list does not mark anything read. For the next page, pass next_cursor as cursor."},
+		Description: "Reply notifications for discussions the signed-in user follows, read and unread, newest first: each with the event name, " +
+			"reply_count (the replies it covers), read, the reply's post_id, and url, a path on the Ticketopia site (prefix the site's address to link it). " +
+			"Open the conversation with discussion_thread using event_id and thread_id. Listing marks nothing read; use mark_notification_read with its id. " +
+			"For the next page, pass next_cursor as cursor."},
 		privateTool(d, func(ctx context.Context, owner string, in pageInput) (discussionfollows.Page[discussionfollows.Notification], error) {
 			return d.FollowedDiscussions.Notifications(ctx, owner, in.values())
 		}))
