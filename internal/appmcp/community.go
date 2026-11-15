@@ -77,7 +77,8 @@ type callMistake struct{ error }
 var errThreadNotFound = callMistake{errors.New("no question or tip with this thread_id on this event: use an id from event_discussions or " +
 	"community_discussions, or a reply's thread_id (not its id), with the event_id it belongs to")}
 
-var errProfileNeeded = errors.New("user_id is required: pass the ID from a Ticketopia profile URL (/users/<id>), or sign in to read your own public activity")
+var errProfileNeeded = errors.New("user_id is required: pass a profile id from event_recommendations, event_interested_people or a discussion post, " +
+	"or the ID from a Ticketopia profile URL (/users/<id>), or sign in to read your own public activity")
 
 var errUserNeeded = callMistake{errors.New("user_id is required: pass a profile id from event_recommendations, event_interested_people or a discussion post, " +
 	"or the ID from a Ticketopia profile URL (/users/<id>), or sign in to read your own public profile")}
@@ -245,7 +246,7 @@ func readingCaller(req *mcp.CallToolRequest) string {
 }
 
 type profileActivityInput struct {
-	UserID string  `json:"user_id,omitempty" jsonschema:"account ID from a profile URL (/users/<id>); omit for your own"`
+	UserID string  `json:"user_id,omitempty" jsonschema:"profile id from event_recommendations, event_interested_people or a discussion post, or the ID in a profile URL (/users/<id>); omit for your own"`
 	Limit  *int    `json:"limit,omitempty" jsonschema:"results per page, 1 to 100, default 20"`
 	Cursor *string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page"`
 }
@@ -263,7 +264,7 @@ func (in eventPageInput) values() url.Values {
 
 type threadInput struct {
 	EventID  string  `json:"event_id" jsonschema:"event ID the thread belongs to"`
-	ThreadID string  `json:"thread_id" jsonschema:"question or tip id from event_discussions"`
+	ThreadID string  `json:"thread_id" jsonschema:"thread_id of a post from event_discussions, community_discussions or profile_activity (for a reply, its thread_id, not its id)"`
 	Limit    *int    `json:"limit,omitempty" jsonschema:"replies per page, 1 to 100, default 20"`
 	Cursor   *string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page of replies"`
 }
@@ -281,7 +282,7 @@ type communityInput struct {
 	Country    string  `json:"country,omitempty" jsonschema:"two-letter country code, for example US"`
 	CategoryID string  `json:"category_id,omitempty" jsonschema:"category ID from list_categories"`
 	Limit      *int    `json:"limit,omitempty" jsonschema:"results per page, 1 to 100, default 20"`
-	Cursor     *string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page; repeat the same other arguments"`
+	Cursor     *string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page; repeat the same filters"`
 }
 
 func (in communityInput) values() url.Values {
