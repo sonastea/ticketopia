@@ -59,7 +59,7 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 		{"mark_notification_read", map[string]any{"notification_id": "n1"}, "follows.Read owner-id n1"},
 		{"my_preferences", map[string]any{}, "accounts.Account owner-id"},
 		{"follow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "frequency": "daily"}, "follows.Set owner-id ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa daily"},
-		{"unfollow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "follows.Remove owner-id ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+		{"unfollow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "discussions.Thread owner-id ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|follows.Remove owner-id ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 	} {
 		if reply := tool(t, base, "", tc.tool, tc.args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "Authorization: Bearer") {
 			t.Fatalf("%s without token: %+v", tc.tool, reply.Result)
@@ -80,6 +80,11 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 	if reply := tool(t, base, "owner-token", "mark_notification_read", map[string]any{"notification_id": "unknown"}); !reply.Result.IsError ||
 		!strings.HasPrefix(reply.Result.Content[0].Text, "notification_id: no notification with this id") {
 		t.Fatalf("unknown notification: %+v", reply.Result)
+	}
+	f.calls = nil
+	if reply := tool(t, base, "owner-token", "unfollow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": "00000000000000000000000000000000"}); !reply.Result.IsError ||
+		!strings.Contains(reply.Result.Content[0].Text, "a reply's thread_id") || strings.Contains(strings.Join(f.calls, "|"), "follows.Remove") {
+		t.Fatalf("unfollow of a missing thread: %+v calls %q", reply.Result, f.calls)
 	}
 	for thread, want := range map[string]string{"nope": "thread_id: use a question or tip id", "00000000000000000000000000000000": "a reply's thread_id"} {
 		if reply := tool(t, base, "owner-token", "follow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": thread, "frequency": "daily"}); !reply.Result.IsError ||

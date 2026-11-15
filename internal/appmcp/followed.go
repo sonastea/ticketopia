@@ -83,6 +83,14 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 			if err := threadTarget(in.ThreadID, nil); err != nil {
 				return discussionFollowState{}, err
 			}
+			// Removing an absent follow succeeds, as on the route, so check the
+			// thread first: a reply's id or the wrong event must not report an
+			// unfollow while the real follow keeps notifying.
+			if d.Discussions != nil {
+				if _, err := d.Discussions.Thread(ctx, owner, in.EventID, in.ThreadID); err != nil {
+					return discussionFollowState{}, threadTarget(in.ThreadID, err)
+				}
+			}
 			if err := d.FollowedDiscussions.Remove(ctx, owner, in.EventID, in.ThreadID); err != nil {
 				return discussionFollowState{}, threadTarget(in.ThreadID, err)
 			}
