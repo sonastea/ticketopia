@@ -53,6 +53,7 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `draft_recommendation` | Store a private reason for the person to review (`write`), returning `review_url` (`AUTH_BASE_URL/me/drafts`). Nothing is published; see [drafts](#publishing-in-your-name). |
 | `my_drafts` / `discard_draft` | List the caller's pending drafts, or delete one (`write`). |
 | `my_followed_discussions` | The questions and tips the caller [follows](followed-discussions.md) privately, with frequency and the question, as `GET /api/v1/me/discussions`. |
+| `my_notifications` | New replies in followed discussions, read or unread, with a site path to each reply, as `GET /api/v1/me/notifications`. Listing marks nothing read. |
 
 Client metadata whose `client_name` names Ticketopia (case-folded letters and
 digits, with 0 read as o and 1, l and ! as i) is refused, so no app appears as

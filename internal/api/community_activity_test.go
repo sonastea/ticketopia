@@ -227,6 +227,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		{"event_discussions", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/discussions"},
 		{"community_recommendations", `{"limit":5}`, "/api/v1/community/recommendations?limit=5"},
 		{"my_followed_discussions", `{"limit":5}`, "/api/v1/me/discussions?limit=5"},
+		{"my_notifications", `{}`, "/api/v1/me/notifications"},
 		{"community_discussions", `{"city":"Chicago"}`, "/api/v1/community/discussions?city=Chicago"},
 	} {
 		http := accountRequest(a, "GET", tc.path, "", "", bearer, "", "", "")
@@ -296,6 +297,11 @@ func TestHappeningNowToolMatchesHTTPRoute(t *testing.T) {
 type fixedFollowStub struct {
 	discussionfollows.Repository
 	follow discussionfollows.Follow
+}
+
+func (r *fixedFollowStub) Notifications(context.Context, string, discussionfollows.Query) ([]discussionfollows.Notification, error) {
+	f := r.follow
+	return []discussionfollows.Notification{{ID: f.Root.ID, EventID: f.EventID, ThreadID: f.ThreadID, PostID: f.Root.ID, EventName: "Event", ReplyCount: 1, AvailableAt: f.CreatedAt}}, nil
 }
 
 func (r *fixedFollowStub) List(context.Context, string, discussionfollows.Query) ([]discussionfollows.Follow, error) {
