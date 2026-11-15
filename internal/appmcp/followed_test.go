@@ -97,3 +97,24 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 		t.Fatalf("my_preferences: %s", body)
 	}
 }
+
+// A failed call carries no result object, so an agent cannot read a zero
+// value such as following: false as the answer.
+func TestFailedCallsCarryNoResult(t *testing.T) {
+	base := privateServer(t, &fakeAccount{}).URL
+	for name, args := range map[string]map[string]any{
+		"unfollow_discussion":    {"event_id": "ticketmaster:x", "thread_id": "nope"},
+		"mark_notification_read": {"notification_id": "unknown"},
+		"event_community":        {"event_id": "ticketmaster:broken"},
+		"my_saved_events":        {},
+	} {
+		token := "owner-token"
+		if name == "my_saved_events" {
+			token = ""
+		}
+		reply := tool(t, base, token, name, args)
+		if !reply.Result.IsError || len(reply.Result.StructuredContent) != 0 || reply.Result.Content[0].Text == "" {
+			t.Fatalf("%s: %+v", name, reply.Result)
+		}
+	}
+}

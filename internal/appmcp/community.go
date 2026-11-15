@@ -207,11 +207,11 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 			func(ctx context.Context, _ *mcp.CallToolRequest, in liveInput) (*mcp.CallToolResult, activity.Snapshot, error) {
 				filter, err := in.filters()
 				if err != nil {
-					return toolError(d.describePrivate(err)), activity.Snapshot{}, nil
+					return nil, activity.Snapshot{}, toolError(d.describePrivate(err))
 				}
 				out, err := d.LiveActivity.FilteredSnapshot(ctx, filter)
 				if err != nil {
-					return toolError(errLiveUnavailable.Error()), activity.Snapshot{}, nil
+					return nil, activity.Snapshot{}, toolError(errLiveUnavailable.Error())
 				}
 				return nil, out, nil
 			})
@@ -228,9 +228,9 @@ func publicRead[In, Out any](d Deps, call func(ctx context.Context, viewer strin
 			var zero Out
 			var mistake callMistake
 			if errors.Is(err, errProfileNeeded) || errors.As(err, &mistake) {
-				return toolError(err.Error()), zero, nil
+				return nil, zero, toolError(err.Error())
 			}
-			return toolError(d.describePrivate(err)), zero, nil
+			return nil, zero, toolError(d.describePrivate(err))
 		}
 		return nil, out, nil
 	}

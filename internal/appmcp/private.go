@@ -182,20 +182,21 @@ func privateToolWith[In, Out any](d Deps, call func(ctx context.Context, owner s
 			owner = req.Extra.TokenInfo.UserID
 		}
 		if owner == "" {
-			return toolError(errSignIn.Error()), zero, nil
+			return nil, zero, toolError(errSignIn.Error())
 		}
 		if scope := SignedInTools[req.Params.Name]; scope == "" || !slices.Contains(req.Extra.TokenInfo.Scopes, scope) {
 			// An unlisted tool is refused rather than assumed harmless.
-			return toolError(scopeError(scope).Error()), zero, nil
+			return nil, zero, toolError(scopeError(scope).Error())
 		}
 		out, err := call(ctx, owner, req, in)
 		if err != nil {
-			return toolError(d.describePrivate(err)), zero, nil
+			return nil, zero, toolError(d.describePrivate(err))
 		}
 		return nil, out, nil
 	}
 }
 
-func toolError(message string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: message}}}
-}
+// toolError is a failed call's message. Returned as the handler's error, the
+// SDK reports it with isError and no structuredContent, so an agent cannot
+// mistake a zero result (such as following: false) for the answer.
+func toolError(message string) error { return errors.New(message) }

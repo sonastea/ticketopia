@@ -119,7 +119,7 @@ func NewServer(d Deps) *mcp.Server {
 				out.EventList, err = d.Events.Events(ctx, q)
 			}
 			if err != nil {
-				return d.describe(err), eventSearch{}, nil
+				return nil, eventSearch{}, d.describe(err)
 			}
 			return nil, out, nil
 		})
@@ -231,7 +231,7 @@ func (d Deps) rememberedCity(ctx context.Context, owner string) *searchLocation 
 	return &searchLocation{City: account.Preferences.City, Country: account.Preferences.Country, Source: "account"}
 }
 
-func (d Deps) describe(err error) *mcp.CallToolResult {
+func (d Deps) describe(err error) error {
 	message := err.Error()
 	if d.Describe != nil {
 		message = d.Describe(err)
@@ -245,7 +245,7 @@ func toolErrors[In, Out any](d Deps, call func(context.Context, In) (Out, error)
 		out, err := call(ctx, in)
 		if err != nil {
 			var zero Out
-			return d.describe(err), zero, nil
+			return nil, zero, d.describe(err)
 		}
 		return nil, out, nil
 	}

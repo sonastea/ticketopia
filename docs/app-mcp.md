@@ -90,7 +90,8 @@ an output schema, and results are validated against it. Errors are tool errors
 with the API's wording (for example `limit: must be an integer from 1 to 100`),
 plus `Retry after N seconds.` when the provider is cooling down, so agents can
 correct or pace their requests. Signed-in tool errors use the account API's
-wording.
+wording. A failed call carries only its message, with no structured result, so
+a zero value (such as `following: false`) is never mistaken for the answer.
 
 ## Signing in
 

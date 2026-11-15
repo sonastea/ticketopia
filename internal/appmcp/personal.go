@@ -137,14 +137,14 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 func catalogTool[In any](d Deps, kind string, values func(In) url.Values) mcp.ToolHandlerFor[In, models.CatalogList] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, models.CatalogList, error) {
 		if callerID(req) == "" {
-			return toolError(errSignIn.Error()), models.CatalogList{}, nil
+			return nil, models.CatalogList{}, toolError(errSignIn.Error())
 		}
 		list, err := d.Catalog.Catalog(ctx, kind, values(in))
 		if err != nil {
 			if d.DescribeCatalog != nil {
-				return toolError(d.DescribeCatalog(err)), models.CatalogList{}, nil
+				return nil, models.CatalogList{}, toolError(d.DescribeCatalog(err))
 			}
-			return d.describe(err), models.CatalogList{}, nil
+			return nil, models.CatalogList{}, d.describe(err)
 		}
 		return nil, list, nil
 	}
