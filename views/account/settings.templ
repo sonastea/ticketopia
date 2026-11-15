@@ -190,14 +190,24 @@ templ Profile(p Page) {
 				}
 			</form>
 		</div>
-		<details class="account-token-details" open?={ p.NewToken != "" }>
+		<details id="api-access" class="account-token-details" open?={ p.NewToken != "" }>
 			<summary>API access <span class="field-note">For your own apps and scripts</span></summary>
 			<p class="field-note">API tokens can read and change your profile and private preferences. They expire after 30 days and cannot create other tokens. Treat them like passwords.</p>
 			if p.NewToken != "" {
-				@label.Label(label.Props{For:"new-token",Class:"field"}) {
-					Copy your new API token now
-					@input.Input(input.Props{ID:"new-token",Value:p.NewToken,ReadOnly:true,Attributes:templ.Attributes{"autocomplete":"off","spellcheck":"false"}})
-				}
+				<div class="account-new-token" data-copy-scope>
+					<p class="account-notice" role="status">API token created. Copy it now; it won't be shown again, even if you refresh this page.</p>
+					@label.Label(label.Props{For:"new-token",Class:"field"}) {
+						Your new API token
+					}
+					<div class="account-token-controls">
+						@input.Input(input.Props{ID:"new-token",Value:p.NewToken,ReadOnly:true,Attributes:templ.Attributes{"autocomplete":"off","spellcheck":"false"}})
+						@button.Button(button.Props{Type:button.TypeButton,Class:"action action-secondary",Attributes:templ.Attributes{"data-copy-target":"new-token","hidden":true}}) {
+							@layouts.Icon("copy")
+							Copy
+						}
+					</div>
+					<p class="field-note" role="status" data-copy-feedback></p>
+				</div>
 			}
 			<form action="/me/tokens" method="post" class="account-form">
 				@CSRF(p.CSRF)

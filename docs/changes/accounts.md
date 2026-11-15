@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-11-14 — API token creation survives a refresh
+
+- Creating an API token on `/me` now redirects back to the **API access** section
+  instead of rendering on the POST, so a refresh no longer mints a second token or
+  re-shows the secret. The secret is handed over once through a short-lived
+  HttpOnly, SameSite=Strict cookie and gains a **Copy** button. See
+  [sessions and API clients](../accounts.md#sessions-and-api-clients).
+
 ### 2026-10-23 — Sign in to save completes the save
 
 - **Sign in to save** now saves the event after Google sign-in instead of only

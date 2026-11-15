@@ -333,6 +333,61 @@ func TestAccountTokenAndSignOutJourneys(t *testing.T) {
 	}
 }
 
+// Refreshing after creating a token in the HTML form must neither mint a second
+// token nor show the secret again: the POST redirects and the secret is
+// handed to the next settings page exactly once.
+func TestHTMLTokenCreationShowsSecretOnceAfterRedirect(t *testing.T) {
+	a, repo, browser, _, csrf := accountAPI(t)
+	before := len(repo.credentials)
+	body := url.Values{"name": {"Script"}, "csrf_token": {csrf}}.Encode()
+	w := accountRequest(a, "POST", "/me/tokens", body, browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
+	if w.Code != 303 || w.Header().Get("Location") != "/me#api-access" || len(repo.credentials) != before+1 {
+		t.Fatalf("creation did not redirect once: %d %q %d", w.Code, w.Header().Get("Location"), len(repo.credentials)-before)
+	}
+	var handoff *http.Cookie
+	for _, c := range w.Result().Cookies() {
+		if c.Name == a.authConfig.CookieName("new_token") {
+			handoff = c
+		}
+	}
+	if handoff == nil || handoff.Value == "" || !handoff.HttpOnly || !handoff.Secure || handoff.SameSite != http.SameSiteStrictMode || handoff.MaxAge <= 0 || handoff.MaxAge > 60 {
+		t.Fatalf("unsafe token hand-off cookie: %+v", handoff)
+	}
+	if strings.Contains(w.Body.String(), handoff.Value) {
+		t.Fatal("secret rendered in the redirect")
+	}
+	page := func(cookies ...*http.Cookie) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("GET", "/me", nil)
+		r.AddCookie(&http.Cookie{Name: a.authConfig.CookieName("session"), Value: browser})
+		for _, c := range cookies {
+			r.AddCookie(c)
+		}
+		w := httptest.NewRecorder()
+		a.Routes().ServeHTTP(w, r)
+		return w
+	}
+	w = page(handoff)
+	cleared := false
+	for _, c := range w.Result().Cookies() {
+		cleared = cleared || (c.Name == handoff.Name && c.MaxAge < 0)
+	}
+	if w.Code != 200 || !strings.Contains(w.Body.String(), handoff.Value) || !strings.Contains(w.Body.String(), `id="api-access"`) || !cleared {
+		t.Fatalf("first view did not show and clear the secret: %d cleared=%v", w.Code, cleared)
+	}
+	// A refresh no longer carries the cleared cookie.
+	if w = page(); strings.Contains(w.Body.String(), handoff.Value) || strings.Contains(w.Body.String(), `id="new-token"`) {
+		t.Fatal("refresh showed the secret again")
+	}
+	// A forged or foreign value is never echoed back.
+	forged := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{9}, 32))
+	if w = page(&http.Cookie{Name: handoff.Name, Value: forged}); strings.Contains(w.Body.String(), forged) {
+		t.Fatal("unverified hand-off value rendered")
+	}
+	if len(repo.credentials) != before+1 {
+		t.Fatal("viewing the page created credentials")
+	}
+}
+
 func TestRateLimitedRequestsReturnRetryAfterWithoutIssuingCredentials(t *testing.T) {
 	for _, tc := range []struct {
 		name, method, path, media string

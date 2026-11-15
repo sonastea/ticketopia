@@ -166,10 +166,14 @@ and SameSite=Lax. Local HTTP uses unprefixed development cookies. At most ten
 browser sessions are retained per account; a new sign-in evicts the oldest when
 necessary. At most ten active API tokens may exist.
 
-Open **API access** under `/me` to create a named token. Copy its one-time secret
-response, then use `Authorization: Bearer TOKEN` for own account/profile/preferences
-API reads/writes. A later GET/list never reveals the secret. Re-submitting a token
-creation POST creates another token, so don't refresh/resubmit its response.
+Open **API access** under `/me` to create a named token. The form POST redirects
+(303) to `/me#api-access`, handing the secret over in a one-minute HttpOnly,
+SameSite=Strict `new_token` cookie that the next profile page shows once, with a
+**Copy** button when the Clipboard API exists, and clears immediately. The page
+shows it only while it still authenticates as the signed-in account. Refreshing
+neither shows the secret again nor creates another token; create a new token if
+it was lost. Use `Authorization: Bearer TOKEN` for own account/profile/preferences
+API reads/writes. A later GET/list never reveals the secret.
 API tokens cannot manage credentials. Revoke individually or use **Sign out
 everywhere & revoke API tokens** (which also disconnects apps when
 [OAuth sign-in](app-mcp.md#oauth-sign-in) is on); ordinary Sign out revokes only the current session

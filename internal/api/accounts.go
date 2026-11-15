@@ -81,6 +81,35 @@ func (a *api) cookie(c echo.Context, kind, raw string, lifetime time.Duration) {
 	c.SetCookie(&http.Cookie{Name: a.authConfig.CookieName(kind), Value: raw, Path: "/", MaxAge: age, Expires: expires, HttpOnly: true, Secure: a.authConfig.Secure(), SameSite: http.SameSiteLaxMode})
 }
 
+// newTokenLifetime bounds the one-time hand-off of a freshly created API token
+// from the creating POST to the redirected settings page.
+const newTokenLifetime = time.Minute
+
+func (a *api) newTokenCookie(c echo.Context, raw string) {
+	age, expires := int(newTokenLifetime.Seconds()), time.Now().Add(newTokenLifetime)
+	if raw == "" {
+		age, expires = -1, time.Unix(1, 0)
+	}
+	// Strict: only the same-site redirect from the creating form carries it.
+	c.SetCookie(&http.Cookie{Name: a.authConfig.CookieName("new_token"), Value: raw, Path: "/", MaxAge: age, Expires: expires, HttpOnly: true, Secure: a.authConfig.Secure(), SameSite: http.SameSiteStrictMode})
+}
+
+// takeNewToken returns a token handed off by createTokenPage, once: the cookie
+// is cleared on read, so refreshing the page never shows the secret again. It
+// is shown only while it still authenticates as the signed-in account.
+func (a *api) takeNewToken(c echo.Context, owner string) string {
+	cookie, err := c.Cookie(a.authConfig.CookieName("new_token"))
+	if err != nil {
+		return ""
+	}
+	a.newTokenCookie(c, "")
+	p, err := a.accounts.Authenticate(c.Request().Context(), cookie.Value, "api")
+	if err != nil || p.Account.ID != owner {
+		return ""
+	}
+	return cookie.Value
+}
+
 // Only a local, known page may be resumed. Never redirect to an auth endpoint,
 // encoded slash/backslash, external origin, or user-controlled fragment.
 func safeAuthReturn(raw string) string {
@@ -688,7 +717,11 @@ func (a *api) accountPage(section string) echo.HandlerFunc {
 		case "connection":
 			notice = "App disconnected. It can no longer use your account."
 		}
-		return a.renderAccount(c, 200, p, section, "", notice, "")
+		token := ""
+		if section == "profile" {
+			token = a.takeNewToken(c, p.Account.ID)
+		}
+		return a.renderAccount(c, 200, p, section, "", notice, token)
 	}
 }
 func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, section, message, notice, token string, draft ...liveFilterDraft) error {
@@ -910,7 +943,10 @@ func (a *api) createTokenPage(c echo.Context) error {
 		status, _, message, _ := accountError(err)
 		return a.renderAccount(c, status, p, "profile", message, "", "")
 	}
-	return a.renderAccount(c, 201, p, "profile", "", "API token created. Copy it now; it won't be shown again.", raw)
+	// Post/Redirect/Get: refreshing the result must not create another token.
+	// The secret travels once in a short-lived cookie, never in the URL.
+	a.newTokenCookie(c, raw)
+	return c.Redirect(303, "/me#api-access")
 }
 func (a *api) revokeTokenPage(c echo.Context) error {
 	privateAccountResponse(c)

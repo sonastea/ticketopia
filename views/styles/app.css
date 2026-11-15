@@ -164,6 +164,12 @@
 .account-token-details summary { cursor: pointer; min-block-size: 2.75rem; padding-block: .75rem; font-weight: 750; }
 .account-token-details > p, .account-token-details > .field, .account-token-details > form { margin-block: 1rem; }
 .account-token-details .account-form { max-inline-size: 36rem; }
+.account-new-token { max-inline-size: 36rem; margin-block: 1rem; }
+.account-new-token .account-notice { margin-block-start: 0; }
+.account-token-controls { display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; margin-block-start: .4rem; }
+.account-token-controls input { flex: 1 1 16rem; inline-size: auto; min-inline-size: 0; min-block-size: 2.875rem; padding-block: .6rem; padding-inline: .7rem; border: 1px solid var(--control-line); background-color: var(--surface); color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1rem; }
+.account-token-controls .action { flex: none; min-block-size: 2.875rem; }
+.account-new-token [data-copy-feedback] { min-block-size: 1lh; margin-block-start: .4rem; }
 .account-token-list { padding: 0; list-style: none; }
 .account-token-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-block-start: 1px solid var(--line); }
 .account-token-list li > div { min-inline-size: 0; overflow-wrap: break-word; }

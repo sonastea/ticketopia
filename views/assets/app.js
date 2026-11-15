@@ -293,6 +293,32 @@
       tell("Couldn't copy the link.", true);
     }
   });
+  // Copy buttons stay hidden without the Clipboard API; the field stays selectable.
+  if (navigator.clipboard?.writeText) {
+    for (const button of document.querySelectorAll('[data-copy-target]')) button.hidden = false;
+  }
+  document.addEventListener('click', async event => {
+    const button = event.target.closest('[data-copy-target]');
+    if (!button) return;
+    const field = document.getElementById(button.dataset.copyTarget);
+    const target = button.closest('[data-copy-scope]')?.querySelector('[data-copy-feedback]');
+    const tell = message => {
+      if (!target) return;
+      // Clear first so a repeated copy is announced again.
+      target.textContent = '';
+      requestAnimationFrame(() => {
+        target.textContent = message;
+        enter(target);
+      });
+    };
+    try {
+      await navigator.clipboard.writeText(field.value);
+      tell('Copied to your clipboard.');
+    } catch {
+      field.select();
+      tell("Couldn't copy. The token is selected; copy it manually.");
+    }
+  });
   document.addEventListener('invalid', event => {
     if (sheet?.contains(event.target) && useSheet()) {
       openSheet(filters.querySelector('summary'));
