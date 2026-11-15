@@ -135,9 +135,20 @@ func TestHappeningNowFilters(t *testing.T) {
 			t.Fatalf("%v: %+v", args, reply.Result)
 		}
 	}
-	for _, args := range []map[string]any{{"city": "Chicago"}, {"country": "US"}, {"category_ids": []string{"bad id!"}}} {
-		if reply := tool(t, base, "", "happening_now", args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "private: ") {
-			t.Fatalf("accepted %v: %+v", args, reply.Result)
+	many := make([]string, 17)
+	for i := range many {
+		many[i] = "c"
+	}
+	for _, tc := range []struct {
+		args  map[string]any
+		field string
+	}{
+		{map[string]any{"city": "Chicago"}, "country:"}, {map[string]any{"country": "US"}, "city:"},
+		{map[string]any{"city": "Chicago", "country": "USA"}, "country:"},
+		{map[string]any{"category_ids": []string{"bad id!"}}, "category_ids:"}, {map[string]any{"category_ids": many}, "category_ids:"},
+	} {
+		if reply := tool(t, base, "", "happening_now", tc.args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, tc.field) {
+			t.Fatalf("%v: %+v", tc.args, reply.Result)
 		}
 	}
 	if reply := tool(t, base, "", "happening_now", map[string]any{"city": "Broken", "country": "US"}); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "unavailable") {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"net/url"
 	"slices"
 
@@ -297,9 +298,33 @@ type liveInput struct {
 	CategoryIDs []string `json:"category_ids,omitempty" jsonschema:"up to 16 category IDs from list_categories"`
 }
 
+var (
+	liveCountry  = regexp.MustCompile(`^[A-Za-z]{2}$`)
+	liveCategory = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+)
+
 // filters builds the route's public filter JSON and decodes it with the same
-// validation, so both accept and reject the same filters.
+// validation, so both accept and reject the same filters. The checks first
+// only name the argument an agent got wrong; the decoder stays authoritative.
 func (in liveInput) filters() (activity.Filters, error) {
+	invalid := func(field, message string) (activity.Filters, error) {
+		return activity.Filters{}, &accounts.ValidationError{Field: field, Message: message}
+	}
+	switch {
+	case in.City != "" && in.Country == "":
+		return invalid("country", "give the city's two-letter country code too, for example US")
+	case in.City == "" && in.Country != "":
+		return invalid("city", "give a city with the country; to see everywhere, omit both")
+	case in.Country != "" && !liveCountry.MatchString(in.Country):
+		return invalid("country", "use a two-letter country code, for example US")
+	case len(in.CategoryIDs) > 16:
+		return invalid("category_ids", "use at most 16 category IDs")
+	}
+	for _, id := range in.CategoryIDs {
+		if !liveCategory.MatchString(id) {
+			return invalid("category_ids", "use category IDs from list_categories")
+		}
+	}
 	raw := map[string]any{}
 	if in.City != "" || in.Country != "" {
 		raw["location"] = map[string]string{"mode": "city", "city": in.City, "country": in.Country}
