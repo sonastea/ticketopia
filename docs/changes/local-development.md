@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### 2026-11-15 — Throwaway accounts for local agent testing
+
+- `make db-setup` ends by creating throwaway test accounts, skipping them with a
+  message (setup still succeeds) when `AUTH_BASE_URL` isn't a localhost address;
+  `make local-test-accounts` does the same on its own.
+- `make local-test-accounts` creates `owner` and `other` in the local database
+  through the app's sign-in, token and OAuth services, writing sessions, API
+  tokens and OAuth access tokens (`read write publish` and `read`, as "Local
+  Test Agent") to `.local/local-test-accounts.json`; rerunning replaces them.
+  `make local-test-accounts-clean` removes them and everything they made in one
+  transaction. The separate `cmd/ticketopia-local-accounts` tool is not in the
+  image, refuses non-loopback `AUTH_BASE_URL`/`DB_HOST`, matches only accounts
+  marked by both a non-numeric subject and an `@local-test.invalid` email, and
+  refuses accounts with moderation or role records. MariaDB tests cover
+  credentials, replacement, complete removal, untouched real accounts and every
+  account-owned table. See [agent tools](../app-mcp.md#throwaway-accounts-on-your-local-database).
+
 ### 2026-11-08 — Review scenarios, shared fixtures and MCP access
 
 - Select review fixtures with `make review-server scenario=<name>`:

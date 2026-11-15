@@ -190,6 +190,10 @@ export TICKETMASTER_KEY=your-api-key
 go run ./cmd/ticketopia
 ```
 
+`make db-setup` finishes by creating throwaway `owner`/`other` accounts for agent
+and account testing, replacing earlier ones; see
+[agent tools](app-mcp.md#throwaway-accounts-on-your-local-database).
+
 `make migrate` runs `go run ./cmd/ticketopia migrate` only. It uses the existing
 environment/`.env` connection and TLS settings, requires `PERSISTENCE_MODE=mariadb`
 and separate `DB_MIGRATION_USER`/`DB_MIGRATION_PASSWORD`, and expects an already

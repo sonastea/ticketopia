@@ -358,6 +358,36 @@ app (`paths.oauth_authorize` opens its consent page) but keeps sign-in optional,
 so load scripts can call public tools anonymously. Each fixture account has an API
 token in the manifest (`accounts.<name>.api_token`) for the signed-in tools.
 
+### Throwaway accounts on your local database
+
+To try the tools against your own local server and database (real provider
+data, your migrations) without signing in with Google, use the throwaway
+accounts `make db-setup` creates, or run `make local-test-accounts` on its own
+(for example, to refresh expired OAuth tokens). It creates two accounts, `owner` (saved city
+Chicago, US) and `other`, through the app's own sign-in, token and OAuth
+services, and writes their credentials to `.local/local-test-accounts.json`
+(owner-only permissions, gitignored), never to the terminal:
+
+- `session`: the browser session cookie's value, named by `session_cookie`, for
+  account pages such as `/me/drafts` (forms also need the `csrf_token` from
+  `GET /api/v1/me` and an `Origin` of `base_url`);
+- `api_token`: an API token (`read write`);
+- `oauth_publish` and `oauth_read_only`: OAuth access tokens as an approved
+  agent named "Local Test Agent" (`local-test-agent.invalid`) would hold, with
+  `read write publish` and `read`, so publish actions, "via" attribution and
+  scope refusals can be tried without a hosted client. They last one hour.
+
+Running it again replaces the accounts with fresh ones (and fresh tokens);
+`make local-test-accounts-clean` removes them and everything they made, including
+other accounts' replies in their threads. Calls go to `mcp_url`
+(`AUTH_BASE_URL/mcp`, the `air` proxy; the app itself also answers on `:8080`).
+Without `AUTH_BASE_URL` it assumes the app's own `http://localhost:8080`.
+The tool refuses unless `AUTH_BASE_URL` and `DB_HOST` are loopback, uses the
+migration credentials, and is not built into the image. Accounts are marked by a
+non-numeric Google subject and an `@local-test.invalid` email, which no real
+account can have, and removal refuses accounts with moderation or role records,
+which are an audit trail.
+
 ## Verifying new tools with an agent
 
 Unit tests prove a tool's code. They don't show how an agent actually uses it.
@@ -371,7 +401,12 @@ and follows up as a person would ask. It does this twice.
 `make review-server scenario=<name>` and read `manifest.json` from
 `REVIEW_SERVER_STATE_DIR` (`baseline` seeds public
 activity, while `discover-last-known` or `populated` are needed for provider-backed
-tools such as `find_venues` and `my_radar`). Then call `paths.mcp` over HTTP:
+tools such as `find_venues` and `my_radar`). The `ticketopia-review` server runs
+the binary built when its MCP server started, so restart it after changing code
+(check `tools/list` lists the new tools), or use `make review-server` from the
+working tree. To use your local database instead, create
+[throwaway accounts](#throwaway-accounts-on-your-local-database). Then call
+`paths.mcp` over HTTP:
 
 - anonymously, and with the `owner` and `other` tokens from the manifest, so
   results are checked for the right caller and nothing private crosses

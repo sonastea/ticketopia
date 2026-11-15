@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup review-server review-mcp review-mcp-config review-clean load-test simulate-users benchmark backup-verify
+.PHONY: help check migrate db-setup ses-setup local-setup local-test-accounts local-test-accounts-clean review-server review-mcp review-mcp-config review-clean load-test simulate-users benchmark backup-verify
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -15,6 +15,9 @@ help:
 		'make db-setup  Prepare local MariaDB, apply migrations and grants, and verify runtime access.' \
 		'make ses-setup Start local SES emulation in MiniStack and seed the test sender.' \
 		'make local-setup Prepare MiniStack SES and MariaDB for local development.' \
+		'make local-test-accounts Create throwaway owner/other accounts in the local database for agent (MCP) testing;' \
+		'                   credentials go to .local/local-test-accounts.json. Rerun to replace them and refresh tokens.' \
+		'make local-test-accounts-clean Remove those accounts and everything they made.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
 		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email, populated).' \
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
@@ -36,6 +39,13 @@ check:
 # Use existing environment/.env database settings; no container or user setup.
 migrate:
 	@go run ./cmd/ticketopia migrate
+
+# Local development only: the tool refuses non-loopback AUTH_BASE_URL or DB_HOST.
+local-test-accounts:
+	@go run ./cmd/ticketopia-local-accounts create
+
+local-test-accounts-clean:
+	@go run ./cmd/ticketopia-local-accounts remove
 
 # Local development only; do not redirect this workflow to a shared database.
 db-setup:

@@ -19,7 +19,11 @@ It uses the same SESv2 client as production, but captures messages locally.
   **us-east-1** using dummy credentials. No AWS CLI installation is needed on the
   host; the container supplies `awslocal`.
 - `make db-setup`: existing [local MariaDB setup](persistence.md#repeatable-local-development),
-  including TLS, users, current migrations, runtime grants and permission checks.
+  including TLS, users, current migrations, runtime grants and permission checks,
+  then [throwaway test accounts](app-mcp.md#throwaway-accounts-on-your-local-database)
+  for agent and account testing. Each run replaces those accounts and their
+  activity; your own accounts are untouched. If `AUTH_BASE_URL` isn't a localhost
+  address, setup skips them with a message and still succeeds.
 - `make local-setup`: SES setup first, then database setup, sequentially even with
   `make -j`. A failure stops later work. Missing emulator prerequisites therefore
   fail before touching the database. Services already started remain available.
@@ -27,6 +31,12 @@ It uses the same SESv2 client as production, but captures messages locally.
 Docker with Compose is required; database setup also needs Go and OpenSSL.
 After setup, agents and editors can review seeded app states through the
 [review MCP server](testing.md#review-fixtures-over-mcp), independent of `air`.
+To call the agent tools (`/mcp`) against your own running app and database
+without Google sign-in, use the throwaway accounts `make db-setup` creates;
+`make local-test-accounts` replaces them (and refreshes their one-hour OAuth
+tokens) without rerunning setup, and `make local-test-accounts-clean` removes
+them; see [agent tools](app-mcp.md#throwaway-accounts-on-your-local-database).
+Both refuse a non-loopback `AUTH_BASE_URL` or `DB_HOST`.
 Stop the app before applying schema-changing migrations. Existing database volumes
 are retained; local TLS certificates are kept until they near expiry, then reissued
 (see [persistence](persistence.md#repeatable-local-development)). Targets can be rerun; an existing SES identity is

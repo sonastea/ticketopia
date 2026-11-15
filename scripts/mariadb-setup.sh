@@ -47,3 +47,11 @@ compose exec -T -e MYSQL_PWD=local-runtime-only mariadb mariadb \
   < deploy/mariadb/runtime-check.sql
 
 echo "Local migrations and runtime permissions are ready."
+
+# Throwaway owner/other accounts for trying agent tools (/mcp) and account
+# pages without Google sign-in. Rerunning replaces them, and their activity.
+# The tool refuses a non-localhost AUTH_BASE_URL; setup still succeeds then.
+echo "Creating throwaway accounts for local agent testing..."
+if ! go run ./cmd/ticketopia-local-accounts create; then
+  echo "Skipped local test accounts. Fix the error above, then run make local-test-accounts." >&2
+fi
