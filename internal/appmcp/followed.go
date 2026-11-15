@@ -6,7 +6,9 @@ import (
 	"net/url"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
+	"github.com/sonastea/ticketopia/internal/discussions"
 )
 
 // errNotificationNotFound covers unknown, not-yet-due and other accounts'
@@ -19,6 +21,8 @@ type FollowedDiscussions interface {
 	List(ctx context.Context, who string, values url.Values) (discussionfollows.Page[discussionfollows.Follow], error)
 	Notifications(ctx context.Context, who string, values url.Values) (discussionfollows.Page[discussionfollows.Notification], error)
 	Read(ctx context.Context, who, id string) error
+	Set(ctx context.Context, who, event, thread, frequency string) (discussionfollows.Follow, error)
+	Remove(ctx context.Context, who, event, thread string) error
 }
 
 // addFollowedTools registers the signed-in followed-discussion tools, each
@@ -56,6 +60,64 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 			}
 			return notificationState{NotificationID: in.NotificationID, Read: true}, err
 		}))
+	mcp.AddTool(server, &mcp.Tool{Name: "follow_discussion", Title: "Follow discussion", OutputSchema: outputSchema[discussionFollowState](),
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
+		Description: "Follow a question or tip privately for the signed-in user, or change how often its replies notify them: immediate, daily, " +
+			"weekly or muted. Use its event_id and thread_id from event_discussions, community_discussions or profile_activity. Following is never " +
+			"shown to other people; new replies appear in my_notifications. Following again replaces the frequency."},
+		privateTool(d, func(ctx context.Context, owner string, in followDiscussionInput) (discussionFollowState, error) {
+			if err := threadTarget(in.ThreadID, nil); err != nil {
+				return discussionFollowState{}, err
+			}
+			follow, err := d.FollowedDiscussions.Set(ctx, owner, in.EventID, in.ThreadID, in.Frequency)
+			if err != nil {
+				return discussionFollowState{}, threadTarget(in.ThreadID, err)
+			}
+			return discussionFollowState{EventID: in.EventID, ThreadID: in.ThreadID, Following: true, Follow: &follow}, nil
+		}))
+	mcp.AddTool(server, &mcp.Tool{Name: "unfollow_discussion", Title: "Unfollow discussion", OutputSchema: outputSchema[discussionFollowState](),
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
+		Description: "Stop following a question or tip, by its event_id and thread_id from my_followed_discussions. Its replies stop notifying the " +
+			"signed-in user. Unfollowing one that is not followed changes nothing."},
+		privateTool(d, func(ctx context.Context, owner string, in unfollowDiscussionInput) (discussionFollowState, error) {
+			if err := threadTarget(in.ThreadID, nil); err != nil {
+				return discussionFollowState{}, err
+			}
+			if err := d.FollowedDiscussions.Remove(ctx, owner, in.EventID, in.ThreadID); err != nil {
+				return discussionFollowState{}, threadTarget(in.ThreadID, err)
+			}
+			return discussionFollowState{EventID: in.EventID, ThreadID: in.ThreadID}, nil
+		}))
+}
+
+// threadTarget validates thread_id under its own name and words a missing or
+// foreign thread as discussion_thread does.
+func threadTarget(thread string, err error) error {
+	if discussions.PostID(thread) != nil {
+		return &accounts.ValidationError{Field: "thread_id", Message: "use a question or tip id from event_discussions or community_discussions"}
+	}
+	if errors.Is(err, discussions.ErrNotFound) {
+		return errThreadNotFound
+	}
+	return err
+}
+
+type followDiscussionInput struct {
+	EventID   string `json:"event_id" jsonschema:"event ID the thread belongs to"`
+	ThreadID  string `json:"thread_id" jsonschema:"thread_id from event_discussions, community_discussions or profile_activity"`
+	Frequency string `json:"frequency" jsonschema:"immediate, daily, weekly or muted"`
+}
+
+type unfollowDiscussionInput struct {
+	EventID  string `json:"event_id" jsonschema:"event ID the thread belongs to"`
+	ThreadID string `json:"thread_id" jsonschema:"thread_id of a followed discussion, from my_followed_discussions"`
+}
+
+type discussionFollowState struct {
+	EventID   string                    `json:"event_id"`
+	ThreadID  string                    `json:"thread_id"`
+	Following bool                      `json:"following"`
+	Follow    *discussionfollows.Follow `json:"follow,omitempty"`
 }
 
 type notificationInput struct {

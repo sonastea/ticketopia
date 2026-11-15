@@ -193,6 +193,27 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		map[string]string{"Authorization": "Bearer " + bearer}); r.Code != 200 || strings.Contains(r.Body.String(), `"isError":true`) || len(follows.read) != 1 || follows.read[0] != owner+" "+post.ID {
 		t.Fatalf("mark_notification_read: %d %s %q", r.Code, r.Body.String(), follows.read)
 	}
+	// follow_discussion returns what the follow route then reads.
+	{
+		r := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"follow_discussion","arguments":{"event_id":"`+id+`","thread_id":"`+post.ID+`","frequency":"weekly"}}}`,
+			map[string]string{"Authorization": "Bearer " + bearer})
+		var reply struct {
+			Result struct {
+				IsError           bool `json:"isError"`
+				StructuredContent struct {
+					Follow json.RawMessage `json:"follow"`
+				} `json:"structuredContent"`
+			} `json:"result"`
+		}
+		_ = json.Unmarshal(r.Body.Bytes(), &reply)
+		route := accountRequest(a, "GET", "/api/v1/events/"+id+"/discussions/"+post.ID+"/follow", "", "", bearer, "", "", "")
+		var got, want any
+		_ = json.Unmarshal(reply.Result.StructuredContent.Follow, &got)
+		_ = json.Unmarshal(route.Body.Bytes(), &want)
+		if reply.Result.IsError || route.Code != 200 || !reflect.DeepEqual(got, want) || follows.follow.Frequency != "weekly" {
+			t.Fatalf("follow_discussion: %s vs %s", r.Body.String(), route.Body.String())
+		}
+	}
 	// discussion_thread is the thread route and its replies route together.
 	{
 		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"discussion_thread","arguments":{"event_id":"`+id+`","thread_id":"`+post.ID+`"}}}`,
@@ -305,6 +326,15 @@ type fixedFollowStub struct {
 	discussionfollows.Repository
 	follow discussionfollows.Follow
 	read   []string
+}
+
+func (r *fixedFollowStub) Get(context.Context, string, string, string) (discussionfollows.Follow, error) {
+	return r.follow, nil
+}
+
+func (r *fixedFollowStub) Set(_ context.Context, _, event, thread, frequency string) (discussionfollows.Follow, error) {
+	r.follow.EventID, r.follow.ThreadID, r.follow.Frequency = event, thread, frequency
+	return r.follow, nil
 }
 
 func (r *fixedFollowStub) Read(_ context.Context, who, id string) error {

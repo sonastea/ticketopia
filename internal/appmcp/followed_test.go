@@ -8,6 +8,7 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
+	"github.com/sonastea/ticketopia/internal/discussions"
 )
 
 type fakeFollowed struct{ *fakeAccount }
@@ -30,6 +31,19 @@ func (f fakeFollowed) Read(_ context.Context, who, id string) error {
 	return nil
 }
 
+func (f fakeFollowed) Set(_ context.Context, who, event, thread, frequency string) (discussionfollows.Follow, error) {
+	f.record("follows.Set " + who + " " + event + " " + thread + " " + frequency)
+	if thread == "00000000000000000000000000000000" {
+		return discussionfollows.Follow{}, discussions.ErrNotFound
+	}
+	return discussionfollows.Follow{EventID: event, ThreadID: thread, Frequency: frequency}, nil
+}
+
+func (f fakeFollowed) Remove(_ context.Context, who, event, thread string) error {
+	f.record("follows.Remove " + who + " " + event + " " + thread)
+	return nil
+}
+
 // Signed-in discussion and preference tools act only for the token's account
 // and need sign-in.
 func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
@@ -44,6 +58,8 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 		{"my_notifications", map[string]any{"cursor": "c"}, "follows.Notifications owner-id cursor=c"},
 		{"mark_notification_read", map[string]any{"notification_id": "n1"}, "follows.Read owner-id n1"},
 		{"my_preferences", map[string]any{}, "accounts.Account owner-id"},
+		{"follow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "frequency": "daily"}, "follows.Set owner-id ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa daily"},
+		{"unfollow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "follows.Remove owner-id ticketmaster:x aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 	} {
 		if reply := tool(t, base, "", tc.tool, tc.args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "Authorization: Bearer") {
 			t.Fatalf("%s without token: %+v", tc.tool, reply.Result)
@@ -64,6 +80,12 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 	if reply := tool(t, base, "owner-token", "mark_notification_read", map[string]any{"notification_id": "unknown"}); !reply.Result.IsError ||
 		!strings.HasPrefix(reply.Result.Content[0].Text, "notification_id: no notification with this id") {
 		t.Fatalf("unknown notification: %+v", reply.Result)
+	}
+	for thread, want := range map[string]string{"nope": "thread_id: use a question or tip id", "00000000000000000000000000000000": "a reply's thread_id"} {
+		if reply := tool(t, base, "owner-token", "follow_discussion", map[string]any{"event_id": "ticketmaster:x", "thread_id": thread, "frequency": "daily"}); !reply.Result.IsError ||
+			!strings.Contains(reply.Result.Content[0].Text, want) {
+			t.Fatalf("follow %s: %+v", thread, reply.Result)
+		}
 	}
 	reply := tool(t, base, "reader-token", "my_preferences", map[string]any{})
 	if body := string(reply.Result.StructuredContent); !strings.Contains(body, `"city":"Chicago"`) || strings.Contains(body, "private@example.com") {
