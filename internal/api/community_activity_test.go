@@ -234,6 +234,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 		{"community_recommendations", `{"limit":5}`, "/api/v1/community/recommendations?limit=5"},
 		{"my_followed_discussions", `{"limit":5}`, "/api/v1/me/discussions?limit=5"},
 		{"my_notifications", `{}`, "/api/v1/me/notifications"},
+		{"my_preferences", `{}`, "/api/v1/me/preferences"},
 		{"community_discussions", `{"city":"Chicago"}`, "/api/v1/community/discussions?city=Chicago"},
 	} {
 		http := accountRequest(a, "GET", tc.path, "", "", bearer, "", "", "")

@@ -55,6 +55,7 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `my_followed_discussions` | The questions and tips the caller [follows](followed-discussions.md) privately, with frequency and the question, as `GET /api/v1/me/discussions`. |
 | `my_notifications` | New replies in followed discussions, read or unread, with a site path to each reply, as `GET /api/v1/me/notifications`. Listing marks nothing read. |
 | `mark_notification_read` | Mark one notification read (`write`), idempotently, as `PUT /api/v1/me/notifications/{notification_id}/read`. |
+| `my_preferences` | The caller's private preferences (saved city, timezone, categories, reminder/digest/pause settings), as `GET /api/v1/me/preferences`. Never includes email. |
 
 Client metadata whose `client_name` names Ticketopia (case-folded letters and
 digits, with 0 read as o and 1, l and ! as i) is refused, so no app appears as

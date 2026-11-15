@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 )
 
@@ -26,9 +27,10 @@ func (f fakeFollowed) Read(_ context.Context, who, id string) error {
 	return nil
 }
 
-// Followed-discussion tools act only for the token's account and need sign-in.
+// Signed-in discussion and preference tools act only for the token's account
+// and need sign-in.
 func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
-	f := &fakeAccount{}
+	f := &fakeAccount{account: accounts.Account{Email: "private@example.com", Preferences: accounts.Preferences{City: "Chicago", Country: "US"}}}
 	base := privateServer(t, f).URL
 	for _, tc := range []struct {
 		tool string
@@ -38,6 +40,7 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 		{"my_followed_discussions", map[string]any{"limit": 3}, "follows.List owner-id limit=3"},
 		{"my_notifications", map[string]any{"cursor": "c"}, "follows.Notifications owner-id cursor=c"},
 		{"mark_notification_read", map[string]any{"notification_id": "n1"}, "follows.Read owner-id n1"},
+		{"my_preferences", map[string]any{}, "accounts.Account owner-id"},
 	} {
 		if reply := tool(t, base, "", tc.tool, tc.args); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "Authorization: Bearer") {
 			t.Fatalf("%s without token: %+v", tc.tool, reply.Result)
@@ -54,5 +57,9 @@ func TestFollowedDiscussionToolsUseTheTokenAccount(t *testing.T) {
 		if reply := tool(t, base, token, tc.tool, tc.args); reply.Result.IsError || strings.Join(f.calls, "|") != tc.want {
 			t.Fatalf("%s: %+v calls %q", tc.tool, reply.Result, f.calls)
 		}
+	}
+	reply := tool(t, base, "reader-token", "my_preferences", map[string]any{})
+	if body := string(reply.Result.StructuredContent); !strings.Contains(body, `"city":"Chicago"`) || strings.Contains(body, "private@example.com") {
+		t.Fatalf("my_preferences: %s", body)
 	}
 }

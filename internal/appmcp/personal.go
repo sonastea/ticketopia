@@ -92,6 +92,17 @@ func addPersonalTools(server *mcp.Server, d Deps) {
 				return followState{Kind: in.Kind, TargetID: in.TargetID}, d.Follows.Remove(ctx, owner, in.Kind, in.TargetID)
 			}))
 	}
+	if d.Accounts != nil {
+		mcp.AddTool(server, &mcp.Tool{Name: "my_preferences", Title: "My preferences", OutputSchema: outputSchema[accounts.Preferences](),
+			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
+			Description: "The signed-in user's private preferences, as GET /api/v1/me/preferences returns them: saved city and country (which " +
+				"find_events and my_radar default to), timezone, chosen category_ids (see list_categories), and email reminder, weekly digest " +
+				"and paused-notification settings. They are changed on the Ticketopia website."},
+			privateTool(d, func(ctx context.Context, owner string, _ struct{}) (accounts.Preferences, error) {
+				account, err := d.Accounts.Account(ctx, owner)
+				return account.Preferences, err
+			}))
+	}
 	if d.Interests != nil {
 		mcp.AddTool(server, &mcp.Tool{Name: "my_interested_events", Title: "My Interested events", OutputSchema: outputSchema[interests.List](),
 			Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
