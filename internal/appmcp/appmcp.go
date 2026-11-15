@@ -89,7 +89,9 @@ func NewServer(d Deps) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{Name: "ticketopia", Title: "Ticketopia", Version: "0.1.0"}, &mcp.ServerOptions{
 		Instructions: "Ticketopia finds live events (music, sports, arts and more) from Ticketmaster data. " +
 			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy. " +
-			"event_community reads an event's public interest, recommendation and discussion totals, and profile_activity a person's public contributions. " +
+			"Community reads are public: event_community totals an event's interest, recommendations and discussions; event_recommendations, " +
+			"event_interested_people, event_discussions and discussion_thread show them; community_recommendations, community_discussions and " +
+			"happening_now browse across events; user_profile and profile_activity describe a person, by a profile id those tools return. " +
 			"Signed in, my_radar suggests events from the user's follows and categories, and tools manage their saves, reminders, follows and Interested choices privately. " +
 			"Only make_interest_public, recommend_event and withdraw_recommendation act publicly in the user's name; they need the user's permission to post publicly, " +
 			"and you should use them only when the user asks. You never publish words: draft_recommendation saves a private draft, " +
