@@ -9,6 +9,8 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/eventactivity"
+	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/useractivity"
 )
 
@@ -32,6 +34,43 @@ func (f fakeCommunity) ProfileActivity(_ context.Context, user string, v url.Val
 		return useractivity.List{}, accounts.ErrNotFound
 	}
 	return useractivity.List{Items: []useractivity.Item{{Type: useractivity.TypeInterest}}}, nil
+}
+
+func (f fakeCommunity) Event(_ context.Context, id string, v url.Values) (recommendations.List, error) {
+	f.record("recommendations.Event " + id + " " + v.Encode())
+	if id == "ticketmaster:broken" {
+		return recommendations.List{}, recommendations.ErrUnavailable
+	}
+	count := 1
+	return recommendations.List{Items: []recommendations.Item{{Event: models.Event{ID: id}, Profile: accounts.PublicProfile{ID: "author-id", DisplayName: "Author"}, Reason: "Great"}}, Count: &count}, nil
+}
+
+// Each public read passes its arguments through unchanged, works without a
+// token, and reports service errors in the account API's wording.
+func TestPublicEventReadsPassArgumentsAndWordErrors(t *testing.T) {
+	f := &fakeAccount{}
+	base := privateServer(t, f).URL
+	for _, tc := range []struct {
+		tool string
+		args map[string]any
+		want string
+	}{
+		{"event_recommendations", map[string]any{"event_id": "ticketmaster:x", "limit": 2, "cursor": "c"}, "recommendations.Event ticketmaster:x cursor=c&limit=2"},
+	} {
+		f.calls = nil
+		reply := tool(t, base, "", tc.tool, tc.args)
+		if reply.Result.IsError || len(f.calls) != 1 || f.calls[0] != tc.want {
+			t.Fatalf("%s: %+v calls %q", tc.tool, reply.Result, f.calls)
+		}
+		broken := map[string]any{}
+		for k, v := range tc.args {
+			broken[k] = v
+		}
+		broken["event_id"] = "ticketmaster:broken"
+		if reply := tool(t, base, "owner-token", tc.tool, broken); !reply.Result.IsError || !strings.HasPrefix(reply.Result.Content[0].Text, "private: ") {
+			t.Fatalf("%s error not worded as the API: %+v", tc.tool, reply.Result)
+		}
+	}
 }
 
 // Community reads are public: anonymous callers get the same totals without a

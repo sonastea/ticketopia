@@ -17,10 +17,10 @@ steps (a separate deployment); this page covers what exists.
 | `event_details` | One event by ID, as `GET /api/v1/events/{event_id}`, including the durable last-known fallback. |
 | `event_community` | An event's public totals (interested including private choices, active recommendations, visible questions and tips), as `GET /api/v1/events/{event_id}/community`. Signed in with `read`, `viewer` adds the caller's own saved, Interested and recommended state; otherwise it is `null`. |
 | `profile_activity` | One person's public posts, recommendations and public Interested choices, newest first, as `GET /api/v1/users/{user_id}/activity`. `user_id` comes from a profile URL; signed in, omitting it reads the caller's own. |
+| `event_recommendations` | An event's public recommendations with each author's public profile (its `id` is a `profile_activity` `user_id`), optional reason, `via` attribution and the event's `count`, as `GET /api/v1/events/{event_id}/recommendations`. |
 
-`event_community` and `profile_activity` need accounts and MariaDB, and are
-listed with them. They share the HTTP routes' code, so results match those
-routes exactly.
+These community reads need accounts and MariaDB, and are listed with them.
+They share the HTTP routes' code, so results match those routes exactly.
 
 Signed-in tools act only on the account behind the request's token. The
 saved-event tools are listed when accounts and MariaDB are enabled; the reminder

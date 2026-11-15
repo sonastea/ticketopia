@@ -104,6 +104,9 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 		if a.userActivityEnabled() {
 			deps.ProfileActivity = communityReads{a}
 		}
+		if a.recommendationsEnabled() {
+			deps.EventRecommendations = a.recommendations
+		}
 	}
 	boundary := a.mcpBoundary(newIPLimiter(rate, a.clock), newIPLimiter(rate, a.clock), make(chan struct{}, inFlight), metrics)
 	e.Any("/mcp", echo.WrapHandler(mcpAuthenticated(appmcp.Handler(deps))), boundary)

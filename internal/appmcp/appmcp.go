@@ -62,8 +62,9 @@ type Deps struct {
 	PublishLimit *PublishLimiter
 	// EventCommunity and ProfileActivity enable the public community read
 	// tools, which add the caller's own state when signed in.
-	EventCommunity  EventCommunity
-	ProfileActivity ProfileActivity
+	EventCommunity       EventCommunity
+	ProfileActivity      ProfileActivity
+	EventRecommendations EventRecommendations
 	// Accounts reads the caller's remembered city, which find_events
 	// defaults to.
 	Accounts Accounts

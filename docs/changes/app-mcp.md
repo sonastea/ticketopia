@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-11-15 — Public community read tools
+
+- Add public, read-only tools for community reads that had only an HTTP
+  route, each calling the route's service method: `event_recommendations`.
+  Recommendation authors' profile IDs feed `profile_activity`. See
+  [tools](../app-mcp.md#tools).
+
 ### 2026-11-14 — Event community and profile activity tools
 
 - Add public, read-only `event_community` and `profile_activity`, sharing the

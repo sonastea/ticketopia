@@ -169,19 +169,21 @@ func TestUserActivityPaginatesPublicTimeline(t *testing.T) {
 // Agents get exactly what the HTTP routes return, including the token
 // account's own state, through the same shared reads.
 func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
-	a, account, _, _, bearer, _, id := recommendationAPI(t)
+	a, account, recs, _, bearer, _, id := recommendationAPI(t)
 	WithEventActivity(&eventActivityStub{})(a)
 	WithUserActivity(&userActivityStub{items: []useractivity.Item{{Type: useractivity.TypeInterest, At: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), Event: models.Event{ID: id}}}})(a)
 	a.runCtx = t.Context()
 	WithMCP(appmcp.Config{Enabled: true, RatePerMinute: 600, MaxInFlight: 8})(a)
 	routes := a.Routes()
 	owner := account.account.ID
+	recs.items[owner] = map[string]recommendations.Item{id: {Event: models.Event{ID: id}, Profile: account.account.Public(), Reason: "Worth it", RecommendedAt: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)}}
 	for _, tc := range []struct {
 		tool, args, path string
 	}{
 		{"event_community", `{"event_id":"` + id + `"}`, "/api/v1/events/" + id + "/community"},
 		{"profile_activity", `{"user_id":"` + owner + `"}`, "/api/v1/users/" + owner + "/activity"},
 		{"profile_activity", `{}`, "/api/v1/users/" + owner + "/activity"},
+		{"event_recommendations", `{"event_id":"` + id + `","limit":1}`, "/api/v1/events/" + id + "/recommendations?limit=1"},
 	} {
 		http := accountRequest(a, "GET", tc.path, "", "", bearer, "", "", "")
 		response := mcpPost(t, routes, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+tc.tool+`","arguments":`+tc.args+`}}`,
