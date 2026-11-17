@@ -35,9 +35,13 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM build AS validate
 ENV CGO_ENABLED=1 \
     CC=gcc
+# Change per validation invocation: invalidate the RUN result, not its Go mounts.
+# --no-cache-filter also clears cache mounts, defeating compilation reuse.
+ARG VALIDATION_RUN
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    go test -race -count=1 ./... \
+    test -n "$VALIDATION_RUN" \
+    && go test -race -count=1 ./... \
     && go vet ./...
 
 # Includes CA certificates and timezone data, without a shell/package manager.

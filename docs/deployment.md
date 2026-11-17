@@ -90,15 +90,19 @@ To build assets and run Go race tests/vet with the container toolchain (includin
 GCC and C headers), without installing development tools on the host:
 
 ```sh
-docker buildx build --target validate --no-cache-filter validate .
+make check
 ```
 
-`make check` runs the same command against the current working tree, including
+`make check` builds the Docker `validate` target against the current working tree, including
 uncommitted changes. Run it before committing changes to Docker/build inputs,
 asset generation, or tests that read repository files. It applies `.dockerignore`
 just like publishing, catching missing build-context inputs that host-only tests
 would miss, as well as asset, compilation, race-test, and vet errors. Tests always
-rerun while dependency and build layers remain cached. This is a manual local
+rerun while dependency and build layers remain cached. It supplies a fresh
+`VALIDATION_RUN` build argument (timestamp plus shell PID); direct `validate`
+builds must also supply a fresh value, and a missing value fails closed.
+Do not use `--no-cache-filter validate` for routine validation: it also clears
+the Go cache mounts. This is a manual local
 check, not an installed Git hook; it does not log in to GHCR or publish an image.
 
 The validation target runs on the builder's native architecture. The final runtime
@@ -270,9 +274,20 @@ Before the first run:
 The job builds embedded assets and Go binaries with the Dockerfile's asset pipeline,
 then runs `go test -race -count=1 ./...` and `go vet ./...` in its `validate` target
 before publishing `linux/amd64`. That target sets `CGO_ENABLED=1` and `CC=gcc` for
-the race detector, independently of runner defaults. Buildx bypasses the validation
-layer cache on each run, while reusing dependency and build layers. The runtime
+the race detector, independently of runner defaults. A `VALIDATION_RUN` argument
+containing the workflow run ID and attempt forces fresh validation on each run,
+without clearing the Go compilation/module cache mounts. The runtime
 image still uses CGO-disabled binaries and contains no compiler or test tools.
+The builder has a stable repository/runner-specific name and retains BuildKit
+state between jobs on the same runner, including Go module/build and npm cache
+mounts (which GHA layer exports do not contain). BuildKit garbage collection or
+runner replacement may make a run cold without changing correctness. Remote
+layers are imported during validation and exported once during publication.
+Monitor local BuildKit disk use; keep this cache isolated from untrusted code.
+Publication stays serialized per ref without cancelling running jobs; `queue: max`
+also preserves pending runs, up to GitHub's limit of 100 pending runs per group.
+See the [CI audit](ci-performance.md) for measurements and the unresolved absence
+of required pre-merge validation.
 Real MariaDB integration tests are skipped without `MARIADB_TEST_ADDR`; this
 workflow does not provision a database or pass database credentials into the
 builder, nor does it run the local outage smoke script. Buildx uses GitHub Actions

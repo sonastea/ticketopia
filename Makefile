@@ -34,7 +34,8 @@ help:
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
-	@docker buildx build --target validate --no-cache-filter validate .
+	@docker buildx build --target validate \
+		--build-arg "VALIDATION_RUN=$$(date +%s)-$$$$" .
 
 # Use existing environment/.env database settings; no container or user setup.
 migrate:

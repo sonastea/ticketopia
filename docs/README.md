@@ -73,6 +73,8 @@ their status; they describe intended work rather than available features.
 - [Behavior-focused testing](testing.md): regression risks, unit/HTTP/rendering/SQL
   boundaries, avoiding redundant assertions, opt-in validation commands, and the
   review-server scenarios and MCP fixture server.
+- [CI performance audit](ci-performance.md): measured Actions baseline, persistent
+  BuildKit caches, unchanged validation, and unresolved pre-merge enforcement.
 - [Public on-sale email reminders](reminders.md): explicitly configured private
   reminders, SES delivery, durable jobs and pause/stop controls.
 - [Followed discussions](followed-discussions.md): private conversation subscriptions,
