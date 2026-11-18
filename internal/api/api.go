@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime/trace"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +56,7 @@ type api struct {
 	durable           *events.Service
 	accounts          *accounts.Service
 	authConfig        accounts.Config
+	publicOrigin      string
 	saved             *saved.Service
 	follows           *follows.Service
 	radar             *radar.Service
@@ -194,6 +196,13 @@ func NewAPI(ctx context.Context, logger zerolog.Logger, cache kv.Store, options 
 	if a.authConfig.Enabled && a.accounts == nil {
 		return nil, fmt.Errorf("authentication requires an account service")
 	}
+	// AUTH_BASE_URL is also the optional public origin for agent setup on
+	// deployments without accounts. An unset or invalid value is not a URL.
+	a.publicOrigin, _ = appmcp.Origin(strings.TrimSpace(os.Getenv("AUTH_BASE_URL")))
+	if a.authConfig.Enabled {
+		// Use the validated origin as configured, since OAuth resources match it exactly.
+		a.publicOrigin = a.authConfig.BaseURL
+	}
 	return a, nil
 }
 
@@ -229,6 +238,7 @@ func (a *api) Routes() *echo.Echo {
 	e.GET("/readyz", a.readinessHandler)
 	e.GET("/", a.retrieveEventsHandler)
 	e.GET("/events/:event_id", a.eventPageHandler)
+	e.GET("/agents", a.agentGuidePage)
 	a.savedRoutes(e)
 	a.reminderRoutes(e)
 	a.followRoutes(e)

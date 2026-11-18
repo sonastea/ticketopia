@@ -8,6 +8,13 @@ off unless `MCP_ENABLED=true`. The [design](design/app-mcp.md) describes later
 steps (a separate deployment); this page covers what exists.
 [Load testing](load-testing.md) covers `make load-test` and baselines.
 
+On the site, open **Agents and API access** (`/agents`) for a public setup guide
+with the deployment’s MCP endpoint, OAuth examples, API tokens, drafts, and
+access removal where enabled. **Connected apps** and **API access** both link to
+it. Even when accounts are off, set `AUTH_BASE_URL` to the public origin to
+show the full MCP URL. Otherwise the guide gives `/mcp` and asks people to
+use their browser’s address.
+
 ## Tools
 
 | Tool | Behavior |

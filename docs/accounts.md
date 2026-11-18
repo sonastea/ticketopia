@@ -159,6 +159,10 @@ do not show a Google sign-in CTA.
 
 ## Sessions and API clients
 
+The public **Agents and API access** guide (`/agents`) walks through connecting
+an agent or using a token in a script. Find it from **API access** or
+**Connected apps** in your profile.
+
 Browser sessions and API tokens expire **30 days** after creation, without sliding
 renewal. Credentials are opaque random 256-bit values; MariaDB stores only hashes.
 Production cookies are host-only `__Host-` cookies with Secure, HttpOnly, Path `/`,
@@ -173,7 +177,10 @@ SameSite=Strict `new_token` cookie that the next profile page shows once, with a
 shows it only while it still authenticates as the signed-in account. Refreshing
 neither shows the secret again nor creates another token; create a new token if
 it was lost. Use `Authorization: Bearer TOKEN` for own account/profile/preferences
-API reads/writes. A later GET/list never reveals the secret.
+API reads/writes. A later GET/list never reveals the secret. A token can read the
+account email, make Interested choices public, and publish, edit or remove the
+owner’s posts through the JSON API. The token form warns about this access before
+creation. These abilities are distinct from the [MCP scopes](app-mcp.md#signing-in).
 API tokens cannot manage credentials. Revoke individually or use **Sign out
 everywhere & revoke API tokens** (which also disconnects apps when
 [OAuth sign-in](app-mcp.md#oauth-sign-in) is on); ordinary Sign out revokes only the current session

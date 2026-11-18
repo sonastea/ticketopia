@@ -11,8 +11,17 @@ import (
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/saved"
+	"github.com/sonastea/ticketopia/views/account"
 	"github.com/sonastea/ticketopia/views/home"
 )
+
+func (a *api) agentGuidePage(c echo.Context) error {
+	c.Response().Header().Set("Cache-Control", "no-store")
+	return render(c, http.StatusOK, account.AgentGuide(account.AgentGuidePage{
+		Origin: a.publicOrigin, Accounts: a.enabled(), MCP: a.mcp.Enabled, OAuth: a.oauthEnabled(),
+		SignInRequired: a.signInRequired(), Drafts: a.mcp.Enabled && a.draftsEnabled(),
+	}))
+}
 
 // canonicalPage drops query keys an HTML page does not support, such as utm_*
 // or fbclid added to shared links, so the caller can redirect instead of

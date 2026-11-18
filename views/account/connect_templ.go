@@ -206,17 +206,17 @@ func Consent(p ConsentPage) templ.Component {
 				}
 			}
 			if p.Publish {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "  <p class=\"field-note connect-public connect-public-either\">It can't see your email or change your profile or preferences. It can't post anything publicly unless you allow posting publicly above, and even then anything it writes waits for you as a draft.</p><p class=\"field-note connect-public connect-public-off\">It can't see your email, change your profile or preferences, or post anything publicly.</p><p class=\"field-note connect-public connect-public-on\">It can't see your email or change your profile or preferences. Publicly, it can only make your Interested choices public, recommend or withdraw recommendations without a reason, and mark posts Helpful; anything it writes waits for you as a draft.</p><p class=\"field-note\">It stays connected until you disconnect it on your profile page, or after 30 days without use.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "  <p class=\"field-note connect-public connect-public-either\">It can't see your email or change your profile or preferences. It can't post anything publicly unless you allow posting publicly above, and even then anything it writes waits for you as a draft.</p><p class=\"field-note connect-public connect-public-off\">It can't see your email, change your profile or preferences, or post anything publicly.</p><p class=\"field-note connect-public connect-public-on\">It can't see your email or change your profile or preferences. Publicly, it can only make your Interested choices public, recommend or withdraw recommendations without a reason, and mark posts Helpful; anything it writes waits for you as a draft.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<p class=\"field-note\">It can't see your email, change your profile or preferences, or post anything publicly. It stays connected until you disconnect it on your profile page, or after 30 days without use.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<p class=\"field-note\">It can't see your email, change your profile or preferences, or post anything publicly.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"account-actions\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<p class=\"field-note\">You can disconnect this app from your profile. The connection expires 30 days after you connect or after the app last refreshes its access.</p><div class=\"account-actions\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -425,7 +425,7 @@ func Connections(p Page) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "><summary>Connected apps <span class=\"field-note\">AI agents you signed in to Ticketopia</span></summary><p class=\"field-note\">Connected apps can search events and use your radar, saved events, reminders, follows and Interested events. Apps you allowed to post publicly can also make Interested choices public, recommend events without a reason and mark posts Helpful; reasons, questions and replies they write wait in <a href=\"/me/drafts\" class=\"text-link\">your drafts</a>. Disconnecting stops them immediately.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "><summary>Connected apps <span class=\"field-note\">AI agents you signed in to Ticketopia</span></summary><p class=\"field-note\">Connected apps can search events and use your radar, saved events, reminders, follows and Interested events. Apps you allowed to post publicly can also make Interested choices public, recommend events without a reason and mark posts Helpful; reasons, questions and replies they write wait in <a href=\"/me/drafts\" class=\"text-link\">your drafts</a>. Disconnecting stops them immediately.</p><a href=\"/agents#connect\" class=\"text-link\">Learn how to connect an agent</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -486,7 +486,7 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(connection.ClientName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 113, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 114, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -499,7 +499,7 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(connection.Host())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 115, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 116, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -539,7 +539,7 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(connection.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 128, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 129, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -552,7 +552,7 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(connection.CreatedAt.Format("2 Jan 2006"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 128, Col: 154}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 129, Col: 154}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -565,7 +565,7 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 		var templ_7745c5c3_Var25 templ.SafeURL
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/me/connections/" + connection.ID + "/revoke"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 130, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 131, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {

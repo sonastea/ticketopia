@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-11-17 — In-app agents and API guide
+
+- `/agents` shows setup for enabled features, with a configured MCP origin
+  or instructions to use the browser’s address. **Connected apps** and **API
+  access** link to it. The guide and token form spell out the token’s broader
+  JSON API access, and the guide and consent page explain that OAuth connection
+  expiry depends on refresh. See [Agent tools](../app-mcp.md).
+
 ### 2026-11-15 — Clearer argument and not-found errors
 
 - Arguments that don't fit a tool (unknown, missing or of the wrong type) are

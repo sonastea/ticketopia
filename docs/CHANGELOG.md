@@ -4,9 +4,9 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-11-17 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-16 — [CI performance](changes/ci-performance.md)
 - 2026-11-15 — [Local development services](changes/local-development.md)
-- 2026-11-15 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-15 — [Followed discussions](changes/followed-discussions.md)
 - 2026-11-15 — [OpenAPI contract](changes/openapi.md)
 - 2026-11-15 — [Database and persistence](changes/database.md)

@@ -99,6 +99,51 @@
 .account-sign-in > .google-sign-in { justify-self: start; }
 .account-connect-list { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.25rem; list-style-type: disc; }
 .account-connect-host { font-weight: 650; }
+
+.agent-guide, .agent-guide-section, .agent-guide-examples, .agent-guide-example {
+  display: grid;
+  min-inline-size: 0;
+}
+.destination-page.agent-guide { max-inline-size: 74ch; gap: 1.5rem; }
+.agent-guide-section {
+  gap: .75rem;
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--line);
+}
+.agent-guide-section > .text-link { justify-self: start; }
+.agent-guide-permissions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+.agent-guide-permissions dt {
+  padding-block-start: .75rem;
+  border-block-start: 1px solid var(--line);
+  font-weight: 750;
+}
+.agent-guide-permissions dd { margin: 0; padding-block: .25rem .75rem; }
+.agent-guide-permissions dt code {
+  margin-inline-start: .4rem;
+  color: var(--muted-warm);
+  font-size: .875rem;
+  font-weight: 500;
+}
+.agent-guide-examples { gap: .5rem; }
+.agent-guide-examples p + .agent-guide-example { margin-block-start: .75rem; }
+.agent-guide-example { gap: .25rem; }
+.agent-guide-example figcaption { font-weight: 700; }
+.agent-guide-code {
+  max-inline-size: 100%;
+  min-block-size: 2.75rem;
+  overflow: auto;
+  padding-block: .75rem;
+  padding-inline: 1rem;
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: .875rem;
+  white-space: pre;
+}
 /* The consent page states what an app can post for the publish checkbox's
    current state; without :has() it keeps the statement true in both. */
 .connect-public-off, .connect-public-on { display: none; }

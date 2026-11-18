@@ -192,7 +192,7 @@ templ Profile(p Page) {
 		</div>
 		<details id="api-access" class="account-token-details" open?={ p.NewToken != "" }>
 			<summary>API access <span class="field-note">For your own apps and scripts</span></summary>
-			<p class="field-note">API tokens can read and change your profile and private preferences. They expire after 30 days and cannot create other tokens. Treat them like passwords.</p>
+			<a href="/agents#api-tokens" class="text-link">Learn how to use API tokens</a>
 			if p.NewToken != "" {
 				<div class="account-new-token" data-copy-scope>
 					<p class="account-notice" role="status">API token created. Copy it now; it won't be shown again, even if you refresh this page.</p>
@@ -215,7 +215,8 @@ templ Profile(p Page) {
 					Token name
 					@input.Input(input.Props{ID:"token-name",Name:"name",Required:true,Attributes:templ.Attributes{"maxlength":"80"}})
 				}
-				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+				<p id="api-token-warning" class="field-note"><strong>Treat API tokens like passwords.</strong> A token can read your email and private data, change your profile and preferences, make your Interested choices public, and publish, edit or remove posts as you. It expires after 30 days.</p>
+				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"aria-describedby":"api-token-warning"}}) {
 					Create API token
 				}
 			</form>
