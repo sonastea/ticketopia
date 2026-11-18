@@ -123,5 +123,5 @@ func (a *api) livePreferencesPage(c echo.Context) error {
 	if c.FormValue("return_to") == "/happening-now" {
 		return c.Redirect(303, "/happening-now")
 	}
-	return c.Redirect(303, "/me/preferences?saved=preferences")
+	return c.Redirect(303, "/me/preferences?saved=live#live-preferences-heading")
 }

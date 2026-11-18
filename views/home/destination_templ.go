@@ -120,7 +120,7 @@ func Destination(active string, title string) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				case "interests":
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2>More of what you love.</h2><p>Category preferences will help you describe your interests. They're separate from marking a particular event Interested.</p><p>Accounts aren't enabled on this server. You can still narrow discovery by category, genre, dates, and keywords.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2>More of what you love.</h2><p>Your Interested events will gather here. Marking an event Interested is separate from choosing the categories you enjoy in Preferences.</p><p>Accounts aren't enabled on this server. You can still narrow discovery by category, genre, dates, and keywords.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -183,7 +183,7 @@ func Destination(active string, title string) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " <span>Interests <small>About your private category preferences</small></span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " <span>Interests <small>About events you mark Interested</small></span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

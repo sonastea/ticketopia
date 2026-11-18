@@ -71,7 +71,7 @@ func scopeError(scope string) error {
 
 // errSignIn is reported when a signed-in tool is called without a verified
 // API token; the HTTP boundary rejects invalid tokens before tools run.
-var errSignIn = errors.New("sign in required: create an API token under API access on your Ticketopia account page (/me), then connect with the header Authorization: Bearer <token>")
+var errSignIn = errors.New("sign in required: create an API token under API tokens on your Ticketopia Security & Apps page (/me/security), then connect with the header Authorization: Bearer <token>")
 
 var (
 	no  = false

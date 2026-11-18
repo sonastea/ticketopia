@@ -95,7 +95,7 @@ const check = (label, value) => { assert.ok(value, label); checks.push(label); }
     const nativePage = await native.newPage(); await nativePage.goto(base + '/me/preferences');
     const nativeForm = nativePage.locator('form[action="/me/live-activity-preferences"]');
     await nativeForm.locator('summary').click(); await nativeForm.getByRole('button', { name: 'Reset filters' }).click();
-    await nativePage.waitForURL('**/me/preferences?saved=preferences');
+    await nativePage.waitForURL('**/me/preferences?saved=live**');
     const reset = await (await owner.request.get(base + '/api/v1/me/live-activity-preferences')).json();
     check('JavaScript-disabled Reset saves', reset.filters.category_ids.length === 0 && reset.enabled);
     await signed.waitForFunction(() => document.querySelectorAll('[data-live-list] li').length === 20);

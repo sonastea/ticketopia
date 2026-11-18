@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,10 +53,13 @@ func (a *api) accountRoutes(e *echo.Echo) {
 	e.POST("/auth/logout", a.logoutPage(false))
 	e.POST("/auth/logout-all", a.logoutPage(true))
 	e.GET("/me", a.accountPage("profile"))
+	e.GET("/me/privacy", a.accountPage("privacy"))
 	e.GET("/me/preferences", a.accountPage("preferences"))
+	e.GET("/me/security", a.accountPage("security"))
 	e.GET("/me/interests", a.accountPage("interests"))
-	e.POST("/me/profile", a.updateAccountPage(false))
-	e.POST("/me/preferences", a.updateAccountPage(true))
+	e.POST("/me/profile", a.updateAccountPage("profile"))
+	e.POST("/me/privacy", a.updateAccountPage("privacy"))
+	e.POST("/me/preferences", a.updateAccountPage("preferences"))
 	e.POST("/me/tokens", a.createTokenPage)
 	e.POST("/me/tokens/:credential_id/revoke", a.revokeTokenPage)
 	e.GET("/users/:user_id", a.publicProfilePage)
@@ -94,20 +98,25 @@ func (a *api) newTokenCookie(c echo.Context, raw string) {
 	c.SetCookie(&http.Cookie{Name: a.authConfig.CookieName("new_token"), Value: raw, Path: "/", MaxAge: age, Expires: expires, HttpOnly: true, Secure: a.authConfig.Secure(), SameSite: http.SameSiteStrictMode})
 }
 
-// takeNewToken returns a token handed off by createTokenPage, once: the cookie
-// is cleared on read, so refreshing the page never shows the secret again. It
-// is shown only while it still authenticates as the signed-in account.
-func (a *api) takeNewToken(c echo.Context, owner string) string {
+// peekNewToken returns a token handed off by createTokenPage while it still
+// authenticates as the signed-in account. A definitively invalid or foreign
+// value is cleared at once; a valid one is cleared by renderAccount only once
+// the page showing it renders, so a transient failure still allows a retry
+// and refreshing after it is shown never reveals the secret again.
+func (a *api) peekNewToken(c echo.Context, owner string) (string, error) {
 	cookie, err := c.Cookie(a.authConfig.CookieName("new_token"))
 	if err != nil {
-		return ""
+		return "", nil
 	}
-	a.newTokenCookie(c, "")
 	p, err := a.accounts.Authenticate(c.Request().Context(), cookie.Value, "api")
-	if err != nil || p.Account.ID != owner {
-		return ""
+	if errors.Is(err, accounts.ErrUnauthenticated) || (err == nil && p.Account.ID != owner) {
+		a.newTokenCookie(c, "")
+		return "", nil
 	}
-	return cookie.Value
+	if err != nil {
+		return "", err
+	}
+	return cookie.Value, nil
 }
 
 // Only a local, known page may be resumed. Never redirect to an auth endpoint,
@@ -158,7 +167,7 @@ func safeAuthReturn(raw string) string {
 		}
 		return u.String()
 	}
-	if u.Path == "/me" || u.Path == "/me/preferences" || u.Path == "/me/interests" || u.Path == "/saved" {
+	if u.Path == "/me" || u.Path == "/me/privacy" || u.Path == "/me/preferences" || u.Path == "/me/security" || u.Path == "/me/drafts" || u.Path == "/me/interests" || u.Path == "/saved" {
 		if u.Path == "/saved" {
 			return safeSaveReturn(raw)
 		}
@@ -693,13 +702,7 @@ func (a *api) accountPage(section string) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		privateAccountResponse(c)
 		if !a.enabled() {
-			active := "profile"
-			title := "Your profile"
-			if section == "interests" {
-				active = "interests"
-				title = "Your interests"
-			}
-			return render(c, 200, home.Destination(active, title))
+			return render(c, 200, home.Destination(account.Page{Section: section}.Active(), account.SectionTitle(section)))
 		}
 		p, err := a.principal(c, true)
 		if errors.Is(err, accounts.ErrUnauthenticated) {
@@ -708,67 +711,94 @@ func (a *api) accountPage(section string) echo.HandlerFunc {
 		if err != nil {
 			return a.accountPageError(c, err)
 		}
-		notice := ""
-		switch c.QueryParam("saved") {
-		case "profile":
-			notice = "Your profile and privacy settings were saved."
-		case "preferences":
-			notice = "Your private preferences were saved."
-		case "token":
-			notice = "API token revoked."
-		case "connection":
-			notice = "App disconnected. It can no longer use your account."
-		}
+		notice, area := savedNotice(c.QueryParam("saved"))
 		token := ""
-		if section == "profile" {
-			token = a.takeNewToken(c, p.Account.ID)
+		if section == "security" {
+			if token, err = a.peekNewToken(c, p.Account.ID); err != nil {
+				return a.accountPageError(c, err)
+			}
 		}
-		return a.renderAccount(c, 200, p, section, "", notice, token)
+		return a.renderAccount(c, 200, p, section, "", notice, token, accountView{NoticeFor: area})
 	}
 }
-func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, section, message, notice, token string, draft ...liveFilterDraft) error {
-	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NewToken: token}
-	if section == "preferences" {
-		pref, err := a.accounts.LivePreferences(c.Request().Context(), p.Account.ID)
-		if err == nil {
+// accountView carries optional presentation state into renderAccount.
+type accountView struct {
+	// NoticeFor places the notice beside the section it confirms.
+	NoticeFor string
+	// TokenFormOpen keeps the token form open, with TokenName, after a failed creation.
+	TokenFormOpen bool
+	TokenName     string
+	// Live is an unsaved live-activity filter draft to show on Preferences.
+	Live *liveFilterDraft
+}
+
+// savedNotice confirms a completed form after Post/Redirect/Get, naming the
+// section it belongs to when it isn't the whole page.
+func savedNotice(saved string) (notice, area string) {
+	switch saved {
+	case "profile":
+		return "Your profile was saved.", ""
+	case "privacy":
+		return "Your privacy settings were saved.", ""
+	case "preferences":
+		return "Your private preferences were saved.", ""
+	case "categories":
+		return "Your category preferences were saved.", "categories"
+	case "token":
+		return "API token revoked.", "tokens"
+	case "connection":
+		return "App disconnected. It can no longer use your account.", "connections"
+	case "live":
+		return "Your live activity settings were saved.", "live"
+	}
+	return "", ""
+}
+
+func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, section, message, notice, token string, views ...accountView) error {
+	view := accountView{}
+	if len(views) > 0 {
+		view = views[0]
+	}
+	ctx := c.Request().Context()
+	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NoticeFor: view.NoticeFor, NewToken: token, TokenFormOpen: view.TokenFormOpen, TokenName: view.TokenName}
+	page.Navigation = a.accountNavigation(c, p.Account.ID)
+	switch section {
+	case "profile":
+		page.Activity, page.ActivityUnavailable = a.ownPublicActivity(c, p.Account.ID)
+	case "preferences":
+		if pref, err := a.accounts.LivePreferences(ctx, p.Account.ID); err == nil {
 			page.LivePreferences = &pref
-			if len(draft) > 0 {
-				page.LivePreferences = &draft[0].preferences
-				page.LiveEditor = draft[0].editor
+			if view.Live != nil {
+				page.LivePreferences = &view.Live.preferences
+				page.LiveEditor = view.Live.editor
 			} else {
 				page.LiveEditor = a.liveEditor(c, pref.Filters, true)
 			}
 		}
-	}
-	page.ModerationEnabled = a.moderationEnabled()
-	if page.ModerationEnabled {
-		var err error
-		page.Moderator, err = a.moderation.IsModerator(c.Request().Context(), p.Account.ID)
-		if err != nil {
-			return a.accountPageError(c, err)
+		page.CategoriesUnavailable = true
+		if a.events != nil {
+			catalog, err := a.optionalCategories(ctx)
+			page.Categories = catalog.Items
+			page.CategoriesUnavailable = err != nil
 		}
-	}
-	if section == "profile" {
+	case "security":
 		var err error
-		page.Tokens, err = a.accounts.Tokens(c.Request().Context(), p.Account.ID)
-		if err != nil {
+		if page.Tokens, err = a.accounts.Tokens(ctx, p.Account.ID); err != nil {
 			return a.accountPageError(c, err)
 		}
 		if a.oauthEnabled() {
 			page.ConnectionsEnabled = true
-			page.ConnectionsOpen = c.QueryParam("saved") == "connection"
-			if page.Connections, err = a.oauth.Grants(c.Request().Context(), p.Account.ID); err != nil {
+			if page.Connections, err = a.oauth.Grants(ctx, p.Account.ID); err != nil {
 				return a.accountPageError(c, err)
 			}
 		}
-	}
-	if section == "interests" {
+	case "interests":
 		values := c.QueryParams()
 		values.Del("saved")
 		page.EventInterests.ReturnURL = c.Request().URL.RequestURI()
 		var err error = interests.ErrUnavailable
 		if a.interests != nil {
-			page.EventInterests.List, err = a.interests.List(c.Request().Context(), p.Account.ID, false, values)
+			page.EventInterests.List, err = a.interests.List(ctx, p.Account.ID, false, values)
 		}
 		if err != nil {
 			if status < 400 {
@@ -783,20 +813,35 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 		}
 		page.EventInterests.Saves = a.saveView(c, ids)
 		page.EventInterests.Interests = a.interestView(c, ids)
-		if a.events != nil {
-			catalog, err := a.optionalCategories(c.Request().Context())
-			page.Categories = catalog.Items
-			page.CategoriesUnavailable = err != nil
-		} else {
-			page.CategoriesUnavailable = true
-		}
 	}
-	if section == "preferences" && a.events != nil {
-		catalog, err := a.events.Categories(c.Request().Context())
-		page.Categories = catalog.Items
-		page.CategoriesUnavailable = err != nil
+	if token != "" {
+		a.newTokenCookie(c, "") // Shown now; a refresh must not show it again.
 	}
 	return render(c, status, account.Settings(page))
+}
+
+// ownPublicActivity reads the owner's newest public actions for their profile.
+// It reports unavailable rather than failing the page: the profile form must
+// stay usable when public activity can't be read.
+func (a *api) ownPublicActivity(c echo.Context, owner string) ([]account.PublicActivity, bool) {
+	limit := url.Values{"limit": {strconv.Itoa(account.ProfileActivityLimit)}}
+	var interested []interests.Item
+	var recommended []recommendations.Item
+	if a.interests != nil {
+		list, err := a.interests.List(c.Request().Context(), owner, true, limit)
+		if err != nil {
+			return nil, true
+		}
+		interested = list.Items
+	}
+	if a.recommendations != nil {
+		list, err := a.recommendations.Public(c.Request().Context(), owner, limit)
+		if err != nil {
+			return nil, true
+		}
+		recommended = list.Items
+	}
+	return account.RecentActivity(interested, recommended), false
 }
 func parseAccountForm(c echo.Context, allowed ...string) error {
 	return parseBoundedAccountForm(c, 16384, allowed...)
@@ -838,13 +883,17 @@ func parseBoundedAccountForm(c echo.Context, maxBytes int64, allowed ...string) 
 	}
 	return nil
 }
-func (a *api) updateAccountPage(preferences bool) echo.HandlerFunc {
+// updateAccountPage saves one account form: "profile" (name and bio),
+// "privacy" (interest default and live activity name) or "preferences"
+// (location and notifications, or categories when section=categories).
+func (a *api) updateAccountPage(form string) echo.HandlerFunc {
+	allowed := map[string][]string{
+		"profile":     {"display_name", "bio"},
+		"privacy":     {"interest_visibility", "activity_first_name"},
+		"preferences": {"city", "country", "timezone", "category_ids", "email_reminders", "notifications_paused", "section"},
+	}[form]
 	return func(c echo.Context) error {
 		privateAccountResponse(c)
-		allowed := []string{"display_name", "bio", "interest_visibility", "activity_first_name"}
-		if preferences {
-			allowed = []string{"city", "country", "timezone", "category_ids", "email_reminders", "notifications_paused", "section"}
-		}
 		if err := parseAccountForm(c, allowed...); err != nil {
 			return a.accountPageError(c, err)
 		}
@@ -855,21 +904,22 @@ func (a *api) updateAccountPage(preferences bool) echo.HandlerFunc {
 		if err = a.checkWrite(c, p); err != nil {
 			return a.accountPageError(c, err)
 		}
-		section := "profile"
-		destination := "/me?saved=profile"
-		if !preferences {
-			name, bio, visibility := c.FormValue("display_name"), c.FormValue("bio"), c.FormValue("interest_visibility")
-			firstName := c.FormValue("activity_first_name")
-			_, err = a.accounts.UpdateProfile(c.Request().Context(), p.Account.ID, accounts.ProfilePatch{DisplayName: &name, Bio: &bio, InterestVisibility: &visibility, ActivityFirstName: &firstName})
-			p.Account.ActivityFirstName = &firstName
-			p.Account.DisplayName, p.Account.Bio, p.Account.InterestVisibility = name, bio, visibility
-		} else {
-			section = "preferences"
+		section, destination, view := form, "/me?saved=profile", accountView{}
+		switch form {
+		case "profile":
+			name, bio := c.FormValue("display_name"), c.FormValue("bio")
+			_, err = a.accounts.UpdateProfile(c.Request().Context(), p.Account.ID, accounts.ProfilePatch{DisplayName: &name, Bio: &bio})
+			p.Account.DisplayName, p.Account.Bio = name, bio
+		case "privacy":
+			destination = "/me/privacy?saved=privacy"
+			visibility, firstName := c.FormValue("interest_visibility"), c.FormValue("activity_first_name")
+			_, err = a.accounts.UpdateProfile(c.Request().Context(), p.Account.ID, accounts.ProfilePatch{InterestVisibility: &visibility, ActivityFirstName: &firstName})
+			p.Account.InterestVisibility, p.Account.ActivityFirstName = visibility, &firstName
+		default:
 			destination = "/me/preferences?saved=preferences"
 			var patch accounts.PreferencesPatch
-			if c.FormValue("section") == "interests" {
-				section = "interests"
-				destination = "/me/interests?saved=preferences"
+			if c.FormValue("section") == "categories" {
+				destination, view.NoticeFor = "/me/preferences?saved=categories#categories", "categories"
 				ids := c.Request().PostForm["category_ids"]
 				if ids == nil {
 					ids = []string{}
@@ -889,7 +939,7 @@ func (a *api) updateAccountPage(preferences bool) echo.HandlerFunc {
 		}
 		if err != nil {
 			status, _, message, _ := accountError(err)
-			return a.renderAccount(c, status, p, section, message, "", "")
+			return a.renderAccount(c, status, p, section, message, "", "", view)
 		}
 		return c.Redirect(303, destination)
 	}
@@ -943,12 +993,12 @@ func (a *api) createTokenPage(c echo.Context) error {
 	_, raw, err := a.accounts.CreateToken(c.Request().Context(), p.Account.ID, c.FormValue("name"))
 	if err != nil {
 		status, _, message, _ := accountError(err)
-		return a.renderAccount(c, status, p, "profile", message, "", "")
+		return a.renderAccount(c, status, p, "security", message, "", "", accountView{TokenFormOpen: true, TokenName: c.FormValue("name")})
 	}
 	// Post/Redirect/Get: refreshing the result must not create another token.
 	// The secret travels once in a short-lived cookie, never in the URL.
 	a.newTokenCookie(c, raw)
-	return c.Redirect(303, "/me#api-access")
+	return c.Redirect(303, "/me/security#api-access")
 }
 func (a *api) revokeTokenPage(c echo.Context) error {
 	privateAccountResponse(c)
@@ -965,7 +1015,7 @@ func (a *api) revokeTokenPage(c echo.Context) error {
 	if err = a.accounts.Revoke(c.Request().Context(), p.Account.ID, c.Param("credential_id")); err != nil {
 		return a.accountPageError(c, err)
 	}
-	return c.Redirect(303, "/me?saved=token")
+	return c.Redirect(303, "/me/security?saved=token#api-access")
 }
 func (a *api) publicProfilePage(c echo.Context) error {
 	privateAccountResponse(c)

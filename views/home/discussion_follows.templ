@@ -57,15 +57,7 @@ templ ConversationFollow(event,thread,frequency,csrf,returnURL string,paused boo
 templ FollowedDiscussions(p DiscussionFollowPage) {
 	@layouts.App("profile","Your conversations") {
 		<main id="main" class="destination-page discussion-page">
-			<header>
-				if p.Notifications {
-					<h1>Reply notifications</h1>
-				} else {
-					<h1>Followed discussions</h1>
-				}
-				<p class="intro">Your private way back to event conversations. Updates appear here in Ticketopia; no email or push is sent.</p>
-			</header>
-			@layouts.AccountNav(ternary(p.Notifications,"notifications","discussions"), p.Navigation)
+			@layouts.AccountHeader(ternary(p.Notifications,"Reply notifications","Followed discussions"), "Your private way back to event conversations. Updates appear here in Ticketopia; no email or push is sent.", ternary(p.Notifications,"notifications","discussions"), p.Navigation)
 			if p.Paused {
 				<p class="field-note">All notifications are paused. <a href="/me/preferences" class="text-link">Resume in Preferences</a> to receive future activity. Your follows are kept.</p>
 			}

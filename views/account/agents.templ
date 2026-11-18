@@ -138,8 +138,8 @@ templ agentGuideConnect(p AgentGuidePage) {
 templ agentGuideTokens(p AgentGuidePage) {
 	<section class="agent-guide-section">
 		<h2 id="api-tokens">Use an API token</h2>
-		<p>In <strong>Profile &amp; privacy</strong>, open <strong>API access</strong>, name your token, and choose <strong>Create API token</strong>. Copy it when it appears: you won’t see it again. It expires 30 days after you create it. <strong>Treat API tokens like passwords.</strong></p>
-		<a class="text-link" href="/me#api-access">Go to API access in your profile</a>
+		<p>In <strong>Security &amp; Apps</strong>, open <strong>Create an API token</strong>, name your token, and choose <strong>Create API token</strong>. Copy it when it appears: you won’t see it again. It expires 30 days after you create it. <strong>Treat API tokens like passwords.</strong></p>
+		<a class="text-link" href="/me/security#api-access">Go to API tokens in Security &amp; Apps</a>
 		<p>Store the token in an environment variable named <code>TICKETOPIA_TOKEN</code> and send it as <code>Authorization: Bearer TOKEN</code>. This example reads your profile without changing it or putting the header on the command line:</p>
 		@agentGuideCode("curl", "Read your profile with curl", agentProfileCurl(p.Origin))
 		<p><strong>On the JSON API (<code>/api/v1</code>):</strong> a token can read your email and private account data, and change your profile, preferences, saved events, follows and reminders. It can make your Interested choices public, publish recommendations and posts, edit or remove your own posts, and react. It can revoke itself, but can’t list tokens, create new ones or revoke any other token.</p>
@@ -158,23 +158,23 @@ templ agentGuideRevoke(p AgentGuidePage) {
 		<h2 id="revoke">Remove access</h2>
 		<ul class="account-connect-list">
 			if p.OAuth {
-				<li>Under <strong>Connected apps</strong> in your profile, choose <strong>Disconnect</strong> to stop an app’s access immediately. An OAuth access token lasts one hour. The connection expires 30 days after you connect or after the app last refreshes its access.</li>
+				<li>Under <strong>Connected apps</strong> in Security &amp; Apps, choose <strong>Disconnect</strong> to stop an app’s access immediately. An OAuth access token lasts one hour. The connection expires 30 days after you connect or after the app last refreshes its access.</li>
 			}
-			<li>Under <strong>API access</strong>, choose <strong>Revoke</strong> next to a token to stop it working.
+			<li>Under <strong>API tokens</strong>, choose <strong>Revoke</strong> next to a token to stop it working.
 				if p.MCP {
 					This stops it on both the API and MCP.
 				}
 			</li>
-			<li>Under <strong>Sign-in &amp; security</strong>, choose
+			<li>Under <strong>All devices</strong>, choose <strong>Sign out of all devices</strong> and confirm to end every browser session
 				if p.OAuth {
-					<strong>Sign out everywhere, revoke API tokens &amp; disconnect apps</strong> to end every browser session and remove all token and app access.
+					and remove all token and app access.
 				} else {
-					<strong>Sign out everywhere &amp; revoke API tokens</strong> to end every browser session and revoke every token.
+					and revoke every token.
 				}
 				Ordinary <strong>Sign out</strong> only ends your current browser session.
 			</li>
 		</ul>
-		<a class="text-link" href="/me">Manage access in your profile</a>
+		<a class="text-link" href="/me/security">Manage access in Security &amp; Apps</a>
 		<h3>A few safety tips</h3>
 		<p>
 			if p.OAuth {

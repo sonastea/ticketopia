@@ -7,6 +7,21 @@ related_targets: ["views/account/presentation.go"]
 
 # Account destinations
 
+## One job per page — 2026-11-18
+
+- Critique (22/40; `.impeccable/critique/2026-11-18T10-18-08Z__views-account-settings-templ.md`)
+  found `/me` doing three jobs with 15 notes. It is now Profile; Privacy
+  (`/me/privacy`) and Security & Apps (`/me/security`) are their own routes, and
+  categories moved to Preferences. One form per section, at most one note each.
+- Profile leads with a plum-tinted card (initial monogram, name, bio) and three
+  compact public-activity rows; Privacy pairs radios and a toast-like name preview
+  with a "Who sees what" list. Account-wide sign-out is last, behind a disclosure.
+- `layouts.AccountHeader` replaces per-page headings; family tabs wrap and other
+  families are single links, superseding **More in your space** below.
+- Verified: 52 Chromium checks and 12 clean axe views in the isolated account
+  pass, plus scripted save/token/confirm/keyboard/no-JS/200%-text flows on the
+  review server at 1440px and 390px.
+
 ## Notification copy refinement — 2026-10-12
 
 - Keep the existing Operate surface, palette, native forms and preference semantics.

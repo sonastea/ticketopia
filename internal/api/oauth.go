@@ -254,5 +254,5 @@ func (a *api) revokeConnectionPage(c echo.Context) error {
 	if err = a.oauth.Revoke(c.Request().Context(), p.Account.ID, c.Param("grant_id")); err != nil && !errors.Is(err, oauth.ErrNotFound) {
 		return a.accountPageError(c, err)
 	}
-	return c.Redirect(http.StatusSeeOther, "/me?saved=connection")
+	return c.Redirect(http.StatusSeeOther, "/me/security?saved=connection#connected-apps")
 }

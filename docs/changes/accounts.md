@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### 2026-11-18 — One job per account page
+
+- Split the cluttered profile into **Profile** (`/me`), **Privacy**
+  (`/me/privacy`), **Preferences** and **Security & Apps** (`/me/security`),
+  each with one form per section and one Save. Profile now leads with a profile
+  card and the three most recent public actions; Privacy uses Private/Public
+  radios, a live-activity name preview and a "Who sees what" summary. Event
+  category preferences moved from Interests to Preferences.
+- **Sign out of all devices** replaces the button beside Sign out: it comes last
+  on Security & Apps, behind a native disclosure listing its effects. Token and
+  app confirmations appear in their own section; old `/me#api-access` links now
+  point to `/me/security#api-access`.
+- Every personal page shares `layouts.AccountHeader`. Family tabs wrap instead
+  of hiding behind **More in your space**; other families are one link each, and
+  pending agent drafts are counted on every account page. See
+  [your space navigation](../accounts.md#your-space-navigation).
+
 ### 2026-11-14 — API token creation survives a refresh
 
 - Creating an API token on `/me` now redirects back to the **API access** section
@@ -62,28 +79,5 @@
   including compact/enlarged-text preferences, keyboard disclosure, native/touch
   checkbox grouping and retained legacy digest values. Inspect focused desktop,
   390px and 320px captures; retain 44px action targets without stretching prose.
-
-### 2026-10-12 — Family-local account navigation
-
-- Share presentation-only navigation across account, Radar, follows, reminders,
-  conversations and Safety destinations. Show the current family directly and
-  disclose other grouped families; preserve all routes and role gates.
-- Keep profile preview beside editing when it fits and stacked on phones/text
-  enlargement; leave security/API tools secondary. Fix expanded sidebar/footer
-  overlap in short viewports without changing shell thresholds.
-- Verify 37 Chromium checks/eight clean axe views plus route/permission tests;
-  see [accounts](../accounts.md#your-space-navigation) and the
-  [phase-3 record](../../.impeccable/surfaces/views-layouts-account-nav-templ.md).
-
-### 2026-10-11 — Clear, digest-preserving notification preferences
-
-- Group Location & time zone separately from Notifications; explain email
-  permission/global pause locally and link on-sale settings and reply frequency.
-- Replace weekly digest's checkbox with **Not available yet**. HTML never patches
-  `WeeklyDigest`, including validation rerenders; forged fields are rejected and
-  the JSON contract is unchanged. See [accounts](../accounts.md).
-- Cover both stored digest values, invalid-zone rerenders and category-only saves;
-  the [reminder polish verification](personal-radar.md) includes responsive,
-  accessibility and changed-session preference checks.
 
 Older entries: [accounts archive](archive/accounts/).

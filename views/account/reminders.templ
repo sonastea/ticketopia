@@ -10,10 +10,7 @@ import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 templ Reminders(p ReminderPage) {
 	@layouts.App("profile", "On-sale reminders") {
 		<main id="main" class="destination-page account-page reminders-page">
-			<h1>On-sale reminders</h1>
-			<p class="intro">Private emails for public ticket sales you choose to remember. Saving an event does not turn reminders on.</p>
-			@layouts.AccountNav("reminders", p.Navigation)
-			<a href="/saved" class="text-link">Saved events</a>
+			@layouts.AccountHeader("On-sale reminders", "Private emails for public ticket sales you choose to remember. Saving an event does not turn reminders on.", "reminders", p.Navigation)
 			if !p.Enabled {
 				<p>Email reminders are not enabled on this server. Your saved events are unchanged.</p>
 			} else {

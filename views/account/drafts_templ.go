@@ -51,11 +51,11 @@ func Drafts(p DraftsPage) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"main\" class=\"destination-page account-page drafts-page\"><h1>Agent drafts</h1><p class=\"intro\">Recommendation reasons, questions, tips and replies your connected apps wrote for you. They're private until you publish them, and expire after seven days.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"main\" class=\"destination-page account-page drafts-page\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = layouts.AccountNav("drafts", p.Navigation).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = layouts.AccountHeader("Agent drafts", "Recommendation reasons, questions, tips and replies your connected apps wrote for you. They're private until you publish them, and expire after seven days.", "drafts", p.Navigation).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -73,7 +73,7 @@ func Drafts(p DraftsPage) templ.Component {
 					var templ_7745c5c3_Var3 string
 					templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(p.Notice)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 24, Col: 16}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 22, Col: 16}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 					if templ_7745c5c3_Err != nil {
@@ -87,7 +87,7 @@ func Drafts(p DraftsPage) templ.Component {
 						var templ_7745c5c3_Var4 string
 						templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 26, Col: 12}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 24, Col: 12}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 						if templ_7745c5c3_Err != nil {
@@ -100,7 +100,7 @@ func Drafts(p DraftsPage) templ.Component {
 						var templ_7745c5c3_Var5 templ.SafeURL
 						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(p.NoticeURL))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 26, Col: 46}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 24, Col: 46}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 						if templ_7745c5c3_Err != nil {
@@ -113,7 +113,7 @@ func Drafts(p DraftsPage) templ.Component {
 						var templ_7745c5c3_Var6 string
 						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(p.NoticeLink)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 26, Col: 81}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 24, Col: 81}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {
@@ -219,7 +219,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(id + "-title")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 50, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 48, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -232,7 +232,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(id + "-title")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 51, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 49, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -245,7 +245,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var11 templ.SafeURL
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(draftEventURL(draft)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 51, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 49, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -258,7 +258,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(draftEventName(draft))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 51, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 49, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -271,7 +271,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(draftKindLabel(draft))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 53, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 51, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -294,7 +294,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(draft.ClientName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 57, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 55, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -307,7 +307,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(draft.ClientHost)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 57, Col: 101}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 55, Col: 101}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -325,7 +325,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(draft.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 59, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 57, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
 		if templ_7745c5c3_Err != nil {
@@ -338,7 +338,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(draft.CreatedAt.UTC().Format("Jan 2, 2006"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 59, Col: 128}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 57, Col: 128}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -351,7 +351,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(draft.Text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 60, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 58, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -377,7 +377,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 				var templ_7745c5c3_Var19 templ.SafeURL
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(home.ThreadURL(draft.EventID, draft.ThreadID, "")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 67, Col: 119}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 65, Col: 119}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -390,7 +390,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(replyLead(target))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 67, Col: 182}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 65, Col: 182}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -408,7 +408,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(target.Body)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 69, Col: 86}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 67, Col: 86}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 					if templ_7745c5c3_Err != nil {
@@ -435,7 +435,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 					var templ_7745c5c3_Var22 string
 					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(current.Reason)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 78, Col: 89}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 76, Col: 89}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 					if templ_7745c5c3_Err != nil {
@@ -465,7 +465,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(draft.ExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 86, Col: 121}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 84, Col: 121}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -478,7 +478,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(draft.ExpiresAt.UTC().Format("Jan 2, 2006"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 86, Col: 169}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 84, Col: 169}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -491,7 +491,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 		var templ_7745c5c3_Var25 templ.SafeURL
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/me/drafts/" + draft.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 87, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 85, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -514,7 +514,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(recommendations.ReasonHash(current.Reason))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 92, Col: 96}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 90, Col: 96}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 				if templ_7745c5c3_Err != nil {
@@ -547,7 +547,7 @@ func draftItem(p DraftsPage, draft drafts.Draft, id string) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(draftPublishLabel(draft))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 99, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/drafts.templ`, Line: 97, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {

@@ -176,7 +176,8 @@ func isHappeningNowURL(raw string) bool {
 }
 func isProfileURL(raw string) bool {
 	u, err := url.Parse(raw)
-	return err == nil && strings.HasPrefix(u.Path, "/users/")
+	// The owner's own profile, /me, returns its recent public activity there.
+	return err == nil && (strings.HasPrefix(u.Path, "/users/") || raw == "/me")
 }
 func recommendationCountLabel(count int) string {
 	if count == 1 {

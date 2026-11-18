@@ -70,5 +70,5 @@ func (a *api) searchLivePicker(c echo.Context, p accounts.Principal, f activity.
 		return a.renderHappeningNow(c, 200, page)
 	}
 	pref.Filters, pref.Enabled, pref.Revision = f, c.FormValue("enabled") == "on", revision
-	return a.renderAccount(c, 200, p, "preferences", "", "", "", liveFilterDraft{pref, e})
+	return a.renderAccount(c, 200, p, "preferences", "", "", "", accountView{Live: &liveFilterDraft{pref, e}})
 }

@@ -11,11 +11,7 @@ import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 templ Follows(page FollowsPage) {
 	@layouts.App("follows", "Artists & venues") {
 		<main id="main" class="destination-page account-page follows-page">
-			<header class="account-heading">
-				<h1>Artists &amp; venues</h1>
-				<p class="intro">Keep the artists and places you care about in one private collection. Your follows stay with your account across visits and devices.</p>
-			</header>
-			@layouts.AccountNav("follows", page.Navigation)
+			@layouts.AccountHeader("Artists & venues", "Keep the artists and places you care about in one private collection.", "follows", page.Navigation)
 			if !page.Enabled {
 				<p>Following requires accounts, which aren't enabled on this server.</p>
 				@button.Button(button.Props{Href: "/", Class: "action"}) {

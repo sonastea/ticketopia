@@ -51,8 +51,18 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
 
 ## Profiles, privacy, and preferences
 
-- `/me`: edit display name/bio, set the visibility default for **new** event interest,
-  preview/open the public profile, sign out, and manage API access.
+- `/me` (**Profile**): your public identity and your three most recent public
+  actions (recommendations and public Interested choices), with display name/bio
+  editing beside them. Public activity that can't be read is reported without
+  blocking the form.
+- `/me/privacy`: the visibility default for **new** event interest (Private or
+  Public radios), the optional first name for live activity with a preview, and
+  a plain "Who sees what" summary.
+- `/me/preferences`: location/time zone, notifications, event categories (moved
+  from Interests) and live activity, each its own form.
+- `/me/security` (**Security & Apps**): Google sign-in and Sign out, Connected
+  apps, API tokens, and **Sign out of all devices** last, behind a native
+  disclosure that lists its effects before the confirming button.
 - `/users/{id}`: public ID, display name, bio, and explicitly public event interest.
   The profile JSON resource still contains only ID/name/bio; activity has its own API.
   A new account starts as
@@ -82,10 +92,10 @@ tokens, or refresh tokens are stored. Only `openid email` scopes are requested.
   subscriptions and delivery history stay independent. See [live preferences](live-community-activity.md#default-on-preferences-part-1).
 - `/me/discussions` and `/me/notifications`: private followed conversations and
   frequency-controlled reply updates. See [followed discussions](followed-discussions.md).
-- `/me/interests`: paginated own event interest with per-event visibility/removal,
-  followed by separate private category choices. Catalog failures retain selected
-  IDs rather than erasing choices. Categories help rank private Radar; they do not
-  filter or rank public Discover automatically.
+- `/me/interests`: paginated own event interest with per-event visibility/removal.
+  Private category choices are a separate form on `/me/preferences`; catalog
+  failures retain selected IDs rather than erasing choices. Categories help rank
+  private Radar; they do not filter or rank public Discover automatically.
 - `/follows`: artist/venue search, follow/unfollow and a private, paginated collection.
   Follows never enter public profile activity. See [follows](follows.md).
 - Discovery location precedence is explicit search, remembered browser city,
@@ -135,14 +145,17 @@ schemas so the production sign-in rate limit remains enabled.
 
 ### Your space navigation
 
-Account screens show their current family's links directly, with the current
-location labeled. Native **More in your space** groups other destinations:
-**Account** (Profile & privacy, Preferences), **Your events** (Radar, Interests,
-Artists & venues), **Updates** (On-sale reminders, Followed discussions, Reply
-notifications), and **Safety** (reports/outcomes when enabled; review queue only
-for moderators). Links use normal document navigation and work without JavaScript.
-Profile editing and its public preview sit beside each other when space allows,
-stack on phones/enlarged text, and keep security/API tools secondary.
+Every personal page uses `layouts.AccountHeader`: one heading, at most one intro
+line, and the account navigation. The current family's pages are tabs, with the
+current location labeled; each other family is one link, on the same rule, to
+its first page. **Account** (Profile, Privacy, Preferences, Security & Apps),
+**Your events** (Radar, Interests, Artists & venues), **Updates** (Agent drafts
+when enabled, On-sale reminders, Followed discussions, Reply notifications), and
+**Safety** (reports/outcomes when enabled; review queue only for moderators).
+Pending agent drafts are counted on their tab and on the Updates link. Tabs wrap
+rather than scroll. Links use normal document navigation and work without
+JavaScript. Profile and Privacy put their summary beside the form when space
+allows and stack on phones/enlarged text.
 
 Public event interest and recommendations use shared image/date/title/venue rows.
 Artwork and title open Overview with the profile's pagination return context;
@@ -160,8 +173,8 @@ do not show a Google sign-in CTA.
 ## Sessions and API clients
 
 The public **Agents and API access** guide (`/agents`) walks through connecting
-an agent or using a token in a script. Find it from **API access** or
-**Connected apps** in your profile.
+an agent or using a token in a script. Find it from **API tokens** or
+**Connected apps** in Security & Apps.
 
 Browser sessions and API tokens expire **30 days** after creation, without sliding
 renewal. Credentials are opaque random 256-bit values; MariaDB stores only hashes.
@@ -170,9 +183,10 @@ and SameSite=Lax. Local HTTP uses unprefixed development cookies. At most ten
 browser sessions are retained per account; a new sign-in evicts the oldest when
 necessary. At most ten active API tokens may exist.
 
-Open **API access** under `/me` to create a named token. The form POST redirects
-(303) to `/me#api-access`, handing the secret over in a one-minute HttpOnly,
-SameSite=Strict `new_token` cookie that the next profile page shows once, with a
+Open **Create an API token** on `/me/security` to create a named token. The form
+POST redirects (303) to `/me/security#api-access`, handing the secret over in a
+one-minute HttpOnly, SameSite=Strict `new_token` cookie that the next Security &
+apps page shows once, with a
 **Copy** button when the Clipboard API exists, and clears immediately. The page
 shows it only while it still authenticates as the signed-in account. Refreshing
 neither shows the secret again nor creates another token; create a new token if
@@ -181,14 +195,15 @@ API reads/writes. A later GET/list never reveals the secret. A token can read th
 account email, make Interested choices public, and publish, edit or remove the
 owner’s posts through the JSON API. The token form warns about this access before
 creation. These abilities are distinct from the [MCP scopes](app-mcp.md#signing-in).
-API tokens cannot manage credentials. Revoke individually or use **Sign out
-everywhere & revoke API tokens** (which also disconnects apps when
+API tokens cannot manage credentials. Revoke individually or use **Sign out of
+all devices**, which revokes every session and token (and also disconnects apps when
 [OAuth sign-in](app-mcp.md#oauth-sign-in) is on); ordinary Sign out revokes only the current session
 and does not sign out of Google. Tokens can revoke themselves through
 `DELETE /api/v1/me/session`. The same tokens sign agents in to the
 [agent tools](app-mcp.md#signing-in) at `/mcp`. Agents can instead connect through
 [OAuth](app-mcp.md#oauth-sign-in); those connections appear under **Connected apps**
-on `/me`, with their access, and can be disconnected there.
+on `/me/security`, with their access, and can be disconnected there. Revoking or
+disconnecting returns to that section with its confirmation beside it.
 
 The [OpenAPI contract](openapi.md) documents `/api/v1/me`, own profile/preferences,
 public `/api/v1/users/{id}`, token management, and current-credential revocation.

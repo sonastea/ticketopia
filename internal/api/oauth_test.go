@@ -170,7 +170,7 @@ func TestMCPOAuthEndToEnd(t *testing.T) {
 	}
 
 	// The account page lists both connections; disconnecting one stops its token.
-	page := f.browserRequest(t, http.MethodGet, "/me", nil)
+	page := f.browserRequest(t, http.MethodGet, "/me/security", nil)
 	if strings.Count(page.Body.String(), "Disconnect Test Agent") != 2 || !strings.Contains(page.Body.String(), "Read-only") ||
 		!strings.Contains(page.Body.String(), "Can make changes") {
 		t.Fatalf("account page connections:\n%s", page.Body.String())
@@ -189,7 +189,7 @@ func TestMCPOAuthEndToEnd(t *testing.T) {
 		}
 	}
 	revoke := f.browserRequest(t, http.MethodPost, "/me/connections/"+current+"/revoke", url.Values{"csrf_token": {f.csrf}})
-	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/me?saved=connection" {
+	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/me/security?saved=connection#connected-apps" {
 		t.Fatalf("revoke: %d %v", revoke.Code, revoke.Header())
 	}
 	r := mcpPost(t, f.routes, call, bearer)
@@ -395,7 +395,7 @@ func TestOAuthRevocationEndpoint(t *testing.T) {
 	if r := mcpPost(t, f.routes, call, bearer); r.Code != http.StatusUnauthorized || !strings.Contains(r.Header().Get("WWW-Authenticate"), `error="invalid_token"`) {
 		t.Fatalf("revoked token: %d %v", r.Code, r.Header())
 	}
-	if page := f.browserRequest(t, http.MethodGet, "/me", nil); strings.Contains(page.Body.String(), "Disconnect Test Agent") {
+	if page := f.browserRequest(t, http.MethodGet, "/me/security", nil); strings.Contains(page.Body.String(), "Disconnect Test Agent") {
 		t.Fatal("account page still lists the revoked connection")
 	}
 }

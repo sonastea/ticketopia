@@ -10,7 +10,8 @@ steps (a separate deployment); this page covers what exists.
 
 On the site, open **Agents and API access** (`/agents`) for a public setup guide
 with the deployment’s MCP endpoint, OAuth examples, API tokens, drafts, and
-access removal where enabled. **Connected apps** and **API access** both link to
+access removal where enabled. **Connected apps** and **API tokens** in Security &
+apps (`/me/security`) both link to
 it. Even when accounts are off, set `AUTH_BASE_URL` to the public origin to
 show the full MCP URL. Otherwise the guide gives `/mcp` and asks people to
 use their browser’s address.
@@ -127,7 +128,7 @@ Sign in with either:
   browser, the person signs in with Google if needed and approves the connection,
   and the agent receives tokens. This is how Claude, ChatGPT, VS Code and other
   apps without custom headers connect. See [OAuth sign-in](#oauth-sign-in).
-- **An API token**: create one under **API access** on your account page (`/me`;
+- **An API token**: create one under **API tokens** in Security & Apps (`/me/security`;
   see [accounts](accounts.md#sessions-and-api-clients)) and configure your client
   to send `Authorization: Bearer <token>`. API tokens carry read and write
   access on `/mcp`, never `publish`: an agent using one can draft but not post
@@ -209,7 +210,7 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   apps** on the account page with its access (**Can post publicly** when it
   holds `publish`); existing connections keep exactly their scopes; **Disconnect** stops its tokens
   immediately. An account keeps at most ten; approving another removes the
-  oldest. **Sign out everywhere** also disconnects every app, including any whose
+  oldest. **Sign out of all devices** also disconnects every app, including any whose
   code exchange is in progress.
 - **Revocation** (RFC 7009): an agent disconnects itself by posting `token`
   (either current token) and its `client_id` to `/oauth/revoke`, the
@@ -271,7 +272,7 @@ choices, recommendations, discussion questions, tips and replies, and Helpful
   leaves it in place. Published replies notify the conversation's followers as
   any reply does. Drafts are private to their account, at most 20 at once of
   every kind, expire after seven days, and are deleted with their connection
-  (Disconnect, **Sign out everywhere**, token revocation or eviction). Drafts
+  (Disconnect, **Sign out of all devices**, token revocation or eviction). Drafts
   made with an API token, which identifies no app, say "App unidentified;
   created using an API token".
 - **Attribution.** A recommendation an agent published, or whose drafted reason

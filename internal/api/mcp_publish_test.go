@@ -292,7 +292,7 @@ func TestOAuthConsentPublishCheckbox(t *testing.T) {
 	}
 	// The connected apps list labels a connection that can post publicly.
 	f.connect(f.accountStorage.account.ID, oauth.ScopeRead, oauth.ScopePublish)
-	if account := f.browserRequest(t, http.MethodGet, "/me", nil).Body.String(); !strings.Contains(account, "Can post publicly") || strings.Contains(account, "Read-only") {
+	if account := f.browserRequest(t, http.MethodGet, "/me/security", nil).Body.String(); !strings.Contains(account, "Can post publicly") || strings.Contains(account, "Read-only") {
 		t.Fatalf("account page publish label:\n%s", account)
 	}
 }

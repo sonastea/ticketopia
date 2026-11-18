@@ -56,7 +56,7 @@ templ Consent(p ConsentPage) {
 					} else {
 						<p class="field-note">It can't see your email, change your profile or preferences, or post anything publicly.</p>
 					}
-					<p class="field-note">You can disconnect this app from your profile. The connection expires 30 days after you connect or after the app last refreshes its access.</p>
+					<p class="field-note">You can disconnect this app in Security &amp; Apps. The connection expires 30 days after you connect or after the app last refreshes its access.</p>
 					<div class="account-actions">
 						@button.Button(button.Props{Type: button.TypeSubmit, Class: "action", Attributes: templ.Attributes{"name": "decision", "value": "allow"}}) {
 							Connect
@@ -92,10 +92,13 @@ templ ConnectFailure(message string) {
 
 // Connections lists agents signed in through OAuth, each revocable.
 templ Connections(p Page) {
-	<details class="account-token-details" open?={ p.ConnectionsOpen }>
-		<summary>Connected apps <span class="field-note">AI agents you signed in to Ticketopia</span></summary>
-		<p class="field-note">Connected apps can search events and use your radar, saved events, reminders, follows and Interested events. Apps you allowed to post publicly can also make Interested choices public, recommend events without a reason and mark posts Helpful; reasons, questions and replies they write wait in <a href="/me/drafts" class="text-link">your drafts</a>. Disconnecting stops them immediately.</p>
-		<a href="/agents#connect" class="text-link">Learn how to connect an agent</a>
+	<section id="connected-apps" class="account-section" aria-labelledby="connected-apps-heading">
+		<h2 id="connected-apps-heading">Connected apps</h2>
+		<p>AI agents you connected. Each one can do only what you allowed. Text it writes, like reasons and replies, waits in <a href="/me/drafts" class="text-link">your drafts</a> until you publish it. Apps you allowed to post publicly can also act right away: make Interested choices public, recommend or withdraw recommendations without a reason, and mark posts Helpful.</p>
+		<a href="/agents#connect" class="text-link">How to connect an agent</a>
+		if notice := p.notice("connections"); notice != "" {
+			<p class="account-notice" role="status">{ notice }</p>
+		}
 		if len(p.Connections) == 0 {
 			<p class="field-note">You have no connected apps.</p>
 		} else {
@@ -104,8 +107,9 @@ templ Connections(p Page) {
 					@connectionItem(p, connection)
 				}
 			</ul>
+			<p class="field-note">Disconnecting stops an app immediately.</p>
 		}
-	</details>
+	</section>
 }
 
 templ connectionItem(p Page, connection oauth.Grant) {

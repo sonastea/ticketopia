@@ -7,9 +7,6 @@ import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 
-templ ModerationLinks(moderator bool,active string) {
-	@layouts.AccountNav(active, layouts.AccountNavPermissions{ModerationEnabled:true,Moderator:moderator})
-}
 
 templ ReportConcern(p ReportPage) {
 	@layouts.App("community","Report a concern privately") {
@@ -62,11 +59,10 @@ templ OwnModeration(p OwnModerationPage) {
 	@layouts.App("profile","Your reports and moderation") {
 		<main id="main" class="destination-page moderation-page">
 			if p.OutcomesView {
-				<h1>Your moderation outcomes</h1><p class="intro">Reasons for actions on your contributions, with a way to request another review. Reporter identities and private moderator notes are never shown here.</p>
+				@layouts.AccountHeader("Your moderation outcomes", "Reasons for actions on your contributions, with a way to request another review. Reporter identities and private moderator notes are never shown here.", "outcomes", p.Navigation)
 			} else {
-				<h1>Your private reports</h1><p class="intro">Every report below was received. Check here for review outcomes; no email or push notifications are sent.</p>
+				@layouts.AccountHeader("Your private reports", "Every report below was received. Check here for review outcomes; no email or push notifications are sent.", "reports", p.Navigation)
 			}
-			@ModerationLinks(p.Moderator,ternary(p.OutcomesView,"outcomes","reports"))
 			if p.OutcomesView {
 				if len(p.Outcomes.Items)==0 {
 					<p>No moderation actions on your contributions on this page.</p>
@@ -143,8 +139,8 @@ templ AppealFailure(f AppealForm) {
 
 templ ModerationQueue(p ModerationQueuePage) {
 	@layouts.App("profile","Moderator review queue") {
-		<main id="main" class="destination-page moderation-page"><h1>Moderator review queue</h1><p class="intro">Review the contribution and its conversation before deciding. Report counts are context, never votes for removal. Cases about your own contributions are private to other moderators.</p>
-			@ModerationLinks(true,"queue")
+		<main id="main" class="destination-page moderation-page">
+			@layouts.AccountHeader("Moderator review queue", "Review the contribution and its conversation before deciding. Report counts are context, never votes for removal. Cases about your own contributions are private to other moderators.", "queue", p.Navigation)
 			<nav class="section-nav" aria-label="Review queue filter">
 				<a href="/moderation" aria-current={ layouts.CurrentPage(!p.All) } class="text-link">
 					Awaiting review

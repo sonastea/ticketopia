@@ -201,7 +201,7 @@ filters accept repeated `live_artist_ids` and `live_venue_ids`.
 
 ## Attribution and controls
 
-Profile & privacy has an optional **First name for live activity**. Blank means
+Privacy (`/me/privacy`) has an optional **First name** for live activity. Blank means
 **Someone**; nothing is inferred from display name, email or Google claims.
 Whitespace is normalized. Names accept 1–40 Unicode code points consisting of
 letters/marks, internal spaces, hyphens and apostrophes, with at least one letter.

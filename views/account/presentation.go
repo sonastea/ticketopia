@@ -4,6 +4,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/drafts"
+	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/oauth"
 	"github.com/sonastea/ticketopia/internal/recommendations"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 )
 
 // returnTo has already passed the HTTP allowlist. Private destinations cannot
@@ -71,16 +73,82 @@ type Page struct {
 	LiveEditor                             layouts.LiveFilterEditor
 	Account                                accounts.Account
 	CSRF, Section, Error, Notice, NewToken string
-	Tokens                                 []accounts.Credential
-	Categories                             []models.Category
-	CategoriesUnavailable                  bool
-	EventInterests                         home.InterestCollectionPage
-	ModerationEnabled, Moderator           bool
+	// NoticeFor places Notice beside the part of the page it confirms
+	// ("tokens", "connections" or "categories"); empty shows it under the heading.
+	NoticeFor             string
+	Tokens                []accounts.Credential
+	Categories            []models.Category
+	CategoriesUnavailable bool
+	EventInterests        home.InterestCollectionPage
+	Navigation            layouts.AccountNavPermissions
+	// Activity is the profile's most recent public activity, newest first.
+	Activity []PublicActivity
+	// ActivityUnavailable is set when public activity couldn't be read.
+	ActivityUnavailable bool
 	// Connections are agents signed in through OAuth, when that is enabled.
 	Connections        []oauth.Grant
 	ConnectionsEnabled bool
-	// ConnectionsOpen expands the list after a disconnection.
-	ConnectionsOpen bool
+	// TokenFormOpen expands the token form after a failed creation, keeping
+	// the submitted TokenName.
+	TokenFormOpen bool
+	TokenName     string
+}
+
+// PublicActivity is one public action shown on the owner's profile.
+type PublicActivity struct {
+	Event       models.Event
+	Recommended bool
+	At          time.Time
+}
+
+// ProfileActivityLimit is how many recent public actions the profile shows.
+const ProfileActivityLimit = 3
+
+// RecentActivity lists distinct events from public interest and
+// recommendations, ranked by each event's latest public action. An event
+// with both is labeled recommended, and ranked by whichever came later.
+func RecentActivity(interested []interests.Item, recommended []recommendations.Item) []PublicActivity {
+	byEvent := map[string]*PublicActivity{}
+	all := []*PublicActivity{}
+	add := func(event models.Event, at time.Time, recommendedIt bool) {
+		item := byEvent[event.ID]
+		if item == nil {
+			item = &PublicActivity{Event: event, At: at}
+			byEvent[event.ID] = item
+			all = append(all, item)
+		}
+		if at.After(item.At) {
+			item.At = at
+		}
+		item.Recommended = item.Recommended || recommendedIt
+	}
+	for _, r := range recommended {
+		add(r.Event, r.RecommendedAt, true)
+	}
+	for _, i := range interested {
+		add(i.Event, i.InterestedAt, false)
+	}
+	slices.SortStableFunc(all, func(a, b *PublicActivity) int { return b.At.Compare(a.At) })
+	result := []PublicActivity{}
+	for _, item := range all[:min(len(all), ProfileActivityLimit)] {
+		result = append(result, *item)
+	}
+	return result
+}
+
+// Initial is the display name's first letter, for the profile monogram.
+func Initial(name string) string {
+	for _, r := range strings.TrimSpace(name) {
+		return strings.ToUpper(string(r))
+	}
+	return "?"
+}
+
+func (p Page) notice(area string) string {
+	if p.NoticeFor == area {
+		return p.Notice
+	}
+	return ""
 }
 
 // ConsentPage asks whether to connect an agent to the account.
@@ -210,14 +278,35 @@ func (p Page) Active() string {
 	}
 	return "profile"
 }
-func (p Page) Title() string {
-	switch p.Section {
+func (p Page) Title() string { return SectionTitle(p.Section) }
+
+// SectionTitle names an account page, also when accounts are disabled.
+func SectionTitle(section string) string {
+	switch section {
+	case "privacy":
+		return "Privacy"
 	case "preferences":
 		return "Your preferences"
+	case "security":
+		return "Security & Apps"
 	case "interests":
 		return "Your interests"
 	default:
 		return "Your profile"
+	}
+}
+
+// Intro is the one line under each account page's heading.
+func (p Page) Intro() string {
+	switch p.Section {
+	case "privacy":
+		return "Choose what other people can see about you."
+	case "preferences":
+		return "How Ticketopia works for you. These settings stay private."
+	case "security":
+		return "How you sign in, and the apps and tokens that can use your account."
+	default:
+		return ""
 	}
 }
 func (p Page) Selected(id string) bool { return slices.Contains(p.Account.Preferences.CategoryIDs, id) }

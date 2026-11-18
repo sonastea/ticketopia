@@ -109,6 +109,9 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 }
 
 func safeReturnURL(raw string) string {
+	if raw == "/me" {
+		return raw // Recently public on the owner's profile; nothing to validate.
+	}
 	if strings.HasPrefix(raw, "/happening-now") {
 		u, err := url.Parse(raw)
 		if err != nil || len(raw) > 8192 || u.IsAbs() || u.Host != "" || u.Path != "/happening-now" || u.Fragment != "" {

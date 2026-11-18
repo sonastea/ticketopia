@@ -29,6 +29,8 @@ type accountStub struct {
 	unavailable bool
 	limited     bool
 	authCalls   int
+	// tokensDown fails token listing, as a transient database error would.
+	tokensDown bool
 }
 
 func (r *accountStub) Authenticate(_ context.Context, h [32]byte, kind string, now time.Time) (accounts.Account, accounts.Credential, error) {
@@ -90,6 +92,10 @@ func (r *accountStub) UpdateProfile(_ context.Context, id string, p accounts.Pro
 	if p.InterestVisibility != nil {
 		r.account.InterestVisibility = *p.InterestVisibility
 	}
+	if p.ActivityFirstName != nil {
+		name := *p.ActivityFirstName
+		r.account.ActivityFirstName = &name
+	}
 	return r.account, nil
 }
 func (r *accountStub) UpdatePreferences(_ context.Context, id string, p accounts.PreferencesPatch) (accounts.Account, error) {
@@ -141,9 +147,12 @@ func TestHTMLPreferencesPreserveStoredDigestIncludingValidation(t *testing.T) {
 		if w.Code != 400 || repo.account.Preferences.WeeklyDigest != initial {
 			t.Fatal("hidden/client digest trusted")
 		}
-		w = accountRequest(a, "POST", "/me/preferences", "section=interests&csrf_token="+csrf, browser, "", "", "", "application/x-www-form-urlencoded")
-		if w.Code != 303 || repo.account.Preferences.WeeklyDigest != initial {
-			t.Fatal("category save changed digest")
+		// Clearing every category is a save, not an omitted field.
+		repo.account.Preferences.CategoryIDs = []string{"music"}
+		w = accountRequest(a, "POST", "/me/preferences", "section=categories&csrf_token="+csrf, browser, "", "", "", "application/x-www-form-urlencoded")
+		if w.Code != 303 || repo.account.Preferences.WeeklyDigest != initial || len(repo.account.Preferences.CategoryIDs) != 0 ||
+			w.Header().Get("Location") != "/me/preferences?saved=categories#categories" {
+			t.Fatal("category save changed digest or kept cleared categories", w.Header().Get("Location"), repo.account.Preferences.CategoryIDs)
 		}
 		// The separately supported JSON preference contract still changes digest.
 		w = accountRequest(a, "PATCH", "/api/v1/me/preferences", `{"weekly_digest":true}`, "", bearer, "", "", "")
@@ -153,6 +162,9 @@ func TestHTMLPreferencesPreserveStoredDigestIncludingValidation(t *testing.T) {
 	}
 }
 func (r *accountStub) ListTokens(_ context.Context, id string, now time.Time) ([]accounts.Credential, error) {
+	if r.tokensDown {
+		return nil, errors.New("database unavailable")
+	}
 	result := []accounts.Credential{}
 	for _, c := range r.credentials {
 		if c.AccountID == id && c.Kind == "api" && now.Before(c.ExpiresAt) {
@@ -314,7 +326,7 @@ func TestAccountTokenAndSignOutJourneys(t *testing.T) {
 	if w.Code != 401 {
 		t.Fatal("revoked token accepted")
 	}
-	form := url.Values{"csrf_token": {csrf}, "display_name": {"No-JS pal"}, "bio": {"A regular form"}, "interest_visibility": {"private"}}
+	form := url.Values{"csrf_token": {csrf}, "display_name": {"No-JS pal"}, "bio": {"A regular form"}}
 	w = accountRequest(a, "POST", "/me/profile?csrf_token="+url.QueryEscape(csrf), form.Encode(), browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
 	if w.Code != 400 {
 		t.Fatal("form accepted query parameters")
@@ -322,6 +334,16 @@ func TestAccountTokenAndSignOutJourneys(t *testing.T) {
 	w = accountRequest(a, "POST", "/me/profile", form.Encode(), browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
 	if w.Code != 303 || repo.account.DisplayName != "No-JS pal" {
 		t.Fatal("ordinary profile form failed", w.Code, w.Body.String())
+	}
+	// Privacy choices are their own form; the profile form doesn't accept them.
+	privacy := url.Values{"csrf_token": {csrf}, "interest_visibility": {"public"}, "activity_first_name": {"Pal"}}
+	if w = accountRequest(a, "POST", "/me/profile", privacy.Encode(), browser, "", "", "https://events.example", "application/x-www-form-urlencoded"); w.Code != 400 {
+		t.Fatal("profile form accepted privacy fields", w.Code)
+	}
+	w = accountRequest(a, "POST", "/me/privacy", privacy.Encode(), browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
+	if w.Code != 303 || w.Header().Get("Location") != "/me/privacy?saved=privacy" || repo.account.InterestVisibility != "public" || repo.account.DisplayName != "No-JS pal" ||
+		repo.account.ActivityFirstName == nil || *repo.account.ActivityFirstName != "Pal" {
+		t.Fatal("privacy form failed", w.Code, w.Body.String())
 	}
 	w = accountRequest(a, "POST", "/auth/logout-all", url.Values{"csrf_token": {csrf}}.Encode(), browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
 	if w.Code != 303 || len(repo.credentials) != 0 {
@@ -341,7 +363,7 @@ func TestHTMLTokenCreationShowsSecretOnceAfterRedirect(t *testing.T) {
 	before := len(repo.credentials)
 	body := url.Values{"name": {"Script"}, "csrf_token": {csrf}}.Encode()
 	w := accountRequest(a, "POST", "/me/tokens", body, browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
-	if w.Code != 303 || w.Header().Get("Location") != "/me#api-access" || len(repo.credentials) != before+1 {
+	if w.Code != 303 || w.Header().Get("Location") != "/me/security#api-access" || len(repo.credentials) != before+1 {
 		t.Fatalf("creation did not redirect once: %d %q %d", w.Code, w.Header().Get("Location"), len(repo.credentials)-before)
 	}
 	var handoff *http.Cookie
@@ -357,7 +379,7 @@ func TestHTMLTokenCreationShowsSecretOnceAfterRedirect(t *testing.T) {
 		t.Fatal("secret rendered in the redirect")
 	}
 	page := func(cookies ...*http.Cookie) *httptest.ResponseRecorder {
-		r := httptest.NewRequest("GET", "/me", nil)
+		r := httptest.NewRequest("GET", "/me/security", nil)
 		r.AddCookie(&http.Cookie{Name: a.authConfig.CookieName("session"), Value: browser})
 		for _, c := range cookies {
 			r.AddCookie(c)
@@ -366,6 +388,18 @@ func TestHTMLTokenCreationShowsSecretOnceAfterRedirect(t *testing.T) {
 		a.Routes().ServeHTTP(w, r)
 		return w
 	}
+	// A transient failure before the secret is shown keeps the hand-off for a retry.
+	repo.tokensDown = true
+	w = page(handoff)
+	for _, c := range w.Result().Cookies() {
+		if c.Name == handoff.Name {
+			t.Fatal("hand-off cleared by a page that failed to show it")
+		}
+	}
+	if w.Code < 500 || strings.Contains(w.Body.String(), handoff.Value) {
+		t.Fatalf("transient failure: %d", w.Code)
+	}
+	repo.tokensDown = false
 	w = page(handoff)
 	cleared := false
 	for _, c := range w.Result().Cookies() {

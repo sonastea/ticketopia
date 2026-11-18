@@ -3,6 +3,7 @@ package home
 import (
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/moderation"
+	"github.com/sonastea/ticketopia/views/layouts"
 	"net/url"
 )
 
@@ -13,14 +14,16 @@ type ReportPage struct {
 type OwnModerationPage struct {
 	Reports                 moderation.List[moderation.Report]
 	Outcomes                moderation.List[moderation.Outcome]
-	CSRF, URL               string
-	OutcomesView, Moderator bool
+	CSRF, URL    string
+	OutcomesView bool
+	Navigation   layouts.AccountNavPermissions
 }
 type AppealForm struct{ DecisionID, CSRF, Context, Error string }
 type ModerationQueuePage struct {
-	List moderation.List[moderation.QueueItem]
-	URL  string
-	All  bool
+	List       moderation.List[moderation.QueueItem]
+	URL        string
+	All        bool
+	Navigation layouts.AccountNavPermissions
 }
 type ModerationCasePage struct {
 	Case                       moderation.Case

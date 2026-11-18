@@ -71,9 +71,9 @@ func TestAgentGuideReflectsAvailableFeatures(t *testing.T) {
 			}
 			check(tc.requireSignIn, "MCP asks you to sign in even for public tools")
 			check(tc.oauth, "claude mcp add", "opencode mcp add", "Also allow posting publicly", "app last refreshes its access",
-				"Sign out everywhere, revoke API tokens &amp; disconnect apps")
+				"and remove all token and app access")
 			check(tc.mcp && tc.accounts && !tc.oauth, "Set up an API token")
-			check(tc.accounts && !tc.oauth, "Sign out everywhere &amp; revoke API tokens")
+			check(tc.accounts && !tc.oauth, "and revoke every token")
 			check(tc.accounts, `id="api-tokens"`, `href="#api-tokens"`, `href="#revoke"`, authBase+"/api/v1/me/profile",
 				"curl --header @-", "can read your email", "make your Interested choices public",
 				"publish recommendations and posts, edit or remove your own posts")

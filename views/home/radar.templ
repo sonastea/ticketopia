@@ -8,11 +8,7 @@ import "github.com/sonastea/ticketopia/views/components/empty"
 templ Radar(page RadarPage) {
 	@layouts.App("radar", "Your radar") {
 		<main id="main" class="destination-page radar-page">
-			<header class="account-heading">
-				<h1>Your radar</h1>
-				<p class="intro">Nearby events connected to the artists, venues, and categories you choose. Your radar and preferences stay private; no reminders are sent.</p>
-			</header>
-			@layouts.AccountNav("radar", page.Navigation)
+			@layouts.AccountHeader("Your radar", "Nearby events connected to the artists, venues, and categories you choose. Your radar stays private.", "radar", page.Navigation)
 			if !page.Enabled {
 				<p>Radar requires accounts, which aren't enabled on this server. You can still discover events by city.</p>
 				@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }

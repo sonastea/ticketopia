@@ -354,7 +354,7 @@ func agentGuideTokens(p AgentGuidePage) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<section class=\"agent-guide-section\"><h2 id=\"api-tokens\">Use an API token</h2><p>In <strong>Profile &amp; privacy</strong>, open <strong>API access</strong>, name your token, and choose <strong>Create API token</strong>. Copy it when it appears: you won’t see it again. It expires 30 days after you create it. <strong>Treat API tokens like passwords.</strong></p><a class=\"text-link\" href=\"/me#api-access\">Go to API access in your profile</a><p>Store the token in an environment variable named <code>TICKETOPIA_TOKEN</code> and send it as <code>Authorization: Bearer TOKEN</code>. This example reads your profile without changing it or putting the header on the command line:</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<section class=\"agent-guide-section\"><h2 id=\"api-tokens\">Use an API token</h2><p>In <strong>Security &amp; Apps</strong>, open <strong>Create an API token</strong>, name your token, and choose <strong>Create API token</strong>. Copy it when it appears: you won’t see it again. It expires 30 days after you create it. <strong>Treat API tokens like passwords.</strong></p><a class=\"text-link\" href=\"/me/security#api-access\">Go to API tokens in Security &amp; Apps</a><p>Store the token in an environment variable named <code>TICKETOPIA_TOKEN</code> and send it as <code>Authorization: Bearer TOKEN</code>. This example reads your profile without changing it or putting the header on the command line:</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -416,12 +416,12 @@ func agentGuideRevoke(p AgentGuidePage) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if p.OAuth {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<li>Under <strong>Connected apps</strong> in your profile, choose <strong>Disconnect</strong> to stop an app’s access immediately. An OAuth access token lasts one hour. The connection expires 30 days after you connect or after the app last refreshes its access.</li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<li>Under <strong>Connected apps</strong> in Security &amp; Apps, choose <strong>Disconnect</strong> to stop an app’s access immediately. An OAuth access token lasts one hour. The connection expires 30 days after you connect or after the app last refreshes its access.</li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<li>Under <strong>API access</strong>, choose <strong>Revoke</strong> next to a token to stop it working. ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<li>Under <strong>API tokens</strong>, choose <strong>Revoke</strong> next to a token to stop it working. ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -431,22 +431,22 @@ func agentGuideRevoke(p AgentGuidePage) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</li><li>Under <strong>Sign-in &amp; security</strong>, choose ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</li><li>Under <strong>All devices</strong>, choose <strong>Sign out of all devices</strong> and confirm to end every browser session ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if p.OAuth {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<strong>Sign out everywhere, revoke API tokens &amp; disconnect apps</strong> to end every browser session and remove all token and app access. ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "and remove all token and app access. ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<strong>Sign out everywhere &amp; revoke API tokens</strong> to end every browser session and revoke every token. ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "and revoke every token. ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "Ordinary <strong>Sign out</strong> only ends your current browser session.</li></ul><a class=\"text-link\" href=\"/me\">Manage access in your profile</a><h3>A few safety tips</h3><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "Ordinary <strong>Sign out</strong> only ends your current browser session.</li></ul><a class=\"text-link\" href=\"/me/security\">Manage access in Security &amp; Apps</a><h3>A few safety tips</h3><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -29,9 +29,11 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Saved | `/saved` | Owner-only newest-saved-first collection, last-known details, and pagination; sign-in or configuration explanation when unavailable |
 | Community | `/community` | One entry per recommended event, active counts and named reasons; separate `/community/discussions` collection; both have city/country/category filters and pagination. A **Happening Now** tab (`/happening-now`) holds recent live activity. Empty states name the next action (find an event, reset filters) and say "on this page" only on later pages |
 | Thread | `/events/{event_id}/discussions/{discussion_id}` | Shareable root/replies, public attribution, owner edit/remove, positive Helpful and native composing |
-| Interests | `/me/interests` | Paginated own event interest and per-event visibility, followed by separate private category preferences |
-| Profile | `/me` | Google sign-in, own/public profile preview, privacy default, sign-out/API access |
-| Preferences | `/me/preferences` | Separate location/time-zone and notification groups; short email/pause explanations, in-app reply links and optional email-delivery details; no out-of-scope digest promotion |
+| Interests | `/me/interests` | Paginated own event interest and per-event visibility; category preferences live in Preferences |
+| Profile | `/me` | Profile card (initial, name, bio, public profile link), three most recent public actions, name/bio editing |
+| Privacy | `/me/privacy` | New-interest visibility default, live activity first name with preview, "Who sees what" summary |
+| Preferences | `/me/preferences` | Separate location/time-zone, notification, event category and live activity forms; short email/pause explanations, in-app reply links and optional email-delivery details; no out-of-scope digest promotion |
+| Security & Apps | `/me/security` | Google sign-in and Sign out, Connected apps, API tokens, and a confirmed **Sign out of all devices** last |
 | On-sale reminders | `/me/reminders` | Private event-named rows with recorded targets/time zones and readiness; event settings offer preset/custom lead times, a non-guaranteed preview and native Save/Stop |
 | Followed discussions | `/me/discussions` | Private conversation collection and per-thread immediate/daily/weekly or muted reply frequency |
 | Reply notifications | `/me/notifications` | Private due reply updates, read state and exact visible-reply links |
@@ -75,13 +77,16 @@ instead of overlapping the fixed Profile/footer controls.
 
 ### Account families and neighboring screens
 
-Use shared presentation-only `layouts.AccountNav` for personal destinations.
+Start every personal destination with shared presentation-only
+`layouts.AccountHeader` (heading, at most one intro line, `layouts.AccountNav`).
 The current **Account**, **Your events**, **Updates**, or enabled **Safety** family
-is visible directly, with ordinary links and `aria-current`; other families sit in
-native **More in your space**. Reports/outcomes retain their enablement gate and
+shows as wrapping tabs with `aria-current`; each other family is one link to its
+first page on the same rule. Reports/outcomes retain their enablement gate and
 review tools their moderator gate. Do not background-swap unrelated destinations.
-Profile preview remains beside editing when it fits, stacked otherwise; security
-and API access stay secondary. See [accounts](accounts.md#your-space-navigation).
+Each account page has one job and one form per section, with at most one note per
+section. Confirmations sit beside the section they confirm. Destructive account
+actions come last, behind a native disclosure listing their effects. See
+[accounts](accounts.md#your-space-navigation).
 
 Community and public-profile rows share linked Overview artwork/title, full event
 date and venue before authors/reasons or conversation text. Named section/thread

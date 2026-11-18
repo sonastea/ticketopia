@@ -143,7 +143,7 @@
     custom.addEventListener('input', update);
     update();
   }
-  if (document.querySelector('.reminders-page, .account-preferences')) {
+  if (document.querySelector('.account-page')) {
     window.addEventListener('pageshow', event => {
       if (event.persisted) location.reload(); // Revalidate owner/session-specific forms.
     });
@@ -975,7 +975,7 @@
       sessionStorage.setItem(returnKey, JSON.stringify({ from: location.href, to: url.href, journey }));
     } catch { /* The normal return link still preserves filters without storage. */ }
   };
-  const collectionPaths = new Set(['/saved', '/me/interests', '/radar', '/happening-now']);
+  const collectionPaths = new Set(['/me', '/saved', '/me/interests', '/radar', '/happening-now']);
   const isCollectionPath = path => collectionPaths.has(path) || path === '/community' || path === '/community/discussions' || /^\/users\/[^/]+$/.test(path);
   const validJourney = journey => {
     try {

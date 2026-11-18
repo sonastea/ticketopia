@@ -29,7 +29,7 @@ runtime grants. This feature does not migrate a database at application startup.
 
 - **Follows** is in desktop Your space and the profile's account navigation; compact
   screens keep the existing four-destination navigation and reach **Artists & venues**
-  through Profile's **More in your space → Your events** group.
+  through the **Your events** link in Profile's account navigation.
 - **Find an artist or venue** is a native disclosure, open on first use, submitted
   searches and errors. A collection revisit can compact it without hiding existing
   follows; reopening it needs no JavaScript. Search and management remain separate.

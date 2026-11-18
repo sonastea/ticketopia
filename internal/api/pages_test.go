@@ -68,18 +68,25 @@ func TestAccountFamilyNavigationRoutesAndRoles(t *testing.T) {
 	a.moderation = moderation.New(repo)
 	for _, moderator := range []bool{false, true} {
 		repo.allowed = moderator
-		for _, path := range []string{"/me", "/me/preferences", "/me/interests", "/follows", "/radar", "/me/reminders", "/me/discussions", "/me/notifications"} {
+		for _, path := range []string{"/me", "/me/privacy", "/me/preferences", "/me/security", "/me/interests", "/follows", "/radar", "/me/reminders", "/me/discussions", "/me/notifications"} {
 			w := accountRequest(a, "GET", path, "", browser, "", "", "", "")
 			body := w.Body.String()
 			if !strings.Contains(body, `class="account-navigation"`) || !strings.Contains(body, `href="`+path+`" aria-current="page"`) || !strings.Contains(body, "More in your space") {
 				t.Fatalf("%s lost current family navigation: %d %s", path, w.Code, body)
 			}
-			if !strings.Contains(body, `href="/me/reports"`) || strings.Contains(body, `href="/moderation"`) != moderator {
+			// Outside Safety, the family links to its first page; the moderator
+			// queue appears only among Safety's own tabs.
+			if !strings.Contains(body, `href="/me/reports"`) || strings.Contains(body, `href="/moderation"`) {
 				t.Fatalf("%s changed Safety role gate", path)
 			}
 			if w.Header().Get("Cache-Control") != "private, no-store" {
 				t.Fatalf("%s lost private response", path)
 			}
+		}
+		// Within Safety, its own tabs carry the moderator gate.
+		body := accountRequest(a, "GET", "/me/reports", "", browser, "", "", "", "").Body.String()
+		if !strings.Contains(body, `href="/me/reports" aria-current="page"`) || strings.Contains(body, `href="/moderation"`) != moderator {
+			t.Fatalf("/me/reports moderator=%v changed the queue gate", moderator)
 		}
 	}
 }

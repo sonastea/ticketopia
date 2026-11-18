@@ -216,10 +216,7 @@ func (a *api) ownModerationPage(outcomes bool) echo.HandlerFunc {
 			return a.moderationPageError(c, err)
 		}
 		v := home.OwnModerationPage{CSRF: p.CSRF, URL: c.Request().URL.RequestURI(), OutcomesView: outcomes}
-		v.Moderator, err = a.moderation.IsModerator(c.Request().Context(), p.Account.ID)
-		if err != nil {
-			return a.moderationPageError(c, err)
-		}
+		v.Navigation = a.accountNavigation(c, p.Account.ID)
 		if outcomes {
 			v.Outcomes, err = a.moderation.Outcomes(c.Request().Context(), p.Account.ID, c.QueryParams())
 		} else {
@@ -259,7 +256,7 @@ func (a *api) moderationQueuePage(c echo.Context) error {
 	if err != nil {
 		return a.moderationPageError(c, err)
 	}
-	return render(c, 200, home.ModerationQueue(home.ModerationQueuePage{List: list, URL: c.Request().URL.RequestURI(), All: c.QueryParam("state") == "all"}))
+	return render(c, 200, home.ModerationQueue(home.ModerationQueuePage{List: list, URL: c.Request().URL.RequestURI(), All: c.QueryParam("state") == "all", Navigation: a.accountNavigation(c, p.Account.ID)}))
 }
 func (a *api) moderationCasePage(c echo.Context) error {
 	write := c.Request().Method == "POST"

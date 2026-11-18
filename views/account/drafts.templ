@@ -13,9 +13,7 @@ import "github.com/sonastea/ticketopia/views/components/button"
 templ Drafts(p DraftsPage) {
 	@layouts.App("profile", "Agent drafts") {
 		<main id="main" class="destination-page account-page drafts-page">
-			<h1>Agent drafts</h1>
-			<p class="intro">Recommendation reasons, questions, tips and replies your connected apps wrote for you. They're private until you publish them, and expire after seven days.</p>
-			@layouts.AccountNav("drafts", p.Navigation)
+			@layouts.AccountHeader("Agent drafts", "Recommendation reasons, questions, tips and replies your connected apps wrote for you. They're private until you publish them, and expire after seven days.", "drafts", p.Navigation)
 			if !p.Enabled {
 				<p>Agent drafts need accounts and recommendations to be enabled on this server.</p>
 			} else {
