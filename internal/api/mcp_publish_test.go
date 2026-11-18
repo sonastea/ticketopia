@@ -203,8 +203,6 @@ func TestMCPPublishChallengesNamePublish(t *testing.T) {
 	}
 }
 
-// At most PublishesPerHour publishing calls per account per replica; other
-// accounts keep their own allowance.
 // The public host is the canonical ASCII form, so lookalike Unicode shows.
 func TestAttributionHostIsASCII(t *testing.T) {
 	if got := attributionHost("https://BÜCHER.example/client.json"); got != "xn--bcher-kva.example" {
@@ -215,22 +213,30 @@ func TestAttributionHostIsASCII(t *testing.T) {
 	}
 }
 
+// Publishing tools share the per-account allowance, including across connections.
 func TestMCPPublishLimitPerAccount(t *testing.T) {
 	f := newPublishFixture(t, true)
-	first := f.connect(f.accountStorage.account.ID, oauth.ScopeRead, oauth.ScopePublish)
-	second := f.connect(accounts.ID(), oauth.ScopeRead, oauth.ScopeWrite, oauth.ScopePublish)
-	call := toolCall("withdraw_recommendation", `{"event_id":"`+f.savedEvent+`"}`)
-	for i := range appmcp.PublishesPerHour {
-		if r := mcpPost(t, f.routes, call, map[string]string{"Authorization": "Bearer " + first}); strings.Contains(r.Body.String(), `"isError":true`) {
-			t.Fatalf("call %d: %s", i, r.Body.String())
+	owner, other := f.accountStorage.account.ID, accounts.ID()
+	connect := func(account string) map[string]string {
+		return map[string]string{"Authorization": "Bearer " + f.connect(account, oauth.ScopeRead, oauth.ScopePublish)}
+	}
+	first, second, anotherAccount := connect(owner), connect(owner), connect(other)
+	args := `{"event_id":"` + f.savedEvent + `"}`
+	recommend := toolCall("recommend_event", args)
+	for i := range 20 { // Documented allowance per replica.
+		if r := mcpPost(t, f.routes, recommend, first); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"recommended":true`) {
+			t.Fatalf("within the allowance, call %d: %d %s", i+1, r.Code, r.Body)
 		}
 	}
-	r := mcpPost(t, f.routes, call, map[string]string{"Authorization": "Bearer " + first})
+	r := mcpPost(t, f.routes, toolCall("withdraw_recommendation", args), second)
 	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"isError":true`) || !strings.Contains(r.Body.String(), "Retry after") {
 		t.Fatalf("over the limit: %d %s", r.Code, r.Body.String())
 	}
-	if r := mcpPost(t, f.routes, call, map[string]string{"Authorization": "Bearer " + second}); strings.Contains(r.Body.String(), `"isError":true`) {
-		t.Fatalf("another account limited: %s", r.Body.String())
+	if _, ok := f.recommendations.items[owner][f.savedEvent]; !ok {
+		t.Fatal("rate-limited withdrawal removed the owner's recommendation")
+	}
+	if r := mcpPost(t, f.routes, recommend, anotherAccount); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"recommended":true`) {
+		t.Fatalf("another account could not publish: %d %s", r.Code, r.Body)
 	}
 }
 

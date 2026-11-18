@@ -214,18 +214,6 @@ func TestToolAnnotationsMarkWrites(t *testing.T) {
 	}
 }
 
-func TestPrivateToolsNeedAccountServices(t *testing.T) {
-	tools, err := session(t, &fakeEvents{}).ListTools(t.Context(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, tool := range tools.Tools {
-		if strings.HasPrefix(tool.Name, "my_") || strings.Contains(tool.Name, "save") || strings.Contains(tool.Name, "reminder") {
-			t.Fatalf("%s listed without account services", tool.Name)
-		}
-	}
-}
-
 // A read-only connection reads the account but cannot change it, even if a
 // request gets past the HTTP boundary's scope check.
 func TestReadOnlyTokensCannotWrite(t *testing.T) {

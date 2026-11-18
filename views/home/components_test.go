@@ -211,9 +211,15 @@ func TestEmptyPreviewCanReceiveKeyboardFocus(t *testing.T) {
 	if err := Index(SearchPage{NeedsLocation: true}).Render(t.Context(), &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), `id="event-context" class="event-context" aria-label="Event preview" tabindex="0"`) {
-		t.Fatal("bounded preview must be keyboard-scrollable even without interactive event content")
+	for _, aside := range neighborElements(neighborDocument(t, out.String()), "aside") {
+		if attrs := neighborAttributes(aside); attrs["id"] == "event-context" {
+			if attrs["aria-label"] != "Event preview" || attrs["tabindex"] != "0" {
+				t.Fatalf("bounded preview must be a named, keyboard-scrollable region: %v", attrs)
+			}
+			return
+		}
 	}
+	t.Fatal("missing event preview region")
 }
 
 func TestEventContextOpensRequestedSectionWithoutInformationDisclosure(t *testing.T) {

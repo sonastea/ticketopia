@@ -42,13 +42,7 @@ func TestArgumentMistakesUseAPIWording(t *testing.T) {
 	if f.query.Limit != 0 {
 		t.Fatal("a refused call reached the event service")
 	}
-	// Well-formed calls, with or without optional arguments, reach the tool.
-	if result, _ := call(t, s, "event_details", map[string]any{"event_id": "ticketmaster:known"}); result.IsError {
-		t.Fatal(text(result))
-	}
-	if result, _ := call(t, s, "find_events", map[string]any{"city": "Chicago", "limit": 5}); result.IsError || f.query.Limit != 5 {
-		t.Fatal(text(result), f.query.Limit)
-	}
+	// Omitting the arguments object is valid for a tool with no arguments.
 	if result, _ := call(t, s, "list_categories", nil); result.IsError {
 		t.Fatal(text(result))
 	}

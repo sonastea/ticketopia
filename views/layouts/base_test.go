@@ -17,30 +17,59 @@ func TestAppShellKeepsSidebarContract(t *testing.T) {
 	if err := App("discover", "Test").Render(t.Context(), &out); err != nil {
 		t.Fatal(err)
 	}
-	html := out.String()
-	for _, want := range []string{
-		`data-sidebar`,
-		`data-nav-order`,
-		`data-nav-group="browse"`,
-		`data-nav-group="your-space"`,
-		`data-nav-item="discover"`,
-		`data-nav-item="community"`,
-		`data-nav-item="saved"`,
-		`data-nav-item="interests"`,
-		`data-sidebar-toggle`,
-		`aria-controls="desktop-nav"`,
-		`data-nav-customize`,
-		`aria-pressed="false"`,
-		`data-nav-customize-done`,
-		`data-nav-customize-cancel`,
-		`data-nav-customize-reset`,
-		`role="status"`,
-		`aria-current="page"`,
-	} {
-		if !strings.Contains(html, want) {
-			t.Errorf("missing sidebar contract %q", want)
-		}
+	doc, err := html.Parse(&out)
+	if err != nil {
+		t.Fatal(err)
 	}
+	// These hooks are read by app.js; verify they sit on the controls and
+	// ancestors the script uses, not just somewhere in the document.
+	require := func(root *html.Node, tag string, attrs map[string]string) *html.Node {
+		t.Helper()
+		for n := range root.Descendants() {
+			if n.Type != html.ElementNode || (tag != "" && n.Data != tag) {
+				continue
+			}
+			matches := true
+			for key, value := range attrs {
+				if !slices.ContainsFunc(n.Attr, func(a html.Attribute) bool {
+					return a.Key == key && (a.Val == value || key == "class" && slices.Contains(strings.Fields(a.Val), value))
+				}) {
+					matches = false
+					break
+				}
+			}
+			if matches {
+				return n
+			}
+		}
+		t.Fatalf("no element with tag %q and attributes %v", tag, attrs)
+		return nil
+	}
+	sidebar := require(doc, "aside", map[string]string{"data-sidebar": ""})
+	nav := require(sidebar, "nav", map[string]string{"data-nav-order": "", "id": "desktop-nav"})
+	require(sidebar, "button", map[string]string{"data-sidebar-toggle": "", "aria-controls": "desktop-nav"})
+	require(sidebar, "button", map[string]string{"data-nav-customize": "", "aria-pressed": "false"})
+	actions := require(sidebar, "", map[string]string{"data-nav-customize-actions": ""})
+	for _, action := range []string{"done", "cancel", "reset"} {
+		require(actions, "button", map[string]string{"data-nav-customize-" + action: ""})
+	}
+	require(sidebar, "", map[string]string{"data-nav-status": "", "role": "status"})
+
+	browse := require(nav, "section", map[string]string{"data-nav-group": "browse"})
+	yourSpace := require(nav, "section", map[string]string{"data-nav-group": "your-space"})
+	require(browse, "h2", map[string]string{"class": "nav-group-label"})
+	require(browse, "", map[string]string{"data-nav-group-drag": ""})
+	discover := require(browse, "", map[string]string{"data-nav-item": "discover"})
+	link := require(discover, "a", map[string]string{"href": "/", "aria-current": "page", "data-label": "Discover"})
+	require(link, "", map[string]string{"class": "nav-label"})
+	require(discover, "", map[string]string{"data-nav-drag": ""})
+	for _, direction := range []string{"up", "down"} {
+		require(browse, "button", map[string]string{"data-move-group": direction, "aria-label": "Move Browse section " + direction})
+		require(discover, "button", map[string]string{"data-move-item": direction, "aria-label": "Move Discover " + direction})
+	}
+	require(browse, "", map[string]string{"data-nav-item": "community"})
+	require(yourSpace, "", map[string]string{"data-nav-item": "saved"})
+	require(yourSpace, "", map[string]string{"data-nav-item": "interests"})
 }
 
 func TestSidebarEnhancementsStayHiddenWithoutJavaScript(t *testing.T) {
@@ -118,45 +147,5 @@ func TestSpeculationRulesPrefetchEventResultsOutsideDiscover(t *testing.T) {
 	}
 	if got := fmt.Sprint(parsed.Prefetch[0].Where["and"][2]); !strings.Contains(got, "[data-results-url] [data-event-link]") {
 		t.Errorf("Discover's in-page previews are not excluded: %s", got)
-	}
-}
-
-func TestNavItemKeepsReorderContract(t *testing.T) {
-	var out bytes.Buffer
-	if err := NavItem("/", "Discover", "discover", true).Render(t.Context(), &out); err != nil {
-		t.Fatal(err)
-	}
-	html := out.String()
-	for _, want := range []string{
-		`data-nav-item="discover"`,
-		`data-nav-drag`,
-		`aria-label="Move Discover up"`,
-		`aria-label="Move Discover down"`,
-		`aria-current="page"`,
-		`data-label="Discover"`,
-		`class="nav-label"`,
-	} {
-		if !strings.Contains(html, want) {
-			t.Errorf("missing nav item contract %q", want)
-		}
-	}
-}
-
-func TestNavGroupKeepsReorderContract(t *testing.T) {
-	var out bytes.Buffer
-	if err := NavGroup("browse", "Browse").Render(t.Context(), &out); err != nil {
-		t.Fatal(err)
-	}
-	html := out.String()
-	for _, want := range []string{
-		`data-nav-group="browse"`,
-		`data-nav-group-drag`,
-		`aria-label="Move Browse section up"`,
-		`aria-label="Move Browse section down"`,
-		`class="nav-group-label"`,
-	} {
-		if !strings.Contains(html, want) {
-			t.Errorf("missing nav group contract %q", want)
-		}
 	}
 }

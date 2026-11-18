@@ -14,39 +14,53 @@ import (
 // Rendered chips are the URLs people follow, so parse them as the handler does.
 func TestDateChipLinksParse(t *testing.T) {
 	now := time.Now()
-	filters, err := discovery.ParseQuery(url.Values{"city": {"Los Angeles"}, "country": {"US"}, "keyword": {"jazz & blues"}, "category_id": {"all"}, "sort": {"date_desc"}}, now)
-	if err != nil {
-		t.Fatal(err)
+	filters := discovery.Query{
+		City: "Los Angeles", Country: "US", Keyword: "jazz & blues", Sort: "name_asc", Limit: 40,
+		CategoryID: "KZFzniwnSyZfZ7v7nJ", GenreID: "KnvZfZ7vAvE",
+		ArtistID: "ticketmaster:Artist", VenueID: "ticketmaster:Venue",
+		StartDate: "2000-11-01", EndDate: "2000-12-01",
 	}
-	markup := renderNeighbor(t, SearchControls(SearchPage{Filters: filters}))
+	paged := filters
+	paged.Page, paged.Stored = 1, true
+	paged.Cursor = &discovery.Cursor{Date: "2000-11-02", ID: "ticketmaster:Event"}
+	markup := renderNeighbor(t, SearchControls(SearchPage{Filters: paged}))
 	root, err := html.Parse(strings.NewReader(markup))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var links []string
+	var chips []*html.Node
 	for _, nav := range neighborElements(root, "nav") {
-		for _, a := range neighborElements(nav, "a") {
-			for _, attr := range a.Attr {
-				if attr.Key == "href" {
-					links = append(links, attr.Val)
-				}
-			}
+		if neighborAttributes(nav)["aria-label"] == "Date shortcuts" {
+			chips = append(chips, neighborElements(nav, "a")...)
 		}
 	}
-	if len(links) != 3 {
-		t.Fatalf("date chips = %v", links)
+	labels := []string{"Tonight", "This weekend", "Next 7 days"}
+	if len(chips) != len(labels) {
+		t.Fatalf("date chips = %d, want %d", len(chips), len(labels))
 	}
-	for _, link := range links {
+	for i, chip := range chips {
+		if got := neighborText(chip); got != labels[i] {
+			t.Errorf("chip %d label = %q, want %q", i, got, labels[i])
+		}
+		link := neighborAttributes(chip)["href"]
 		u, err := url.Parse(link)
-		if err != nil || u.Path != "/" {
+		if err != nil || u.IsAbs() || u.Host != "" || u.Path != "/" {
 			t.Fatalf("chip link %q: %v", link, err)
 		}
-		got, err := discovery.ParseQuery(u.Query(), now)
+		params := u.Query()
+		if params.Has("cursor") || params.Get("start_date") == "" || params.Get("end_date") == "" {
+			t.Errorf("%s must set both dates and drop the cursor: %s", labels[i], link)
+		}
+		got, err := discovery.ParseQuery(params, now)
 		if err != nil {
 			t.Fatalf("chip link %q: %v", link, err)
 		}
-		if got.City != "Los Angeles" || got.Country != "US" || got.Keyword != "jazz & blues" || got.Sort != "date_desc" || got.StartDate == filters.StartDate && got.EndDate == filters.EndDate {
-			t.Errorf("chip link %q parsed as %+v", link, got)
+		if got.StartDate == filters.StartDate || got.EndDate == filters.EndDate {
+			t.Errorf("%s did not replace the date range: %s", labels[i], link)
+		}
+		got.StartDate, got.EndDate = filters.StartDate, filters.EndDate
+		if got != filters {
+			t.Errorf("%s changed other filters or paging: got %+v, want %+v", labels[i], got, filters)
 		}
 	}
 	if !strings.Contains(markup, "Events in <strong>Los Angeles, US</strong>") {

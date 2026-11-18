@@ -27,7 +27,18 @@ func TestAccountNavigationFamiliesAndPermissions(t *testing.T) {
 		{"queue", "/moderation", "Safety", "Moderator review queue"},
 	}
 	type linkIdentity struct{ label, family string }
-	for _, permissions := range []AccountNavPermissions{{}, {Moderator: true}, {ModerationEnabled: true}, {ModerationEnabled: true, Moderator: true}} {
+	// Every active destination is exercised in the full menu. Other permission
+	// states need one active destination to prove what they expose or hide.
+	for _, scenario := range []struct {
+		permissions AccountNavPermissions
+		active      string // Empty means exercise every visible destination.
+	}{
+		{AccountNavPermissions{}, "profile"},
+		{AccountNavPermissions{Moderator: true}, "profile"},
+		{AccountNavPermissions{ModerationEnabled: true}, "reports"},
+		{AccountNavPermissions{ModerationEnabled: true, Moderator: true}, ""},
+	} {
+		permissions := scenario.permissions
 		expected := map[string]linkIdentity{}
 		for _, destination := range destinations {
 			if destination.family == "Safety" && (!permissions.ModerationEnabled || destination.key == "queue" && !permissions.Moderator) {
@@ -36,7 +47,7 @@ func TestAccountNavigationFamiliesAndPermissions(t *testing.T) {
 			expected[destination.href] = linkIdentity{destination.label, destination.family}
 		}
 		for _, destination := range destinations {
-			if _, visible := expected[destination.href]; !visible {
+			if scenario.active != "" && scenario.active != destination.key {
 				continue
 			}
 			t.Run(fmt.Sprintf("safety=%t/moderator=%t/%s", permissions.ModerationEnabled, permissions.Moderator, destination.key), func(t *testing.T) {

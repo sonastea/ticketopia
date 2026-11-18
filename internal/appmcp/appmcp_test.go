@@ -92,7 +92,7 @@ func text(r *mcp.CallToolResult) string {
 	return ""
 }
 
-func TestToolsAreReadOnlyPublicSet(t *testing.T) {
+func TestToolsWithoutAccountServices(t *testing.T) {
 	tools, err := session(t, &fakeEvents{}).ListTools(t.Context(), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -107,6 +107,9 @@ func TestToolsAreReadOnlyPublicSet(t *testing.T) {
 	}
 	// Agents can discover result shapes; freshness allows an unknown time.
 	for _, tool := range tools.Tools {
+		if tool.Annotations == nil || !tool.Annotations.ReadOnlyHint {
+			t.Errorf("%s is not marked read-only", tool.Name)
+		}
 		schema, _ := json.Marshal(tool.OutputSchema)
 		if tool.OutputSchema == nil || !strings.Contains(string(schema), `"data_as_of":{"format":"date-time","type":["string","null"]}`) {
 			t.Errorf("%s output schema: %s", tool.Name, schema)

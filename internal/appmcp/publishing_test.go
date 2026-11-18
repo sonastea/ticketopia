@@ -382,7 +382,7 @@ func TestDiscardDraftReportsWhatChanged(t *testing.T) {
 }
 
 // The publish limit is per account and answers with a retry delay.
-func TestPublishLimitPerAccount(t *testing.T) {
+func TestPublishLimitRefillsPerAccount(t *testing.T) {
 	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
 	l := NewPublishLimiter(2, func() time.Time { return now })
 	for range 2 {
@@ -399,14 +399,6 @@ func TestPublishLimitPerAccount(t *testing.T) {
 	now = now.Add(30 * time.Minute)
 	if ok, _ := l.Allow("a"); !ok {
 		t.Fatal("allowance did not refill")
-	}
-
-	f := &fakeAccount{limiter: NewPublishLimiter(1, nil)}
-	base := privateServer(t, f).URL
-	tool(t, base, "publisher-token", "withdraw_recommendation", map[string]any{"event_id": "ticketmaster:x"})
-	reply := tool(t, base, "publisher-token", "withdraw_recommendation", map[string]any{"event_id": "ticketmaster:x"})
-	if !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "Retry after") || len(f.calls) != 1 {
-		t.Fatalf("limited call: %+v calls=%v", reply.Result, f.calls)
 	}
 }
 

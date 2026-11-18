@@ -1,6 +1,7 @@
 package home
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,16 +33,29 @@ func TestCommunityCardsQuoteReasonsWithFacts(t *testing.T) {
 		},
 	}}}
 	markup := renderNeighbor(t, CommunityRecommendationList(feed, "/community", listContext{Place: inCommunity}))
-	for _, want := range []string{`class="recommendation-list community-cards"`, `class="recommendation-event"`, `<div class="date-marker" aria-hidden="true"><span>Nov</span><strong>7</strong>`, `<blockquote class="recommendation-reason">&lt;b&gt;Go early&lt;/b&gt;</blockquote>`, `<span class="avatar" aria-hidden="true">AL</span>`, `<span class="avatar" aria-hidden="true">G</span>`, `aria-label="Price and sale status"`} {
-		if !strings.Contains(markup, want) {
-			t.Errorf("community card omitted %s", want)
+	doc := neighborDocument(t, markup)
+	// The reason is quoted as plain text, and only where one was given.
+	quotes := neighborElements(doc, "blockquote")
+	if len(quotes) != 1 {
+		t.Fatalf("quotes = %d; a recommendation without a reason must not render an empty quote", len(quotes))
+	}
+	if quotes[0].FirstChild == nil || quotes[0].FirstChild.NextSibling != nil || quotes[0].FirstChild.Type != html.TextNode || quotes[0].FirstChild.Data != "<b>Go early</b>" {
+		t.Errorf("reason was not quoted as escaped text: %q", neighborText(quotes[0]))
+	}
+	// Decorative date and initials stay out of the accessibility tree.
+	var decorative []string
+	for n := range doc.Descendants() {
+		if n.Type == html.ElementNode && neighborAttributes(n)["aria-hidden"] == "true" {
+			decorative = append(decorative, neighborText(n))
 		}
 	}
-	if strings.Count(markup, "<blockquote") != 1 {
-		t.Error("a recommendation without a reason rendered an empty quote")
+	for _, want := range []string{"Nov7", "AL", "G"} {
+		if !slices.Contains(decorative, want) {
+			t.Errorf("decorative text %q missing or exposed to assistive technology; hidden: %q", want, decorative)
+		}
 	}
-	if quote, facts := strings.Index(markup, "<blockquote"), strings.Index(markup, "Price and sale status"); quote > facts {
-		t.Error("event facts should follow the recommenders' words")
+	if quote, facts := strings.Index(markup, "<blockquote"), strings.Index(markup, `aria-label="Price and sale status"`); facts < 0 || quote > facts {
+		t.Error("labelled event facts should follow the recommenders' words")
 	}
 }
 

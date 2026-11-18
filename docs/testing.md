@@ -36,6 +36,10 @@ input ambiguity, cursor audience/filter binding, and safe return validation.
 Never delete useful tests merely because an integration test exercises the same
 function somewhere in a larger journey.
 
+Exercise links produced by the real template rather than rebuilding them in a
+test. When JavaScript depends on a markup hook, assert it on the element the
+script uses; a page-wide string match can pass even if the control is broken.
+
 ## Run the relevant checks
 
 During a local change, run the affected packages, for example:
