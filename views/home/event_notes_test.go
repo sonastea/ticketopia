@@ -6,12 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/htmlcheck"
 	eventinterests "github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/recommendations"
+	"github.com/sonastea/ticketopia/views/layouts"
 )
 
 // The event page and its preview keep to one explanatory note per section in
@@ -92,6 +94,46 @@ func TestSaleTimingShowsOnlyAWaitableSaleInTheHero(t *testing.T) {
 		}
 		if (gone != "") != (tc.start == &past) {
 			t.Errorf("%s: past label %q", tc.name, gone)
+		}
+	}
+}
+
+func TestResultRowsShowOnlyAnUpcomingSale(t *testing.T) {
+	now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	future, past := now.Add(72*time.Hour), now.Add(-72*time.Hour)
+	events := []models.Event{
+		{ID: "ticketmaster:Soon", Name: "Soon", Status: "onsale", PublicSale: models.PublicSale{Start: &future}},
+		{ID: "ticketmaster:Started", Name: "Started", Status: "onsale", PublicSale: models.PublicSale{Start: &past}},
+	}
+	ctx := layouts.WithNow(t.Context(), now)
+	for name, rows := range map[string]templ.Component{
+		"collection": EventRows(events, "/saved", "", SaveView{}, "/saved", InterestView{}),
+		"discover":   EventRowsWithActivity(events, "/", "", SaveView{}, "/", InterestView{}, nil),
+	} {
+		var out bytes.Buffer
+		if err := rows.Render(ctx, &out); err != nil {
+			t.Fatal(err)
+		}
+		soon, started, _ := strings.Cut(out.String(), `data-event-id="ticketmaster:Started"`)
+		if !strings.Contains(soon, "Public sale starts ") || strings.Contains(started, "Public sale") {
+			t.Errorf("%s rows must name only the upcoming sale", name)
+		}
+	}
+}
+
+func TestSaveButtonShowsStateOrTheActionInSaved(t *testing.T) {
+	view := SaveView{Enabled: true, SignedIn: true, CSRF: "c", States: map[string]bool{"ticketmaster:A": true, "ticketmaster:B": false}}
+	for _, tc := range []struct{ id, returnURL, visible, name string }{
+		{"ticketmaster:A", "/", "Saved", "Remove from Saved — A"},
+		{"ticketmaster:A", "/saved", "Remove", "Remove from Saved — A"},
+		{"ticketmaster:B", "/saved", "Save", "Save — A"},
+	} {
+		var out bytes.Buffer
+		if err := SaveControlContent(tc.id, "A", view, tc.returnURL, false).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out.String(), `aria-label="`+tc.name+`"`) || !strings.Contains(out.String(), ">"+tc.visible+"</span>") {
+			t.Errorf("%s on %s: want visible %q named %q", tc.id, tc.returnURL, tc.visible, tc.name)
 		}
 	}
 }

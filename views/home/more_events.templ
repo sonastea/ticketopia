@@ -73,7 +73,7 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 						if featuringLabel(event) != "" {
 							<p><strong>Featuring</strong> { featuringLabel(event) }</p>
 						}
-						if sale := saleLabel(event); sale != "" {
+						if sale := upcomingSaleLabel(event, layouts.Now(ctx)); sale != "" {
 							<p class="sale-date">{ sale }</p>
 						}
 					</div>
@@ -90,20 +90,18 @@ templ EventRowTools(event models.Event, returnURL string, saves SaveView, action
 		if featuringLabel(event) != "" {
 			<p>{ featuringLabel(event) }</p>
 		}
-		if sale := saleLabel(event); sale != "" {
-			<p>{ sale }</p>
+		if sale := upcomingSaleLabel(event, layouts.Now(ctx)); sale != "" {
+			<p class="sale-date">{ sale }</p>
 		}
 	}
-	@EventActionControls(event.ID, event.Name, saves, actionReturnURL, false) {
+	@EventActionControlsThen(event.ID, event.Name, saves, actionReturnURL, false, rowInterest(event, returnURL, actionReturnURL, interests)) {
 		if event.Source.URL != "" {
 			@button.Button(button.Props{Href: event.Source.URL, Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"aria-label": "Tickets on Ticketmaster for " + event.Name}}) {
-				<span>Tickets on Ticketmaster</span>@layouts.Icon("external")
+				// The accessible name keeps the provider and event; the visible label is short so Save fits beside it.
+				<span>Tickets</span>@layouts.Icon("external")
 			}
 		} else {
 			<p class="field-note">Ticket link unavailable.</p>
-		}
-		if isInterestsURL(returnURL) {
-			@InterestControl(event.ID, event.Name, interests, actionReturnURL)
 		}
 	}
 }

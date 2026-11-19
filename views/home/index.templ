@@ -239,12 +239,10 @@ templ GenreOptions(genres []models.Genre, selected string) {
 
 templ EmptyContext() {
 	@card.Card(card.Props{Class: "context-empty"}) {
-		<h2>A closer look</h2>
 		<div class="preview-placeholder" aria-hidden="true">@layouts.Icon("ticket")
 </div>
-		<h3>Something catch your eye?</h3>
-		<p>Open an event to see its details, tickets, and community alongside your results.</p>
-		<div class="context-footnote"><p>Good plans start with the details.</p><p>Open an event to see public recommendations, questions, and practical tips.</p></div>
+		<h2>Something catch your eye?</h2>
+		<p>Open an event to see its details, tickets, recommendations and questions here, beside your results.</p>
 	}
 }
 

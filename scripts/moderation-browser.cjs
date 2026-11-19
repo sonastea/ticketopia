@@ -80,7 +80,7 @@ fs.mkdirSync(out, {recursive: true});
     const mp = await moderator.newPage();
     mp.on('pageerror', e => report.errors.push(e.message));
     await mp.goto(base + '/me');
-    await mp.locator('.account-more summary').click();
+    await mp.locator('.account-navigation').getByRole('link', {name: 'Safety', exact: true}).click();
     await mp.locator('.account-navigation').getByRole('link', {name: 'Moderator review queue'}).click();
     await capture(mp, 'moderation-queue-desktop', 1440);
     await capture(mp, 'moderation-queue-mobile', 390);

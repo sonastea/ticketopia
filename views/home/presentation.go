@@ -312,12 +312,38 @@ func saveVerb(isSaved bool) string {
 	}
 	return "save"
 }
+
+// saveLabel names the Save action for its accessible name.
 func saveLabel(isSaved bool) string {
 	if isSaved {
 		return "Remove from Saved"
 	}
 	return "Save"
 }
+
+// saveText is the button's short visible label: the state (Saved) where the
+// event is shown for other reasons, and the action (Remove) in Saved itself,
+// where pressing it takes the event off the list. The accessible name always
+// says the action and contains this text.
+func saveText(isSaved bool, returnURL string) string {
+	switch {
+	case !isSaved:
+		return "Save"
+	case isSavedURL(returnURL):
+		return "Remove"
+	}
+	return "Saved"
+}
+
+// rowInterest is the Interested control a result row adds after Tickets and
+// Save, only on the Interests collection.
+func rowInterest(event models.Event, returnURL, actionReturnURL string, interests InterestView) templ.Component {
+	if !isInterestsURL(returnURL) {
+		return nil
+	}
+	return InterestControl(event.ID, event.Name, interests, actionReturnURL)
+}
+
 func isSavedURL(raw string) bool { u, err := url.Parse(raw); return err == nil && u.Path == "/saved" }
 
 type InterestView struct {

@@ -39,7 +39,10 @@ For Kubernetes, reconcile the corresponding grants in the operator manifests.
 
 ## Web behavior
 
-- **Save** and **Remove from Saved** work as ordinary CSRF-protected POST forms
+- **Save** and **Remove from Saved** work as ordinary CSRF-protected POST forms.
+  The button shows its state, **Save** or **Saved**, and in Saved itself its
+  action, **Remove**; its accessible name says what pressing does ("Remove from
+  Saved — event"). They work
   without JavaScript. Signed-out **Sign in to save** completes that Save once
   Google sign-in succeeds and resumes the event; other sign-in returns resume
   the local event/discovery/Saved task without writing. See

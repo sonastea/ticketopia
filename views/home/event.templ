@@ -1,6 +1,5 @@
 package home
 
-import "time"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/internal/calendar"
 import "github.com/sonastea/ticketopia/views/layouts"
@@ -128,7 +127,7 @@ templ EventHeading(page EventPage, panel bool) {
 templ EventHeadingFacts(page EventPage) {
 	<p class="event-date">{ startLabel(page.Detail.Item.Start) }</p>
 	<p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
-	if sale := upcomingSaleLabel(page.Detail.Item, time.Now()); sale != "" {
+	if sale := upcomingSaleLabel(page.Detail.Item, layouts.Now(ctx)); sale != "" {
 		<p class="sale-date">{ sale }</p>
 	}
 	if page.Detail.Meta.Stale {
@@ -179,7 +178,7 @@ templ EventPrimaryActions(page EventPage) {
 templ EventProvenance(page EventPage) {
 	<details class="event-provenance">
 		<summary>Event source & history</summary>
-		if sale := pastSaleLabel(page.Detail.Item, time.Now()); sale != "" {
+		if sale := pastSaleLabel(page.Detail.Item, layouts.Now(ctx)); sale != "" {
 			<p>{ sale }</p>
 		}
 		@Freshness(page.Detail.Meta)

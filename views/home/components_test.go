@@ -101,7 +101,7 @@ func TestEventRowOpensOverviewAndExposesTickets(t *testing.T) {
 		t.Fatal("missing direct ticket link")
 	}
 	link, _, _ = strings.Cut(link, "</a>")
-	if !strings.Contains(link, "Tickets on Ticketmaster</span>") || !strings.Contains(link, "<svg") {
+	if !strings.Contains(link, "<span>Tickets</span>") || !strings.Contains(link, "<svg") {
 		t.Fatal("ticket link must render its label and SVG icon", link)
 	}
 	if strings.Count(markup, `href="/events/ticketmaster:Details"`) != 2 {

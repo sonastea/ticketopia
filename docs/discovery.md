@@ -75,8 +75,10 @@ count links, with full excerpts and attribution reserved for event sections.
 Events without activity add no empty community block or invented count.
 Question counts select Discussion and recommendation counts select Community;
 ordinary links open dedicated pages without JavaScript. Title and artwork share
-the Overview destination. **Tickets on Ticketmaster** is directly visible beside
-private Save; missing URLs have an explanation. Interested and on-sale reminders
+the Overview destination. A **Tickets** link (named "Tickets on Ticketmaster for
+the event") sits beside the private Save/Saved toggle on one row; missing URLs
+have an explanation. Before an event is selected, the wide-screen preview shows
+one short prompt. Interested and on-sale reminders
 remain in the event view, with interest removal retained in Interests.
 
 In accounts-enabled MariaDB mode, `internal/eventactivity` reads only the current

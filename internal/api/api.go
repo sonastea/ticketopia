@@ -38,6 +38,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/internal/useractivity"
 	"github.com/sonastea/ticketopia/views/assets"
+	"github.com/sonastea/ticketopia/views/layouts"
 )
 
 //go:embed openapi.yaml
@@ -228,6 +229,13 @@ func (a *api) Routes() *echo.Echo {
 		e.IPExtractor = echo.ExtractIPDirect()
 	}
 	e.Use(traceRequests)
+	// One render time per response keeps every part of a page consistent.
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.SetRequest(c.Request().WithContext(layouts.WithNow(c.Request().Context(), a.clock())))
+			return next(c)
+		}
+	})
 	requests := newRequestLog(a.logger)
 	if a.runCtx != nil {
 		go requests.run(a.runCtx, time.Minute)

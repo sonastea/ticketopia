@@ -479,12 +479,16 @@
       form.elements.action.value = saved ? 'remove' : 'save';
       if (csrf) form.elements.csrf_token.value = csrf;
       const button = form.querySelector('button');
+      // The visible label is the state (Save / Saved); the accessible name, which
+      // contains it, says what pressing does.
       const label = saved ? 'Remove from Saved' : 'Save';
       // A brief overshoot as the bookmark fills in.
       if (saved && button.dataset.saved !== 'true') enter(button.querySelector('.icon'), { scale: [.6, 1.2, 1] }, 320);
       button.dataset.saved = String(saved);
       button.setAttribute('aria-label', label + ' — ' + form.dataset.eventName);
-      button.querySelector('span').textContent = label;
+      // In Saved itself the button names the action; elsewhere, the state.
+      const inSaved = new URL(form.elements.return_to.value, location.href).pathname === '/saved';
+      button.querySelector('span').textContent = saved ? (inSaved ? 'Remove' : 'Saved') : 'Save';
     }
     for (const reminder of document.querySelectorAll('[data-reminder-id]')) {
       if (reminder.dataset.reminderId !== id) continue;

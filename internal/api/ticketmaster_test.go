@@ -40,6 +40,8 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 	// If a discovery route touches durable storage, this disabled service fails.
 	// Reads must keep their existing cache/provider behavior in persistence mode.
 	WithPersistence(func(context.Context) error { return nil }, events.New(failOnDurableRead{t}))(a)
+	// A fixed render time after the fixture's Sep 1 public sale.
+	a.now = func() time.Time { return time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC) }
 	routes := a.Routes()
 	query := "city=Boston&start_date=2026-10-02&end_date=2026-10-31&limit=1&category_id=KZFzniwnSyZfZ7v7nJ"
 	request := func(path string, partial bool) *httptest.ResponseRecorder {
@@ -55,7 +57,11 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 	if html.Code != 200 || !strings.HasPrefix(html.Header().Get("Content-Type"), "text/html") {
 		t.Fatalf("HTML response failed: %d %s", html.Code, html.Body.String())
 	}
-	for _, text := range []string{"Mon, Oct 12, 2026", "Public sale: Sep 1, 2026", "Venue to be announced", "Price not listed", `https://www.ticketmaster.com/event/show-0`, `data-event-id="ticketmaster:show-0"`, "Load more events", `<option value="rock">Rock</option>`} {
+	// A public sale that already started isn't repeated on the result.
+	if strings.Contains(html.Body.String(), "Public sale") {
+		t.Error("HTML repeated a public sale that already started")
+	}
+	for _, text := range []string{"Mon, Oct 12, 2026", "Venue to be announced", "Price not listed", `https://www.ticketmaster.com/event/show-0`, `data-event-id="ticketmaster:show-0"`, "Load more events", `<option value="rock">Rock</option>`} {
 		if !strings.Contains(html.Body.String(), text) {
 			t.Errorf("HTML omitted %q", text)
 		}

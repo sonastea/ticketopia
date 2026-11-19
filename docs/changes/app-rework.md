@@ -4,6 +4,27 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-19 — Phase 2: Discover and result rows
+
+- Result rows in Discover, Saved, Radar and Interests show a **Tickets** link and
+  the Save button on one row. The button reads **Save** or **Saved**, and
+  **Remove** in Saved itself; its accessible name still says the action
+  ("Remove from Saved — event"), and the Tickets link is still named "Tickets
+  on Ticketmaster for" the event. On Interests, Interested follows the pair.
+- Each response renders at one time (`layouts.WithNow`, set from the API clock),
+  so a row and its preview always agree on whether a sale has started.
+- A public sale shows on a row only while it is ahead, as "Public sale starts",
+  in the row's metadata style.
+- The Discover preview, before an event is chosen, is one short prompt instead of
+  a heading and two generic messages.
+- Browser journeys updated for the account navigation (Radar, follows and
+  moderation reach their pages through family links) and a follows disclosure
+  check now waits for the open transition. The saved journey measures action
+  layout once running animations settle (at most a second), after an
+  in-flight animation intermittently read a 44px Recommend link as shorter.
+  Saved (four consecutive runs), interest, radar, follows and moderation
+  journeys pass.
+
 ### 2026-11-19 — Phase 1: event page
 
 - Interested, Recommend and On-sale reminder now sit directly under Tickets and

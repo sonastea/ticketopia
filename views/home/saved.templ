@@ -64,6 +64,15 @@ templ EventActions(eventID string, name string, view SaveView, returnURL string)
 }
 
 templ EventActionControls(eventID string, name string, view SaveView, returnURL string, reminders bool) {
+	@EventActionControlsThen(eventID, name, view, returnURL, reminders, nil) {
+		{ children... }
+	}
+}
+
+// EventActionControlsThen renders an independent action (Interested on the
+// Interests collection) after the Tickets and Save pair, so the pair wraps
+// together.
+templ EventActionControlsThen(eventID string, name string, view SaveView, returnURL string, reminders bool, then templ.Component) {
 	<div class="event-action-group" data-event-actions>
 		<div class="event-actions">
 			if reminders {
@@ -72,6 +81,9 @@ templ EventActionControls(eventID string, name string, view SaveView, returnURL 
 			{ children... }
 			if !reminders {
 				@SaveControlContent(eventID, name, view, returnURL, false)
+			}
+			if then != nil {
+				@then
 			}
 		</div>
 		if view.Enabled && view.SignedIn && view.Error == "" {
@@ -104,7 +116,7 @@ templ SaveControlContent(eventID string, name string, view SaveView, returnURL s
 			<input type="hidden" name="return_to" value={ returnURL }/>
 			<input type="hidden" name="action" value={ saveVerb(view.States[eventID]) }/>
 			@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantOutline, Class: "button-quiet save-button", Attributes: templ.Attributes{"data-saved": fmt.Sprint(view.States[eventID]), "aria-label": saveLabel(view.States[eventID]) + " — " + name}}) {
-				@layouts.Icon("saved")<span class="save-label" data-longest={ saveLabel(true) }>{ saveLabel(view.States[eventID]) }</span>
+				@layouts.Icon("saved")<span class="save-label" data-longest={ saveText(true, returnURL) }>{ saveText(view.States[eventID], returnURL) }</span>
 			}
 		</form>
 		if reminders {

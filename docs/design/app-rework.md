@@ -155,9 +155,20 @@ Files: `views/home/event.templ`, `recommendations.templ`, `discussions.templ`
 
 ### Phase 2: Discover
 
+**Shipped 2026-11-19.** Result rows (shared by Discover, Saved, Radar and
+Interests) show **Tickets** and a Save/Saved toggle on one row, keep the
+provider and the action in the accessible names, and show a public sale only
+while it is ahead. The empty preview is one prompt. Six results went from
+2,465px to 2,309px on desktop and from 3,220px to 2,908px on a phone. That
+misses the 1,700px/2,300px target: what remains is artwork-led card height,
+and shrinking the artwork would change the visual identity this plan keeps.
+`EventCard`/`EventRow` stayed one shared row component (`EventRowsContent`),
+which every collection already uses, rather than a new pair.
+
 Files: `views/home/index.templ`, `more_events.templ`, preview panel parts.
 
-- Results use `EventCard`. The date shows once (the stub). Only upcoming sales
+- Results use `EventCard`. The readable date shows once beside the decorative
+  stub. Only upcoming sales
   show their time. One action row replaces the two stacked buttons.
 - The "Updated … Venue-local event times." line stays once, above the list.
 - **Preview panel.** Before a selection it shows one short prompt, not two

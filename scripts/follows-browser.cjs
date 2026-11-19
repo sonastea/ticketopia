@@ -72,12 +72,13 @@ fs.mkdirSync(out, { recursive: true });
     check('Forced colors/reduced motion retain focus outline', await page.getByLabel('City (optional)', { exact: true }).evaluate(node => getComputedStyle(node).outlineStyle !== 'none'));
     await page.emulateMedia({ reducedMotion: 'no-preference', forcedColors: 'none' });
     await page.goto(base + '/me');
-    await page.locator('.account-more summary').click();
+    await page.locator('.account-navigation').getByRole('link', { name: 'Your events', exact: true }).click();
     await page.locator('.account-navigation').getByRole('link', { name: 'Artists & venues', exact: true }).click();
     check('Compact profile reaches follows', await collection().locator('li').count() === 2);
     check('Collection revisit compacts search', !await page.locator('.follow-search').evaluate(n=>n.open));
     await page.locator('.follow-search summary').click();
-    check('Native disclosure reopens search', await page.getByLabel('Name', {exact:true}).isVisible());
+    // Disclosures grow open over 200ms; wait for the field rather than sampling mid-transition.
+    check('Native disclosure reopens search', await page.getByLabel('Name', {exact:true}).waitFor({state: 'visible', timeout: 3000}).then(() => true, () => false));
     const secondSession = await browser.newContext({ javaScriptEnabled: false });
     await secondSession.addCookies([{ name: 'ticketopia_session', value: process.env.FOLLOWS_SESSION, url: base }]);
     const native = await secondSession.newPage();

@@ -165,7 +165,9 @@ Do not fabricate engagement counts or successful actions.
 External ticket links name Ticketmaster and do not imply ticket ownership or
 guaranteed availability. Event sections use a light-stone segmented group with a
 white current segment, not curved underline buttons. Discover, Saved, Interests,
-and Radar rows expose **Tickets on Ticketmaster** directly and keep Save secondary.
+and Radar rows expose a direct **Tickets** link (named "Tickets on Ticketmaster for
+the event") and a Save/Saved toggle on one row; an upcoming public sale shows on
+the row only while it is ahead.
 Missing ticket URLs have an explanation. Interested and reminders live in the
 event view; Interests retains its independent removal control. Saving never opts
 into reminders. The former information disclosure is removed. Zero-interest counts are visually hidden

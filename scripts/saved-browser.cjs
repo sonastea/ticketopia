@@ -19,6 +19,16 @@ fs.mkdirSync(out, { recursive: true });
     const page = await context.newPage();
     page.on('pageerror', error => report.consoleErrors.push(error.message));
     const actionLayout = async name => {
+      // Measure settled controls: an entrance or press animation in flight can
+      // report a sub-pixel height that no person would see.
+      // Looping animations (loading shimmer) never finish; skip them.
+      // Paused ones may not finish either, so wait at most a second.
+      await page.evaluate(() => Promise.race([
+        Promise.all(document.getAnimations()
+          .filter(a => a.playState === 'running' && Number.isFinite(a.effect?.getComputedTiming().endTime))
+          .map(a => a.finished.catch(() => {}))),
+        new Promise(resolve => setTimeout(resolve, 1000)),
+      ]));
       const result = await page.evaluate(() => {
         const failures = [];
         const groups = [...document.querySelectorAll('[data-event-actions]')]
@@ -193,6 +203,7 @@ fs.mkdirSync(out, { recursive: true });
     await page.locator('.event-row').first().locator('[data-save-form] button').click();
     await page.waitForFunction(() => [...document.querySelectorAll('[data-save-id="ticketmaster:Browser_0"] button')].every(button => button.dataset.saved === 'true'));
     check('Preview and row synchronized', await page.locator('[data-save-id="ticketmaster:Browser_0"] button[data-saved="true"]').count() === 2);
+    check('Both buttons show the saved state', (await page.locator('[data-save-id="ticketmaster:Browser_0"] .save-label').allTextContents()).every(text => text.trim() === 'Saved'));
     check('Selection and city preserved after save', new URL(page.url()).searchParams.get('selected_event') === 'ticketmaster:Browser_0' && new URL(page.url()).searchParams.get('city') === 'Chicago');
     check('Save retains keyboard focus', await page.locator('.event-row').first().locator('[data-save-form] button').evaluate(button => button === document.activeElement));
     check('Save is stored in authenticated collection', (await states()).items.length === 1);
@@ -213,6 +224,7 @@ fs.mkdirSync(out, { recursive: true });
     check('Saved navigation is current', await page.locator('.desktop-nav a[href="/saved"][aria-current="page"]').count() === 1);
     check('Newest save leads the collection', await page.locator('.event-row').first().getAttribute('data-event-id') === 'ticketmaster:Browser_2');
     check('Saved collection has no public interest action', await page.getByRole('button', { name: 'Interested', exact: true }).count() === 0);
+    check('Saved names its removal action', (await page.locator('.event-row .save-label').allTextContents()).every(text => text.trim() === 'Remove'));
     await actionLayoutViews('Saved collection');
     await capture('saved-desktop', 1440);
     await capture('saved-tablet', 1024);

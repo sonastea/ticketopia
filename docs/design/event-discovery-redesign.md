@@ -94,6 +94,9 @@ Illustrative content structure; dates and counts are examples, not shipping data
 Remove “More event information” and its nested “View event details” link from
 list rows. The title/image supplies the internal event-opening path; tickets are
 available directly. Use “Tickets on Ticketmaster” consistently in every surface.
+(Superseded 2026-11-19 by the [app rework](app-rework.md#phase-2-discover): rows and
+the compact event bar show **Tickets**, and “Tickets on Ticketmaster” is kept as the
+link's accessible name.)
 
 Keep Save as the only routine participation control in the list. Move Interested,
 Recommend, and on-sale reminder settings into the event view. Saving never

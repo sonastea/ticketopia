@@ -1662,6 +1662,8 @@ html:has(.filter-sheet:modal) {
 .row-details { display: grid; gap: .5rem; margin-block-end: .75rem; }
 .row-details:empty { display: none; }
 .row-details p, .row-activity p { font-size: .875rem; color: var(--muted-warm); max-inline-size: 70ch; }
+/* An upcoming sale reads with the row metadata, not as body text. */
+.row-details .sale-date { margin-block-start: 0; font-size: .8125rem; }
 .row-activity { display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding-block: .5rem; }
 .row-activity h4 { font-size: .875rem; margin-block-end: .25rem; font-variant-numeric: tabular-nums; }
 .row-activity h4 a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
@@ -2126,14 +2128,15 @@ html:has(.filter-sheet:modal) {
 }
 
 .context-empty h2 {
-  font-size: 1rem;
+  margin-block-end: .65rem;
+  font-size: 1.125rem;
 }
 
 .preview-placeholder {
   display: grid;
   place-items: center;
   min-block-size: 11rem;
-  margin-block: 1.25rem;
+  margin-block: 0 1.25rem;
   margin-inline: 0;
   color: var(--brand);
   background: var(--brand-soft);
@@ -2145,29 +2148,9 @@ html:has(.filter-sheet:modal) {
   block-size: 2.75rem;
 }
 
-.context-empty h3 {
-  margin-block-end: .65rem;
-}
-
 .context-empty p {
   color: var(--muted-warm);
   font-size: .875rem;
-}
-
-.context-footnote {
-  border-block-start: 1px solid var(--line);
-  margin-block-start: 2rem;
-  padding-block-start: 1.25rem;
-}
-
-.context-footnote p:first-child {
-  color: var(--ink);
-  font-weight: 700;
-  margin-block-end: .5rem;
-}
-
-.context-footnote p:last-child {
-  font-size: .8125rem;
 }
 
 .context-toolbar {
