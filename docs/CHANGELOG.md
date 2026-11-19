@@ -4,6 +4,7 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-11-19 — [App-wide rework](changes/app-rework.md)
 - 2026-11-18 — [Authentication and accounts](changes/accounts.md)
 - 2026-11-17 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-16 — [CI performance](changes/ci-performance.md)
@@ -23,4 +24,3 @@ one entry per feature. Related changes stay in the same feature document. Browse
 - 2026-10-26 — [Private saved events](changes/saved-events.md)
 - 2026-10-12 — [Release verification and scope](changes/release-verification.md)
 - 2026-10-12 — [Private artist and venue follows](changes/follows.md)
-- 2026-10-04 — [Documentation](changes/documentation.md)

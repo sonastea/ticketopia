@@ -51,7 +51,7 @@ templ ReportConcern(p ReportPage) {
 }
 
 templ OutcomeSummary(o moderation.Outcome) {
-	<p><strong>{ moderationAction(o.Action) }</strong> · <time datetime={ o.CreatedAt.Format(time.RFC3339Nano) }>{ o.CreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+	<p><strong>{ moderationAction(o.Action) }</strong>{ " · " }@layouts.Stamp(o.CreatedAt)</p>
 	<p class="discussion-body">{ o.Reason }</p>
 }
 
@@ -70,7 +70,7 @@ templ OwnModeration(p OwnModerationPage) {
 				for _,o:=range p.Outcomes.Items {
 					<section class="moderation-record" aria-label="Moderation outcome">
 						<h2>{ o.EventName }</h2>
-						<p class="field-note">{ ternary(o.PostID==o.ThreadID,"Your question or tip","Your reply") } · posted <time datetime={ o.PostCreatedAt.Format(time.RFC3339Nano) }>{ o.PostCreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+						<p class="field-note">{ ternary(o.PostID==o.ThreadID,"Your question or tip","Your reply") } · { "posted " }@layouts.Stamp(o.PostCreatedAt)</p>
 						@OutcomeSummary(o)
 						<a href={ templ.URL(ContributionURL(o.EventID,o.ThreadID,o.PostID)) } class="text-link">Open affected contribution</a>
 						if o.Action=="hide" {
@@ -92,9 +92,9 @@ templ OwnModeration(p OwnModerationPage) {
 				for _,r:=range p.Reports.Items {
 					<section class="moderation-record" aria-label="Your private report">
 						<h2>{ r.EventName }</h2>
-						<p class="field-note">{ ternary(r.PostID==r.ThreadID,"Reported question or tip","Reported reply") } · posted <time datetime={ r.PostCreatedAt.Format(time.RFC3339Nano) }>{ r.PostCreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+						<p class="field-note">{ ternary(r.PostID==r.ThreadID,"Reported question or tip","Reported reply") } · { "posted " }@layouts.Stamp(r.PostCreatedAt)</p>
 						<p><strong>{ reportReason(r.Reason) }</strong></p>
-						<p class="field-note">Received <time datetime={ r.CreatedAt.Format(time.RFC3339Nano) }>{ r.CreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+						<p class="field-note">{ "Received " }@layouts.Stamp(r.CreatedAt)</p>
 						if r.Context!="" {
 							<p class="discussion-body">{ r.Context }</p>
 						}

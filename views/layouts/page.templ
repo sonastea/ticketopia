@@ -1,0 +1,44 @@
+package layouts
+
+import "time"
+
+// PageHeader starts every destination: one heading, at most one intro line,
+// then any local navigation passed as children.
+templ PageHeader(title, intro string) {
+	<header class="page-header account-heading">
+		<h1>{ title }</h1>
+		if intro != "" {
+			<p class="intro">{ intro }</p>
+		}
+	</header>
+	{ children... }
+}
+
+// SectionNotice confirms a change inside the section it belongs to.
+templ SectionNotice(message string) {
+	if message != "" {
+		<p class="account-notice" role="status">{ message }</p>
+	}
+}
+
+// ConfirmDisclosure holds a rare or destructive action. Its children list the
+// effects and end with the confirming form, so nothing runs on the first press.
+templ ConfirmDisclosure(summary string) {
+	<details class="account-token-details confirm-disclosure">
+		<summary>{ summary }</summary>
+		{ children... }
+	</details>
+}
+
+// Stamp shows when something was posted or updated. The server text is the
+// exact UTC time; app.js rewrites it to viewer-local relative time and keeps
+// the exact local time in the title. Event start times never use this: they
+// stay venue-local.
+templ Stamp(at time.Time) {
+	<time datetime={ at.Format(time.RFC3339) } data-stamp>{ at.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time>
+}
+
+// StampDate is Stamp for day-precision dates.
+templ StampDate(at time.Time) {
+	<time datetime={ at.Format(time.RFC3339) } data-stamp="date">{ at.UTC().Format("Jan 2, 2006") }</time>
+}

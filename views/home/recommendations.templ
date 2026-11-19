@@ -107,7 +107,7 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 						if item.Reason!="" {
 							<p class="recommendation-reason">{ item.Reason }</p>
 						}
-						<p class="field-note"><time datetime={ item.RecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>Published { item.RecommendedAt.UTC().Format("Jan 2, 2006") }</time>
+						<p class="field-note">{ "Published " }@layouts.StampDate(item.RecommendedAt)
 							if !item.UpdatedAt.Equal(item.RecommendedAt) {
 								<span> · Edited</span>
 							}

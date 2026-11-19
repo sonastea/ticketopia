@@ -96,9 +96,7 @@ templ Connections(p Page) {
 		<h2 id="connected-apps-heading">Connected apps</h2>
 		<p>AI agents you connected. Each one can do only what you allowed. Text it writes, like reasons and replies, waits in <a href="/me/drafts" class="text-link">your drafts</a> until you publish it. Apps you allowed to post publicly can also act right away: make Interested choices public, recommend or withdraw recommendations without a reason, and mark posts Helpful.</p>
 		<a href="/agents#connect" class="text-link">How to connect an agent</a>
-		if notice := p.notice("connections"); notice != "" {
-			<p class="account-notice" role="status">{ notice }</p>
-		}
+		@layouts.SectionNotice(p.notice("connections"))
 		if len(p.Connections) == 0 {
 			<p class="field-note">You have no connected apps.</p>
 		} else {

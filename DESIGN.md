@@ -653,7 +653,7 @@ summaries, or muted follows. Account Preferences exposes a native **Pause all
 notifications** checkbox; pause notices keep that account-wide override explicit.
 Followed discussions and the in-app reply inbox inherit account navigation and
 flat, rule-separated, event-named records. Due updates show visible reply counts,
-UTC delivery time, and read state, never contribution excerpts or private reporting
+delivery time (a `layouts.Stamp`), and read state, never contribution excerpts or private reporting
 details. **Open conversation at reply** selects the exact latest visible reply,
 including one outside the current reply page; **Mark read** remains a separate
 native form action. Controls and links work without JavaScript. No email or push
@@ -705,12 +705,14 @@ Keep event price and sale status ahead of participation controls. Search and pag
 
 Account forms inherit the same type, colors, corners, and controls. Each account page does one job: Profile, Privacy, Preferences, and Security & Apps are separate routes with one form per section. Profile and Privacy lead with a borderless plum-tinted summary (`color-mix` of `brand-soft` and `surface`; a transparent border survives forced colors): a Bricolage initial monogram, name, bio, and compact public-activity rows on Profile, and a "Who sees what" list on Privacy. The editable form sits beside it in an intrinsic grid when it fits and stacks below on compact/enlarged-text screens. `layouts.AccountHeader` gives every personal page one heading, at most one intro line, and family-local navigation: the current Account, Your events, Updates, or enabled Safety family as wrapping underlined tabs with `aria-current`, and each other family as one quiet chevron link on the same rule. Safety preserves report enablement and moderator role gates. Notes are .875rem, at most one per section. The account-wide sign-out is the only `.action-danger` (error fill) control, placed last behind a native disclosure that lists its effects. Google sign-in alone follows the provider-brand exception above; no new global tokens are introduced. See [accounts](docs/accounts.md) and the [account surface contract](.impeccable/surfaces/views-account-settings-templ.md).
 
+Shared screen primitives ([app rework](docs/design/app-rework.md)): every destination starts with `layouts.PageHeader` (one heading, at most one intro line, local navigation). `.summary-card` is the borderless plum-tinted statement of what something is; `.panel` is the white bordered surface for what you can do; never two of the same weight side by side. Confirmations use `layouts.SectionNotice` inside the section they confirm, and rare or destructive actions use `layouts.ConfirmDisclosure`, listing effects before the confirming button. Posted and updated times use `layouts.Stamp`: exact UTC without JavaScript; with it, viewer-local relative time within the last day and the exact local date and time otherwise, with the exact time in the title and for screen readers. `StampDate` always shows a date. Event start times stay venue-local. Each section has at most one explanatory note; `internal/htmlcheck` enforces it on the account settings pages, and each rework phase extends the check to its screens.
+
 Community/public-profile artwork and titles share Overview destinations and return
 context; event/date/venue lead attribution and text. Named recommendation/question/
 thread links remain direct entries, without per-person event toolbars. Artist/venue
 search is a native disclosure open for first use, submissions and errors, compactable
 on revisits. Followed conversations expose actual counts and readable frequency;
-notifications expose Available UTC times and explicit read state. Open conversation
+notifications expose Available times (`layouts.Stamp`) and explicit read state. Open conversation
 is primary, Mark read secondary. Publication audience sits beside the writing
 action, with owner/report tools quieter. Expanded desktop navigation scrolls within
 its region in short viewports rather than overlapping the footer. These bounded

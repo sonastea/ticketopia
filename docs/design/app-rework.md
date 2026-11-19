@@ -84,11 +84,17 @@ collections.
 
 ### Phase 0: Shared foundations
 
+**Shipped 2026-11-19.** `PageHeader`, `SectionNotice`, `ConfirmDisclosure`,
+`Stamp`/`StampDate`, `.summary-card`/`.panel` and the notes-budget check exist;
+posted/updated times across the app use `Stamp`. `EventCard` and `EventRow` are
+built in Phases 1 and 2, where their first screens adopt them, rather than ahead
+of any caller.
+
 No visible redesign on its own. It gives later phases the same parts.
 
-- **`layouts.PageHeader(title, intro, nav)`.** It generalizes `AccountHeader`:
-  an optional local nav slot (account families, Community tabs, event return
-  line).
+- **`layouts.PageHeader(title, intro)`.** It generalizes `AccountHeader`; local
+  navigation (account families, Community tabs, an event return line) is passed
+  as its children.
 - **Event presentation, two components.**
   - **`EventCard`** (browse) has artwork with the date stub, title, a venue
     line, one fact line (price · on-sale state · category) and one action row.
@@ -105,10 +111,10 @@ No visible redesign on its own. It gives later phases the same parts.
   of effects, danger button) becomes a reusable templ component for removals and
   withdrawals.
 - **Section notices.** The `NoticeFor` pattern becomes a helper any page can use.
-- **Time display.** One `layouts.Time` that renders viewer-friendly local time
-  where JavaScript is available. The server's venue-local or UTC text stays the
-  no-JS fallback and the `datetime` value. It replaces scattered "· 08:19 UTC"
-  strings.
+- **Time display.** `layouts.Stamp` and `StampDate` render posted and updated
+  times. Without JavaScript they read as exact UTC; with it, viewer-local
+  relative time within the last day, otherwise the exact local date and time.
+  They replace scattered "· 08:19 UTC" strings.
 - **Checks.** A test that counts `.field-note` per section in rendered pages, to
   hold the notes budget.
 

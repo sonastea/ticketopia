@@ -8,6 +8,48 @@
     try { history[method](state, title, url); return true; } catch { return false; }
   };
 
+  // Posted and updated stamps (layouts.Stamp) arrive as exact UTC text. Within
+  // the last day they read as viewer-local relative time ("3 hours ago"),
+  // refreshed each minute; older, future and date-only stamps read as the
+  // exact local date (and time). The exact local time is always in the title
+  // and, for screen readers, after the relative text, so it never depends on
+  // hover.
+  const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  const localizeStamp = node => {
+    const at = new Date(node.dateTime);
+    if (Number.isNaN(at.valueOf())) return;
+    const dateOnly = node.dataset.stamp === 'date';
+    const exact = at.toLocaleString(undefined, dateOnly ? { dateStyle: 'medium' } : { dateStyle: 'medium', timeStyle: 'short' });
+    const ago = (Date.now() - at.valueOf()) / 1000;
+    let label = exact;
+    if (!dateOnly && ago >= -60 && ago < 86400) {
+      label = ago < 60 ? relative.format(0, 'second')
+        : ago < 3600 ? relative.format(-Math.floor(ago / 60), 'minute')
+        : relative.format(-Math.floor(ago / 3600), 'hour');
+    }
+    node.title = exact;
+    const spoken = label === exact ? label : `${label}, ${exact}`;
+    if (node.dataset.stampText === spoken) return;
+    node.dataset.stampText = spoken;
+    if (label === exact) { node.textContent = label; return; }
+    // Relative text is visible; the exact time follows for screen readers.
+    const full = document.createElement('span');
+    full.className = 'sr-only';
+    full.textContent = `, ${exact}`;
+    node.replaceChildren(label, full);
+  };
+  const localizeStamps = root => {
+    if (root.matches?.('time[data-stamp]')) localizeStamp(root);
+    root.querySelectorAll?.('time[data-stamp]').forEach(localizeStamp);
+  };
+  localizeStamps(document);
+  // Every insertion path (htmx, section switches, enhanced posting) is covered
+  // by watching for new elements rather than hooking each one.
+  new MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) if (node.nodeType === 1) localizeStamps(node);
+  }).observe(document.body, { childList: true, subtree: true });
+  setInterval(() => localizeStamps(document), 60000);
+
   const motionOK = () => matchMedia('(prefers-reduced-motion: no-preference)').matches;
   // Reads a shared easing token (--ease-out, --ease-standard) from app.css.
   const easing = name => getComputedStyle(document.documentElement).getPropertyValue(`--ease-${name}`).trim() || 'ease-out';

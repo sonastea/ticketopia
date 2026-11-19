@@ -111,7 +111,11 @@
 /* Profile: who you are to others first, editing beside it when there's room. */
 .profile-layout, .privacy-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 2.5rem 3rem; align-items: start; }
 .profile-overview { display: grid; gap: 2rem; min-inline-size: 0; }
-.profile-card, .privacy-summary { border: 1px solid transparent; border-radius: var(--radius); background: color-mix(in oklch, var(--brand-soft) 60%, var(--surface)); }
+/* Shared surfaces: a borderless tinted summary says what something is; a white
+   bordered panel holds what you can do. The transparent border survives
+   forced colours. */
+.summary-card { border: 1px solid transparent; border-radius: var(--radius); background: color-mix(in oklch, var(--brand-soft) 60%, var(--surface)); }
+.panel { padding: 1.5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .profile-card { display: flex; align-items: start; gap: 1.25rem; padding: 1.5rem; }
 .profile-monogram { flex: none; display: grid; place-items: center; inline-size: 4rem; block-size: 4rem; border: 1px solid transparent; border-radius: 50%; background: var(--brand); color: var(--surface); font-family: var(--font-display); font-size: 1.75rem; font-weight: 800; line-height: 1; }
 .profile-identity { display: grid; gap: .5rem; min-inline-size: 0; }
@@ -129,7 +133,6 @@
 .profile-activity-list .event-image { aspect-ratio: 1; }
 .profile-activity-list .date-marker { display: none; }
 .profile-activity-list h3 { margin-block: .15rem; font-size: 1rem; }
-.profile-editor { padding: 1.5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .profile-editor textarea { min-block-size: 5.5rem; }
 /* Privacy: the choices, beside a plain statement of who sees what. */
 .privacy-summary { display: grid; gap: 1.25rem; padding: 1.5rem; }
@@ -141,8 +144,8 @@
 .activity-preview > p { margin: 0; }
 .activity-preview-label { color: var(--muted-warm); font-size: .8125rem; font-weight: 700; }
 /* The account-wide sign-out is the one destructive action; it asks first. */
-.account-confirm > summary { color: var(--error); }
-.account-confirm > :not(summary) { margin-block: .75rem 0; }
+.confirm-disclosure > summary { color: var(--error); }
+.confirm-disclosure > :not(summary) { margin-block: .75rem 0; }
 .account-sign-in, .account-public { display: grid; gap: 1.5rem; max-inline-size: 40rem; }
 .account-sign-in > .google-sign-in { justify-self: start; }
 .account-connect-list { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.25rem; list-style-type: disc; }

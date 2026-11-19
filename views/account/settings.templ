@@ -103,8 +103,8 @@ templ Settings(p Page) {
 					<h2>Changes weren't saved</h2><p>{ p.Error }</p>
 				}
 			}
-			if p.Notice != "" && p.NoticeFor == "" {
-				<p class="account-notice" role="status">{ p.Notice }</p>
+			if p.NoticeFor == "" {
+				@layouts.SectionNotice(p.Notice)
 			}
 			switch p.Section {
 				case "privacy":
@@ -126,13 +126,13 @@ templ Settings(p Page) {
 templ Profile(p Page) {
 	<div class="profile-layout">
 		<div class="profile-overview">
-			<section class="profile-card" aria-labelledby="profile-name">
+			<section class="summary-card profile-card" aria-labelledby="profile-name">
 				<span class="profile-monogram" aria-hidden="true">{ Initial(p.Account.DisplayName) }</span>
 				<div class="profile-identity">
 					<p id="profile-name" class="profile-name">{ p.Account.DisplayName }</p>
 					if p.Account.Bio != "" {
 						<p class="account-bio">{ p.Account.Bio }</p>
-					} else {
+					} else if p.Error == "" {
 						<p class="field-note">No bio yet.</p>
 					}
 					if p.Error != "" {
@@ -167,7 +167,7 @@ templ Profile(p Page) {
 				}
 			</section>
 		</div>
-		<form action="/me/profile" method="post" class="account-form profile-editor" aria-labelledby="profile-heading">
+		<form action="/me/profile" method="post" class="account-form panel profile-editor" aria-labelledby="profile-heading">
 			@CSRF(p.CSRF)
 			<h2 id="profile-heading">Edit profile</h2>
 			<p class="field-note">Your name and bio are public. You don't need to use your real name.</p>
@@ -220,18 +220,17 @@ templ Privacy(p Page) {
 					First name <span>(optional)</span>
 					@input.Input(input.Props{ID:"activity-first-name",Name:"activity_first_name",Value:activityName(p.Account, ""),Attributes:templ.Attributes{"aria-describedby":"activity-name-help", "autocomplete":"off"}})
 				}
-				<p id="activity-name-help" class="field-note">Shown publicly in live activity when you recommend an event. Leave it blank, and save, to appear as Someone.</p>
+				<p id="activity-name-help" class="field-note">Shown publicly in live activity when you recommend an event, even if you turn live activity off in <a href="/me/preferences#live-preferences-heading" class="text-link">Preferences</a>. Leave it blank, and save, to appear as Someone.</p>
 				<div class="activity-preview" aria-hidden="true">
 					<span class="activity-preview-label">Preview</span>
 					<p><strong data-activity-name-preview>{ activityName(p.Account, "Someone") }</strong> recommended an event</p>
 				</div>
-				<p class="field-note">Turning live activity off in <a href="/me/preferences#live-preferences-heading" class="text-link">Preferences</a> only stops you seeing it; it doesn't hide your name.</p>
 			</fieldset>
 			@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
 				Save privacy
 			}
 		</form>
-		<aside class="privacy-summary" aria-labelledby="privacy-summary-heading">
+		<aside class="summary-card privacy-summary" aria-labelledby="privacy-summary-heading">
 			<h2 id="privacy-summary-heading">Who sees what</h2>
 			<div class="privacy-summary-group">
 				<h3>Anyone</h3>
@@ -280,9 +279,7 @@ templ Security(p Page) {
 		<h2 id="api-tokens-heading">API tokens</h2>
 		<p>Tokens let your own scripts use your account through the API.</p>
 		<a href="/agents#api-tokens" class="text-link">How to use API tokens</a>
-		if notice := p.notice("tokens"); notice != "" {
-			<p class="account-notice" role="status">{ notice }</p>
-		}
+		@layouts.SectionNotice(p.notice("tokens"))
 		if p.NewToken != "" {
 			<div class="account-new-token" data-copy-scope>
 				<p class="account-notice" role="status">API token created. Copy it now; it won't be shown again, even if you refresh this page.</p>
@@ -333,8 +330,7 @@ templ Security(p Page) {
 	<section class="account-section" aria-labelledby="sign-out-all-heading">
 		<h2 id="sign-out-all-heading">All devices</h2>
 		<p>Lost a device, or think someone else has access? Sign out everywhere at once.</p>
-		<details class="account-token-details account-confirm">
-			<summary>Sign out of all devices</summary>
+		@layouts.ConfirmDisclosure("Sign out of all devices") {
 			<p>This will:</p>
 			<ul id="sign-out-all-effects" class="account-connect-list">
 				<li>Sign you out here and on every other device</li>
@@ -349,7 +345,7 @@ templ Security(p Page) {
 					Yes, sign out of all devices
 				}
 			</form>
-		</details>
+		}
 	</section>
 }
 
@@ -416,9 +412,7 @@ templ Preferences(p Page) {
 		@CSRF(p.CSRF)<input type="hidden" name="section" value="categories"/>
 		<h2 id="categories-heading">Event categories</h2>
 		<p class="field-note">Categories you enjoy help explain matches in <a href="/radar" class="text-link">your Radar</a>. They're private, and discovery still shows every category.</p>
-		if notice := p.notice("categories"); notice != "" {
-			<p class="account-notice" role="status">{ notice }</p>
-		}
+		@layouts.SectionNotice(p.notice("categories"))
 		if p.CategoriesUnavailable {
 			<p class="account-notice" role="status">Category options couldn't be refreshed. Existing choices are retained below; try this page again shortly for the complete catalog.</p>
 		}
@@ -442,9 +436,7 @@ templ Preferences(p Page) {
 			@CSRF(p.CSRF)
 			<input type="hidden" name="revision" value={ fmt.Sprint(p.LivePreferences.Revision) }/>
 			<h2 id="live-preferences-heading">Live activity</h2>
-			if notice := p.notice("live"); notice != "" {
-				<p class="account-notice" role="status">{ notice }</p>
-			}
+			@layouts.SectionNotice(p.notice("live"))
 			<p class="field-note">New public recommendations appear as top-right toasts. Browse and filter recent activity in <a class="text-link" href="/happening-now">Happening Now</a>. Choose the name you appear under in <a class="text-link" href="/me/privacy">Privacy</a>.</p>
 			<div class="account-checkboxes notification-preferences">
 				<div class="notification-option"><label>

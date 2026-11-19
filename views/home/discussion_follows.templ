@@ -83,7 +83,7 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 									<strong>Unread</strong>
 								}
 							</p>
-							<p class="field-note">Available <time datetime={ n.AvailableAt.Format("2006-01-02T15:04:05Z07:00") }>{ n.AvailableAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time></p>
+							<p class="field-note">{ "Available " }@layouts.Stamp(n.AvailableAt)</p>
 							<div class="account-actions">
 								@button.Button(button.Props{Href:n.URL,Variant:button.VariantOutline,Class:"action action-secondary"}) { Open conversation at reply }
 								if !n.Read {

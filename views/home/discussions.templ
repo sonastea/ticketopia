@@ -117,7 +117,7 @@ templ PostAttribution(post discussions.Post) {
 		if post.Via!="" {
 			<span class="post-via">{ postViaLabel(post) }</span>
 		}
-		<time datetime={ post.CreatedAt.Format("2006-01-02T15:04:05Z07:00") }>{ post.CreatedAt.UTC().Format("Jan 2, 2006 · 15:04 UTC") }</time>
+		@layouts.Stamp(post.CreatedAt)
 		if !post.CreatedAt.Equal(post.UpdatedAt) {
 			<span>Edited</span>
 		}

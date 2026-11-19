@@ -61,13 +61,9 @@ func (f accountFamily) pending() int {
 
 // AccountHeader is the shared heading and navigation of every personal page.
 templ AccountHeader(title, intro, current string, permissions AccountNavPermissions) {
-	<header class="account-heading">
-		<h1>{ title }</h1>
-		if intro != "" {
-			<p class="intro">{ intro }</p>
-		}
-	</header>
-	@AccountNav(current, permissions)
+	@PageHeader(title, intro) {
+		@AccountNav(current, permissions)
+	}
 }
 
 // AccountNav shows the current family's pages as tabs and links every other

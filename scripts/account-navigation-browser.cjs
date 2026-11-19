@@ -59,7 +59,7 @@ fs.mkdirSync(out, {recursive:true});
     await capture('account-privacy-390',390);
     await nav.getByRole('link',{name:'Security & Apps',exact:true}).click();
     check('Sign out of all devices starts hidden',!await page.getByRole('button',{name:'Yes, sign out of all devices',exact:true}).isVisible());
-    await page.locator('.account-confirm > summary').click();
+    await page.locator('.confirm-disclosure > summary').click();
     await page.getByRole('button',{name:'Yes, sign out of all devices',exact:true}).waitFor({state:'visible'});
     check('Sign out of all devices asks first',true);
     await capture('account-security-desktop',1440);
