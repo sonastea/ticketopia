@@ -63,8 +63,10 @@ The current phase is using the app and addressing small nuisances, unclear copy,
 and flow problems, not a feature sprint. A bounded visual refresh within the existing
 design system is complete: artwork-led discovery, Community cards, and finishing
 touches (a floating phone navigation, warmer secondary text, a header that shrinks
-on scroll, and loading placeholders). Further visual work should stay incremental
-rather than become another broad redesign. Neighboring-screen
+on scroll, and loading placeholders). An app-wide structural rework is approved
+within that same visual world: the [one job per screen](docs/design/app-rework.md)
+plan ships in small, independently released phases, without new tokens, features
+or route changes. Neighboring-screen
 cohesion with event discovery is complete. Manual device/accessibility checks and
 small-pilot feedback remain; cluster upgrades/migrations, shared-replica state,
 publishing and backup/restore will be verified after Kubernetes deployment.
