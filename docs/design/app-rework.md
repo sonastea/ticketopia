@@ -120,6 +120,15 @@ No visible redesign on its own. It gives later phases the same parts.
 
 ### Phase 1: Event page (the decision screen)
 
+**Shipped 2026-11-19.** Plans (Interested, Recommend, reminder) sit under
+Tickets and Save with one privacy line, on the page and in the preview; an
+upcoming public sale moves into the identity facts and past ones are dropped;
+without artwork the identity card leads alone; section and composer notes fit
+the budget, which a test now enforces on every event section. The desktop
+overview went from 1,297px to about 1,140px. A single quiet button group for all
+five actions was not adopted: Tickets and Save keep their compact sticky bar on
+phones, so plans stay a second row.
+
 Files: `views/home/event.templ`, `recommendations.templ`, `discussions.templ`
 (section parts), `more_events.templ`.
 

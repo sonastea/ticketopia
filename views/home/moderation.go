@@ -12,8 +12,8 @@ type ReportPage struct {
 	PostID, CSRF, Reason, Context, Error string
 }
 type OwnModerationPage struct {
-	Reports                 moderation.List[moderation.Report]
-	Outcomes                moderation.List[moderation.Outcome]
+	Reports      moderation.List[moderation.Report]
+	Outcomes     moderation.List[moderation.Outcome]
 	CSRF, URL    string
 	OutcomesView bool
 	Navigation   layouts.AccountNavPermissions

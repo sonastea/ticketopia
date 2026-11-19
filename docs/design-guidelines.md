@@ -175,8 +175,10 @@ Dedicated pages and discovery context share one set of real section links:
 **Overview**, **Questions & tips**, and **Recommendations**, with ordinary
 navigation semantics rather than partial ARIA tabs. Overview exposes the supplied
 description, venue address, and Before you go notices. Tickets and private Save
-precede artwork and long content; Interested, Recommend, and eligible reminder
-settings form a separate **Your plans & community** group below the content.
+precede artwork and long content. Interested, Recommend, and eligible reminder
+settings follow directly as one plans group, with a single privacy line, before
+the section tabs; a public sale shows in the identity facts only while it is
+still ahead.
 **Event source & history** is a secondary native disclosure. Stale-data warnings
 remain visible beside price and sale status. On wide workspaces, selected context
 takes the larger share of horizontal space. Selected threads retain community

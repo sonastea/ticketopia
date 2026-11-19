@@ -662,8 +662,10 @@ is sent. See [followed discussions](docs/followed-discussions.md).
 Within discovery, compact event/date/venue context and price/sale facts stay above
 questions or the selected root and replies. Tickets and Save are immediately
 available, before artwork or extended content. Overview exposes description and
-practical notices; **Your plans & community** groups secondary participation below
-content. **Event source & history** discloses provenance, with stale warnings kept
+practical notices. Interested, Recommend and reminders form one plans group
+directly under Tickets and Save, with one privacy line, before the section tabs;
+without artwork, the tinted identity card leads on its own instead of overlapping
+an empty band. **Event source & history** discloses provenance, with stale warnings kept
 beside affected facts. Desktop **Open event page** and full-conversation links open
 dedicated pages. Successful compact context omits event expansion because it is
 already the primary event view; failed reads retain standalone recovery.

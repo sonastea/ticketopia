@@ -43,7 +43,9 @@ fs.mkdirSync(out, { recursive: true });
       }
     };
     await page.goto(base + '/me/interests');
-    check('Own empty interest and private category preferences remain distinct', await page.getByRole('heading', { name: "Events you're interested in" }).count() === 1 && await page.getByRole('button', { name: 'Save category preferences' }).count() === 1);
+    check('Own empty interest and private category preferences remain distinct', await page.getByRole('heading', { name: "Events you're interested in" }).count() === 1 && await page.getByRole('button', { name: 'Save categories' }).count() === 0 );
+    await page.locator('main').getByRole('link', { name: 'Preferences', exact: true }).last().click();
+    check('Category preferences open in Preferences', new URL(page.url()).pathname === '/me/preferences' && await page.getByRole('button', { name: 'Save categories' }).count() === 1);
     await page.goto(base + process.env.SAVED_SEARCH_PATH);
     await page.locator('.event-link').first().click();
     const context = page.locator('[data-context-id="' + id + '"]');

@@ -116,7 +116,10 @@
    forced colours. */
 .summary-card { border: 1px solid transparent; border-radius: var(--radius); background: color-mix(in oklch, var(--brand-soft) 60%, var(--surface)); }
 .panel { padding: 1.5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-.profile-card { display: flex; align-items: start; gap: 1.25rem; padding: 1.5rem; }
+/* The monogram moves above the name when enlarged text leaves no room beside it. */
+.profile-card { display: flex; flex-wrap: wrap; align-items: start; gap: 1.25rem; padding: 1.5rem; }
+.profile-identity { flex: 1 1 12rem; }
+.profile-identity > .text-link { max-inline-size: 100%; }
 .profile-monogram { flex: none; display: grid; place-items: center; inline-size: 4rem; block-size: 4rem; border: 1px solid transparent; border-radius: 50%; background: var(--brand); color: var(--surface); font-family: var(--font-display); font-size: 1.75rem; font-weight: 800; line-height: 1; }
 .profile-identity { display: grid; gap: .5rem; min-inline-size: 0; }
 .profile-identity > * { margin: 0; }
@@ -1375,7 +1378,7 @@ html:has(.filter-sheet:modal) {
 
 .participation-note {
   color: var(--muted-warm);
-  font-size: .75rem;
+  font-size: .875rem;
   margin-block: .5rem 1rem;
   margin-inline: 0;
 }
@@ -2250,8 +2253,10 @@ html:has(.filter-sheet:modal) {
   display: grid;
 }
 .event-identity > .event-image { aspect-ratio: 2 / 1; max-block-size: 22rem; }
-.event-identity > .event-image:not(:has(> img:not([hidden]))) { aspect-ratio: auto; block-size: 6rem; }
-.event-identity > .event-image .image-fallback { padding-block-end: 2.5rem; }
+/* Without artwork there's no band for the identity card to overlap; the
+   tinted card leads on its own. */
+.event-identity > .event-image:not(:has(> img:not([hidden]))) { display: none; }
+.event-identity > .event-image:not(:has(> img:not([hidden]))) + .event-heading { margin: 0; }
 .event-identity > .event-heading {
   position: relative;
   margin-block: -2.5rem 0;
@@ -2261,8 +2266,11 @@ html:has(.filter-sheet:modal) {
   background: color-mix(in oklch, var(--event-tint) 18%, var(--surface));
 }
 .context-inner [data-section-body] > .event-image { max-block-size: 16rem; margin-block-start: 1rem; }
-.event-participation { border-block-start: 1px solid var(--line); padding-block: 1.5rem; }
-.event-participation h2 { font-size: 1.125rem; margin-block-end: .75rem; }
+/* Plans sit directly under Tickets and Save, as one cluster of actions. */
+.event-participation { padding-block: 0 .25rem; }
+.event-participation .participation-note { max-inline-size: 75ch; margin-block-end: 0; }
+/* Counts and other list metadata: quiet, but not an explanatory note. */
+.list-meta { color: var(--muted-warm); font-size: .875rem; font-variant-numeric: tabular-nums; }
 .event-provenance { border-block-start: 1px solid var(--line); margin-block-start: 1rem; padding-block: .75rem; color: var(--muted-warm); font-size: .875rem; }
 .event-provenance h3 { margin-block: 1rem .5rem; }
 .context-activity {

@@ -243,7 +243,7 @@ func RecommendationPanel(id string, v RecommendationView, returnURL string) temp
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</textarea></label><p class=\"field-note composer-audience\">Your display name, profile link, and reason will be public on this event, in Community, and on your profile. Interest privacy does not hide recommendations.</p><p class=\"field-note\">Recommendations are public on the event, in Community and on your profile. Live activity uses your chosen first name, or Someone.</p><div class=\"account-actions\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</textarea></label><p class=\"field-note composer-audience\">Your reason, display name and profile link will be public on this event, in Community and on your profile; live activity shows your chosen first name or Someone. Interest privacy does not hide recommendations.</p><div class=\"account-actions\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -310,14 +310,14 @@ func RecommendationPanel(id string, v RecommendationView, returnURL string) temp
 				return templ_7745c5c3_Err
 			}
 			if v.List.Count != nil {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p class=\"field-note\" data-live-total=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p class=\"list-meta\" data-live-total=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 66, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 65, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 				if templ_7745c5c3_Err != nil {
@@ -340,7 +340,7 @@ func RecommendationPanel(id string, v RecommendationView, returnURL string) temp
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(*v.List.Count))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 66, Col: 135}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 65, Col: 134}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -353,7 +353,7 @@ func RecommendationPanel(id string, v RecommendationView, returnURL string) temp
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(recommendationCountLabel(*v.List.Count))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 66, Col: 188}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 65, Col: 187}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -376,7 +376,7 @@ func RecommendationPanel(id string, v RecommendationView, returnURL string) temp
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(v.ListError)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 69, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 68, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -403,7 +403,7 @@ func RecommendationPanel(id string, v RecommendationView, returnURL string) temp
 					var templ_7745c5c3_Var18 templ.SafeURL
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(recommendationListURL(id, returnOrigin(returnURL))))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 73, Col: 75}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 72, Col: 75}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -454,7 +454,7 @@ func RecommendationList(list recommendations.List, c listContext, returnURL stri
 				var templ_7745c5c3_Var20 templ.SafeURL
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(c.FirstPage))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 84, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 83, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -470,14 +470,14 @@ func RecommendationList(list recommendations.List, c listContext, returnURL stri
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<p class=\"field-note\" data-live-empty=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<p data-live-empty=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.EventID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 88, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 87, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 				if templ_7745c5c3_Err != nil {
@@ -555,7 +555,7 @@ func RecommendationList(list recommendations.List, c listContext, returnURL stri
 				var templ_7745c5c3_Var24 templ.SafeURL
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/users/" + item.Profile.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 104, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 103, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -568,7 +568,7 @@ func RecommendationList(list recommendations.List, c listContext, returnURL stri
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(item.Profile.DisplayName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 104, Col: 100}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 103, Col: 100}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -594,7 +594,7 @@ func RecommendationList(list recommendations.List, c listContext, returnURL stri
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(item.Reason)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 108, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 107, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {
@@ -612,7 +612,7 @@ func RecommendationList(list recommendations.List, c listContext, returnURL stri
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs("Published ")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 110, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 109, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -640,7 +640,7 @@ func RecommendationList(list recommendations.List, c listContext, returnURL stri
 					var templ_7745c5c3_Var28 templ.SafeURL
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(eventURL(item.Event.ID, "community", returnURL)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 116, Col: 73}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 115, Col: 73}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 					if templ_7745c5c3_Err != nil {
@@ -694,7 +694,7 @@ func RecommendationVia(item recommendations.Item) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(" ")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 131, Col: 7}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 130, Col: 7}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -707,7 +707,7 @@ func RecommendationVia(item recommendations.Item) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(viaLabel(item))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 131, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 130, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -752,7 +752,7 @@ func CommunityNav(current string) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(layouts.CurrentPage(current == "recommendations"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 139, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 138, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -773,7 +773,7 @@ func CommunityNav(current string) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(layouts.CurrentPage(current == "conversations"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 143, Col: 97}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 142, Col: 97}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
@@ -799,7 +799,7 @@ func CommunityNav(current string) templ.Component {
 			var templ_7745c5c3_Var35 string
 			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(layouts.CurrentPage(current == "happening-now"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 148, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 147, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 			if templ_7745c5c3_Err != nil {
@@ -911,7 +911,7 @@ func Community(p CommunityPage) templ.Component {
 						var templ_7745c5c3_Var39 string
 						templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(p.Error)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 171, Col: 56}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 170, Col: 56}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 						if templ_7745c5c3_Err != nil {
@@ -1026,7 +1026,7 @@ func CommunityEmpty(title, body, href, action string) templ.Component {
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 192, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 191, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
@@ -1044,7 +1044,7 @@ func CommunityEmpty(title, body, href, action string) templ.Component {
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(body)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 194, Col: 12}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 193, Col: 12}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 				if templ_7745c5c3_Err != nil {
@@ -1074,7 +1074,7 @@ func CommunityEmpty(title, body, href, action string) templ.Component {
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(action)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 197, Col: 11}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 196, Col: 11}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -1126,7 +1126,7 @@ func CommunityFilters(f CommunityFilterBar) templ.Component {
 		var templ_7745c5c3_Var48 templ.SafeURL
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(f.Action))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 205, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 204, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 		if templ_7745c5c3_Err != nil {
@@ -1139,7 +1139,7 @@ func CommunityFilters(f CommunityFilterBar) templ.Component {
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 205, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 204, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
@@ -1247,7 +1247,7 @@ func CommunityFilters(f CommunityFilterBar) templ.Component {
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.CategoryID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 220, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 219, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 				if templ_7745c5c3_Err != nil {
@@ -1260,7 +1260,7 @@ func CommunityFilters(f CommunityFilterBar) templ.Component {
 				var templ_7745c5c3_Var55 string
 				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(f.CategoryID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 220, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 219, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 				if templ_7745c5c3_Err != nil {
@@ -1279,7 +1279,7 @@ func CommunityFilters(f CommunityFilterBar) templ.Component {
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(category.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 223, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 222, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 				if templ_7745c5c3_Err != nil {
@@ -1302,7 +1302,7 @@ func CommunityFilters(f CommunityFilterBar) templ.Component {
 				var templ_7745c5c3_Var57 string
 				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(category.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 223, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 222, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 				if templ_7745c5c3_Err != nil {
@@ -1377,7 +1377,7 @@ func Avatar(text string) templ.Component {
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 233, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 232, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 		if templ_7745c5c3_Err != nil {
@@ -1472,7 +1472,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 						var templ_7745c5c3_Var62 string
 						templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(item.Reason)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 258, Col: 66}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 257, Col: 66}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 						if templ_7745c5c3_Err != nil {
@@ -1498,7 +1498,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 					var templ_7745c5c3_Var63 templ.SafeURL
 					templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/users/" + item.Profile.ID))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 263, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 262, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var63))
 					if templ_7745c5c3_Err != nil {
@@ -1511,7 +1511,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 					var templ_7745c5c3_Var64 string
 					templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(item.Profile.DisplayName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 263, Col: 105}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 262, Col: 105}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 					if templ_7745c5c3_Err != nil {
@@ -1545,7 +1545,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 				var templ_7745c5c3_Var65 string
 				templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.ResolveAttributeValue(group.Event.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 272, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 271, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var65)
 				if templ_7745c5c3_Err != nil {
@@ -1558,7 +1558,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 				var templ_7745c5c3_Var66 string
 				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(group.Count))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 272, Col: 102}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 271, Col: 102}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 				if templ_7745c5c3_Err != nil {
@@ -1571,7 +1571,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 				var templ_7745c5c3_Var67 string
 				templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(recommendationCountLabel(group.Count))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 272, Col: 153}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 271, Col: 153}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 				if templ_7745c5c3_Err != nil {
@@ -1584,7 +1584,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 				var templ_7745c5c3_Var68 string
 				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 272, Col: 243}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 271, Col: 243}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 				if templ_7745c5c3_Err != nil {
@@ -1597,7 +1597,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 				var templ_7745c5c3_Var69 string
 				templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(group.FirstRecommendedAt.UTC().Format("Jan 2, 2006"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 272, Col: 318}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 271, Col: 318}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 				if templ_7745c5c3_Err != nil {
@@ -1610,7 +1610,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 				var templ_7745c5c3_Var70 templ.SafeURL
 				templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(eventURL(group.Event.ID, "community", returnURL)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 274, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 273, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 				if templ_7745c5c3_Err != nil {
@@ -1623,7 +1623,7 @@ func CommunityRecommendationList(feed recommendations.Feed, returnURL string, c 
 				var templ_7745c5c3_Var71 templ.SafeURL
 				templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(recommendationListURL(group.Event.ID, returnURL)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 275, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 274, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 				if templ_7745c5c3_Err != nil {
@@ -1676,7 +1676,7 @@ func PublicRecommendationEvents(list recommendations.List, returnURL string, mes
 			var templ_7745c5c3_Var73 string
 			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 288, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 287, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 			if templ_7745c5c3_Err != nil {
@@ -1703,7 +1703,7 @@ func PublicRecommendationEvents(list recommendations.List, returnURL string, mes
 				var templ_7745c5c3_Var74 templ.SafeURL
 				templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(profileRecommendationNextURL(returnURL, list.NextCursor)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 292, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 291, Col: 80}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 				if templ_7745c5c3_Err != nil {
@@ -1763,7 +1763,7 @@ func RecommendationFailure(id, reason, csrf, returnURL, message string, withdraw
 			var templ_7745c5c3_Var77 string
 			templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 301, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 300, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 			if templ_7745c5c3_Err != nil {
@@ -1776,7 +1776,7 @@ func RecommendationFailure(id, reason, csrf, returnURL, message string, withdraw
 			var templ_7745c5c3_Var78 templ.SafeURL
 			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinURLErrs(recommendationAction(id))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 302, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 301, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 			if templ_7745c5c3_Err != nil {
@@ -1789,7 +1789,7 @@ func RecommendationFailure(id, reason, csrf, returnURL, message string, withdraw
 			var templ_7745c5c3_Var79 string
 			templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 303, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 302, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var79)
 			if templ_7745c5c3_Err != nil {
@@ -1802,7 +1802,7 @@ func RecommendationFailure(id, reason, csrf, returnURL, message string, withdraw
 			var templ_7745c5c3_Var80 string
 			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 303, Col: 114}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 302, Col: 114}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var80)
 			if templ_7745c5c3_Err != nil {
@@ -1815,7 +1815,7 @@ func RecommendationFailure(id, reason, csrf, returnURL, message string, withdraw
 			var templ_7745c5c3_Var81 string
 			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(reason)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 305, Col: 152}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 304, Col: 152}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 			if templ_7745c5c3_Err != nil {
@@ -1838,7 +1838,7 @@ func RecommendationFailure(id, reason, csrf, returnURL, message string, withdraw
 					var templ_7745c5c3_Var82 templ.SafeURL
 					templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(signInURL(recommendationSignInReturn(id, returnURL))))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 309, Col: 79}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 308, Col: 79}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 					if templ_7745c5c3_Err != nil {
@@ -1903,7 +1903,7 @@ func RecommendationFailure(id, reason, csrf, returnURL, message string, withdraw
 			var templ_7745c5c3_Var85 templ.SafeURL
 			templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(returnURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 322, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 321, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 			if templ_7745c5c3_Err != nil {
@@ -1971,7 +1971,7 @@ func EventRecommendations(event models.Event, list recommendations.List, paginat
 			var templ_7745c5c3_Var88 string
 			templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(event.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 331, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 330, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 			if templ_7745c5c3_Err != nil {
@@ -1984,7 +1984,7 @@ func EventRecommendations(event models.Event, list recommendations.List, paginat
 			var templ_7745c5c3_Var89 string
 			templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(startLabel(event.Start))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 331, Col: 93}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 330, Col: 93}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 			if templ_7745c5c3_Err != nil {
@@ -1997,7 +1997,7 @@ func EventRecommendations(event models.Event, list recommendations.List, paginat
 			var templ_7745c5c3_Var90 string
 			templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(venueLabel(event))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 331, Col: 141}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 330, Col: 141}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 			if templ_7745c5c3_Err != nil {
@@ -2019,7 +2019,7 @@ func EventRecommendations(event models.Event, list recommendations.List, paginat
 				var templ_7745c5c3_Var91 templ.SafeURL
 				templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(CollectionNextURL(paginationURL, list.NextCursor)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 334, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/recommendations.templ`, Line: 333, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 				if templ_7745c5c3_Err != nil {

@@ -262,7 +262,9 @@ func TestEventOverviewKeepsDecisionContentVisibleAndActionsIndependent(t *testin
 			if strings.Count(markup, "data-save-form") != 1 || strings.Count(markup, `class="interest-form"`) != 1 || strings.Count(markup, "On-sale reminder</span>") != 1 {
 				t.Fatal("actions duplicated or lost")
 			}
-			if strings.Index(markup, "ticket-link") > strings.Index(markup, "A supplied description") || strings.Index(markup, "Bring photo ID") > strings.Index(markup, "data-interest-form") || strings.Index(markup, "data-interest-form") > strings.Index(markup, "reminder-button") {
+			// Price and status lead; Tickets, then your plans, form one action
+			// cluster before the section content.
+			if strings.Index(markup, "Price not listed") > strings.Index(markup, "ticket-link") || strings.Index(markup, "ticket-link") > strings.Index(markup, "data-interest-form") || strings.Index(markup, "data-interest-form") > strings.Index(markup, "reminder-button") || strings.Index(markup, "reminder-button") > strings.Index(markup, "A supplied description") {
 				t.Fatal("decision facts, primary actions, and secondary participation out of order")
 			}
 			doc, err := html.Parse(strings.NewReader(markup))

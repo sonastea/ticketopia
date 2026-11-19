@@ -9,7 +9,7 @@ templ DiscussionPanel(event string,v DiscussionView,returnURL string) {
 	if !v.Enabled {
 		<p class="field-note">Discussions require accounts to be enabled on this server.</p>
 	} else {
-		<p class="field-note">Ask a question or share a practical tip. Contributions are public; this is an asynchronous conversation, not live chat.</p>
+		<p class="field-note">Public questions and practical tips. Replies arrive over time; this isn't live chat.</p>
 		if v.ViewerID!="" {
 			<details class="recommendation-editor discussion-editor">
 				<summary>
@@ -35,7 +35,7 @@ templ DiscussionPanel(event string,v DiscussionView,returnURL string) {
 			<a href={ templ.URL(ThreadURL(event,"",DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>Retry conversations</a>
 		} else {
 			if v.List.Count>0 {
-				<p class="field-note">{ fmt.Sprint(v.List.Count) } visible questions and tips</p>
+				<p class="list-meta">{ fmt.Sprint(v.List.Count) } visible questions and tips</p>
 			}
 			@DiscussionRoots(v.List,listContext{Place:inEvent,EventID:event,FirstPage:discussionLaterPage(returnURL)},returnURL)
 			if v.List.NextCursor!=nil {
@@ -59,7 +59,7 @@ templ DiscussionRoots(list discussions.List,c listContext,returnURL string) {
 			<p class="field-note">No more conversations on this page.</p>
 			<a href={ templ.URL(c.FirstPage) } class="text-link" data-thread-link>Back to the newest conversations</a>
 		} else {
-			<p class="field-note">No questions or tips yet. Ask what you'd like to know before you go, or share something that would help others.</p>
+			<p>No questions or tips yet. Ask what you'd like to know before you go, or share something that would help others.</p>
 		}
 	} else {
 		<ul class={ "discussion-list recommendation-list", templ.KV("community-cards",c.Place==inCommunity) }>

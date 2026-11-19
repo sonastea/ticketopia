@@ -17,7 +17,9 @@ var sectionTags = []string{"section", "fieldset", "form", "aside", "details", "m
 // notes of its own. A note is a p.field-note whose nearest section ancestor is
 // that section. Not counted: field help that a form control in the same
 // section names in aria-describedby, notes inside list items (they describe
-// that item, not the section) and empty live regions waiting for a message.
+// that item, not the section), and empty or hidden notes such as live regions
+// waiting for a message. It checks server-rendered HTML: prose that JavaScript
+// reveals later (failure feedback) is outside its scope.
 func NotesOverBudget(r io.Reader, max int) ([]string, error) {
 	doc, err := html.Parse(r)
 	if err != nil {
@@ -55,7 +57,7 @@ func NotesOverBudget(r io.Reader, max int) ([]string, error) {
 			if n.Data == "li" {
 				inItem = true
 			}
-			if n.Data == "p" && hasClass(n, "field-note") && !inItem && (attr(n, "id") == "" || described[attr(n, "id")] != section) && (attr(n, "role") != "status" || text(n) != "") {
+			if n.Data == "p" && (hasClass(n, "field-note") || hasClass(n, "participation-note")) && !inItem && (attr(n, "id") == "" || described[attr(n, "id")] != section) && text(n) != "" && !hasAttr(n, "hidden") {
 				if counts[section] == 0 {
 					order = append(order, section)
 				}
@@ -96,6 +98,15 @@ func attr(n *html.Node, key string) string {
 		}
 	}
 	return ""
+}
+
+func hasAttr(n *html.Node, key string) bool {
+	for _, a := range n.Attr {
+		if a.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 func hasClass(n *html.Node, class string) bool {

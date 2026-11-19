@@ -17,6 +17,7 @@ func TestNotesOverBudgetCountsOnlySectionNotes(t *testing.T) {
 			<input aria-describedby="zone-help"><p id="zone-help" class="field-note">Field help.</p>
 			<ul><li><p class="field-note">Item metadata.</p></li><li><p class="field-note">More.</p></li></ul>
 			<p class="field-note" role="status"></p>
+			<p class="field-note" role="alert" hidden>Shown only after a failure.</p>
 			<details><p class="field-note">Inside its own section.</p></details>
 		</form>
 	</main>`

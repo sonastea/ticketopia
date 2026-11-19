@@ -141,7 +141,7 @@ templ PublicParticipants(page EventPage) {
 }
 templ ParticipantList(list interests.Participants) {
 	if len(list.Items) == 0 {
-		<p class="field-note">No public participants on this page.</p>
+		<p>No public participants on this page.</p>
 	}
 	<ul class="public-interest-list">
 		for _, item := range list.Items {

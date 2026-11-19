@@ -1075,6 +1075,9 @@
     if (old.nodeType !== Node.ELEMENT_NODE) return;
     for (const attr of [...old.attributes]) {
       if (old.matches('details') && attr.name === 'open') continue;
+      // An image that failed to load stays hidden while its source is the same;
+      // no new request would fire to hide it again. A new source may load.
+      if (attr.name === 'hidden' && old.matches('img') && old.getAttribute('src') === fresh.getAttribute('src')) continue;
       if (!fresh.hasAttribute(attr.name)) old.removeAttribute(attr.name);
     }
     for (const attr of fresh.attributes) {

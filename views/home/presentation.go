@@ -752,6 +752,33 @@ func saleLabel(event models.Event) string {
 	return "Public sale: " + date.Format("Jan 2, 2006, 3:04 PM MST")
 }
 
+// upcomingSaleLabel names a public sale that is still ahead, even when the
+// provider already reports a presale as on sale. A canceled or postponed
+// event has no sale to wait for. Past sale times live in pastSaleLabel.
+func upcomingSaleLabel(event models.Event, now time.Time) string {
+	if event.PublicSale.Start == nil || !event.PublicSale.Start.After(now) || saleWithdrawn(event.Status) {
+		return ""
+	}
+	return strings.Replace(saleLabel(event), "Public sale: ", "Public sale starts ", 1)
+}
+
+// pastSaleLabel keeps a public sale that already started for the event's
+// source and history, out of the identity facts.
+func pastSaleLabel(event models.Event, now time.Time) string {
+	if event.PublicSale.Start == nil || event.PublicSale.Start.After(now) {
+		return ""
+	}
+	return strings.Replace(saleLabel(event), "Public sale: ", "Public sale started ", 1)
+}
+
+func saleWithdrawn(status string) bool {
+	switch status {
+	case "canceled", "cancelled", "postponed":
+		return true
+	}
+	return false
+}
+
 func freshnessLabel(at time.Time) string { return at.UTC().Format("Jan 2, 15:04 UTC") }
 
 // artSlot names where event artwork is drawn, so its sizes hint describes the

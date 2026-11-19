@@ -10,7 +10,7 @@ delivery and dated in-app event history remain supported.
 ## Choose, change, pause, or stop
 
 Save an event, then choose the bell-marked **On-sale reminder** button in the event
-view's **Your plans & community** group. Lists keep Tickets and Save; settings
+view's plans group, under Tickets and Save. Lists keep Tickets and Save; settings
 appear only after a confirmed save when reminders are supported. Choose **30
 minutes**, **1 hour**, **1 day**, or **Custom** in a native select. Custom accepts
 1–10080 whole minutes (up to seven days), retaining previously saved non-preset

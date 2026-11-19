@@ -1,5 +1,6 @@
 package home
 
+import "time"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/internal/calendar"
 import "github.com/sonastea/ticketopia/views/layouts"
@@ -51,9 +52,9 @@ templ Event(page EventPage) {
 						@EventHeading(page, false)
 					</header>
 					@EventPrimaryActions(page)
+					@EventParticipation(page, "event-participation-note")
 					@EventSections(page)
 					@EventSectionRegion(page, false)
-					@EventParticipation(page, "event-participation-note")
 					@EventProvenance(page)
 				</article>
 			}
@@ -73,6 +74,7 @@ templ EventContext(page EventPage) {
 		</div>
 		@EventHeading(page, true)
 		@EventPrimaryActions(page)
+		@EventParticipation(page, "context-participation-note")
 		<div class="context-tools">
 			@button.Button(button.Props{Href: sectionURL(page, "overview"), Variant: button.VariantLink, Class: "text-link open-event"}) {
 				<span>Open event page</span>@layouts.Icon("arrow")
@@ -80,7 +82,6 @@ templ EventContext(page EventPage) {
 		</div>
 		@EventSections(page)
 		@EventSectionRegion(page, true)
-		@EventParticipation(page, "context-participation-note")
 		@EventProvenance(page)
 	</div>
 }
@@ -127,6 +128,9 @@ templ EventHeading(page EventPage, panel bool) {
 templ EventHeadingFacts(page EventPage) {
 	<p class="event-date">{ startLabel(page.Detail.Item.Start) }</p>
 	<p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
+	if sale := upcomingSaleLabel(page.Detail.Item, time.Now()); sale != "" {
+		<p class="sale-date">{ sale }</p>
+	}
 	if page.Detail.Meta.Stale {
 		@Freshness(page.Detail.Meta)
 	}
@@ -163,13 +167,9 @@ templ EventSectionRegion(page EventPage, panel bool) {
 
 templ EventPrimaryActions(page EventPage) {
 	<div class="event-primary-actions">
-		if sale := saleLabel(page.Detail.Item); sale != "" {
-			<p class="sale-date">{ sale }</p>
-		}
 		@EventActionControls(page.Detail.Item.ID, page.Detail.Item.Name, page.Saves, page.ActionReturnURL, false) {
 			@TicketAction(page.Detail.Item)
 		}
-		<p class="field-note">Saves stay private. Saving doesn't reserve tickets or enable reminders.</p>
 		if page.Saves.Error != "" {
 			<p class="field-note" role="status">{ page.Saves.Error }</p>
 		}
@@ -179,6 +179,9 @@ templ EventPrimaryActions(page EventPage) {
 templ EventProvenance(page EventPage) {
 	<details class="event-provenance">
 		<summary>Event source & history</summary>
+		if sale := pastSaleLabel(page.Detail.Item, time.Now()); sale != "" {
+			<p>{ sale }</p>
+		}
 		@Freshness(page.Detail.Meta)
 		@SourceFooter()
 		@EventHistory(page.Detail.History)
@@ -194,7 +197,7 @@ templ EventFacts(event models.Event) {
 
 templ EventParticipation(page EventPage, noteID string) {
 	<section class="event-participation" aria-labelledby={ noteID + "-heading" }>
-		<h2 id={ noteID + "-heading" }>Your plans & community</h2>
+		<h2 id={ noteID + "-heading" } class="sr-only">Your plans</h2>
 		if page.Interests.Enabled || page.Recommendations.Enabled || page.Saves.Reminders {
 			<div class="event-action-group" data-event-actions>
 				<div class="event-actions">
@@ -211,7 +214,7 @@ templ EventParticipation(page EventPage, noteID string) {
 		@InterestDetails(page.Detail.Item.ID, page.Interests, page.ActionReturnURL)
 		<p id={ noteID } class="participation-note">
 			if page.Saves.Enabled {
-				Interested is separate from Save; its visibility is your choice. Recommendations are public. Neither confirms attendance or ticket ownership.
+				Saves and reminders are private. Interested adds to the public count, with your name only if you choose Public. Recommendations are public. None of these reserve tickets or confirm attendance, and only a reminder sends email.
 			} else {
 				Saving and Interested require accounts to be enabled.
 			}

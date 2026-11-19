@@ -41,8 +41,7 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 						<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span>
 							<textarea name="reason" rows="3" maxlength="500" data-recommendation-reason autofocus?={ v.Open }>{ v.reason() }</textarea>
 						</label>
-						<p class="field-note composer-audience">Your display name, profile link, and reason will be public on this event, in Community, and on your profile. Interest privacy does not hide recommendations.</p>
-						<p class="field-note">Recommendations are public on the event, in Community and on your profile. Live activity uses your chosen first name, or Someone.</p>
+						<p class="field-note composer-audience">Your reason, display name and profile link will be public on this event, in Community and on your profile; live activity shows your chosen first name or Someone. Interest privacy does not hide recommendations.</p>
 						<div class="account-actions">
 							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
 								if v.Own != nil {
@@ -63,7 +62,7 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 			}
 			<h3>Public recommendations</h3>
 			if v.List.Count != nil {
-				<p class="field-note" data-live-total={ id } data-live-hide-zero hidden?={ *v.List.Count == 0 }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
+				<p class="list-meta" data-live-total={ id } data-live-hide-zero hidden?={ *v.List.Count == 0 }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
 			}
 			if v.ListError != "" {
 				<p class="field-note" role="status">{ v.ListError }</p>
@@ -85,7 +84,7 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 		} else if c.Place==onProfile {
 			<p class="field-note">No public recommendations yet.</p>
 		} else {
-			<p class="field-note" data-live-empty={ c.EventID }>No one has recommended this event yet. If it's worth going to, be the first to say why.</p>
+			<p data-live-empty={ c.EventID }>No one has recommended this event yet. If it's worth going to, be the first to say why.</p>
 		}
 	} else {
 		<ul class="recommendation-list">
