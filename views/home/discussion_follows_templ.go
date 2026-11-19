@@ -59,24 +59,24 @@ func ConversationFollow(event, thread, frequency, csrf, returnURL string, paused
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</summary><p class=\"field-note\">Following is private. Get in-app updates for new replies from other people, not edits, Helpful, or reports. Daily and weekly replies are grouped at midnight UTC and Monday midnight UTC.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</summary><p class=\"field-note\">Following is private. Get in-app updates for new replies from other people, not edits, Helpful, or reports. Daily and weekly replies are grouped at midnight UTC and Monday midnight UTC. ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if paused {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"field-note\">All notifications are paused. <a href=\"/me/preferences\" class=\"text-link\">Resume in Preferences</a> to receive future replies.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "All notifications are paused; <a href=\"/me/preferences\" class=\"text-link\">resume in Preferences</a> to receive future replies.")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<form action=\"/discussion-follow-actions\" method=\"post\" class=\"account-form\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p><form action=\"/discussion-follow-actions\" method=\"post\" class=\"account-form\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrf)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 23, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 25, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -89,7 +89,7 @@ func ConversationFollow(event, thread, frequency, csrf, returnURL string, paused
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(event)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 24, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 26, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -102,7 +102,7 @@ func ConversationFollow(event, thread, frequency, csrf, returnURL string, paused
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(thread)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 25, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 27, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -115,7 +115,7 @@ func ConversationFollow(event, thread, frequency, csrf, returnURL string, paused
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(returnURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 26, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 28, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {
@@ -339,7 +339,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(p.Error)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 65, Col: 29}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 67, Col: 29}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -352,7 +352,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 				var templ_7745c5c3_Var14 templ.SafeURL
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(p.URL))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 65, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 67, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -381,7 +381,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(n.Read))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 72, Col: 97}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 74, Col: 97}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 					if templ_7745c5c3_Err != nil {
@@ -394,7 +394,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var16 string
 					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(n.EventName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 73, Col: 24}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 75, Col: 24}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 					if templ_7745c5c3_Err != nil {
@@ -407,7 +407,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var17 string
 					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(n.ReplyCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 74, Col: 70}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 76, Col: 70}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
@@ -446,7 +446,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs("Available ")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 86, Col: 43}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 88, Col: 43}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -490,7 +490,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 						var templ_7745c5c3_Var20 string
 						templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.CSRF)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 91, Col: 63}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 93, Col: 63}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 						if templ_7745c5c3_Err != nil {
@@ -503,7 +503,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 						var templ_7745c5c3_Var21 string
 						templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(n.ID)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 91, Col: 123}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 93, Col: 123}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 						if templ_7745c5c3_Err != nil {
@@ -516,7 +516,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 						var templ_7745c5c3_Var22 string
 						templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.URL)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 91, Col: 178}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 93, Col: 178}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 						if templ_7745c5c3_Err != nil {
@@ -570,7 +570,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var24 templ.SafeURL
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(CollectionNextURL(p.URL, p.Inbox.NextCursor)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 102, Col: 69}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 104, Col: 69}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -600,7 +600,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(f.Root.Event.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 111, Col: 30}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 113, Col: 30}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -613,7 +613,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(startLabel(f.Root.Event.Start))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 111, Col: 91}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 113, Col: 91}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {
@@ -626,7 +626,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var27 string
 					templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(venueLabel(f.Root.Event))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 111, Col: 146}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 113, Col: 146}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 					if templ_7745c5c3_Err != nil {
@@ -639,7 +639,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(f.Root.ReplyCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 112, Col: 75}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 114, Col: 75}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 					if templ_7745c5c3_Err != nil {
@@ -652,7 +652,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(ternary(f.Root.ReplyCount == 1, "reply", "replies"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 112, Col: 136}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 114, Col: 136}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {
@@ -665,7 +665,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(conversationFrequency(f.Frequency))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 112, Col: 193}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 114, Col: 193}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {
@@ -688,7 +688,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 						var templ_7745c5c3_Var31 string
 						templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(f.Root.Body)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 116, Col: 48}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 118, Col: 48}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 						if templ_7745c5c3_Err != nil {
@@ -742,7 +742,7 @@ func FollowedDiscussions(p DiscussionFollowPage) templ.Component {
 					var templ_7745c5c3_Var33 templ.SafeURL
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(CollectionNextURL(p.URL, p.Follows.NextCursor)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 124, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussion_follows.templ`, Line: 126, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {

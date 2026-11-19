@@ -190,10 +190,12 @@ templ DiscussionMetadata(f DiscussionForm) {
 templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
 	<form action="/discussion-actions" method="post" class="account-form discussion-composer" data-discussion-form data-discussion-draft={ f.draftScope() }>
 		@DiscussionMetadata(f)
-		if f.ParentID!="" {
-			<p class="field-note">Reply target: the selected contribution. Changing the target keeps a separate draft.</p>
-		}
-		<p class="field-note composer-audience">Your display name, profile link, and contribution will be public. Private interest and saves do not hide posts. Keep it relevant and respectful; don't share private information.</p>
+		<p class="field-note composer-audience">
+			if f.ParentID!="" {
+				Replying to the selected contribution; each reply target keeps its own draft.
+			}
+			Your display name, profile link and post are public, even if your interest is private. Keep it relevant and respectful, and don't share private details.
+		</p>
 		<label class="field">{ fieldLabel } <span>(up to 4000 characters)</span><textarea name="body" rows="4" maxlength="4000" required>{ f.Body }</textarea></label>
 		<div class="discussion-composer-actions">
 			if f.CSRF!="" && !f.Conflict {
@@ -231,14 +233,18 @@ templ DiscussionContent(p DiscussionPage) {
 			if p.Root!=nil {
 				<h2>Conversation</h2>
 				if p.FollowEnabled {
-					if p.FollowError!="" {
-						<p role="status" class="field-note">{ p.FollowError }</p>
-					} else if p.Follow!=nil {
-						@ConversationFollow(p.Event.ID,p.Root.ID,p.Follow.Frequency,p.View.CSRF,p.URL,p.NotificationsPaused)
-					} else {
-						@ConversationFollow(p.Event.ID,p.Root.ID,"",p.View.CSRF,p.URL,p.NotificationsPaused)
-					}
-					<a href="/me/notifications" class="text-link">Your reply notifications</a>
+					// Following and the inbox share one row; an open follow
+					// disclosure takes the full width beneath it.
+					<div class="conversation-follow-row">
+						if p.FollowError!="" {
+							<p role="status" class="field-note">{ p.FollowError }</p>
+						} else if p.Follow!=nil {
+							@ConversationFollow(p.Event.ID,p.Root.ID,p.Follow.Frequency,p.View.CSRF,p.URL,p.NotificationsPaused)
+						} else {
+							@ConversationFollow(p.Event.ID,p.Root.ID,"",p.View.CSRF,p.URL,p.NotificationsPaused)
+						}
+						<a href="/me/notifications" class="text-link">Your reply notifications</a>
+					</div>
 				}
 				@DiscussionPost(*p.Root,p.View,p.URL)
 				if p.selectedOffPage() {

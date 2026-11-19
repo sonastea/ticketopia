@@ -181,6 +181,16 @@ Files: `views/home/index.templ`, `more_events.templ`, preview panel parts.
 
 ### Phase 3: Conversations
 
+**Shipped 2026-11-19, with changes to the plan below.** The return links share
+one line; Follow and **Your reply notifications** share one row (the inbox
+link stays outside the disclosure, where it is reachable without opening it);
+and the composer's reply-target and audience notes are one. Report stays a
+visible link rather than moving behind a "More" disclosure: it is a single
+action, and hiding it would add a step to private reporting. The owner's Edit
+and Remove disclosures stay below the action row: moved into it, opening one
+moved its own summary onto a new line, and no native layout keeps a
+disclosure's trigger in place while its content spans the row.
+
 Files: `views/home/discussions.templ`.
 
 - **One return line**: "← A good night in the city · Questions & tips". It

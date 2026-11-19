@@ -137,3 +137,40 @@ func TestSaveButtonShowsStateOrTheActionInSaved(t *testing.T) {
 		}
 	}
 }
+
+// A conversation keeps the budget for the owner and a guest: an empty thread,
+// and one with nested replies while replying to a specific contribution.
+func TestConversationKeepsTheNotesBudget(t *testing.T) {
+	now := time.Now()
+	owner := accounts.PublicProfile{ID: "owner", DisplayName: "Riley"}
+	other := accounts.PublicProfile{ID: "other", DisplayName: "Sam"}
+	root := discussions.Post{ID: "root", ThreadID: "root", EventID: "ticketmaster:E", Profile: &owner, Body: "Coat check?", CreatedAt: now, UpdatedAt: now, ReplyCount: 3}
+	direct := discussions.Post{ID: "r1", ThreadID: "root", ParentID: "root", EventID: "ticketmaster:E", Profile: &other, Body: "Yes.", CreatedAt: now, UpdatedAt: now}
+	nested := []discussions.Post{direct,
+		{ID: "r2", ThreadID: "root", ParentID: "r1", ParentName: "Sam", EventID: "ticketmaster:E", Profile: &owner, Body: "Thanks.", CreatedAt: now, UpdatedAt: now},
+		{ID: "r3", ThreadID: "root", ParentID: "r1", ParentName: "Sam", EventID: "ticketmaster:E", Profile: &other, Body: "Sure.", CreatedAt: now, UpdatedAt: now}}
+	empty := root
+	empty.ReplyCount = 0
+	for _, viewer := range []string{"owner", ""} {
+		for name, page := range map[string]DiscussionPage{
+			"empty":  {Root: &empty},
+			"nested": {Root: &root, ReplyTo: &nested[1], ParentID: "r2", View: DiscussionView{List: discussions.List{Items: nested}}},
+		} {
+			page.Event = models.Event{ID: "ticketmaster:E", Name: "Show"}
+			page.FollowEnabled, page.NotificationsPaused = viewer != "", true
+			page.ReturnURL, page.URL = "/", "/events/ticketmaster:E/discussions/root"
+			page.View.Enabled, page.View.ModerationEnabled, page.View.ViewerID, page.View.CSRF = true, true, viewer, "c"
+			var out bytes.Buffer
+			if err := Discussion(page).Render(t.Context(), &out); err != nil {
+				t.Fatal(err)
+			}
+			over, err := htmlcheck.NotesOverBudget(&out, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(over) > 0 {
+				t.Errorf("viewer %q, %s thread exceeds the notes budget: %v", viewer, name, over)
+			}
+		}
+	}
+}

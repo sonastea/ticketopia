@@ -341,7 +341,7 @@ func TestContributionsKeepHiddenTextAndComposerBoundaries(t *testing.T) {
 	if strings.Count(body, "<textarea") != 1 || submissions != 1 || !strings.Contains(body, `name="parent_id" value="target"`) || !strings.Contains(body, `name="idempotency_key" value="preserved-key"`) {
 		t.Fatal("composer controls/draft metadata changed")
 	}
-	audience, publish := strings.Index(body, "contribution will be public"), strings.Index(body, "Publish reply")
+	audience, publish := strings.Index(body, "profile link and post are public"), strings.Index(body, "Publish reply")
 	if audience < 0 || publish < 0 || audience > publish {
 		t.Fatal("public audience must be explained beside the publishing action")
 	}

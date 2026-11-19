@@ -4,6 +4,33 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-19 — Phase 3: conversations
+
+- A conversation's return links (where you came from, Event Overview, the
+  section) share one line instead of stacking.
+- **Follow** and **Your reply notifications** share one row; an open follow
+  disclosure takes the full width, with the inbox link after it in reading and
+  tab order. The paused-notifications advice joins the follow disclosure's one
+  note.
+- The composer's reply-target and public-audience notes are one note. The
+  owner's Edit and Remove disclosures stay below each post's Reply, Report
+  privately and Helpful row, where opening one doesn't move its summary.
+- The notes check treats each post (`article`) as its own section. A test holds
+  the conversation page to one note per section for owners and guests, in an
+  empty thread and one with nested replies.
+- The responsive journey now waits for focus to return after closing the
+  preview, which on wide screens happens inside a view transition. Run with
+  non-fatal checks against Phase 2 (`caff5d8`), the discussions, responsive,
+  conversation ergonomics, followed discussions and drill-down journeys show no
+  failure that Phase 2 doesn't also show in at least one of three runs:
+  responsive scroll restoration on phones, the small-phone target-size finding
+  for a link under the floating navigation, Community target-size on tablets,
+  and target-size and focus-outline findings in followed discussions. One is
+  new: at the tablet capture's scroll position, fixed chrome partially covers
+  an "In reply to" link (axe target-size, 17px visible); readers can scroll it
+  clear. That link's paragraph is now a flex line so its 44px target no longer
+  overflows onto neighbors.
+
 ### 2026-11-19 — Phase 2: Discover and result rows
 
 - Result rows in Discover, Saved, Radar and Interests show a **Tickets** link and

@@ -149,7 +149,10 @@ fs.mkdirSync(out, {recursive: true});
       await page.setViewportSize({width, height: 1000});
       if (zoom) await page.evaluate(() => document.documentElement.style.fontSize = '200%');
       await activate(panel.locator('[data-close-context]'));
-      check(name + ': close restores result focus', !new URL(page.url()).searchParams.has('selected_event') && await page.locator('.event-link').first().evaluate(el => el === document.activeElement));
+      // On wide screens closing runs inside a view transition; focus returns
+      // when its update runs, so wait for it rather than sampling at once.
+      const refocused = await page.waitForFunction(() => document.activeElement === document.querySelector('.event-link'), null, {timeout: 2000}).then(() => true, () => false);
+      check(name + ': close restores result focus', !new URL(page.url()).searchParams.has('selected_event') && refocused);
       if (width < 992 || zoom) check(name + ': return restores browsing position', Math.abs(await page.evaluate(() => scrollY) - resultScroll) <= 2);
     }
 

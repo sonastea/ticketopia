@@ -15,10 +15,12 @@ templ ConversationFollow(event,thread,frequency,csrf,returnURL string,paused boo
 				Following · { conversationFrequency(frequency) }
 			}
 		</summary>
-		<p class="field-note">Following is private. Get in-app updates for new replies from other people, not edits, Helpful, or reports. Daily and weekly replies are grouped at midnight UTC and Monday midnight UTC.</p>
-		if paused {
-			<p class="field-note">All notifications are paused. <a href="/me/preferences" class="text-link">Resume in Preferences</a> to receive future replies.</p>
-		}
+		<p class="field-note">
+			Following is private. Get in-app updates for new replies from other people, not edits, Helpful, or reports. Daily and weekly replies are grouped at midnight UTC and Monday midnight UTC.
+			if paused {
+				All notifications are paused; <a href="/me/preferences" class="text-link">resume in Preferences</a> to receive future replies.
+			}
+		</p>
 		<form action="/discussion-follow-actions" method="post" class="account-form">
 			<input type="hidden" name="csrf_token" value={ csrf }/>
 			<input type="hidden" name="event_id" value={ event }/>

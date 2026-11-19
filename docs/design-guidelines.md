@@ -223,7 +223,10 @@ in small groups. Recommending must not implicitly save, mark interest, or post.
 Keep decision-critical event facts ahead of participation. Future event controls
 keep Save and Interested compact, Discuss contextual, and Recommend
 secondary. Within conversations, Reply leads, Helpful is secondary, and editing/
-removal use labeled native disclosures. Report privately opens an event-contextual
+removal use labeled native disclosures below the post's action row. Follow and
+the reply inbox share one row, and a conversation page's return links share one
+line. Report
+privately opens an event-contextual
 native form; private receipts/outcomes and authorized review live in the account area.
 
 ## Discovery-to-discussion journeys and shared state

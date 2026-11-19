@@ -11,7 +11,7 @@ import (
 )
 
 // sectionTags group a page into the units the notes budget applies to.
-var sectionTags = []string{"section", "fieldset", "form", "aside", "details", "main"}
+var sectionTags = []string{"section", "fieldset", "form", "aside", "details", "article", "main"}
 
 // NotesOverBudget reports every section holding more than max explanatory
 // notes of its own. A note is a p.field-note whose nearest section ancestor is

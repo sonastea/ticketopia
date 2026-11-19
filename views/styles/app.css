@@ -2568,11 +2568,12 @@ html:has(.filter-sheet:modal) {
   margin-block-end: 1rem;
 }
 
+/* One return line: where you came from, then the event's own places. */
 .drilldown-return {
   display: flex;
-  flex-direction: column;
-  align-items: start;
-  gap: .5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 1.5rem;
   margin-block-end: 1.5rem;
 }
 
@@ -3681,12 +3682,21 @@ html:has(.filter-sheet:modal) {
 .discussion-attribution { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; font-size: .875rem; }
 .discussion-attribution time, .discussion-attribution > span { color: var(--muted-warm); font-size: .8125rem; }
 .discussion-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
-.discussion-actions > .text-link, .discussion-removal > summary { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
+.discussion-actions > .text-link, :is(.discussion-removal, .discussion-owner-editor) > summary { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 .discussion-actions > .text-link { justify-content: center; min-inline-size: 2.75rem; }
 .discussion-actions form { min-inline-size: 0; }
 .discussion-actions button[aria-pressed="true"] { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
 .helpful-count { display: inline-block; font-variant-numeric: tabular-nums; }
 .discussion-owner-editor { margin-block: .25rem 0; }
+/* "In reply to" holds a 44px link: as a flex line it is as tall as the link,
+   so the target never overflows onto the post's other targets. */
+.discussion-post > .field-note:has(> .text-link) { display: flex; }
+/* An open follow disclosure takes the full width; the inbox link follows it,
+   in the same order it is read and tabbed. */
+.conversation-follow-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; }
+.conversation-follow-row > details { min-inline-size: 0; }
+.conversation-follow-row > details[open] { flex-basis: 100%; }
+
 /* The owner's edit and removal disclosures read as one quiet pair, marked with
    the shared text-disclosure chevron. */
 :is(.discussion-owner-editor, .discussion-removal) > summary { inline-size: fit-content; max-inline-size: 100%; gap: 0; border: 0; padding-inline: 0; color: var(--muted-warm); cursor: pointer; font-size: .8125rem; font-weight: 650; }
