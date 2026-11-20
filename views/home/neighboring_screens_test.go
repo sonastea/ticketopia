@@ -135,10 +135,18 @@ func TestCollectionPrivacyAndFreshnessRemainVisible(t *testing.T) {
 		}
 	}
 	meta := models.Freshness{DataAsOf: time.Now().UTC(), Stale: true}
-	markup := renderNeighbor(t, CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: models.Event{ID: "e", Status: "onsale"}, Meta: meta, Count: 1}}}, "/community", listContext{Place: inCommunity}))
-	warning, facts := strings.Index(markup, "Showing last-known details"), strings.Index(markup, "Price and sale status")
-	if warning < 0 || warning > facts || !strings.Contains(markup, "is-stale") {
-		t.Fatal("stale warning must precede sale facts", markup)
+	profile := accounts.PublicProfile{ID: "p", DisplayName: "Riley"}
+	markup := renderNeighbor(t, CommunityRecommendationList(recommendations.Feed{Items: []recommendations.EventGroup{{Event: models.Event{ID: "e", Status: "onsale"}, Meta: meta, Count: 1,
+		Recommendations: []recommendations.Item{{Profile: profile, Reason: "A long reason that sits between the heading and the facts."}}}}}, "/community", listContext{Place: inCommunity}))
+	// The list explains last-known details once; each stale card's marker sits
+	// directly before the price and sale facts it qualifies, after any quotes.
+	notice, quote := strings.Index(markup, "Some events show last-known details"), strings.Index(markup, "A long reason")
+	_, afterMarker, found := strings.Cut(markup, "Price and sale status last known")
+	if notice < 0 || !found || quote > len(markup)-len(afterMarker) {
+		t.Fatal("stale caveat must follow the quotes", markup)
+	}
+	if between, _, _ := strings.Cut(afterMarker, `aria-label="Price and sale status"`); strings.Contains(between, "<li") || strings.Contains(between, "<blockquote") {
+		t.Fatal("stale caveat must sit directly before the sale facts", markup)
 	}
 }
 

@@ -301,8 +301,9 @@ templ DiscussionContent(p DiscussionPage) {
 templ DiscussionCommunity(p DiscussionCommunityPage) {
 	@layouts.App("community","Community conversations") {
 		<main id="main" class="destination-page community-page">
-			<header><h1>Questions & tips from the community</h1><p class="intro">Find practical advice and join conversations around local events.</p></header>
-			@CommunityNav("conversations")
+			@layouts.PageHeader("Questions & tips from the community", "Find practical advice and join conversations around local events.") {
+				@CommunityNav("conversations")
+			}
 			if !p.Enabled {
 				<p>Discussions require accounts to be enabled on this server.</p><a href="/" class="text-link">Discover events</a>
 			} else {

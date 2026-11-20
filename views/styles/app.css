@@ -340,7 +340,8 @@
   --space-7: 3rem;
   --font-display: 'Bricolage Grotesque', Manrope, sans-serif;
   --text-display: clamp(1.75rem, 1.5rem + .625vw, 2rem);
-  --text-empty-display: clamp(1.75rem, 1.25rem + 2.5vw, 3rem);
+  /* Below the page heading: an empty state never outranks the page title. */
+  --text-empty-display: clamp(1.375rem, 1.2rem + .75vw, 1.75rem);
   --text-event-heading: clamp(1.5rem, 1.125rem + 1.63vw, 1.75rem);
   --space-reply-indent: clamp(.5rem, .125rem + 1.875vw, 1.25rem);
   --space-hero-inset: clamp(.5rem, .125rem + 1.875vw, 2rem);
@@ -3669,7 +3670,11 @@ html:has(.filter-sheet:modal) {
 .community-recommenders { list-style: none; padding: 0; margin-block: 1rem; margin-inline: 0; }
 .community-recommenders > li { margin-block: 0; }
 .community-recommenders > li + li { margin-block-start: 1rem; }
-.community-page .recommendation-copy > .field-note { font-variant-numeric: tabular-nums; }
+.community-page .recommendation-copy > .list-meta { margin-block: .5rem 0; }
+.live-entity-group { display: grid; gap: .5rem; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.live-entity-group > legend { margin-block: 1rem; font-size: 1.25rem; font-weight: 750; }
+.community-cards .event-last-known { margin-block: .25rem 0; font-size: .8125rem; font-weight: 600; }
+.freshness-notice-line { max-inline-size: 70ch; margin-block: 0 1rem; color: var(--warning); font-size: .875rem; }
 .recommendation-event { display: grid; gap: 1rem; }
 .recommendation-event .event-image-link { display: block; border-radius: var(--radius); }
 .recommendation-event .event-image-link:active { opacity: .8; }
@@ -4018,7 +4023,7 @@ html:has(.filter-sheet:modal) {
 }
 .byline { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; max-inline-size: 100%; }
 /* Name link (a 44px target) and the rest of the sentence wrap as units. */
-.byline > p { display: flex; flex-wrap: wrap; align-items: center; column-gap: .3em; margin: 0; }
+.byline > p { flex: 1 1 12rem; display: flex; flex-wrap: wrap; align-items: center; column-gap: .3em; min-inline-size: 0; margin: 0; }
 .byline > p > span { min-inline-size: 0; }
 .avatar {
   flex: none;

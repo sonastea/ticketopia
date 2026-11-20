@@ -208,6 +208,19 @@ Files: `views/home/discussions.templ`.
 
 ### Phase 4: Community, Conversations, Happening Now
 
+**Shipped 2026-11-19, with changes to the plan below.** Last-known details are
+explained once above the Community list, with a short marker on each affected
+card; attribution keeps the name and sentence beside the avatar; counts and
+"first recommended" are list metadata (`StampDate`). Each card keeps both its
+**Recommendations** (the event's section) and **See all recommendations** (the
+paginated list) links, because they lead to different places. The
+`empty-display` token now tops out below the page heading, so no empty state
+outranks a title. Happening Now's snapshot time is a `Stamp`; its live
+connection line stays as it is because `live-activity.js` rewrites it. The
+live filter disclosure groups artists and venues in one fieldset and makes the
+city note field help. Cards still list each recommender rather than "Riley and
+1 other", which would hide reasons.
+
 Files: `recommendations.templ`, `discussions.templ` (lists),
 `happening_now.templ`, `live_filters.templ`.
 

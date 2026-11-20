@@ -14,11 +14,11 @@ templ LiveFilterFields(f activity.Filters, categories []models.Category, editor 
 			</select>
 		</label>
 		<div class="account-field-grid">
-			<label class="field">City <input name="live_city" value={ f.Location.City } maxlength="120" autocomplete="address-level2" data-live-city/></label>
+			<label class="field">City <input name="live_city" value={ f.Location.City } maxlength="120" autocomplete="address-level2" aria-describedby="live-city-help" data-live-city/></label>
 			<label class="field">Two-letter country <input name="live_country" value={ f.Location.Country } maxlength="2" pattern="[A-Za-z]{2}" autocomplete="country" autocapitalize="characters" data-live-country/></label>
 		</div>
 		<button type="button" class="text-link" data-live-browsing hidden>Use browsing city</button>
-		<p class="field-note">City names match within a country. This does not change Discover.</p>
+		<p id="live-city-help" class="field-note">City names match within a country. This does not change Discover.</p>
 		<fieldset class="account-checkboxes" data-live-categories><legend>Event types</legend>
 			<p class="field-note">No selections means all event types.</p>
 			for _, category := range categories {
@@ -30,9 +30,12 @@ templ LiveFilterFields(f activity.Filters, categories []models.Category, editor 
 				}
 			}
 		</fieldset>
-		<p class="field-note">Match any selected artist and any selected venue, together with the location and event types. Choose up to 16 of each; no selections means any artist or venue.</p>
-		@LiveEntityPicker("artist", "Artists", f.ArtistIDs, editor)
-		@LiveEntityPicker("venue", "Venues", f.VenueIDs, editor)
+		<fieldset class="live-entity-group">
+			<legend>Artists and venues</legend>
+			<p id="live-entity-help" class="field-note">Match any selected artist and any selected venue, together with the location and event types. Choose up to 16 of each; no selections means any artist or venue.</p>
+			@LiveEntityPicker("artist", "Artists", f.ArtistIDs, editor)
+			@LiveEntityPicker("venue", "Venues", f.VenueIDs, editor)
+		</fieldset>
 		if editor.SignedIn {
 			<fieldset class="account-checkboxes" data-live-connections>
 				<legend>Match any of these connections</legend>
@@ -54,7 +57,7 @@ templ LiveFilterFields(f activity.Filters, categories []models.Category, editor 
 }
 
 templ LiveEntityPicker(kind, title string, ids []string, editor LiveFilterEditor) {
-	<fieldset class="live-entity-picker" data-live-picker={ kind }>
+	<fieldset class="live-entity-picker" data-live-picker={ kind } aria-describedby="live-entity-help">
 		<legend>{ title }</legend>
 		<div class="account-checkboxes" data-live-selected>
 			for _, id := range ids {

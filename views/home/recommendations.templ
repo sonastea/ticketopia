@@ -155,8 +155,9 @@ templ CommunityNav(current string) {
 templ Community(p CommunityPage) {
 	@layouts.App("community","Community recommendations") {
 		<main id="main" class="destination-page community-page">
-			<header><h1>Recommended by the community</h1><p class="intro">Each event appears once, with the people and reasons behind its public recommendations.</p></header>
-			@CommunityNav("recommendations")
+			@layouts.PageHeader("Recommended by the community", "Each event appears once, with the people and reasons behind its public recommendations.") {
+				@CommunityNav("recommendations")
+			}
 			if !p.Enabled {
 				<p>Community recommendations require accounts to be enabled on this server. You can still discover events.</p>
 				<a href="/" class="text-link">Discover events</a>
@@ -170,15 +171,17 @@ templ Community(p CommunityPage) {
 						<h2>Recommendations couldn't load</h2><p>{ p.Error }</p><a href="/community" class="text-link">Reset filters and retry</a>
 					}
 				} else {
-					<div class="results-heading"><h2>Recommended events</h2><span class="sort-label">First recommended, newest first</span></div>
-					@CommunityRecommendationList(p.List,p.ReturnURL,communityContext(p.ReturnURL,p.Filters.City,p.Filters.Country,p.Filters.CategoryID))
-					if p.List.NextCursor != nil {
-						@button.Button(button.Props{Href:CollectionNextURL(p.ReturnURL,p.List.NextCursor),Variant:button.VariantOutline,Class:"action action-secondary"}) {
-							More recommendations
+					<section class="community-results" aria-labelledby="community-results-heading">
+						<div class="results-heading"><h2 id="community-results-heading">Recommended events</h2><span class="sort-label">First recommended, newest first</span></div>
+						@CommunityRecommendationList(p.List,p.ReturnURL,communityContext(p.ReturnURL,p.Filters.City,p.Filters.Country,p.Filters.CategoryID))
+						if p.List.NextCursor != nil {
+							@button.Button(button.Props{Href:CollectionNextURL(p.ReturnURL,p.List.NextCursor),Variant:button.VariantOutline,Class:"action action-secondary"}) {
+								More recommendations
+							}
 						}
-					}
+						<p class="participation-note">Recommendations don't confirm attendance, ticket ownership, or current ticket availability.</p>
+					</section>
 				}
-				<p class="participation-note">Recommendations don't confirm attendance, ticket ownership, or current ticket availability.</p>
 			}
 		</main>
 	}
@@ -242,13 +245,17 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 			@CommunityEmpty("No recommendations yet.","When someone recommends an event, it appears here with their reasons. Found something worth going to? Open it and choose Recommend.","/","Find an event to recommend")
 		}
 	} else {
+		// Last-known details are explained once for the list; each affected
+		// card keeps a short marker.
+		if anyStale(feed) {
+			<p class="freshness-notice-line">Some events show last-known details, not live availability. Check the ticket page before you buy.</p>
+		}
 		<ul class="recommendation-list community-cards">
 			for _,group:=range feed.Items {
 				<li class="recommendation-event">
 					@CollectionEventArt(group.Event,returnURL)
 					<div class="recommendation-copy">
 						@CollectionEventHeading(group.Event,returnURL)
-						@CollectionEventFreshness(group.Meta)
 						<ul class="community-recommenders">
 							for _,item:=range group.Recommendations {
 								<li>
@@ -267,8 +274,14 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 								</li>
 							}
 						</ul>
+						// The caveat sits directly before the facts it qualifies.
+						if group.Meta.Stale {
+							<p class="event-last-known">Price and sale status last known { freshnessLabel(group.Meta.DataAsOf) }</p>
+						}
 						@EventFacts(group.Event)
-						<p class="field-note"><span data-live-total={ group.Event.ID }><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) }</span> · <time datetime={ group.FirstRecommendedAt.Format("2006-01-02T15:04:05Z07:00") }>First recommended { group.FirstRecommendedAt.UTC().Format("Jan 2, 2006") }</time></p>
+						<p class="list-meta"><span data-live-total={ group.Event.ID }><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) }</span>{ " · first recommended " }@layouts.StampDate(group.FirstRecommendedAt)</p>
+						// Two places: the event's own Recommendations section, and the
+						// full paginated list for this event.
 						<div class="account-actions">
 							<a href={ templ.URL(eventURL(group.Event.ID,"community",returnURL)) } class="text-link">Recommendations</a>
 							<a href={ templ.URL(recommendationListURL(group.Event.ID,returnURL)) } class="text-link">See all recommendations for this event</a>

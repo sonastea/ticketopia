@@ -4,6 +4,33 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-19 — Phase 4: Community and Happening Now
+
+- Community and its Conversations tab start with `layouts.PageHeader`; Happening
+  Now uses the same header markup, keeping its focusable live heading.
+- Last-known details are explained once above the Community list; each affected
+  card shows "Price and sale status last known …" directly before those facts
+  instead of a warning box. Counts and "first recommended" are list metadata.
+- A recommender's name and "recommends this event" stay beside their avatar.
+- The `empty-display` token is capped below the page heading, so "All quiet
+  right now." and Community's empty states no longer outrank the page title.
+- Happening Now's scope summary is list metadata and its snapshot time a
+  `Stamp`. The live filter disclosure (also on Preferences) groups artists and
+  venues in one fieldset whose instructions both pickers reference, and makes
+  the city note field help.
+- A test fails when a `Stamp` call is given children, which templ silently
+  drops (it caught Happening Now's snapshot sentence during development; a
+  render test now checks that sentence). A test holds
+  Community, Conversations and Happening Now (live and paused) to the notes
+  budget.
+- In one non-fatal run each against Phase 3 (`aa59229`), the live activity,
+  recommendations and discussions journeys showed no new failures; two Phase 3
+  findings (recommendations' Community focus restoration and a tablet
+  target-size finding measured at one capture position) did not recur. The
+  live filter, entity and connection journeys ran as written (their checks
+  stop at the first failure) and failed at the same disclosure-timing checks
+  on both; later checks in those journeys did not run.
+
 ### 2026-11-19 — Phase 3: conversations
 
 - A conversation's return links (where you came from, Event Overview, the
@@ -52,53 +79,4 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   Saved (four consecutive runs), interest, radar, follows and moderation
   journeys pass.
 
-### 2026-11-19 — Phase 1: event page
-
-- Interested, Recommend and On-sale reminder now sit directly under Tickets and
-  Save, on the event page and in the Discover preview, instead of after the
-  section content. One privacy line replaces the separate Save and
-  participation notes.
-- A public sale shows in the identity facts only while it is still ahead.
-  Without artwork, the tinted identity card leads on its own.
-- Recommendation and Questions & tips notes fit the one-note budget; question
-  counts are list metadata. A test holds every event section and the preview to
-  the budget.
-- The profile card wraps its monogram above the name at 320px with 200% text,
-  where its public-profile link overflowed.
-- Saved, interest (now following category preferences into Preferences) and
-  discussion journeys pass. Run with non-fatal checks, the recommendation,
-  sign-in continuity and event-context journeys fail the same checks on this
-  phase and on the previous commit (`b701661`): recommendations' Community and
-  Profile title focus and scroll restoration; sign-in's Chromium desktop
-  "names event and explicit action" and nine WebKit save checks; and
-  event-context's Recommend composer focus and a "result and focus
-  restoration" check whose failing viewports vary between runs. The
-  action-feedback journey times out on both, and the shared CSS harness's 44px
-  check on the preview fails intermittently on both.
-- The Event source & history disclosure keeps a public sale that already
-  started; an image that failed to load stays collapsed across section
-  switches; empty states read as content rather than notes; counts are list
-  metadata; and the notes test also covers guest and empty sections.
-
-### 2026-11-19 — Phase 0: shared foundations
-
-- Add `layouts.PageHeader` (heading, one intro line, local navigation);
-  `AccountHeader` now builds on it.
-- Add `layouts.SectionNotice` and `layouts.ConfirmDisclosure`; account pages use
-  both, and **Sign out of all devices** is the first confirm disclosure.
-- Name the shared surfaces: `.summary-card` (borderless plum tint) and `.panel`
-  (white, bordered), replacing account-only styling.
-- Add `layouts.Stamp`/`StampDate` for posted and updated times. Without
-  JavaScript they read as exact UTC. With it, `app.js` shows viewer-local
-  relative time within the last day (refreshed each minute) and the exact local
-  date and time otherwise, with the exact time in the title and for screen
-  readers. `StampDate` always shows a date. Every insertion path is covered by
-  one observer. Event start times stay venue-local. Discussion posts,
-  recommendation dates, drafts, reply notifications and moderation records use
-  them.
-- Add `internal/htmlcheck.NotesOverBudget`. The account settings pages are held
-  to one explanatory note per section, including after a failed save. Field help
-  named by a control in the same section, notes inside list items and empty live
-  regions don't count.
-- A test fails if a generated view prints a component call as text, which templ
-  does when a call follows bare text on the same line.
+Older entries: [app rework archive](archive/app-rework/).

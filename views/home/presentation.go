@@ -1044,3 +1044,14 @@ func viaText(via, host string) string {
 	}
 	return "via " + via + " (" + host + ")"
 }
+
+// anyStale reports whether any community event shows last-known details, so
+// the list explains them once.
+func anyStale(feed recommendations.Feed) bool {
+	for _, group := range feed.Items {
+		if group.Meta.Stale {
+			return true
+		}
+	}
+	return false
+}

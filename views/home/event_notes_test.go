@@ -174,3 +174,38 @@ func TestConversationKeepsTheNotesBudget(t *testing.T) {
 		}
 	}
 }
+
+// Community explains last-known details once, not on every card, and its
+// Conversations tab and Happening Now keep the budget too.
+func TestCommunityScreensKeepTheNotesBudget(t *testing.T) {
+	now := time.Now()
+	stale := models.Freshness{DataAsOf: now, Stale: true}
+	profile := accounts.PublicProfile{ID: "p", DisplayName: "Riley"}
+	groups := []recommendations.EventGroup{}
+	for _, id := range []string{"a", "b", "c"} {
+		groups = append(groups, recommendations.EventGroup{Event: models.Event{ID: "ticketmaster:" + id, Name: id, Status: "onsale"}, Meta: stale, Count: 1, FirstRecommendedAt: now,
+			Recommendations: []recommendations.Item{{Profile: profile, Reason: "Go.", RecommendedAt: now}}})
+	}
+	post := discussions.Post{ID: "q", ThreadID: "q", EventID: "ticketmaster:a", Profile: &profile, Body: "Coat check?", CreatedAt: now, UpdatedAt: now, Event: models.Event{ID: "ticketmaster:a", Name: "a"}}
+	for name, component := range map[string]templ.Component{
+		"recommendations":  Community(CommunityPage{Enabled: true, List: recommendations.Feed{Items: groups}, ReturnURL: "/community", CategoriesUnavailable: true}),
+		"conversations":    DiscussionCommunity(DiscussionCommunityPage{Enabled: true, List: discussions.List{Items: []discussions.Post{post}}, URL: "/community/discussions"}),
+		"happening now":    HappeningNow(HappeningNowPage{Enabled: true, ReturnURL: "/happening-now"}),
+		"happening paused": HappeningNow(HappeningNowPage{Enabled: true, Paused: true, ReturnURL: "/happening-now"}),
+	} {
+		var out bytes.Buffer
+		if err := component.Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if name == "recommendations" && strings.Count(out.String(), "Some events show last-known details") != 1 {
+			t.Errorf("community must explain last-known details once")
+		}
+		over, err := htmlcheck.NotesOverBudget(&out, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(over) > 0 {
+			t.Errorf("%s exceeds the notes budget: %v", name, over)
+		}
+	}
+}

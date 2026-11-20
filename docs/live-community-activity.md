@@ -226,7 +226,7 @@ stored snapshots (`discovery.Service.StoredEvents`, at most 50 IDs). The live
 DTO is unchanged, so cards added live use fallback art until the next render,
 and no recommendation reason is shown, because next to "Someone" it could
 identify the author. Scope summary, filters and Refresh share one compact bar.
-Empty views lead with a large display line. An unfiltered empty view explains the window
+Empty views lead with a display line sized below the page heading. An unfiltered empty view explains the window
 and links to earlier Community recommendations. New rows wait behind **Show N new updates**;
 withdrawals, name clearing and expiry apply immediately. No duplicate toasts appear
 there. A filtered empty view offers Reset filters explicitly.
