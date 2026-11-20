@@ -3762,6 +3762,8 @@ html:has(.filter-sheet:modal) {
 .moderation-page .field-note { max-inline-size: 75ch; }
 .moderation-page select { min-block-size: 2.75rem; }
 .moderation-form { margin-block-start: 1.5rem; }
+.moderation-alert { display: grid; gap: .5rem; }
+.moderation-alert > p { margin: 0; }
 .moderation-utility { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 .moderation-empty { margin-block-start: 1.5rem; }
 @container workspace (min-width: 40rem) {

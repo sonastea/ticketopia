@@ -1,8 +1,8 @@
 # App-wide rework: one job per screen
 
-**Status: approved, in progress (2026-11-19).** Phases are implemented and
-committed in order; each phase's section notes when it ships. Until then a
-section describes intended work, not the app.
+**Status: approved; phases 0–7 shipped (2026-11-19).** Each phase's section
+notes what shipped and where it departed from the plan. Remaining items are
+listed under "Not yet done".
 
 ## Why
 
@@ -77,7 +77,7 @@ compact profile row. They show different subsets of facts in different orders.
 
 ## The plan
 
-Seven phases. Each phase is one reviewable change: a critique, then build, then
+Seven phases after the shared foundations (Phase 0). Each phase is one reviewable change: a critique, then build, then
 reviewer, then browser verification, as with the account pages. Order is by user
 value: decide, then discover, then talk, then browse community, then personal
 collections.
@@ -86,9 +86,9 @@ collections.
 
 **Shipped 2026-11-19.** `PageHeader`, `SectionNotice`, `ConfirmDisclosure`,
 `Stamp`/`StampDate`, `.summary-card`/`.panel` and the notes-budget check exist;
-posted/updated times across the app use `Stamp`. `EventCard` and `EventRow` are
-built in Phases 1 and 2, where their first screens adopt them, rather than ahead
-of any caller.
+posted/updated times across the app use `Stamp`. `EventCard` and `EventRow`
+were not built: Phase 2 found every collection already shares one row
+component, `EventRowsContent`, and reworked that instead.
 
 No visible redesign on its own. It gives later phases the same parts.
 
@@ -283,9 +283,40 @@ the `EventRow` bullets of the earlier phases.
 
 ### Phase 7: Moderation
 
+**Shipped 2026-11-19, reduced.** The queue and outcome pages already used the
+shared header from Phase 0. On a case, the status, author and reply target are
+one metadata line; reporter and moderator account IDs are metadata; and a
+failed decision's alert carries its own recovery advice. The case page keeps its
+own heading and "Back to review queue" link rather than `PageHeader`. Case
+actions don't use `ConfirmDisclosure`: a later decision can restore a hidden
+contribution, though it can't reopen the reports and review requests a decision
+closed. The form already requires a reason and states those effects beside the
+button, so a second step would only slow moderators.
+
 The review queue and case pages move to `PageHeader` and the row grammar, and
 case actions use `ConfirmDisclosure`. This is a lower priority, because it is
 used by few people and already works.
+
+## Not yet done
+
+Open work:
+
+- A shared error layout for the 404, account failure and offline pages.
+- The consent page's "Can / Can't" summary.
+- `PageHeader` on the moderation case page.
+- Discover's height target: six results are 2,309px on desktop against the
+  1,700px aim, and 2,908px on a phone against 2,300px; the remaining height is
+  artwork-led card height.
+- Existing browser-harness failures recorded in
+  [the change history](../changes/app-rework.md), such as sign-in continuity in
+  WebKit and the action-feedback journey's timeout.
+
+Deliberate departures, not backlog (each phase's note gives the reason):
+separate `EventCard`/`EventRow` components (Phase 0/2); one button group for
+all event actions (Phase 1); Report behind a "More" disclosure and the owner's
+Edit/Remove in the action row (Phase 3); "Riley and 1 other" attribution and a
+single Community card link (Phase 4); Radar's reasons as one caller line
+(Phase 5); and a confirmation step for moderation decisions (Phase 7).
 
 ## What does not change
 

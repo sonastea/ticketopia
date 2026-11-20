@@ -12,6 +12,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/htmlcheck"
 	eventinterests "github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/moderation"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/views/layouts"
 )
@@ -228,6 +229,41 @@ func TestRadarFreshnessNamesEveryCoverageState(t *testing.T) {
 		body := out.String()
 		if !strings.Contains(body, want) || !strings.Contains(body, "Venue-local event times") || strings.Contains(body, "<details") {
 			t.Errorf("%s: want visible %q and the time zone, got %s", status, want, body)
+		}
+	}
+}
+
+// A moderation case keeps one note per section: a reply with a report and a
+// past decision, after a failed decision, and once its author removed it.
+func TestModerationCaseKeepsTheNotesBudget(t *testing.T) {
+	post := discussions.Post{ID: "r", ThreadID: "q", ParentID: "p", EventID: "ticketmaster:E", Event: models.Event{ID: "ticketmaster:E", Name: "Show"}}
+	c := moderation.Case{Post: post, AuthorID: "author", CurrentBody: "Text",
+		Reports:   []moderation.ReviewReport{{ReporterID: "reporter", ReportedBody: "Text"}},
+		Decisions: []moderation.Decision{{ModeratorID: "mod", Outcome: moderation.Outcome{Action: "keep", Reason: "Fine", CreatedAt: time.Now()}}}}
+	removed := c
+	removed.Post.Removed, removed.CurrentBody = true, ""
+	for name, page := range map[string]ModerationCasePage{
+		"failed decision": {Case: c, CSRF: "c", ViewerID: "mod", Error: "action: choose keep, hide, or restore", URL: "/moderation/posts/r"},
+		"author removed":  {Case: removed, CSRF: "c", ViewerID: "mod", URL: "/moderation/posts/r"},
+	} {
+		var out bytes.Buffer
+		if err := ModerationCase(page).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		markup := out.String()
+		if page.Error != "" {
+			_, alert, _ := strings.Cut(markup, `role="alert"`)
+			alert, _, _ = strings.Cut(alert, "</div>")
+			if !strings.Contains(alert, page.Error) || !strings.Contains(alert, "Review it before recording a decision again.") {
+				t.Errorf("the failure and its recovery advice must share one alert: %s", alert)
+			}
+		}
+		over, err := htmlcheck.NotesOverBudget(strings.NewReader(markup), 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(over) > 0 {
+			t.Errorf("%s exceeds the notes budget: %v", name, over)
 		}
 	}
 }

@@ -179,10 +179,13 @@ templ ModerationCase(p ModerationCasePage) {
 		<main id="main" class="destination-page moderation-page"><a href="/moderation" class="text-link">Back to review queue</a><h1>Review contribution</h1>
 			<header class="discussion-event-heading"><h2>{ p.Case.Post.Event.Name }</h2><p class="event-date">{ startLabel(p.Case.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Case.Post.Event) }</p><a href={ templ.URL(ThreadURL(p.Case.Post.EventID,p.Case.Post.ThreadID,"/")) } class="text-link moderation-utility">Read the full conversation</a></header>
 			<section class="moderation-record" aria-labelledby="current-contribution"><h2 id="current-contribution">Current contribution</h2>
-				<p class="field-note">{ ternary(p.Case.Post.Removed,"Removed by the author",ternary(p.Case.Post.Hidden,"Hidden by a moderator","Publicly visible")) } · Author account: { p.Case.AuthorID }</p>
-				if p.Case.Post.ParentID!="" {
-					<p class="field-note">Reply target: { p.Case.Post.ParentID }</p>
-				}
+				// Status, author and reply target are one metadata line.
+				<p class="list-meta">
+					{ ternary(p.Case.Post.Removed,"Removed by the author",ternary(p.Case.Post.Hidden,"Hidden by a moderator","Publicly visible")) } · Author account: { p.Case.AuthorID }
+					if p.Case.Post.ParentID!="" {
+						· Reply target: { p.Case.Post.ParentID }
+					}
+				</p>
 				if p.Case.CurrentBody!="" {
 					<blockquote class="discussion-body">{ p.Case.CurrentBody }</blockquote>
 				} else {
@@ -191,7 +194,7 @@ templ ModerationCase(p ModerationCasePage) {
 			</section>
 			<section class="moderation-record" aria-labelledby="reported-concerns"><h2 id="reported-concerns">Private reports</h2>
 				for _,r:=range p.Case.Reports {
-					<details class="account-token-details"><summary>{ reportReason(r.Reason) } · { ternary(r.Reviewed,"Reviewed","Awaiting review") }</summary><p class="field-note">Reporter account: { r.ReporterID }</p><p class="discussion-body">{ r.Context }</p><p class="field-note">Contribution text at reporting time:</p><blockquote class="discussion-body">{ r.ReportedBody }</blockquote></details>
+					<details class="account-token-details"><summary>{ reportReason(r.Reason) } · { ternary(r.Reviewed,"Reviewed","Awaiting review") }</summary><p class="list-meta">Reporter account: { r.ReporterID }</p><p class="discussion-body">{ r.Context }</p><p class="field-note">Contribution text at reporting time:</p><blockquote class="discussion-body">{ r.ReportedBody }</blockquote></details>
 				}
 				if len(p.Case.Reports)==0 {
 					<p class="field-note">No reports for this contribution.</p>
@@ -211,7 +214,11 @@ templ ModerationCase(p ModerationCasePage) {
 				</section>
 			}
 			if p.Error!="" {
-				<p class="account-notice" role="alert">{ p.Error }</p><p class="field-note">The current context is shown below and above. Review it again before submitting.</p>
+				// One alert: what went wrong, then what to do, as separate sentences.
+				<div class="account-notice moderation-alert" role="alert">
+					<p>{ p.Error }</p>
+					<p>The case shown here is current. Review it before recording a decision again.</p>
+				</div>
 			}
 			if p.Case.AuthorID==p.ViewerID {
 				<p class="field-note">Another moderator must review your own contribution.</p>
@@ -247,7 +254,7 @@ templ ModerationCase(p ModerationCasePage) {
 					<p class="field-note">No decisions yet.</p>
 				}
 				for _,d:=range p.Case.Decisions {
-					@OutcomeSummary(d.Outcome)<p class="field-note">Moderator account: { d.ModeratorID }</p>
+					@OutcomeSummary(d.Outcome)<p class="list-meta">Moderator account: { d.ModeratorID }</p>
 					if d.Notes!="" {
 						<p class="discussion-body">Private notes: { d.Notes }</p>
 					}
