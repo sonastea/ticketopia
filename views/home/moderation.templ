@@ -176,7 +176,9 @@ templ ModerationQueue(p ModerationQueuePage) {
 
 templ ModerationCase(p ModerationCasePage) {
 	@layouts.App("profile","Review contribution") {
-		<main id="main" class="destination-page moderation-page"><a href="/moderation" class="text-link">Back to review queue</a><h1>Review contribution</h1>
+		<main id="main" class="destination-page moderation-page">
+			<a href="/moderation" class="text-link">Back to review queue</a>
+			@layouts.PageHeader("Review contribution", "")
 			<header class="discussion-event-heading"><h2>{ p.Case.Post.Event.Name }</h2><p class="event-date">{ startLabel(p.Case.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Case.Post.Event) }</p><a href={ templ.URL(ThreadURL(p.Case.Post.EventID,p.Case.Post.ThreadID,"/")) } class="text-link moderation-utility">Read the full conversation</a></header>
 			<section class="moderation-record" aria-labelledby="current-contribution"><h2 id="current-contribution">Current contribution</h2>
 				// Status, author and reply target are one metadata line.
