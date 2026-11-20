@@ -6,6 +6,12 @@ import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 
 templ DiscussionPanel(event string,v DiscussionView,returnURL string) {
+	<div class="community-panel">
+		@discussionPanelContent(event,v,returnURL)
+	</div>
+}
+
+templ discussionPanelContent(event string,v DiscussionView,returnURL string) {
 	if !v.Enabled {
 		<p class="field-note">Discussions require accounts to be enabled on this server.</p>
 	} else {

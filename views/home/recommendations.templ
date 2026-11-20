@@ -101,14 +101,20 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 			<p data-live-empty={ c.EventID }>No one has recommended this event yet. If it's worth going to, be the first to say why.</p>
 		}
 	} else if !c.showsEvent() {
-		// On the event itself, each recommendation is a note: who, when, and
-		// their words at reading size. The viewer's own is marked and tinted.
-		<ul class="recommendation-list note-list">
+		// On the event itself, each recommendation is a quote card: the
+		// person's words first, then who said it and when. The viewer's own
+		// card is marked and framed.
+		<ul class="recommendation-list rec-cards">
 			for _,item := range list.Items {
-				<li class={ "note", templ.KV("note-own", c.ViewerID != "" && item.Profile.ID == c.ViewerID) }>
-					@Avatar(initials(item.Profile.DisplayName))
-					<div class="note-main">
-						<p class="note-head recommendation-attribution">
+				<li class={ "rec-card", templ.KV("rec-card-own", c.ViewerID != "" && item.Profile.ID == c.ViewerID) }>
+					if item.Reason!="" {
+						<blockquote class="rec-quote recommendation-reason">{ item.Reason }</blockquote>
+					} else {
+						<p class="rec-quote rec-quote-empty">Recommends this event</p>
+					}
+					<div class="rec-byline">
+						@Avatar(initials(item.Profile.DisplayName))
+						<p class="rec-who recommendation-attribution">
 							<a href={ templ.URL("/users/"+item.Profile.ID) } class="note-author"><span>{ item.Profile.DisplayName }</span></a>
 							if c.ViewerID != "" && item.Profile.ID == c.ViewerID {
 								<span class="note-tag">You</span>
@@ -120,11 +126,6 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 								}
 							</span>
 						</p>
-						if item.Reason!="" {
-							<p class="note-body recommendation-reason">{ item.Reason }</p>
-						} else {
-							<p class="note-body note-quiet">Recommends this event</p>
-						}
 					</div>
 				</li>
 			}

@@ -330,6 +330,18 @@
   /* Brand hue at the artwork tints' fixed lightness (internal/discovery/tint.go):
      the raw brand mixed 18% into white leaves muted text below AA. */
   --brand-tint: oklch(0.66 0.080387 337.297);
+  /* Community depth (the event's Recommendations and Questions & tips only).
+     Soft, plum-tinted layered elevation with a real offset, a hairline ring in
+     place of a border, the brand gradient and its corner light. */
+  --ring-hairline: 0 0 0 1px color-mix(in oklch, var(--ink) 8%, transparent);
+  --elevation-1: var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .06), 0 4px 10px -2px oklch(0.3 0.05 337 / .06), 0 12px 28px -12px oklch(0.3 0.06 337 / .12);
+  --elevation-2: var(--ring-hairline), 0 2px 4px oklch(0.3 0.05 337 / .06), 0 10px 20px -6px oklch(0.3 0.06 337 / .12), 0 24px 48px -16px oklch(0.32 0.08 337 / .24);
+  --gradient-brand: linear-gradient(135deg in oklch, var(--brand-dark), var(--brand) 50%, color-mix(in oklch, var(--brand), var(--brand-tint) 40%));
+  --gradient-glow: radial-gradient(110% 120% at 0% 0%, color-mix(in oklch, var(--brand-soft) 75%, transparent), transparent 60%);
+  /* The coloured lift under gradient-brand controls, and its hover strength. */
+  --lift-brand: 0 8px 18px -8px oklch(0.35 0.09 337 / .6);
+  --lift-brand-hover: 0 12px 24px -8px oklch(0.35 0.09 337 / .7);
+  --text-section-display: clamp(1.375rem, 1.2rem + .75vw, 1.75rem);
   /* Google's specified colors remain a scoped provider-brand exception. */
   --google-brand: oklch(0.494884 0.199163 260.601);
   --google-hover: color-mix(in oklch, var(--google-brand), black 18%);
@@ -3758,18 +3770,29 @@ html:has(.filter-sheet:modal) {
   .discussion-post:is(:target, [data-arrived]) { outline: 2px solid Highlight; outline-offset: .5rem; }
 }
 
-/* Event community: composer cards and notes.
-   Recommendations, questions and replies on an event share one reading shape:
-   an initials avatar beside a name/time line, the person's words at body size
-   in ink (not the section's muted note colour), and one row of compact
-   actions. Composers are bordered cards whose summary reads as an invitation;
-   the card is its own container so the publish action fills a phone's width. */
+/* Event community: composer cards, quote cards and notes.
+   The event's community sections are the one place the interface has depth:
+   raised white surfaces (--elevation-*), the brand gradient and its corner
+   light. Recommendations are quote cards; questions and replies are notes on
+   one raised panel, with an initials avatar beside a name/time line, the words
+   at body size in ink, and one row of compact actions. Composers are cards whose
+   summary invites the action; each card is its own container so the publish
+   action fills a phone's width. Transparent borders keep every surface framed
+   in forced colours, where shadows and gradients are dropped. */
 .composer-card {
   container-type: inline-size;
-  margin-block: .25rem 1.5rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
+  margin-block: .5rem 1.75rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  background: var(--gradient-glow), var(--surface);
+  box-shadow: var(--elevation-1);
+  transition-property: box-shadow;
+  transition-duration: 240ms;
+  transition-timing-function: var(--ease-out);
+}
+.composer-card[open] { box-shadow: var(--elevation-2); }
+@media (hover: hover) and (pointer: fine) {
+  .composer-card:not([open]):has(> summary:hover) { box-shadow: var(--elevation-2); }
 }
 :is(.composer-card > summary, .composer-invite) {
   align-items: center;
@@ -3782,41 +3805,66 @@ html:has(.filter-sheet:modal) {
 .composer-card > summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  min-block-size: 4rem;
-  border-radius: calc(var(--radius) - 1px);
+  min-block-size: 4.5rem;
+  padding-block: 1rem;
+  padding-inline: 1.125rem;
+  border-radius: inherit;
   list-style: none;
   transition-property: background-color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
-@media (hover: hover) and (pointer: fine) {
-  .composer-card > summary:hover { background: color-mix(in oklch, var(--brand-soft) 40%, var(--surface)); }
-}
-.composer-card > summary:active { background: var(--brand-soft); }
+.composer-card > summary:active { background: color-mix(in oklch, var(--brand-soft) 50%, transparent); }
 .composer-card[open] > summary {
-  border-block-end: 1px solid var(--line);
+  border-block-end: 1px solid color-mix(in oklch, var(--ink) 8%, transparent);
   border-end-start-radius: 0;
   border-end-end-radius: 0;
 }
+/* The brand mark: a gradient tile with a top highlight, lifted off the card. */
 .composer-badge {
   flex: none;
   display: inline-grid;
   place-items: center;
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  border-radius: 50%;
-  background: var(--brand-soft);
-  color: var(--brand);
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 1px solid transparent;
+  border-radius: .875rem;
+  background: var(--gradient-brand);
+  color: var(--surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 30%, transparent), var(--lift-brand);
 }
 .composer-badge .icon { inline-size: 1.25rem; block-size: 1.25rem; }
 .composer-prompt { flex: 1 1 12rem; display: grid; gap: .125rem; min-inline-size: 0; margin: 0; }
-.composer-prompt > strong { color: var(--ink); font-size: .9375rem; font-weight: 750; line-height: 1.35; }
+.composer-prompt > strong { color: var(--ink); font-size: 1rem; font-weight: 750; line-height: 1.35; letter-spacing: -.01em; }
 .composer-prompt > span { color: var(--muted-warm); font-size: .8125rem; font-weight: 500; line-height: 1.45; }
 .composer-chevron { flex: none; inline-size: 1.25rem; block-size: 1.25rem; color: var(--brand); }
 .composer-card[open] .composer-chevron { rotate: 180deg; }
-details.composer-card > .composer-form { padding: 1rem; }
+details.composer-card > .composer-form { padding: 1.125rem; }
 .composer-form { gap: .875rem; }
-.composer-form textarea { min-block-size: 6.5rem; }
+.composer-form textarea {
+  min-block-size: 6.5rem;
+  border-radius: .625rem;
+  background: var(--paper);
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+/* The field lights up while writing; the shared focus outline still draws. */
+.composer-form textarea:focus { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand-soft) 70%, transparent); }
+/* Publishing is the brand's gradient with a top highlight and a coloured
+   lift; pressing settles it onto the card. */
+.composer-actions > .composer-submit {
+  border: 1px solid transparent;
+  background: var(--gradient-brand);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand);
+  transition-property: box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .composer-actions > .composer-submit:hover:not(:disabled) { background: var(--gradient-brand); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
+}
+.composer-actions > .composer-submit:active:not(:disabled) { background: var(--brand-active); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
 .composer-form .composer-audience { margin: 0; }
 .composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
 /* Enlarged text wraps a long action label instead of widening the card. */
@@ -3834,17 +3882,50 @@ details.composer-card > .composer-form { padding: 1rem; }
   .composer-actions > .composer-submit,
   .composer-invite > [data-slot="button"] { flex: 1 1 100%; inline-size: auto; }
 }
-.discussion-reply-composer.composer-card { padding: 1rem; }
-.discussion-reply-composer > h2 { margin-block: 0 .75rem; font-size: 1.0625rem; }
+.discussion-reply-composer.composer-card { padding: 1.25rem; }
+.discussion-reply-composer > h2 { margin-block: 0 .75rem; font-family: var(--font-display); font-size: 1.25rem; letter-spacing: -.02em; }
 .reply-target { margin-block: 0 1rem; margin-inline: 0; padding: .75rem; border-radius: .5rem; background: var(--paper); }
 .reply-target > figcaption { color: var(--muted-warm); font-size: .8125rem; font-weight: 700; }
 .reply-target > .discussion-body { margin-block: .25rem 0; font-size: .9375rem; }
 
-.note-list-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; margin-block: 1.75rem .25rem; }
-.note-list-head > h3 { margin: 0; }
-.note-list-head > .list-meta { margin: 0; }
-.note-list { list-style: none; margin-block: 0 1.5rem; margin-inline: 0; padding: 0; }
-.note-list > .note { border-block-start: 1px solid var(--line); }
+/* Community section and conversation titles use the display face at full strength. */
+.event-section:has(> .community-panel) > h2,
+.context-activity > .event-section > h2,
+:is([data-conversation-content], .context-thread) > h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-section-display);
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -.03em;
+}
+.note-list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin-block: 2rem .875rem; }
+.note-list-head > h3 { margin: 0; font-size: 1rem; letter-spacing: -.01em; }
+/* The count is a pale-plum pill. */
+.event-section .note-list-head > .list-meta {
+  margin: 0;
+  padding-block: .1875rem;
+  padding-inline: .625rem;
+  border: 1px solid transparent;
+  border-radius: 1rem;
+  background: color-mix(in oklch, var(--brand-soft) 70%, var(--surface));
+  color: var(--brand);
+  font-size: .8125rem;
+  font-weight: 650;
+}
+.note-list-head > .list-meta[hidden] { display: none; }
+/* Questions on the event share one raised panel, divided by hairlines. */
+.note-list {
+  list-style: none;
+  margin-block: 0 1.75rem;
+  margin-inline: 0;
+  padding-block: 0;
+  padding-inline: 1.125rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+.note-list > .note + .note { border-block-start: 1px solid color-mix(in oklch, var(--ink) 8%, transparent); }
 /* Enlarged text on a narrow phone drops the words below the avatar rather than
    squeezing them into a sliver beside it. */
 .note {
@@ -3856,6 +3937,36 @@ details.composer-card > .composer-form { padding: 1rem; }
 }
 /* Centred on the 44px name line; replies use a smaller circle. */
 .note > .avatar { margin-block-start: .25rem; }
+/* Community avatars carry a soft brand gradient with a top highlight. */
+:is(.note, .rec-card, .public-interest-list) .avatar {
+  border: 1px solid transparent;
+  background: linear-gradient(140deg in oklch, var(--brand-soft), var(--date-surface));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 70%, transparent), 0 1px 2px oklch(0.3 0.05 337 / .12);
+}
+/* A thread's opening post, and its replies, sit on raised panels. */
+.discussion-post.note:not(.discussion-replies > *) {
+  margin-block: .75rem 1.5rem;
+  padding-block: 1.125rem;
+  padding-inline: clamp(.875rem, .5rem + 1.5vw, 1.25rem);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  background: var(--gradient-glow), var(--surface);
+  box-shadow: var(--elevation-1);
+}
+.discussion-post.note:not(.discussion-replies > *) .note-body { font-size: 1.0625rem; }
+/* The static arrival marker (reduced motion) stays visible on the raised post. */
+@media (prefers-reduced-motion: reduce) {
+  .discussion-post.note:is(:target, [data-arrived]):not(.discussion-replies > *) { background: var(--brand-soft); box-shadow: var(--elevation-1), 0 0 0 .375rem var(--brand-soft); }
+}
+.discussion-replies:has(> .note) {
+  padding-inline: clamp(.875rem, .5rem + 1.5vw, 1.125rem);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+}
+.discussion-replies > .note:first-child { border-block-start: 0; }
+.discussion-replies > .discussion-post { border-block-start-color: color-mix(in oklch, var(--ink) 8%, transparent); }
 .discussion-replies > .note > .avatar { inline-size: 2rem; block-size: 2rem; margin-block-start: .375rem; font-size: .75rem; }
 .note-main { flex: 1 1 14rem; display: grid; justify-items: start; gap: .125rem; min-inline-size: 0; }
 .note-main > * { max-inline-size: 100%; }
@@ -3871,7 +3982,7 @@ details.composer-card > .composer-form { padding: 1rem; }
   line-height: 1.4;
 }
 .note .note-head :is(time, .note-meta) { font-variant-numeric: tabular-nums; }
-.note .note-author {
+:is(.note, .rec-card) .note-author {
   display: inline-flex;
   align-items: center;
   min-inline-size: 2.75rem;
@@ -3885,21 +3996,22 @@ details.composer-card > .composer-form { padding: 1rem; }
   text-underline-offset: .2em;
 }
 @media (hover: hover) and (pointer: fine) {
-  .note .note-author:hover { color: var(--brand); text-decoration-color: currentColor; }
+  :is(.note, .rec-card) .note-author:hover { color: var(--brand); text-decoration-color: currentColor; }
 }
-.note .note-author:active { color: var(--brand-active); }
+:is(.note, .rec-card) .note-author:active { color: var(--brand-active); }
 /* A real (shrinkable) flex item, so an unbroken long name wraps inside the note. */
-.note .note-author > span { min-inline-size: 0; overflow-wrap: anywhere; }
+:is(.note, .rec-card) .note-author > span { min-inline-size: 0; overflow-wrap: anywhere; }
 .note-tag {
   padding-block: .0625rem;
   padding-inline: .5rem;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--brand);
+  background: var(--gradient-brand);
   color: var(--surface);
   font-size: .75rem;
   font-weight: 750;
   letter-spacing: .02em;
+  white-space: nowrap;
 }
 .note .note-body {
   margin: 0;
@@ -3921,12 +4033,72 @@ details.composer-card > .composer-form { padding: 1rem; }
   text-underline-offset: .2em;
 }
 .note-reply-to .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
-/* The own recommendation: the same flat pale-plum wash as a selected row. */
-.note-list > .note-own,
-.note-list > .note-own + .note { border-block-start-color: transparent; }
-.note-list > .note-own { padding-inline: .75rem; border-radius: var(--radius); background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface)); }
+/* Recommendations: quote cards in an intrinsic grid. Each reason is the
+   card's headline, opened by the plum quotation mark Community cards use; the
+   byline sits at the foot so cards in a row align their authors. */
+.rec-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+  margin-block: 0 1.75rem;
+  margin-inline: 0;
+  padding: 0;
+  list-style: none;
+}
+.rec-cards > .rec-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.25rem;
+  min-inline-size: 0;
+  padding-block: 1.25rem 1rem;
+  padding-inline: 1.25rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  background: var(--gradient-glow), var(--surface);
+  box-shadow: var(--elevation-1);
+  transition-property: box-shadow;
+  transition-duration: 240ms;
+  transition-timing-function: var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .rec-cards > .rec-card:hover { box-shadow: var(--elevation-2); }
+}
+/* The viewer's own card is framed by the brand gradient. */
+.rec-cards > .rec-card-own { background: var(--gradient-glow) padding-box, linear-gradient(var(--surface), var(--surface)) padding-box, var(--gradient-brand) border-box; border-width: 1.5px; }
+.rec-card .rec-quote {
+  position: relative;
+  margin: 0;
+  padding-block-start: 1.75rem;
+  max-inline-size: 60ch;
+  color: var(--ink);
+  font-size: clamp(1.0625rem, 1rem + .25vw, 1.1875rem);
+  font-weight: 550;
+  line-height: 1.5;
+  letter-spacing: -.01em;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.rec-card .rec-quote::before {
+  content: "\201C";
+  content: "\201C" / "";
+  position: absolute;
+  inset-block-start: -.5rem;
+  inset-inline-start: -.125rem;
+  color: var(--brand-tint);
+  font-family: var(--font-display);
+  font-size: 3.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.rec-card .rec-quote-empty { padding-block-start: 0; color: var(--muted-warm); font-size: 1rem; font-weight: 600; white-space: normal; }
+.rec-card .rec-quote-empty::before { content: none; }
+.rec-byline { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; min-inline-size: 0; padding-block-start: .875rem; border-block-start: 1px solid color-mix(in oklch, var(--ink) 7%, transparent); }
+.rec-card .rec-who { flex: 1 1 8rem; display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; min-inline-size: 0; margin: 0; color: var(--muted-warm); font-size: .8125rem; line-height: 1.3; }
+.rec-who .note-meta { flex-basis: 100%; font-variant-numeric: tabular-nums; }
+
 @media (forced-colors: active) {
-  .note-own { outline: 1px solid CanvasText; }
+  .rec-cards > .rec-card-own { border-width: 3px; }
 }
 
 /* An open edit/remove disclosure takes the row's full width. */
@@ -3944,7 +4116,7 @@ details.composer-card > .composer-form { padding: 1rem; }
   align-items: center;
   gap: .375rem;
   min-block-size: 2.75rem;
-  padding-inline: .625rem;
+  padding-inline: .5rem;
   border-radius: .5rem;
   color: var(--muted-warm);
   font-size: .8125rem;
@@ -3963,7 +4135,7 @@ details.composer-card > .composer-form { padding: 1rem; }
 }
 :is(.note-action, .note-actions > details > summary):active { background: var(--brand-soft); color: var(--brand-active); }
 .note-actions > details { min-inline-size: 0; margin: 0; }
-.note-actions > details > summary { inline-size: auto; gap: .375rem; padding-inline: .625rem; font-weight: 700; }
+.note-actions > details > summary { inline-size: auto; gap: .375rem; padding-inline: .5rem; font-weight: 700; }
 .note-actions > details > summary::after { content: none; }
 .note-actions > details[open] { container-type: inline-size; flex-basis: 100%; }
 .note-actions > details[open] > summary { color: var(--brand); }
@@ -3976,22 +4148,41 @@ details.composer-card > .composer-form { padding: 1rem; }
 .public-interest-list a > .avatar { inline-size: 1.75rem; block-size: 1.75rem; font-size: .75rem; }
 .event-section .public-interest-list a {
   padding-inline: .375rem .875rem;
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: 999px;
   background: var(--surface);
+  box-shadow: var(--elevation-1);
   color: var(--ink);
   font-weight: 650;
   text-decoration: none;
-  transition-property: border-color, color;
+  transition-property: box-shadow, color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
 @media (hover: hover) and (pointer: fine) {
-  .event-section .public-interest-list a:hover { border-color: var(--control-line); color: var(--brand); }
+  .event-section .public-interest-list a:hover { box-shadow: var(--elevation-2); color: var(--brand); }
 }
 .event-section .public-interest-list a:active { background: var(--brand-soft); color: var(--brand-active); }
 @media (prefers-reduced-motion: no-preference) {
   .composer-chevron { transition: rotate 200ms var(--ease-out); }
+  /* Raised surfaces lift a little under the pointer. */
+  :is(.composer-card, .rec-cards > .rec-card) { transition-property: box-shadow, translate; }
+  @media (hover: hover) and (pointer: fine) {
+    .rec-cards > .rec-card:hover,
+    .composer-card:not([open]):has(> summary:hover) { translate: 0 -2px; }
+  }
+  /* The one authored moment: quote cards rise into place as they scroll in.
+     Only position moves: the words never fade and targets keep their size. */
+  @supports (animation-timeline: view()) {
+    .rec-cards > .rec-card {
+      animation: rec-card-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+  }
+  @keyframes rec-card-rise {
+    from { transform: translateY(1.5rem); }
+  }
 }
 .moderation-page { max-inline-size: 72rem; }
 .moderation-page > .page-header { margin-block: 1.25rem .75rem; }
@@ -4222,7 +4413,7 @@ details.composer-card > .composer-form { padding: 1rem; }
 .live-filter-bar > .account-actions { flex: 0 1 auto; min-inline-size: 0; margin: 0; gap: 0 1rem; }
 
 /* Community cards: artwork with the date stub, the people and their words as
-   pull quotes, then the event facts. Flat, bordered, never raised. */
+   pull quotes, then the event facts. Raised by the depth rules at the end. */
 .community-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
@@ -4357,4 +4548,159 @@ details.composer-card > .composer-form { padding: 1rem; }
   max-inline-size: 100%;
   margin-block: 1rem;
   text-align: center;
+}
+
+/* Depth across discovery and the event page, by hierarchy. Last in the file:
+   it refines the component rules above at equal specificity.
+   Full depth (raised white surface, corner glow, --elevation-1 rising to
+   --elevation-2, a 2px lift with motion allowed) marks the primary things to
+   pick up: Discover's result cards, the preview panel, the event's identity
+   card, Community and Happening Now cards. The event's Tickets action and the
+   current date chip take the brand gradient. Quieter controls (list rows, the
+   command bar, chips, tabs, plans) get only the hairline ring and a soft
+   resting shadow, so the primary things still stand out. Transparent borders
+   keep every surface framed in forced colours. */
+
+/* Discover only (Saved, Interests and Radar share the results container and
+   stay flat). List rows lift onto a raised surface only when lit; with a
+   preview open the results are always a list, so selection uses this. */
+@container results (width < 48rem) {
+  .discovery-content .event-row:is([data-selected="true"], :has(:is(.event-link, .event-art > a):active)) { box-shadow: var(--elevation-1); }
+  @media (hover: hover) and (pointer: fine) {
+    .discovery-content .event-row:has(:is(.event-link, .event-art > a):hover) { box-shadow: var(--elevation-1); }
+  }
+}
+/* Wide results (no preview open) are raised cards. */
+@container results (min-width: 48rem) {
+  .discovery-content .event-row {
+    border-color: transparent;
+    border-radius: calc(var(--radius) + .25rem);
+    background: var(--gradient-glow), var(--surface);
+    box-shadow: var(--elevation-1);
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: 220ms;
+  }
+  .discovery-content .event-row .event-art .event-image { border-radius: var(--radius); }
+  @media (hover: hover) and (pointer: fine) {
+    .discovery-content .event-row:has(:is(.event-link, .event-art > a):hover) {
+      border-color: transparent;
+      background: var(--gradient-glow), var(--surface);
+      box-shadow: var(--elevation-2);
+    }
+  }
+  .discovery-content .event-row:has(:is(.event-link, .event-art > a):active) {
+    background: var(--row-press);
+    box-shadow: var(--elevation-1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  @container results (min-width: 48rem) {
+    .discovery-content .event-row { transition-property: background-color, border-color, box-shadow, translate; }
+    .discovery-content .event-row:has(:is(.event-link, .event-art > a):hover) { translate: 0 -2px; }
+  }
+}
+
+/* The preview panel is the workspace's raised companion surface. */
+.event-context {
+  border-color: transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  box-shadow: var(--elevation-2);
+}
+
+/* Community and Happening Now filter bars match the command bar's resting lift. */
+.filter-bar { box-shadow: var(--elevation-1); }
+
+/* Discover's command bar: a raised field, plum-edged while typing. */
+.command-bar {
+  box-shadow: var(--elevation-1);
+  transition-property: border-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+@supports selector(:has(*)) {
+  .command-bar:has(#keyword:focus) { border-color: var(--brand); box-shadow: var(--elevation-1), 0 0 0 4px color-mix(in oklch, var(--brand-soft) 70%, transparent); }
+}
+
+/* Date chips sit on the hairline ring; the current one is the brand gradient. */
+.date-chips a {
+  border-color: transparent;
+  box-shadow: var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .08);
+  transition-property: background-color, color, border-color, box-shadow;
+}
+.date-chips a[aria-current="true"] {
+  border-color: transparent;
+  /* An opaque plum base under the gradient: white text never meets a clear
+     background while the press colour transitions in. */
+  background: var(--gradient-brand) var(--brand);
+  color: var(--surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand);
+}
+@media (hover: hover) and (pointer: fine) {
+  .date-chips a[aria-current="true"]:hover { background: var(--gradient-brand) var(--brand); color: var(--surface); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
+}
+.date-chips a[aria-current="true"]:active { background: var(--brand-active); color: var(--surface); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
+
+/* The event's identity card rises off the artwork band. */
+.event-identity > .event-heading {
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 60%, transparent), var(--elevation-1);
+}
+
+/* Tickets on the event page and preview: the brand gradient, highlight and
+   coloured lift; pressing settles it. */
+.event-primary-actions .ticket-link {
+  border-color: transparent;
+  background: var(--gradient-brand);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand);
+  transition-property: box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .event-primary-actions .ticket-link:hover { background: var(--gradient-brand); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
+}
+.event-primary-actions .ticket-link:active { background: var(--brand-active); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
+
+/* Save and the plans controls rest on the hairline ring with a soft shadow. */
+:is(.event-primary-actions, .event-participation) .event-actions .button-quiet {
+  box-shadow: var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .08);
+  transition-property: background-color, border-color, color, box-shadow;
+}
+:is(.event-primary-actions, .event-participation) .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
+  box-shadow: 0 1px 2px oklch(0.3 0.05 337 / .1);
+}
+
+/* Section tabs: a recessed track with the current segment raised. */
+.event-section-nav { box-shadow: inset 0 1px 2px oklch(0.3 0.05 337 / .08); }
+.event-section-nav .tab-mark { border-color: transparent; box-shadow: var(--elevation-1); }
+
+/* Community and Happening Now cards are raised; hovering their links lifts them. */
+.community-cards > li.recommendation-event,
+.live-card {
+  border-color: transparent;
+  border-radius: calc(var(--radius) + .25rem);
+  box-shadow: var(--elevation-1);
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-out);
+}
+.community-cards > li.recommendation-event { background: var(--gradient-glow), var(--surface); }
+.community-cards .recommendation-event .event-image {
+  border-start-start-radius: calc(var(--radius) + .25rem - 1px);
+  border-start-end-radius: calc(var(--radius) + .25rem - 1px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .community-cards > li.recommendation-event:has(a:hover),
+  .live-card:has(.live-card-link:hover) { border-color: transparent; box-shadow: var(--elevation-2); }
+  @media (prefers-reduced-motion: no-preference) {
+    .community-cards > li.recommendation-event, .live-card { transition-property: background-color, border-color, box-shadow, translate; }
+    .community-cards > li.recommendation-event:has(a:hover),
+    .live-card:has(.live-card-link:hover) { translate: 0 -2px; }
+  }
+}
+/* Restated after the depth rules, which would otherwise mask these. */
+@media (forced-colors: active) {
+  .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }
+  .event-section-nav .tab-mark { border-color: Highlight; }
 }

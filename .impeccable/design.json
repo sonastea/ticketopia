@@ -115,7 +115,9 @@
     },
     "shadows": [
       { "name": "drag-insertion-before", "value": "inset 0 2px 0 var(--brand)", "purpose": "Functional plum insertion rule before a reorder target during sidebar customization; not cast depth." },
-      { "name": "drag-insertion-after", "value": "inset 0 -2px 0 var(--brand)", "purpose": "Functional plum insertion rule after a reorder target during sidebar customization; the normal interface has no cast shadows." }
+      { "name": "drag-insertion-after", "value": "inset 0 -2px 0 var(--brand)", "purpose": "Functional plum insertion rule after a reorder target during sidebar customization; the normal interface has no cast shadows." },
+      { "name": "elevation-1", "value": "var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .06), 0 4px 10px -2px oklch(0.3 0.05 337 / .06), 0 12px 28px -12px oklch(0.3 0.06 337 / .12)", "purpose": "Resting raised surface for the depth layer: Discover cards and command/filter bars, the preview panel, the event identity card, community composers, quote cards and panels, Community and Happening Now cards." },
+      { "name": "elevation-2", "value": "var(--ring-hairline), 0 2px 4px oklch(0.3 0.05 337 / .06), 0 10px 20px -6px oklch(0.3 0.06 337 / .12), 0 24px 48px -16px oklch(0.32 0.08 337 / .24)", "purpose": "Hovered or open community surface; the scoped exception to the border-only depth rule." }
     ],
     "motion": [
       { "name": "ease-out", "value": "cubic-bezier(.16, 1, .3, 1)", "purpose": "Shared easing for action fill, sidebar width, disclosure-chevron rotation, and selected-result fill." },
@@ -227,7 +229,7 @@
     "rules": [
       { "name": "The Plum State, Rose Date Rule", "body": "Plum carries actions, focus, and selection; dusty rose belongs only to date indexing. Availability stays neutral, and every navigation layout shares the pale-plum current state.", "section": "colors" },
       { "name": "The One Family, Clear Roles Rule", "body": "Use Manrope's size, weight, leading, and spacing to distinguish headings, facts, and controls; keep dates tabular and long event names able to wrap.", "section": "typography" },
-      { "name": "The Border-Only Depth Rule", "body": "Separate surfaces with tone, spacing, and borders; selection changes the fill without lifting the component or adding a cast shadow.", "section": "elevation" }
+      { "name": "The Border-Only Depth Rule", "body": "Separate surfaces with tone, spacing, and borders; selection changes the fill without lifting the component or adding a cast shadow. Exception: the depth layer (event page, Discover, Community, Happening Now) uses elevation-1/2, gradient-brand and gradient-glow by hierarchy; account, collection and navigation surfaces stay flat.", "section": "elevation" }
     ],
     "dos": [
       "Do use plum for actions, focus, and selection; light stone for navigation; near-white surfaces for reading; and dusty rose only for date indexes.",
@@ -238,7 +240,7 @@
       "Do keep sidebar editing explicit, cancellable, keyboard accessible, and truthful about browser-only persistence."
     ],
     "donts": [
-      "Don't add cast shadows, glass effects, or raised hover cards to this flat, border-defined system.",
+      "Don't add cast shadows, glass effects, or raised hover cards outside the documented depth layer (event page, Discover, Community, Happening Now).",
       "Don't force provider photographs into monochrome or substitute decorative stock imagery for event identity.",
       "Don't imply saves, event interest, recommendations, discussions, personalization, or reminder delivery work merely because accounts and preference forms are implemented; don't fabricate participation counts.",
       "Don't use promotional clutter or manufactured urgency to compete with practical event information.",
