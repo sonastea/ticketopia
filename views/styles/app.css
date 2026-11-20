@@ -743,7 +743,8 @@ h3 {
   inset-block-end: var(--nav-float-gap);
   inset-inline: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5em), 1fr));
+  /* 6em fits the longest single-word label ("Community") unbroken. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 6em), 1fr));
   font-size: .75rem;
   gap: .125rem;
   margin-block-end: var(--nav-float-gap);
