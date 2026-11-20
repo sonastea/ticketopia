@@ -4,6 +4,21 @@
 
 ## Unreleased
 
+### 2026-11-20 — Readable event community notes and composer cards
+
+- On the event, recommendations, questions and replies share one note shape:
+  initials avatar, linked name and date on one 44px line, then the person's words
+  at body size in ink. Your own recommendation is marked **You** on a pale-plum wash;
+  public interest shows as name chips.
+- Composers are cards whose summary invites the action; publishing is the primary
+  action and spans phone-width cards. Each post has one compact action row (Reply,
+  Helpful, Edit, Remove, Report) with full accessible names. Publishing, privacy,
+  public-audience guidance and the API are unchanged. See [DESIGN.md](../../DESIGN.md#public-recommendations).
+- Chromium journeys pass with zero axe violations: recommendations (126 checks/22
+  views), responsive (150/5), discussions (69/14), plus moderation. Browser scripts
+  now use the stable `[data-recommendation-editor]` hook and the note's body path.
+  Real phones, WebKit and manual screen readers remain unchecked.
+
 ### 2026-10-29 — Batched moderation and community page reads
 
 - The moderator review queue reads a page's public post projections in one query
@@ -54,44 +69,3 @@
   counts that rise above zero hide the empty copy.
 - Community gains a **Happening Now** tab; see
   [live activity](live-community-activity.md). Browser checks were updated, not rerun.
-
-### 2026-10-12 — Drill-down return hierarchy
-
-- Share a quieter collection return and grouped event-section/Overview links across
-  participant, recommendation and conversation pages, fixing the split participant
-  hierarchy. Preserve named links, safe origins, intrinsic wrapping and 44px targets.
-- Verify 324 Chromium/WebKit checks and 24 clean axe views, plus the existing
-  responsive focus/scroll restoration journey. People/device/manual screen-reader
-  checks remain open. See [return hierarchy](../design-guidelines.md#drill-down-return-hierarchy).
-
-### 2026-10-12 — Interested action and collection feedback
-
-- Name confirmed removals, preserve surviving collection rows/focus, and distinguish
-  empty later pages from an empty whole collection. Retain readable Private/Public
-  state through rejected or uncertain writes; retries leave recommendations independent.
-- Make the retained recommendation's disclosure label shrink/wrap at 320px/200% text.
-  See the shared [action/removal fixture](../saved-events.md#action-feedback-and-collection-removal).
-  Verify 548 Chromium/WebKit checks and 22 clean axe views, plus existing behavior regressions.
-  Real phones/manual screen readers remain open; no undo or publication change.
-
-### 2026-10-12 — Conversation ergonomics and draft safety
-
-- Refresh standalone threads in place; preserve unrelated drafts and Helpful/edit/remove
-  focus/reading position. Add scoped, deliberate discard and viewport-bounded composing.
-- Keep interrupted publication payloads/targets/keys immutable through retry/reload;
-  never turn conflicts into new posts. Select confirmed contributions explicitly.
-- Verify 80 Chromium/WebKit journey checks and eight clean axe views; real-phone
-  keyboards/manual screen readers remain open. See [discussions](../event-discussions.md#conversation-ergonomics-and-draft-safety).
-
-### 2026-10-12 — Event-first neighboring screens
-
-- Community and public-profile artwork/title open Overview together; named
-  Recommendations, Questions & tips and conversation links retain direct entry.
-  Event/date/venue precede attribution/text without per-person Tickets/Save.
-- Place public-audience guidance beside writing actions; keep owner/report tools
-  quieter without changing drafts, pagination, publication/anti-bumping or privacy.
-- Verify recommendations/public-profile and discussion journeys with 193 Chromium
-  checks and 36 clean axe views; broaden race/vet/Docker validation and preserve
-  stable event-section DOM/document-request and collection-return regressions.
-  See [recommendations](../event-recommendations.md), [discussions](../event-discussions.md)
-  and the [phase-3 record](../../.impeccable/surfaces/views-layouts-account-nav-templ.md).
