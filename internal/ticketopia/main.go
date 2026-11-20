@@ -54,8 +54,11 @@ func Execute(ctx context.Context) int {
 			logger.Warn().Err(err).Msg("Telemetry flush failed")
 		}
 	}()
-	if telemetryConfig.Enabled {
-		logger.Info().Str("endpoint", telemetryConfig.Endpoint).Msg("Exporting metrics over OTLP")
+	if telemetryConfig.MetricsEndpoint != "" {
+		logger.Info().Str("endpoint", telemetryConfig.MetricsEndpoint).Msg("Exporting metrics over OTLP")
+	}
+	if telemetryConfig.TracesEndpoint != "" {
+		logger.Info().Str("endpoint", telemetryConfig.TracesEndpoint).Msg("Exporting traces over OTLP")
 	}
 	meter := telemetry.Meter()
 	config, err := persistence.ConfigFromEnv(false)

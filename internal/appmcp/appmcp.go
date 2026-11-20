@@ -19,6 +19,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Events searches events with the same query rules as Discover and lists the
@@ -258,8 +262,7 @@ func toolErrors[In, Out any](d Deps, call func(context.Context, In) (Out, error)
 	}
 }
 
-// observe logs every tools/call with its tool, outcome and duration, never
-// its arguments, including calls the SDK rejects before a tool runs.
+// observe records tool calls, including SDK rejections, without arguments or results.
 func observe(logger zerolog.Logger, metrics *Metrics) mcp.Middleware {
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
@@ -268,17 +271,32 @@ func observe(logger zerolog.Logger, metrics *Metrics) mcp.Middleware {
 				return next(ctx, method, req)
 			}
 			start := time.Now()
+			// Client-sent names that match no tool are reported as "unknown".
+			tool := toolName(call.Params.Name)
+			ctx, span := telemetry.Tracer().Start(ctx, "execute_tool "+tool, trace.WithAttributes(
+				attribute.String("gen_ai.operation.name", "execute_tool"),
+				attribute.String("gen_ai.tool.name", tool)))
+			outcome := "panic"
+			var elapsed time.Duration
+			defer func() {
+				span.SetAttributes(attribute.String("mcp.tool.outcome", outcome))
+				if outcome != "ok" {
+					span.SetStatus(codes.Error, "")
+				}
+				span.End()
+				if outcome != "panic" {
+					telemetry.LogTrace(logger.Info(), ctx).Str("tool", tool).Str("outcome", outcome).Dur("duration", elapsed).Msg("MCP tool call")
+				}
+			}()
 			result, err := next(ctx, method, req)
-			outcome := "ok"
+			outcome = "ok"
 			if err != nil {
 				outcome = "error"
 			} else if r, ok := result.(*mcp.CallToolResult); ok && r.IsError {
 				outcome = "tool_error"
 			}
-			// Client-sent names that match no tool are logged and counted as "unknown".
-			tool, elapsed := toolName(call.Params.Name), time.Since(start)
-			metrics.observe(tool, outcome, call.Extra != nil && call.Extra.TokenInfo != nil, elapsed)
-			logger.Info().Str("tool", tool).Str("outcome", outcome).Dur("duration", elapsed).Msg("MCP tool call")
+			elapsed = time.Since(start)
+			metrics.observe(ctx, tool, outcome, call.Extra != nil && call.Extra.TokenInfo != nil, elapsed)
 			return result, err
 		}
 	}

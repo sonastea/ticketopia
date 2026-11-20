@@ -8,6 +8,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/telemetry"
+	"go.opentelemetry.io/otel/codes"
 )
 
 var ErrNoTask = errors.New("no collection task due")
@@ -59,7 +61,9 @@ func (c *Collector) Run(ctx context.Context) {
 	}
 }
 
-func (c *Collector) Once(ctx context.Context) (bool, error) {
+func (c *Collector) Once(ctx context.Context) (_ bool, err error) {
+	ctx, span := telemetry.Tracer().Start(ctx, "history.collect")
+	defer func() { telemetry.EndSpan(span, err) }()
 	now := c.now().UTC()
 	if now.Sub(c.detailAt) >= time.Minute {
 		if r, ok := c.repository.(DetailRepository); ok {
@@ -138,12 +142,15 @@ func (c *Collector) Once(ctx context.Context) (bool, error) {
 		}
 	}
 	// A cancelled caller still gets a bounded best-effort failure receipt.
+	if status == "failed" || status == "partial" {
+		span.SetStatus(codes.Error, "")
+	}
 	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	outcome, err := c.repository.Finish(finishCtx, claim, status, failure, delay)
 	if err != nil {
 		return true, err
 	}
-	c.logger.Info().Str("city", claim.City).Str("date", claim.Date).Str("coverage", outcome.Status).Str("failure", outcome.Failure).Int("pages", pages).Msg("Event history refreshed")
+	telemetry.LogTrace(c.logger.Info(), ctx).Str("city", claim.City).Str("date", claim.Date).Str("coverage", outcome.Status).Str("failure", outcome.Failure).Int("pages", pages).Msg("Event history refreshed")
 	return true, nil
 }

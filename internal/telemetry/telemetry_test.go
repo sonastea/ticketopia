@@ -1,6 +1,7 @@
 package telemetry_test
 
 import (
+	"bytes"
 	"database/sql"
 	"io"
 	"net/http"
@@ -9,16 +10,23 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/appmcp"
 	"github.com/sonastea/ticketopia/internal/telemetry"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	colmetrics "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	coltrace "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
 )
 
 var otelVars = []string{"OTEL_SDK_DISABLED", "OTEL_METRICS_EXPORTER", "OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
-	"OTEL_EXPORTER_OTLP_PROTOCOL", "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL", "OTEL_SERVICE_NAME", "OTEL_RESOURCE_ATTRIBUTES"}
+	"OTEL_EXPORTER_OTLP_PROTOCOL", "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL", "OTEL_SERVICE_NAME", "OTEL_RESOURCE_ATTRIBUTES",
+	"OTEL_TRACES_EXPORTER", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL",
+	"OTEL_TRACES_SAMPLER", "OTEL_TRACES_SAMPLER_ARG"}
 
 func clearEnv(t *testing.T) {
 	for _, name := range otelVars {
@@ -46,30 +54,67 @@ func TestConfigFromEnv(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			clearEnv(t)
+			t.Setenv("OTEL_TRACES_EXPORTER", "none")
 			for key, value := range c.env {
 				t.Setenv(key, value)
 			}
 			got, err := telemetry.ConfigFromEnv()
-			if (err != nil) != c.invalid || got.Enabled != c.enabled {
+			if (err != nil) != c.invalid || (got.MetricsEndpoint != "") != c.enabled {
 				t.Fatalf("%+v %v", got, err)
 			}
 		})
 	}
 }
 
-// Metrics reach an OTLP/HTTP receiver at the standard path, named for the
-// service and revision, including instruments created before Setup.
+func TestTraceConfig(t *testing.T) {
+	clearEnv(t)
+	const base = "http://collector:4318"
+	const traces = base + "/custom-traces"
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", traces)
+	if got, err := telemetry.ConfigFromEnv(); err != nil || got.TracesEndpoint != traces || got.MetricsEndpoint != "" {
+		t.Fatalf("trace-only config: %+v %v", got, err)
+	}
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", base)
+	if got, err := telemetry.ConfigFromEnv(); err != nil || got.TracesEndpoint != traces || got.MetricsEndpoint != base {
+		t.Fatalf("trace-specific override: %+v %v", got, err)
+	}
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "grpc")
+	if _, err := telemetry.ConfigFromEnv(); err == nil {
+		t.Fatal("accepted unsupported trace protocol")
+	}
+	t.Setenv("OTEL_TRACES_EXPORTER", "none")
+	if got, err := telemetry.ConfigFromEnv(); err != nil || got.TracesEndpoint != "" || got.MetricsEndpoint != base {
+		t.Fatalf("trace opt-out: %+v %v", got, err)
+	}
+}
+
+// Metrics and diagnostic traces share a resource and flush on shutdown.
 func TestSetupExportsOverOTLPHTTP(t *testing.T) {
 	var mu sync.Mutex
 	var requests []*colmetrics.ExportMetricsServiceRequest
+	var traceRequests []*coltrace.ExportTraceServiceRequest
 	receiver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
-		var request colmetrics.ExportMetricsServiceRequest
-		if r.URL.Path != "/v1/metrics" || r.Header.Get("Content-Type") != "application/x-protobuf" || proto.Unmarshal(body, &request) != nil {
+		if r.Header.Get("Content-Type") != "application/x-protobuf" {
 			t.Errorf("export %s %s", r.URL.Path, r.Header.Get("Content-Type"))
 		}
 		mu.Lock()
-		requests = append(requests, &request)
+		switch r.URL.Path {
+		case "/v1/metrics":
+			var request colmetrics.ExportMetricsServiceRequest
+			if err := proto.Unmarshal(body, &request); err != nil {
+				t.Error(err)
+			}
+			requests = append(requests, &request)
+		case "/v1/traces":
+			var request coltrace.ExportTraceServiceRequest
+			if err := proto.Unmarshal(body, &request); err != nil {
+				t.Error(err)
+			}
+			traceRequests = append(traceRequests, &request)
+		default:
+			t.Errorf("unexpected OTLP path %s", r.URL.Path)
+		}
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/x-protobuf")
 		_, _ = w.Write(nil)
@@ -82,7 +127,7 @@ func TestSetupExportsOverOTLPHTTP(t *testing.T) {
 	// Created before Setup, as package-level instruments are.
 	appmcp.NewMetrics().Refuse(appmcp.RefusedOrigin)
 	config, err := telemetry.ConfigFromEnv()
-	if err != nil || !config.Enabled {
+	if err != nil {
 		t.Fatalf("%+v %v", config, err)
 	}
 	stop, err := telemetry.Setup(t.Context(), config, "abc123", zerolog.Nop())
@@ -93,6 +138,27 @@ func TestSetupExportsOverOTLPHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	appmcp.NewMetrics().Refuse(appmcp.RefusedBatch)
+	tracer := telemetry.Tracer()
+	now := time.Now()
+	routineCtx, routine := tracer.Start(t.Context(), "routine", trace.WithTimestamp(now))
+	_, routineChild := tracer.Start(routineCtx, "routine.child", trace.WithTimestamp(now))
+	routineChild.End(trace.WithTimestamp(now.Add(time.Millisecond)))
+	routine.End(trace.WithTimestamp(now.Add(2 * time.Millisecond)))
+
+	_, slow := tracer.Start(t.Context(), "slow", trace.WithTimestamp(now))
+	slow.End(trace.WithTimestamp(now.Add(2 * time.Second)))
+
+	failingCtx, parent := tracer.Start(t.Context(), "request", trace.WithTimestamp(now))
+	_, sibling := tracer.Start(failingCtx, "context", trace.WithTimestamp(now))
+	sibling.End(trace.WithTimestamp(now.Add(time.Millisecond)))
+	func() {
+		defer func() { _ = recover() }()
+		_, span := tracer.Start(failingCtx, "failed.child", trace.WithTimestamp(now))
+		span.SetStatus(codes.Error, "")
+		defer span.End(trace.WithTimestamp(now.Add(2 * time.Millisecond)))
+		panic("private panic details")
+	}()
+	parent.End(trace.WithTimestamp(now.Add(3 * time.Millisecond)))
 	if err := stop(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -136,6 +202,30 @@ func TestSetupExportsOverOTLPHTTP(t *testing.T) {
 		if !slices.Contains(names, want) {
 			t.Errorf("missing %s in %s", want, strings.Join(names, ", "))
 		}
+	}
+	spans := map[string]*tracepb.Span{}
+	for _, request := range traceRequests {
+		for _, rs := range request.ResourceSpans {
+			if !proto.Equal(rs.Resource, requests[len(requests)-1].ResourceMetrics[0].Resource) {
+				t.Errorf("trace and metrics resources differ: %v", rs.Resource)
+			}
+			for _, ss := range rs.ScopeSpans {
+				for _, span := range ss.Spans {
+					spans[span.Name] = span
+				}
+			}
+		}
+	}
+	if len(spans) != 4 || spans["slow"] == nil || spans["request"] == nil || spans["context"] == nil || spans["failed.child"] == nil {
+		t.Fatalf("expected only slow and failing traces with their context, got %v", spans)
+	}
+	for _, name := range []string{"context", "failed.child"} {
+		if !bytes.Equal(spans[name].ParentSpanId, spans["request"].SpanId) || !bytes.Equal(spans[name].TraceId, spans["request"].TraceId) {
+			t.Errorf("%s was detached from the request span", name)
+		}
+	}
+	if events := spans["failed.child"].Events; len(events) != 0 {
+		t.Errorf("SDK exported panic details: %v", events)
 	}
 }
 

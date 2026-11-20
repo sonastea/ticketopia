@@ -168,7 +168,7 @@ production, use runtime secret/environment storage, not build arguments:
 7. Optionally set **`KV_URL`** to one shared cache endpoint; URL credentials are
    secrets. An empty value uses memory without losing user-facing features. See
    [cache configuration](cache.md) for backend requirements and fallback behavior.
-8. Optionally export metrics to SigNoz or another OpenTelemetry backend with
+8. Optionally export metrics and traces to SigNoz or another OpenTelemetry backend with
    **`OTEL_EXPORTER_OTLP_ENDPOINT`** (OTLP/HTTP, off while unset), and ship the
    JSON stdout logs with the collector in `deploy/otel-collector`; see
    [observability](observability.md).

@@ -1,8 +1,6 @@
-// Package telemetry exports Ticketopia's metrics over OTLP/HTTP (for example
-// to SigNoz or any OpenTelemetry collector) when the standard
-// OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_METRICS_ENDPOINT is set.
-// Otherwise nothing is exported and every instrument is a no-op. Logs are not
-// exported here: they stay structured JSON on stdout for a collector to read.
+// Package telemetry exports Ticketopia's metrics and traces over OTLP/HTTP
+// when an OpenTelemetry endpoint is configured. Logs stay structured JSON
+// on stdout for a collector to read.
 //
 // Instruments use the global meter provider, so packages may create them
 // before Setup runs. Like the metrics logs, they carry fixed dimensions only:
@@ -18,14 +16,18 @@ import (
 	rtmetrics "runtime/metrics"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // Scope names the instrumentation scope for Ticketopia's own instruments.
@@ -41,13 +43,14 @@ var DurationBuckets = []float64{0.001, 0.01, 0.05, 0.25, 1, 5}
 // itself reads the rest of the standard variables (headers, timeout,
 // compression, TLS) and the reader reads OTEL_METRIC_EXPORT_INTERVAL.
 type Config struct {
-	Enabled bool
-	// Endpoint is the configured OTLP endpoint, for the startup log.
-	Endpoint string
+	// Endpoints are empty for disabled signals. Exporters read the corresponding
+	// environment variables directly to resolve paths, headers and TLS.
+	MetricsEndpoint string
+	TracesEndpoint  string
 }
 
-// ConfigFromEnv enables export when an OTLP endpoint is set, unless
-// OTEL_SDK_DISABLED=true or OTEL_METRICS_EXPORTER=none. Only OTLP over
+// ConfigFromEnv enables each signal when an OTLP endpoint is set, unless
+// OTEL_SDK_DISABLED=true or the signal's exporter is set to none. Only OTLP over
 // HTTP/protobuf is supported, the protocol SigNoz and collectors accept on
 // port 4318; other exporters or protocols are a configuration error rather
 // than silently exporting nothing.
@@ -62,42 +65,48 @@ func ConfigFromEnv() (Config, error) {
 			return c, nil
 		}
 	}
-	switch exporter := strings.TrimSpace(os.Getenv("OTEL_METRICS_EXPORTER")); exporter {
+	var err error
+	if c.MetricsEndpoint, err = signalEndpoint("METRICS"); err != nil {
+		return Config{}, err
+	}
+	if c.TracesEndpoint, err = signalEndpoint("TRACES"); err != nil {
+		return Config{}, err
+	}
+	return c, nil
+}
+
+func signalEndpoint(signal string) (string, error) {
+	exporterVar := "OTEL_" + signal + "_EXPORTER"
+	switch exporter := strings.TrimSpace(os.Getenv(exporterVar)); exporter {
 	case "", "otlp":
 	case "none":
-		return c, nil
+		return "", nil
 	default:
-		return c, fmt.Errorf("OTEL_METRICS_EXPORTER=%s is not supported; use otlp or none", exporter)
+		return "", fmt.Errorf("%s=%s is not supported; use otlp or none", exporterVar, exporter)
 	}
-	c.Endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"))
-	if c.Endpoint == "" {
-		c.Endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	endpoint := strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_" + signal + "_ENDPOINT"))
+	if endpoint == "" {
+		endpoint = strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
 	}
-	if c.Endpoint == "" {
-		return c, nil
+	if endpoint == "" {
+		return "", nil
 	}
-	for _, name := range []string{"OTEL_EXPORTER_OTLP_METRICS_PROTOCOL", "OTEL_EXPORTER_OTLP_PROTOCOL"} {
+	for _, name := range []string{"OTEL_EXPORTER_OTLP_" + signal + "_PROTOCOL", "OTEL_EXPORTER_OTLP_PROTOCOL"} {
 		if p := strings.TrimSpace(os.Getenv(name)); p != "" {
 			if p != "http/protobuf" {
-				return c, fmt.Errorf("%s=%s is not supported; use http/protobuf (port 4318)", name, p)
+				return "", fmt.Errorf("%s=%s is not supported; use http/protobuf (port 4318)", name, p)
 			}
 			break
 		}
 	}
-	c.Enabled = true
-	return c, nil
+	return endpoint, nil
 }
 
-// Setup installs the global meter provider when c is enabled and returns a
-// function that flushes and stops it. An unreachable collector never stops
-// startup: failed exports are logged as warnings and retried next interval.
+// Setup installs the configured global providers and returns a function that
+// flushes and stops them. An unreachable collector never stops startup.
 func Setup(ctx context.Context, c Config, version string, logger zerolog.Logger) (func(context.Context) error, error) {
-	if !c.Enabled {
+	if c.MetricsEndpoint == "" && c.TracesEndpoint == "" {
 		return func(context.Context) error { return nil }, nil
-	}
-	exporter, err := otlpmetrichttp.New(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("OTLP metrics exporter: %w", err)
 	}
 	host, _ := os.Hostname()
 	// Later options win: OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES
@@ -109,15 +118,54 @@ func Setup(ctx context.Context, c Config, version string, logger zerolog.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("telemetry resource: %w", err)
 	}
-	provider := sdkmetric.NewMeterProvider(sdkmetric.WithResource(res), sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)))
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
 		logger.Warn().Err(err).Msg("Telemetry export failed")
 	}))
-	otel.SetMeterProvider(provider)
-	if err := observeProcess(Meter()); err != nil {
-		return nil, err
+
+	var meterProvider *sdkmetric.MeterProvider
+	if c.MetricsEndpoint != "" {
+		exporter, err := otlpmetrichttp.New(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("OTLP metrics exporter: %w", err)
+		}
+		// The SDK considers spans sampled before we decide to export them.
+		// Don't attach metric exemplars that could link to discarded traces.
+		meterProvider = sdkmetric.NewMeterProvider(sdkmetric.WithResource(res),
+			sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)), sdkmetric.WithExemplarFilter(exemplar.AlwaysOffFilter))
+		if err := observeProcess(meterProvider.Meter(Scope)); err != nil {
+			return nil, errors.Join(err, meterProvider.Shutdown(ctx))
+		}
 	}
-	return provider.Shutdown, nil
+	var stop []func(context.Context) error
+	if c.TracesEndpoint != "" {
+		exporter, err := otlptracehttp.New(ctx)
+		if err != nil {
+			if meterProvider != nil {
+				err = errors.Join(err, meterProvider.Shutdown(ctx))
+			}
+			return nil, fmt.Errorf("OTLP traces exporter: %w", err)
+		}
+		// Mark failures in instrumentation; the SDK must not export panic values.
+		provider := sdktrace.NewTracerProvider(sdktrace.WithResource(res), sdktrace.WithoutPanicRecording(),
+			sdktrace.WithSampler(sdktrace.AlwaysSample()),
+			sdktrace.WithSpanProcessor(newTraceFilter(sdktrace.NewBatchSpanProcessor(exporter))))
+		otel.SetTracerProvider(provider)
+		stop = append(stop, provider.Shutdown)
+	}
+	if meterProvider != nil {
+		otel.SetMeterProvider(meterProvider)
+		stop = append(stop, meterProvider.Shutdown)
+	}
+	return func(ctx context.Context) error {
+		// Both signals get the full shutdown budget even if one endpoint stalls.
+		errs := make([]error, len(stop))
+		var wg sync.WaitGroup
+		for i, shutdown := range stop {
+			wg.Go(func() { errs[i] = shutdown(ctx) })
+		}
+		wg.Wait()
+		return errors.Join(errs...)
+	}, nil
 }
 
 // observeProcess reports goroutines and live heap, as the live activity

@@ -16,7 +16,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/telemetry"
 	otelattribute "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Request logging keeps logs readable at a glance and small on disk:
@@ -90,6 +92,34 @@ func (l *requestLog) middleware(next echo.HandlerFunc) echo.HandlerFunc {
 			return next(c)
 		}
 		start := time.Now()
+		ctx := c.Request().Context()
+		var span trace.Span
+		route := c.Path()
+		switch route {
+		case publicActivityStream, privateActivityStream, "/assets/*":
+			// Stream lifetime is not request work; static files do not need spans.
+		default:
+			method := knownMethod(c.Request().Method)
+			if method == "OTHER" {
+				method = "_OTHER"
+			}
+			name := method
+			if route != "" {
+				name += " " + route
+			}
+			// Don't use public trace headers or baggage to choose sampling or IDs.
+			ctx, span = telemetry.Tracer().Start(ctx, name, trace.WithNewRoot(), trace.WithSpanKind(trace.SpanKindServer))
+			defer span.End()
+			if span.SpanContext().IsValid() {
+				c.SetRequest(c.Request().WithContext(ctx))
+			}
+			if span.IsRecording() {
+				span.SetAttributes(otelattribute.String("http.request.method", method))
+				if route != "" {
+					span.SetAttributes(otelattribute.String("http.route", route))
+				}
+			}
+		}
 		defer func() {
 			panicked := false
 			if r := recover(); r != nil {
@@ -98,11 +128,14 @@ func (l *requestLog) middleware(next echo.HandlerFunc) echo.HandlerFunc {
 					panic(r)
 				}
 				panicked = true
+				if span != nil {
+					span.SetStatus(codes.Error, "")
+				}
 				stack := debug.Stack()
 				if len(stack) > 4096 {
 					stack = stack[:4096]
 				}
-				l.logger.Error().Str("method", c.Request().Method).Str("path", routeOf(c)).Str("panic", truncate(fmt.Sprint(r), maxLoggedError)).
+				telemetry.LogTrace(l.logger.Error(), ctx).Str("method", c.Request().Method).Str("path", routeOf(c)).Str("panic", truncate(fmt.Sprint(r), maxLoggedError)).
 					Bytes("stack", stack).Msg("HTTP handler panicked")
 				err = echo.ErrInternalServerError
 			}
@@ -114,8 +147,19 @@ func (l *requestLog) middleware(next echo.HandlerFunc) echo.HandlerFunc {
 				c.Error(err)
 				err = nil
 			}
+			status := c.Response().Status
+			if span != nil && span.IsRecording() {
+				span.SetAttributes(otelattribute.Int("http.response.status_code", status))
+				switch {
+				case panicked:
+					span.SetAttributes(otelattribute.String("error.type", "panic"))
+				case status >= 500:
+					span.SetAttributes(otelattribute.String("error.type", strconv.Itoa(status)))
+					span.SetStatus(codes.Error, "")
+				}
+			}
 			stream := strings.HasPrefix(c.Response().Header().Get(echo.HeaderContentType), "text/event-stream")
-			l.observe(c.Request().Method, c.Path(), path, c.Response().Status, time.Since(start), handlerErr, stream, panicked)
+			l.observe(ctx, c.Request().Method, c.Path(), path, status, time.Since(start), handlerErr, stream, panicked)
 		}()
 		return next(c)
 	}
@@ -152,13 +196,12 @@ func knownMethod(method string) string {
 
 // observe records one response. Long-lived event streams are counted but
 // never timed: their duration is how long a reader stayed.
-func (l *requestLog) observe(method, route, path string, status int, d time.Duration, err error, stream, panicked bool) {
+func (l *requestLog) observe(ctx context.Context, method, route, path string, status int, d time.Duration, err error, stream, panicked bool) {
 	method = knownMethod(method)
 	metricRoute := route
 	if metricRoute == "" {
 		metricRoute = "unmatched"
 	}
-	ctx := context.Background()
 	httpRequests.Add(ctx, 1, metric.WithAttributes(otelattribute.String("method", method), otelattribute.String("route", metricRoute),
 		otelattribute.String("status_class", statusClass(status))))
 	if !stream {
@@ -166,13 +209,13 @@ func (l *requestLog) observe(method, route, path string, status int, d time.Dura
 	}
 	switch {
 	case status >= 400:
-		l.add(requestKey{method, route, status}, path, d, err, panicked)
+		l.add(ctx, requestKey{method, route, status}, path, d, err, panicked)
 	case d > slowRequest && !stream:
-		l.add(requestKey{method, route, 0}, path, d, nil, false)
+		l.add(ctx, requestKey{method, route, 0}, path, d, nil, false)
 	}
 }
 
-func (l *requestLog) add(key requestKey, path string, d time.Duration, err error, panicked bool) {
+func (l *requestLog) add(ctx context.Context, key requestKey, path string, d time.Duration, err error, panicked bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	g := l.groups[key]
@@ -204,7 +247,7 @@ func (l *requestLog) add(key requestKey, path string, d time.Duration, err error
 	}
 	if g.reported == 0 {
 		g.reported++
-		event := l.logger.Error().Str("method", key.method).Str("path", displayRoute(key.route)).Int("status", key.status).
+		event := telemetry.LogTrace(l.logger.Error(), ctx).Str("method", key.method).Str("path", displayRoute(key.route)).Int("status", key.status).
 			Int64("durationMs", d.Milliseconds())
 		if err != nil {
 			event = event.Str("error", truncate(err.Error(), maxLoggedError))

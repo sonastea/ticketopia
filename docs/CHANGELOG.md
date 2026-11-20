@@ -5,6 +5,7 @@ one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
 - 2026-11-19 — [App-wide rework](changes/app-rework.md)
+- 2026-11-19 — [Observability](changes/observability.md)
 - 2026-11-18 — [Authentication and accounts](changes/accounts.md)
 - 2026-11-17 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-16 — [CI performance](changes/ci-performance.md)
@@ -12,7 +13,6 @@ one entry per feature. Related changes stay in the same feature document. Browse
 - 2026-11-15 — [Followed discussions](changes/followed-discussions.md)
 - 2026-11-15 — [OpenAPI contract](changes/openapi.md)
 - 2026-11-15 — [Database and persistence](changes/database.md)
-- 2026-11-13 — [Observability](changes/observability.md)
 - 2026-11-12 — [UI components](changes/ui-components.md)
 - 2026-11-11 — [Container deployment](changes/deployment.md)
 - 2026-11-08 — [Reliable event history](changes/event-history.md)

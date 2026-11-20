@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -100,8 +101,8 @@ func TestRequestLogMinuteSummary(t *testing.T) {
 		get(e, "/wp-login.php")
 	}
 	get(e, "/.env?token=secret")
-	l.observe(http.MethodGet, "/ok", "/ok", http.StatusOK, 3*time.Second, nil, false, false)
-	l.observe(http.MethodGet, "/live", "/live", http.StatusOK, time.Hour, nil, true, false) // an event stream
+	l.observe(context.Background(), http.MethodGet, "/ok", "/ok", http.StatusOK, 3*time.Second, nil, false, false)
+	l.observe(context.Background(), http.MethodGet, "/live", "/live", http.StatusOK, time.Hour, nil, true, false) // an event stream
 	logs.Reset()
 
 	l.flush()
@@ -144,7 +145,7 @@ func TestRequestLogMinuteSummary(t *testing.T) {
 func TestRequestLogBoundsGroups(t *testing.T) {
 	_, l, logs := requestLogRoutes(t)
 	for i := range maxRequestGroups + 25 {
-		l.observe(http.MethodGet, "/r"+string(rune('a'+i%26))+string(rune('a'+i/26)), "/x", http.StatusBadRequest, time.Millisecond, nil, false, false)
+		l.observe(context.Background(), http.MethodGet, "/r"+string(rune('a'+i%26))+string(rune('a'+i/26)), "/x", http.StatusBadRequest, time.Millisecond, nil, false, false)
 	}
 	l.flush()
 	lines := logLines(t, logs)

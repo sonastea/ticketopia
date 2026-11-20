@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-11-19 — Traces for slow and failed operations
+
+- Export OTLP/HTTP traces to the existing base endpoint or a traces-specific
+  endpoint. Trace HTTP requests, MCP tool calls (including tool errors returned
+  as HTTP 200), live activity reads and background history and reminder work.
+  Export only traces with an error or a span taking at least two seconds;
+  discard fast successful traces locally without dropping their metrics.
+  HTTP spans use route templates; tool payloads and raw exceptions stay out of
+  traces. See [SigNoz setup and verification](../observability.md#traces).
+
 ### 2026-11-13 — Request summary logs and HTTP metrics
 
 - Log failed and slow requests compactly: the first server error per route each

@@ -11,6 +11,8 @@ import (
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/saved"
+	"github.com/sonastea/ticketopia/internal/telemetry"
+	"go.opentelemetry.io/otel/codes"
 )
 
 var ErrNotFound = errors.New("reminder not found")
@@ -166,7 +168,9 @@ func (w *Worker) Run(ctx context.Context) {
 		}
 	}
 }
-func (w *Worker) Step(ctx context.Context) error {
+func (w *Worker) Step(ctx context.Context) (err error) {
+	ctx, span := telemetry.Tracer().Start(ctx, "reminders.process")
+	defer func() { telemetry.EndSpan(span, err) }()
 	c, err := w.repo.Claim(ctx)
 	if err != nil || c.ID == "" {
 		return err
@@ -176,6 +180,9 @@ func (w *Worker) Step(ctx context.Context) error {
 		fetchCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		detail, err = w.provider.RefreshEvent(fetchCtx, c.EventID)
 		cancel()
+		if err != nil {
+			span.SetStatus(codes.Error, "")
+		}
 	}
 	var fresh *models.EventDetail
 	if err == nil && detail.Item.ID == c.EventID && !detail.Meta.Stale && !detail.Meta.DataAsOf.IsZero() {
@@ -188,8 +195,11 @@ func (w *Worker) Step(ctx context.Context) error {
 	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	state, messageID := w.sender.Send(sendCtx, *job)
 	cancel()
+	if state != "accepted" {
+		span.SetStatus(codes.Error, "")
+	}
 	// Never log recipients, email content, credentials or raw provider errors.
-	w.logger.Info().Str("state", state).Msg("On-sale email attempt completed")
+	telemetry.LogTrace(w.logger.Info(), ctx).Str("state", state).Msg("On-sale email attempt completed")
 	finishCtx, finishCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer finishCancel()
 	return w.repo.Finish(finishCtx, job.JobID, state, messageID)

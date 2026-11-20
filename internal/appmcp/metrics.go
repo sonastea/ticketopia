@@ -96,7 +96,7 @@ func toolName(name string) string {
 	return "unknown"
 }
 
-func (m *Metrics) observe(tool, outcome string, signedIn bool, d time.Duration) {
+func (m *Metrics) observe(ctx context.Context, tool, outcome string, signedIn bool, d time.Duration) {
 	if m == nil {
 		return
 	}
@@ -104,7 +104,6 @@ func (m *Metrics) observe(tool, outcome string, signedIn bool, d time.Duration) 
 	if outcome != "ok" && outcome != "tool_error" {
 		normalized = "error"
 	}
-	ctx := context.Background()
 	toolCalls.Add(ctx, 1, metric.WithAttributes(attribute.String("tool", tool), attribute.String("outcome", normalized), attribute.Bool("signed_in", signedIn)))
 	toolDuration.Record(ctx, d.Seconds(), metric.WithAttributes(attribute.String("tool", tool)))
 	m.mu.Lock()

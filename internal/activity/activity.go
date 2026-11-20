@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/sonastea/ticketopia/internal/telemetry"
 )
 
 var ErrUnavailable = errors.New("live activity unavailable")
@@ -208,7 +209,9 @@ func (s *Service) FilteredSnapshot(ctx context.Context, filter Filters) (Snapsho
 
 // OwnerSnapshot accepts only a server-authenticated owner; public callers must
 // use FilteredSnapshot, which rejects personal connection predicates.
-func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filters) (Snapshot, error) {
+func (s *Service) OwnerSnapshot(ctx context.Context, owner string, filter Filters) (_ Snapshot, err error) {
+	ctx, span := telemetry.Tracer().Start(ctx, "activity.snapshot")
+	defer func() { telemetry.EndSpan(span, err) }()
 	select {
 	case s.pending <- struct{}{}:
 	default:
@@ -267,17 +270,18 @@ func (s *Service) ownerSnapshot(ctx context.Context, owner string, filter Filter
 		}
 		var data Candidates
 		started := time.Now()
+		readCtx, span := telemetry.Tracer().Start(ctx, "activity.projection")
 		if repo, ok := s.repo.(CandidateRefreshRepository); ok {
 			var previous Candidates
 			if s.index != nil {
 				previous = s.index.data
 			}
-			data, err = repo.RefreshCandidates(ctx, previous)
+			data, err = repo.RefreshCandidates(readCtx, previous)
 		} else if repo, ok := s.repo.(CandidateRepository); ok {
-			data, err = repo.Candidates(ctx)
+			data, err = repo.Candidates(readCtx)
 		} else {
 			var snapshot Snapshot
-			snapshot, err = s.repo.Snapshot(ctx)
+			snapshot, err = s.repo.Snapshot(readCtx)
 			data.AsOf = snapshot.AsOf
 			for _, item := range snapshot.Items {
 				data.Items = append(data.Items, Candidate{Item: item})
@@ -296,6 +300,7 @@ func (s *Service) ownerSnapshot(ctx context.Context, owner string, filter Filter
 				err = ErrMemoryLimit
 			}
 		}
+		telemetry.EndSpan(span, err)
 		// Start time conservatively includes SQL assembly in contribution age.
 		s.readAt = now
 		s.readErr = err
@@ -310,7 +315,7 @@ func (s *Service) ownerSnapshot(ctx context.Context, owner string, filter Filter
 				s.metrics.memoryLimit.Add(1)
 			}
 			s.metrics.projectionFailed.Add(1)
-			s.logger.Warn().Err(err).Str("reason", reason).Msg("Live activity generation unavailable")
+			telemetry.LogTrace(s.logger.Warn(), readCtx).Err(err).Str("reason", reason).Msg("Live activity generation unavailable")
 			s.index = nil
 			clear(s.views)
 			s.viewBytes = 0
@@ -499,7 +504,9 @@ func publicKey(city string, f Filters) string {
 	}{city, f.CategoryIDs, f.ArtistIDs, f.VenueIDs})
 	return string(data)
 }
-func (s *Service) Counts(ctx context.Context, ids []string) (Counts, error) {
+func (s *Service) Counts(ctx context.Context, ids []string) (_ Counts, err error) {
+	ctx, span := telemetry.Tracer().Start(ctx, "activity.counts")
+	defer func() { telemetry.EndSpan(span, err) }()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	select {

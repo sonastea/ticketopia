@@ -17,6 +17,11 @@ import (
 	"github.com/sonastea/ticketopia/views/layouts"
 )
 
+const (
+	publicActivityStream  = "/api/v1/community/activity/stream"
+	privateActivityStream = "/api/v1/me/community/activity/stream"
+)
+
 type startWindow struct {
 	at time.Time
 	n  int
@@ -70,7 +75,7 @@ func (a *api) liveActivityRoutes(e *echo.Echo) {
 			err := next(c)
 			if a.liveActivity != nil {
 				switch c.Path() {
-				case "/happening-now", "/api/v1/community/activity", "/api/v1/community/activity/stream", "/api/v1/me/community/activity", "/api/v1/me/community/activity/stream", "/api/v1/events/activity-counts":
+				case "/happening-now", "/api/v1/community/activity", publicActivityStream, "/api/v1/me/community/activity", privateActivityStream, "/api/v1/events/activity-counts":
 					a.liveActivity.RecordHTTP(c.Response().Status)
 				}
 			}
@@ -78,13 +83,13 @@ func (a *api) liveActivityRoutes(e *echo.Echo) {
 		}
 	})
 	e.GET("/api/v1/community/activity", a.liveSnapshot)
-	e.GET("/api/v1/community/activity/stream", a.liveStream)
+	e.GET(publicActivityStream, a.liveStream)
 	e.GET("/api/v1/events/activity-counts", a.liveCounts)
 	e.GET("/api/v1/me/live-activity-preferences", a.livePreferences)
 	e.PUT("/api/v1/me/live-activity-preferences", a.livePreferences)
 	e.POST("/me/live-activity-preferences", a.livePreferencesPage)
 	e.GET("/api/v1/me/community/activity", a.privateLive(false))
-	e.GET("/api/v1/me/community/activity/stream", a.privateLive(true))
+	e.GET(privateActivityStream, a.privateLive(true))
 }
 
 type privateLiveScope struct {

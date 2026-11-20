@@ -7,6 +7,8 @@ import (
 
 	"github.com/sonastea/ticketopia/internal/discovery"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/telemetry"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type DetailRepository interface {
@@ -19,7 +21,9 @@ type DetailProvider interface {
 
 // At most one targeted detail per minute per worker, sharing the provider gate.
 // A failed/404 read is a retry receipt, never a cancellation observation.
-func RefreshMissing(ctx context.Context, r DetailRepository, p DetailProvider) (bool, error) {
+func RefreshMissing(ctx context.Context, r DetailRepository, p DetailProvider) (_ bool, err error) {
+	ctx, span := telemetry.Tracer().Start(ctx, "history.refresh_missing")
+	defer func() { telemetry.EndSpan(span, err) }()
 	id, token, err := r.ClaimDetail(ctx)
 	if err != nil || id == "" {
 		return false, err
@@ -31,6 +35,8 @@ func RefreshMissing(ctx context.Context, r DetailRepository, p DetailProvider) (
 	var value *models.EventDetail
 	if fetchErr == nil && !detail.Meta.Stale && !detail.Meta.DataAsOf.IsZero() {
 		value = &detail
+	} else {
+		span.SetStatus(codes.Error, "")
 	}
 	if errors.Is(fetchErr, discovery.ErrNotFound) {
 		delay = 24 * time.Hour

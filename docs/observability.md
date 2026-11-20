@@ -1,14 +1,17 @@
-# Metrics and logs in SigNoz (OpenTelemetry)
+# Metrics, traces and logs in SigNoz (OpenTelemetry)
 
-Ticketopia exports its operational metrics over OTLP/HTTP when an OpenTelemetry
-endpoint is configured, and keeps logging one structured JSON object per line to
-stdout. A collector next to the app ships those log lines; nothing in the app
-depends on SigNoz specifically, so any OTLP/HTTP backend or collector works.
+Ticketopia exports operational metrics and traces over OTLP/HTTP when an
+OpenTelemetry endpoint is configured. Logs stay as structured JSON on stdout; a
+collector next to the app ships those lines. Any OTLP/HTTP backend or collector works.
 
 - **Metrics** leave the app directly: off unless an endpoint is set, exported
   every 60 seconds and once more on shutdown. An unreachable endpoint never
   stops startup or requests; each failed export logs a `Telemetry export failed`
   warning and the next interval tries again.
+- **Traces** leave the app directly too, but routine successful traces are
+  discarded before export. Diagnostic traces are sent in batches, with a
+  bounded queue and a final flush on shutdown. A collector outage can drop
+  spans but does not block request handling.
 - **Logs** are read from Docker's container log files by the collector in
   [`deploy/otel-collector`](../deploy/otel-collector/), which parses the JSON
   fields into log attributes, maps `level` to severity and `message` to the body,
@@ -23,24 +26,56 @@ depends on SigNoz specifically, so any OTLP/HTTP backend or collector works.
 
 ## App configuration
 
-Standard OpenTelemetry variables; only these and the exporter's own standard
-variables (headers, timeout, compression, TLS certificates) are read.
+Ticketopia uses standard OpenTelemetry variables, including exporter options
+such as signal-specific headers, timeout, compression and TLS certificates.
 
 | Variable | Effect |
 | --- | --- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base OTLP/HTTP URL, for example `http://10.0.0.5:4318`; metrics go to `/v1/metrics`. Setting this (or the next) turns export on. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base OTLP/HTTP URL, for example `http://10.0.0.5:4318`. Enables both signals at `/v1/metrics` and `/v1/traces` unless individually disabled or overridden. |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Full metrics URL, used as is; overrides the base. |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Full traces URL, used as is; overrides the base. |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Headers such as `Authorization=Bearer …` when a proxy in front of the collector requires them. Secret. |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Milliseconds between exports (default 60000). |
 | `OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES` | Override `service.name` (default `ticketopia`) or add attributes such as `deployment.environment.name=production`. |
-| `OTEL_SDK_DISABLED=true`, `OTEL_METRICS_EXPORTER=none` | Turn export off while keeping an endpoint configured. |
+| `OTEL_SDK_DISABLED=true` | Disable both signals. |
+| `OTEL_METRICS_EXPORTER=none`, `OTEL_TRACES_EXPORTER=none` | Disable just that signal. |
 
-Only HTTP/protobuf (port 4318) is supported: `OTEL_EXPORTER_OTLP_PROTOCOL` or
-`OTEL_EXPORTER_OTLP_METRICS_PROTOCOL` set to anything else, or another
-`OTEL_METRICS_EXPORTER`, stops startup with an error rather than exporting
-nothing. Every replica reports `service.version` from `SOURCE_COMMIT` and
-`service.instance.id` from its hostname (the container ID on Docker, the pod
-name on Kubernetes).
+Only `http/protobuf` (port 4318) is supported for the global or signal-specific
+`OTEL_EXPORTER_OTLP_*PROTOCOL` settings. An unsupported protocol for an enabled
+signal, or an exporter other than `otlp` or `none`, stops startup with an error.
+Every replica reports `service.version` from `SOURCE_COMMIT` and
+`service.instance.id` from its hostname (the container ID on Docker, the pod name
+on Kubernetes).
+
+## Traces
+
+Ticketopia exports a trace only if at least one span is marked as an error or
+takes **2 seconds or longer**. It decides when the root operation finishes, so
+an otherwise healthy request still appears if a nested tool fails. Fast,
+successful traces never go to SigNoz; metrics still count them. In SigNoz
+**Traces**, filter to `service.name = ticketopia` and use duration or errors
+to narrow the results.
+
+- HTTP server spans use route templates, never raw URLs or query parameters.
+  HTTP 5xx and panics are errors; ordinary HTTP 4xx retain their status code
+  without being marked as server failures. Health checks, static assets and
+  live activity stream connections are excluded.
+- MCP tool spans are children of `POST /mcp`. Tool errors are marked even when
+  the HTTP request returns 200. Only registered names (or `unknown`) and fixed
+  outcomes are exported, not arguments or results.
+- Live activity snapshot, projection and count operations have separate spans,
+  as do event history collection, missing event refreshes and reminder
+  processing. Failed operations are marked without raw error messages.
+
+Logs with a slow or failed span can include `trace_id` and `span_id` for lookup;
+routine fast logs don't link to discarded traces. No request body, credential, identity, provider
+payload, or raw exception text is added to spans. HTTP requests start local
+traces; Ticketopia does not accept trace or baggage headers from public clients.
+
+Ticketopia filters locally before sending, so no collector sampling policy is
+needed. The app buffers context for up to 1,024 in-flight traces with up to
+16 child spans each. Larger bursts or unusually large traces can lose some
+surrounding context rather than grow memory without bound.
 
 ## Metrics
 
@@ -125,15 +160,18 @@ For an at-a-glance view in SigNoz, save a logs view filtered to
    mount a relative `./config.yaml` as an empty directory. Compose would also
    reject `${env:…}` inside that content, so the embedded copy has the SigNoz
    endpoint written in. Copy changes to `config.yaml` into the service by hand.
-3. **Export metrics.** Set `OTEL_EXPORTER_OTLP_ENDPOINT` to the same address on
-   the Ticketopia application and redeploy; the startup log then contains
-   `Exporting metrics over OTLP` with the endpoint. Optionally add
+3. **Export metrics and traces.** Set `OTEL_EXPORTER_OTLP_ENDPOINT` to the same
+   address on the Ticketopia application and redeploy; startup logs include
+   `Exporting metrics over OTLP` and `Exporting traces over OTLP`. If the app
+   uses only `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, add the full
+   `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (`…/v1/traces`) or use the base setting instead.
+   Optionally add
    `OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=production`.
-4. In SigNoz, filter logs and metrics by `service.name = ticketopia`. Log
+4. In SigNoz, filter logs, metrics and traces by `service.name = ticketopia`. Log
    attributes include every JSON field, for example `outcome` and `client_host`
    on `OAuth token revocation` records.
 5. Disk use in SigNoz is set by its retention periods (Settings → General),
-   separately for logs and metrics; shorter log retention saves the most.
+   separately for logs, metrics and traces.
 
 ## Kubernetes
 
@@ -144,12 +182,13 @@ service. For logs, use SigNoz's `k8s-infra` Helm chart (or any collector reading
 
 ## Verification
 
-Unit tests cover the environment rules, an export to a fake OTLP/HTTP receiver
-(resource attributes, instruments created before setup) and the live activity and
-catalog callbacks. Locally against Docker with the pinned collector: a real
+Tests cover the environment rules, metrics and diagnostic traces to a fake
+OTLP/HTTP receiver (including a shutdown flush and no export for fast successes),
+HTTP error status and route privacy, and MCP child spans. Locally against Docker
+with the pinned collector: a real
 Linux build exported process and MCP metrics (calls, duration histogram,
 refusals), including the final flush on stop, and the host collector forwarded
 the app's and a test container's JSON lines with fields and severity while
-dropping other containers' lines. In production, the app and the collector
-service run with these settings; data arriving in SigNoz is still to be
-confirmed.
+dropping other containers' lines. After deploying tracing, check **Traces** for
+`service.name = ticketopia` after a naturally slow or failed operation. A fast
+successful request should not appear.
