@@ -149,7 +149,10 @@
 /* The account-wide sign-out is the one destructive action; it asks first. */
 .confirm-disclosure > summary { color: var(--error); }
 .confirm-disclosure > :not(summary) { margin-block: .75rem 0; }
-.account-sign-in, .account-public { display: grid; gap: 1.5rem; max-inline-size: 40rem; }
+.account-sign-in { display: grid; gap: 1.5rem; max-inline-size: 40rem; }
+.sign-in-event { display: grid; gap: .5rem; }
+.sign-in-event > * { margin: 0; }
+.account-public { max-inline-size: 44rem; margin-block-end: 1rem; }
 .account-sign-in > .google-sign-in { justify-self: start; }
 .account-connect-list { display: grid; gap: var(--space-1); margin: 0; padding-inline-start: 1.25rem; list-style-type: disc; }
 .account-connect-host { font-weight: 650; }
@@ -3764,6 +3767,8 @@ html:has(.filter-sheet:modal) {
 @container workspace (min-width: 40rem) {
   .recommendation-event { grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; }
   .recommendation-event .event-art { margin: 0; }
+  /* In list rows the date stub stays with the artwork, not a tall row's foot. */
+  .recommendation-list:not(.community-cards) > .recommendation-event > .event-art { align-self: start; }
   .recommendation-event .event-image { aspect-ratio: 1; }
 }
 

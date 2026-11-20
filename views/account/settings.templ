@@ -26,16 +26,19 @@ templ SignInContext(enabled bool, returnTo string, message string, eventName str
 					<p role="status" class="account-notice">{ message }</p>
 				}
 				if section := signInSection(returnTo); section != "" {
-					if eventName != "" {
-						<h2>{ eventName }</h2>
-					}
-					if intent == "save" {
-						<p>After sign-in, we'll save this event to your private Saved list and return you to its { section } section.</p>
-						<p class="field-note">Signing in doesn't mark interest, publish a recommendation, change visibility, or set up reminders.</p>
-					} else {
-						<p>After sign-in, you'll return to this event's { section } section. Choose your action there.</p>
-						<p class="field-note">Signing in doesn't save an event, mark interest, publish a recommendation, change visibility, or set up reminders.</p>
-					}
+					// What happens to the event is its own short section.
+					<section class="sign-in-event" aria-label="After sign-in">
+						if eventName != "" {
+							<h2>{ eventName }</h2>
+						}
+						if intent == "save" {
+							<p>After sign-in, we'll save this event to your private Saved list and return you to its { section } section.</p>
+							<p class="field-note">Signing in doesn't mark interest, publish a recommendation, change visibility, or set up reminders.</p>
+						} else {
+							<p>After sign-in, you'll return to this event's { section } section. Choose your action there.</p>
+							<p class="field-note">Signing in doesn't save an event, mark interest, publish a recommendation, change visibility, or set up reminders.</p>
+						}
+					</section>
 				}
 				if enabled && signInConnects(returnTo) {
 					<p>An app wants to connect to your Ticketopia account. After sign-in, you'll see what it can do and choose whether to connect it.</p>
@@ -48,8 +51,7 @@ templ SignInContext(enabled bool, returnTo string, message string, eventName str
 						</span>
 						<span>Sign in with Google</span>
 					}
-					<p class="field-note">Google handles sign-in. Ticketopia never receives your Google password. We only request your account identity and email—not your contacts, calendar, or Gmail.</p>
-					<p class="field-note">Your email and preferences stay private. Your display name and bio are public; you can choose a name that isn't your real name.</p>
+					<p class="field-note">Google handles sign-in: Ticketopia never receives your Google password and only asks for your account identity and email, not your contacts, calendar or Gmail. Your email and preferences stay private. Your display name and bio are public; you don't have to use your real name.</p>
 				} else {
 					<p>Accounts aren't enabled on this server. You can still discover events without signing in.</p>
 				}
@@ -461,15 +463,20 @@ templ Interests(p Page) {
 templ Public(p accounts.PublicProfile, list interests.List, returnURL string, message string, recommended recommendations.List, recommendationError string) {
 	@layouts.App("profile", p.DisplayName) {
 		<main id="main" class="destination-page account-page">
-			<div class="account-public"><h1>{ p.DisplayName }</h1>
-				if p.Bio != "" {
-					<p class="account-bio">{ p.Bio }</p>
-				} else {
-					<p class="intro">No bio added.</p>
-				}
-				<p class="field-note">Public profile. Email, location, saves, private interest, and personal preferences are private.</p>
-				<a href="/" class="text-link">Discover events</a>
-			</div>
+			// The same card the owner sees at the top of /me.
+			<section class="summary-card profile-card account-public" aria-labelledby="public-name">
+				<span class="profile-monogram" aria-hidden="true">{ Initial(p.DisplayName) }</span>
+				<div class="profile-identity">
+					<h1 id="public-name" class="profile-name">{ p.DisplayName }</h1>
+					if p.Bio != "" {
+						<p class="account-bio">{ p.Bio }</p>
+					} else {
+						<p class="intro">No bio added.</p>
+					}
+					<p class="field-note">Public profile. Email, location, saves, private interest, and personal preferences are private.</p>
+					<a href="/" class="text-link">Discover events</a>
+				</div>
+			</section>
 			if message != "" {
 				<p class="field-note" role="status">{ message }</p>
 			} else {

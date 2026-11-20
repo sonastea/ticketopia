@@ -4,6 +4,18 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-19 — Phase 6: public profile, sign-in and the agents guide
+
+- A public profile (`/users/{id}`) leads with the same card as `/me`: initial,
+  name, bio, its privacy line and a way back to Discover.
+- Sign-in's Google and privacy notes are one note; when sign-in continues an
+  event, that event's context is its own short section.
+- The agents guide uses the shared page header, with its "On this page" links as
+  local navigation.
+- On profiles, a recommendation row's date stub stays with its artwork instead
+  of drifting to the bottom of a tall row.
+- A test holds the public profile and sign-in to the notes budget.
+
 ### 2026-11-19 — Phase 5: personal collections
 
 - Radar's scope reads "Chicago, US · Nov 19, 2026 – Feb 16, 2027". Its

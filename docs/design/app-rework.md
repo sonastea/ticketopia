@@ -261,6 +261,17 @@ Files: `saved.templ`, `radar.templ`, `interests.templ`, `follows.templ`,
 
 ### Phase 6: Public and edge screens
 
+**Shipped 2026-11-19, with changes to the plan below.** The public profile
+leads with the same card as `/me`; sign-in's two notes are one, and its event
+context is its own short section; `/agents` uses the shared page header (its
+"On this page" navigation already existed); profile recommendation rows keep
+their date stub beside the artwork. Not done in this phase: the shared error
+layout (the 404, account failure and offline pages keep their own; the offline
+page must work from one cached response with no stylesheet), the consent page's
+"Can / Can't" summary (its public-posting statement changes with the publish
+checkbox, and it is part of the OAuth flow, so it waits for its own review), and
+the `EventRow` bullets of the earlier phases.
+
 - **Public profile `/users/{id}`** mirrors the new `/me` card (initial, name,
   bio) and lists public activity with `EventRow`.
 - **Sign-in**: one paragraph and one privacy note instead of two.
