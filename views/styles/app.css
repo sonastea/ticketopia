@@ -1714,6 +1714,15 @@ html:has(.filter-sheet:modal) {
   }
 }
 
+/* An event's title and artwork links open the row or card they sit in, and
+   that surface gives the press feedback. The global pressed box would sit
+   behind just the title text, reading as highlighted text, and iOS Safari
+   paints it on touch-down, even when the touch starts a scroll. The title
+   keeps a colour cue; Community cards take a press wash like rows. */
+:is(.event-row, .community-cards > li, .live-card) [data-event-link]:active { background-color: transparent; }
+:is(.event-row, .community-cards > li) [data-event-link]:active { color: var(--brand-active); }
+.community-cards > li:has([data-event-link]:active) { background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface)); }
+
 .event-venue {
   font-size: .875rem;
   color: var(--muted-warm);
