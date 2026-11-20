@@ -561,17 +561,26 @@
     } catch { /* Page memory still prevents repeating it on this page. */ }
     return seen ? 'Event saved privately.' : 'Event saved privately. Only you can see your Saved events; saving doesn\'t publish interest or reserve tickets.';
   };
-  const focusCollectionControl = target => {
-    if (!target) return;
-    target.focus({ preventScroll: true });
-    target.scrollIntoView({ block: 'nearest' });
-    // Enlarged labels can make the sticky navigation taller than the root's
-    // ordinary scroll padding. Keep the restored action above its actual edge.
-    // The intermediate rail starts at the top and covers no bottom edge.
+  // Enlarged labels can make the sticky navigation taller than the root's
+  // ordinary scroll padding. Keep the restored action above its actual edge.
+  // The intermediate rail starts at the top and covers no bottom edge.
+  const collectionEdge = () => {
     const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect();
-    const edge = nav?.width && nav.top > 0 ? nav.top : innerHeight;
+    return nav?.width && nav.top > 0 ? nav.top : innerHeight;
+  };
+  const revealCollectionControl = target => {
+    target.scrollIntoView({ block: 'nearest' });
+    const edge = collectionEdge();
     const rect = target.getBoundingClientRect();
     if (rect.bottom > edge) scrollBy(0, rect.bottom - edge + 16);
+  };
+  const focusCollectionControl = target => {
+    if (!target) return;
+    // Skipped rows may hold stale placeholder sizes (as in revealRow); render
+    // them first so the scroll below is measured against the real layout.
+    unsettleRows();
+    target.focus({ preventScroll: true });
+    revealCollectionControl(target);
   };
   // Keep surviving collection rows mounted: removal should not refill the page,
   // reset its reading position, or discard focus elsewhere during a slow write.
@@ -587,15 +596,33 @@
     if (!selected && adjacent) {
       // Surviving rows slide into the gap, measured after scroll compensation
       // and the focus handoff so neither becomes part of the motion.
-      flip([...row.parentElement.children].filter(node => node !== row), () => {
+      const survivors = [...row.parentElement.children].filter(node => node !== row);
+      let target = null;
+      flip(survivors, () => {
         row.remove();
         if (noticeTarget) noticeTarget.textContent = notice;
         scrollBy(0, adjacent.getBoundingClientRect().top - anchorTop);
         if (shouldFocus) {
           const button = adjacent.querySelector(control);
-          focusCollectionControl(button?.disabled ? adjacent.querySelector('.event-link') : button);
+          target = button?.disabled ? adjacent.querySelector('.event-link') : button;
+          focusCollectionControl(target);
         }
       });
+      // WebKit can shift the scroll position as the slide ends; once the rows
+      // land, bring the focused action back above the navigation if it was
+      // moved there, unless the person scrolled or acted in the meantime.
+      if (target) {
+        let interrupted = false;
+        const interrupt = () => { interrupted = true; };
+        const inputs = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+        for (const type of inputs) addEventListener(type, interrupt, { capture: true, passive: true });
+        Promise.allSettled(survivors.map(node => node.flipAnimation?.finished)).then(() => {
+          for (const type of inputs) removeEventListener(type, interrupt, { capture: true });
+          if (interrupted || document.activeElement !== target) return;
+          const box = target.getBoundingClientRect();
+          if (box.top < 0 || box.bottom > collectionEdge()) revealCollectionControl(target);
+        });
+      }
       return;
     }
     // The server owns empty/error guidance and pagination. Only reload when no
