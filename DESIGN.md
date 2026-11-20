@@ -611,9 +611,9 @@ Photos are live external Ticketmaster assets retained in normalized `Event.Image
 
 ### Public Recommendations
 
-The composer inherits a bordered, plum-text native disclosure and the white account-form textarea, with the public audience explained before the optional reason. Publish/save use secondary actions; withdrawal is an underlined utility action. Ordinary POST forms remain usable without JavaScript. Enhancement dims pending forms, preserves drafts and confirmed content on failure, and closes the editor with focus restored to its summary after confirmation.
+The event's composer is a **composer card**: a white, bordered native disclosure whose summary reads as an invitation (a pale-plum icon circle, an ink title such as **Recommend this event** or **Edit your recommendation**, a short muted line, and a plum chevron that turns when open). Open, it holds the white account-form textarea, the public-audience line beside the action, and a primary plum **Publish/Save recommendation** that spans the card when the card is narrower than 30rem (a container query); withdrawal is an underlined utility action. Signed-out visitors see the same card with a secondary **Sign in to recommend** action. Ordinary POST forms remain usable without JavaScript. Enhancement dims pending forms, preserves drafts and confirmed content on failure, and closes the editor with focus restored to its summary after confirmation.
 
-Event and profile lists share flat, rule-separated attribution and reasons. Community recommendations and conversations are bordered flat cards in an intrinsic grid (18rem minimum). Each has 16:9 artwork with the ticket-stub date chip, then event identity, then each person's words as a pull quote: a plum opening mark and 1.0625rem text, with a byline of a pale-plum initials circle (first and last word) and the linked name. Event facts follow. Event-local lists omit duplicate event artwork. Reasons preserve line breaks, wrap long text, and use the existing event-prose measure (70ch); publication and edit metadata stay secondary. See [public recommendations](docs/event-recommendations.md) and the [recommendation surface contract](.impeccable/surfaces/views-home-recommendations-templ.md) for audience, ordering, and browsing behavior.
+On the event, recommendations, questions and replies share one **note** shape: a 2.25rem initials avatar (2rem for replies, a dashed empty circle when no author is shown) beside a 44px line holding the linked name in ink (weight 750, a 30% ink underline), any "via" app and the muted tabular date or time, then the person's words at body size in ink (not the section's muted note colour), wrapped at 70ch with line breaks kept. A reason-less recommendation says so in muted text. Notes are rule-separated; the viewer's own recommendation carries a plum **You** pill and the flat pale-plum wash of a selected row (an outline in forced colours). The header row (h3 plus count) sits above each list. When enlarged text leaves less than 14rem beside the avatar, the words wrap below it. Explicitly public interest renders as rounded name chips with small avatars. Profile lists keep flat, rule-separated attribution and reasons beside event identity. Community recommendations and conversations are bordered flat cards in an intrinsic grid (18rem minimum). Each has 16:9 artwork with the ticket-stub date chip, then event identity, then each person's words as a pull quote: a plum opening mark and 1.0625rem text, with a byline of a pale-plum initials circle (first and last word) and the linked name. Event facts follow. Event-local lists omit duplicate event artwork. Reasons preserve line breaks, wrap long text, and use the existing event-prose measure (70ch); publication and edit metadata stay secondary. See [public recommendations](docs/event-recommendations.md) and the [recommendation surface contract](.impeccable/surfaces/views-home-recommendations-templ.md) for audience, ordering, and browsing behavior.
 
 ### Live Activity
 
@@ -628,17 +628,23 @@ Happening Now puts its scope summary, the filter disclosure and Refresh in one c
 
 ### Event Discussions
 
-Questions and replies inherit Manrope, plum actions, native disclosures, and flat
-rule-separated reading surfaces. Dedicated threads keep event/date/venue context
-above the conversation. One indented reply level names same-thread targets;
-public text preserves line breaks and the 70ch prose measure. Helpful uses a
-44px secondary button with a thumbs-up icon that fills when selected (like Save's
-bookmark and Interested's star), a pale-plum selected state and an inline
-post-level count.
-Removed contributions leave content-free placeholders. An author's **Edit your
-contribution** and **Remove your contribution** are a quiet pair of muted
-.8125rem disclosures with the shared text-disclosure chevron. The labeled composer
-discloses its public audience before the field, with publish/discard directly below.
+Questions and replies use the event **note** shape (see Public Recommendations) on
+flat rule-separated reading surfaces. The event's question composer and a thread's
+reply section are composer cards; signed-out visitors get a card with a sign-in
+action. Each question in the event list ends in one **Open conversation · N replies**
+action. Dedicated threads keep event/date/venue context above the conversation.
+One indented reply level names same-thread targets with a plum **In reply to**
+link on the name line; public text preserves line breaks and the 70ch prose measure.
+Each post has one action row (capped at 46rem) of 44px ghost actions, muted .8125rem
+text with 1.125rem icons, aligned with the words above: **Reply**, Helpful, the
+author's **Edit**/**Remove** disclosures, and **Report** pushed to the row's end.
+Their accessible names stay complete (Edit your contribution, Report privately).
+An open Edit/Remove disclosure takes the row's full width beneath it. Helpful
+stays a bordered 44px toggle with a thumbs-up icon that fills when selected (like
+Save's bookmark and Interested's star), a pale-plum selected state and an inline
+post-level count. Removed contributions leave content-free placeholders. The
+labeled composer discloses its public audience before the field, with a primary
+plum publish action and discard directly below; a reply target is quoted on a paper panel.
 Long fields adapt to the visual viewport; pending fields remain selectable.
 Explicit discard changes only the draft. Uncertain creation retries keep their
 body/target/key immutable; confirmation selects the exact contribution. Standalone

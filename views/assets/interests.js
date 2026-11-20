@@ -122,8 +122,14 @@
         const list = document.createElement('ul'); list.className = 'public-interest-list';
         for (const item of data.items) {
           const entry = document.createElement('li'); const link = document.createElement('a');
-          link.href = '/users/' + item.profile.id; link.className = 'text-link'; link.textContent = item.profile.display_name;
-          entry.append(link); list.append(entry);
+          link.href = '/users/' + item.profile.id; link.className = 'text-link';
+          // Matches the server render: a decorative initials circle, then the name.
+          const words = item.profile.display_name.trim().split(/\s+/).filter(Boolean);
+          const letter = word => (word ? [...word][0].toUpperCase() : '');
+          const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.setAttribute('aria-hidden', 'true');
+          avatar.textContent = words.length > 1 ? letter(words[0]) + letter(words[words.length - 1]) : letter(words[0]);
+          const name = document.createElement('span'); name.textContent = item.profile.display_name;
+          link.append(avatar, name); entry.append(link); list.append(entry);
         }
         node.replaceChildren(list);
         if (!data.items.length) node.append(document.createTextNode('No public participants on this page.'));

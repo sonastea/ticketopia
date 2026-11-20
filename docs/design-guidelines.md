@@ -222,8 +222,9 @@ in small groups. Recommending must not implicitly save, mark interest, or post.
 
 Keep decision-critical event facts ahead of participation. Future event controls
 keep Save and Interested compact, Discuss contextual, and Recommend
-secondary. Within conversations, Reply leads, Helpful is secondary, and editing/
-removal use labeled native disclosures below the post's action row. Follow and
+secondary. Within conversations, each post has one action row: Reply leads,
+Helpful follows, an author's Edit/Remove are native disclosures in the same row
+(opening full width beneath it), and Report ends the row. Follow and
 the reply inbox share one row, and a conversation page's return links share one
 line. Report
 privately opens an event-contextual

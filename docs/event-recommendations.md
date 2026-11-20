@@ -31,7 +31,9 @@ and does not migrate the running development database.
 ## Publish, edit, and withdraw
 
 - Open an event or preview, then **Recommend** to open the native composer directly.
-  The Community section also provides a **Recommend this event** disclosure.
+  The Recommendations section also leads with a **Recommend this event** composer
+  card (a native disclosure; **Edit your recommendation** once you have one), and
+  marks your own recommendation in the list with **You**.
 - Before **Publish recommendation**, the form explains that your display name,
   profile link, and reason appear publicly on the event, in Community, and on your
   profile. Private interest visibility does **not** hide recommendations.

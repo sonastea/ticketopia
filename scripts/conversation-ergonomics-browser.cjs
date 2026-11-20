@@ -130,7 +130,7 @@ fs.mkdirSync(out, {recursive: true});
     await page.unroute('**/discussion-actions');
     await composer().getByRole('button', {name: 'Retry unchanged contribution'}).click();
     await page.waitForURL(url => url.hash.startsWith('#post-'));
-    await page.locator('.discussion-post > .discussion-body').filter({hasText: immutableBody}).waitFor();
+    await page.locator('.discussion-post > .note-main > .discussion-body').filter({hasText: immutableBody}).waitFor();
     await pause(page);
     const replies = await (await owner.request.get(base + endpoint + '/' + root.id + '/replies')).json();
     const published = replies.items.filter(post => post.body === immutableBody);
@@ -192,7 +192,7 @@ fs.mkdirSync(out, {recursive: true});
     await nativePage.locator('.discussion-composer textarea').fill('A native reply with the same retained target');
     await nativePage.getByRole('button', {name: 'Retry contribution'}).click();
     await nativePage.waitForURL(url => url.hash.startsWith('#post-'));
-    check('Native explicit retry publishes and selects the exact contribution', new URL(nativePage.url()).hash.startsWith('#post-') && await nativePage.locator('.discussion-post > .discussion-body').filter({hasText: 'A native reply with the same retained target'}).count() === 1);
+    check('Native explicit retry publishes and selects the exact contribution', new URL(nativePage.url()).hash.startsWith('#post-') && await nativePage.locator('.discussion-post > .note-main > .discussion-body').filter({hasText: 'A native reply with the same retained target'}).count() === 1);
     check('Confirmed off-page reply is visible once alongside the paginated conversation', await nativePage.getByRole('heading', {name: 'Selected contribution', exact: true}).count() === 1 && await nativePage.locator('.discussion-replies .discussion-post').count() === 20);
     // Blocked browser storage still supports same-document transitions.
     const blocked = await browser.newContext({viewport: {width: 390, height: 844}});

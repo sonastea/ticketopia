@@ -125,7 +125,7 @@ templ PublicInterestEvents(list interests.List, returnURL string) {
 }
 
 templ PublicParticipants(page EventPage) {
-	<p>Interest counts include private choices. Only people who chose Public appear below.</p>
+	<p class="field-note">Interest counts include private choices. Only people who chose Public appear below.</p>
 	if !page.Interests.Enabled {
 		<p class="field-note">Event interest is unavailable on this server.</p>
 	} else if page.ParticipantsError != "" {
@@ -145,7 +145,7 @@ templ ParticipantList(list interests.Participants) {
 	}
 	<ul class="public-interest-list">
 		for _, item := range list.Items {
-			<li><a class="text-link" href={ templ.URL("/users/" + item.Profile.ID) }>{ item.Profile.DisplayName }</a></li>
+			<li><a class="text-link" href={ templ.URL("/users/" + item.Profile.ID) }>@Avatar(initials(item.Profile.DisplayName))<span>{ item.Profile.DisplayName }</span></a></li>
 		}
 	</ul>
 }

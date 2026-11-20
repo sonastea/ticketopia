@@ -12,38 +12,42 @@ import "github.com/sonastea/ticketopia/views/components/alert"
 import "github.com/sonastea/ticketopia/views/components/empty"
 
 templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
-	<div data-event-recommendations={ id } data-recommendation-viewer={ v.ViewerID }>
+	<div class="community-panel" data-event-recommendations={ id } data-recommendation-viewer={ v.ViewerID }>
 		if !v.Enabled {
 			<p class="field-note">Recommendations require accounts to be enabled on this server.</p>
 		} else {
 			if v.Error != "" {
 				<p class="field-note" role="status">{ v.Error }</p>
 			} else if !v.SignedIn {
-				@button.Button(button.Props{Href:signInURL(recommendationSignInReturn(id, returnURL)),Variant:button.VariantOutline,Class:"button-quiet"}) {
-					Sign in to recommend
-				}
-				<p class="field-note">Recommendations are public, with your display name and profile link.</p>
+				<div class="composer-card composer-invite">
+					@ComposerBadge("community")
+					<p class="composer-prompt"><strong>Recommend this event</strong><span>Recommendations are public, with your display name and profile link.</span></p>
+					@button.Button(button.Props{Href:signInURL(recommendationSignInReturn(id, returnURL)),Variant:button.VariantOutline,Class:"action action-secondary"}) {
+						Sign in to recommend
+					}
+				</div>
 			} else {
-				<details class="recommendation-editor" data-recommendation-editor open?={ v.Open }>
-					<summary>
-						@layouts.Icon("community")
-						<span>
+				<details class="composer-card" data-recommendation-editor open?={ v.Open }>
+					<summary aria-labelledby={ "recommend-composer-title-" + id } aria-describedby={ "recommend-composer-note-" + id }>
+						@ComposerBadge("community")
+						<span class="composer-prompt">
 							if v.Own != nil {
-								Edit your recommendation
+								<strong id={ "recommend-composer-title-" + id }>Edit your recommendation</strong><span id={ "recommend-composer-note-" + id }>Change your reason or withdraw it.</span>
 							} else {
-								Recommend this event
+								<strong id={ "recommend-composer-title-" + id }>Recommend this event</strong><span id={ "recommend-composer-note-" + id }>Tell others why it's worth going. A reason is optional.</span>
 							}
 						</span>
+						@layouts.IconClass("chevron", "icon composer-chevron")
 					</summary>
-					<form action={ recommendationAction(id) } method="post" class="account-form" data-recommendation-form data-recommendation-id={ id } data-sign-in-url={ signInURL(recommendationSignInReturn(id, returnURL)) }>
+					<form action={ recommendationAction(id) } method="post" class="account-form composer-form" data-recommendation-form data-recommendation-id={ id } data-sign-in-url={ signInURL(recommendationSignInReturn(id, returnURL)) }>
 						<input type="hidden" name="csrf_token" value={ v.CSRF }/>
 						<input type="hidden" name="return_to" value={ returnURL }/>
 						<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span>
 							<textarea name="reason" rows="3" maxlength="500" data-recommendation-reason autofocus?={ v.Open }>{ v.reason() }</textarea>
 						</label>
 						<p class="field-note composer-audience">Your reason, display name and profile link will be public on this event, in Community and on your profile; live activity shows your chosen first name or Someone. Interest privacy does not hide recommendations.</p>
-						<div class="account-actions">
-							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
+						<div class="composer-actions">
+							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action composer-submit",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
 								if v.Own != nil {
 									Save recommendation
 								} else {
@@ -51,7 +55,7 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 								}
 							}
 							if v.Own != nil {
-								@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantLink,Class:"text-link",Attributes:templ.Attributes{"name":"action","value":"remove","formnovalidate":true}}) {
+								@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantLink,Class:"text-link composer-utility",Attributes:templ.Attributes{"name":"action","value":"remove","formnovalidate":true}}) {
 									Withdraw recommendation
 								}
 							}
@@ -60,20 +64,30 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 					</form>
 				</details>
 			}
-			<h3>Public recommendations</h3>
-			if v.List.Count != nil {
-				<p class="list-meta" data-live-total={ id } data-live-hide-zero hidden?={ *v.List.Count == 0 }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
-			}
+			<div class="note-list-head">
+				<h3>Public recommendations</h3>
+				if v.List.Count != nil {
+					<p class="list-meta" data-live-total={ id } data-live-hide-zero hidden?={ *v.List.Count == 0 }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
+				}
+			</div>
 			if v.ListError != "" {
 				<p class="field-note" role="status">{ v.ListError }</p>
 			} else {
-				@RecommendationList(v.List,eventContext(id),returnURL)
+				@RecommendationList(v.List,listContext{Place:inEvent,EventID:id,ViewerID:v.ViewerID},returnURL)
 				if v.List.NextCursor != nil {
 					<a href={ templ.URL(recommendationListURL(id,returnOrigin(returnURL))) } class="text-link">See all recommendations</a>
 				}
 			}
 		}
 	</div>
+}
+
+// ComposerBadge marks a community composer or sign-in invitation with the
+// icon of what it publishes.
+templ ComposerBadge(icon string) {
+	<span class="composer-badge" aria-hidden="true">
+		@layouts.Icon(icon)
+	</span>
 }
 
 templ RecommendationList(list recommendations.List,c listContext,returnURL string) {
@@ -86,6 +100,35 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 		} else {
 			<p data-live-empty={ c.EventID }>No one has recommended this event yet. If it's worth going to, be the first to say why.</p>
 		}
+	} else if !c.showsEvent() {
+		// On the event itself, each recommendation is a note: who, when, and
+		// their words at reading size. The viewer's own is marked and tinted.
+		<ul class="recommendation-list note-list">
+			for _,item := range list.Items {
+				<li class={ "note", templ.KV("note-own", c.ViewerID != "" && item.Profile.ID == c.ViewerID) }>
+					@Avatar(initials(item.Profile.DisplayName))
+					<div class="note-main">
+						<p class="note-head recommendation-attribution">
+							<a href={ templ.URL("/users/"+item.Profile.ID) } class="note-author"><span>{ item.Profile.DisplayName }</span></a>
+							if c.ViewerID != "" && item.Profile.ID == c.ViewerID {
+								<span class="note-tag">You</span>
+							}
+							@RecommendationVia(item)
+							<span class="note-meta">@layouts.StampDate(item.RecommendedAt)
+								if !item.UpdatedAt.Equal(item.RecommendedAt) {
+									<span> · Edited</span>
+								}
+							</span>
+						</p>
+						if item.Reason!="" {
+							<p class="note-body recommendation-reason">{ item.Reason }</p>
+						} else {
+							<p class="note-body note-quiet">Recommends this event</p>
+						}
+					</div>
+				</li>
+			}
+		</ul>
 	} else {
 		<ul class="recommendation-list">
 			for _,item := range list.Items {
