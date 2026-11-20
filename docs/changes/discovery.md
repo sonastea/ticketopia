@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### 2026-11-20 — Depth layer across Discover and the event page
+
+- Discover's result cards (Saved, Interests and Radar stay flat), the preview
+  panel, the event identity card, and Community and Happening Now cards are raised
+  (soft plum-tinted elevation, a corner glow, a 2px hover lift with motion allowed).
+  Tickets and the current date chip take the brand gradient.
+- Quieter controls (list rows when lit, command/filter bars, chips, Save and plans,
+  section tabs) get a hairline ring and soft shadow. CSS only; no behaviour change.
+- Pressing an event title (iOS Safari touch-down included) no longer paints a box
+  behind the text; its row or card takes the press wash and the title darkens.
+  See the [depth layer](../../DESIGN.md) and the [community entry](event-communities.md).
+- Chromium journeys pass with zero axe violations: recommendations, discussions,
+  responsive, moderation, saved, interests and action feedback. Conversation
+  ergonomics passes apart from an intermittent view-transition abort that also
+  occurs on unchanged code. WebKit: action feedback, sign-in, drill-down pass.
+
 ### 2026-10-29 — Shared event-detail refreshes
 
 - Concurrent readers of an expired or missing stored event share one provider
@@ -78,13 +94,6 @@
   from its results into a bounded memo, so only a city's first search may refetch
   once. Explicit `start_date`, cursors and the `/api/v1/events` UTC default are
   unchanged. See [discovery](../discovery.md#web-ui).
-
-### 2026-10-23 — Pagination loading placeholders
-
-- While **Load more events** runs, show three `aria-hidden` placeholder rows in the
-  result list's container layout. A highlight sweeps across them only without a
-  reduced-motion preference; the "Loading events…" label stays the announced state.
-  See [discovery](../discovery.md#web-ui).
 
 Older entries: [discovery archive](archive/discovery/).
 
