@@ -448,6 +448,12 @@ func TestCappedRebuildHoldsQueuedAccounts(t *testing.T) {
 		fixture.revisions[id] = 1
 		fixture.matches[id] = map[string]uint8{fmt.Sprint("ticketmaster:", i): 2}
 	}
+	// Convergence takes several 2s revision sweeps (about 6s unloaded); a race
+	// build in a busy container can exceed the 10s production hold. The check
+	// is that queued accounts are held, not closed, until they converge, so
+	// the hold is lengthened here. Set before New, restored after Close.
+	defer func(hold time.Duration) { rebuildHold = hold }(rebuildHold)
+	rebuildHold = 40 * time.Second
 	s := New(t.Context(), fixture, owners)
 	defer s.Close()
 	f := DefaultPreferences().Filters
@@ -481,7 +487,7 @@ func TestCappedRebuildHoldsQueuedAccounts(t *testing.T) {
 	}
 	fixture.mu.Unlock()
 	converged := map[int]bool{}
-	deadline := time.After(9500 * time.Millisecond)
+	deadline := time.After(rebuildHold - 500*time.Millisecond)
 	for len(converged) < owners {
 		for i, updates := range channels {
 			select {

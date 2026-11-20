@@ -41,8 +41,9 @@ type MembershipRepository interface {
 }
 
 // rebuildHold bounds how long a replica keeps an account's last complete view
-// while rebuilding it for a newer revision.
-const rebuildHold = 10 * time.Second
+// while rebuilding it for a newer revision. A variable only so a test under
+// load can outlast its 2s sweeps; nothing changes it at run time.
+var rebuildHold = 10 * time.Second
 
 // errRebuilding is unavailable to new reads; active streams hold their view.
 var errRebuilding = fmt.Errorf("%w: rebuilding", ErrUnavailable)
