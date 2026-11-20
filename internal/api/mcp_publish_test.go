@@ -251,7 +251,7 @@ func TestOAuthConsentPublishCheckbox(t *testing.T) {
 		return oauth.AuthorizePath + "?" + v.Encode()
 	}
 	page := f.browserRequest(t, http.MethodGet, request("read write"), nil).Body.String()
-	if strings.Contains(page, `name="publish"`) || !strings.Contains(page, "or post anything publicly") || strings.Contains(page, "connect-public") {
+	if strings.Contains(page, `name="publish"`) || !strings.Contains(page, "<li>Post anything publicly</li>") || strings.Contains(page, "connect-public") {
 		t.Fatalf("consent without publish:\n%s", page)
 	}
 	page = f.browserRequest(t, http.MethodGet, request("read write publish"), nil).Body.String()

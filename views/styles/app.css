@@ -207,7 +207,7 @@
 @supports selector(:has(*)) {
   .connect-public-either { display: none; }
   .account-connect form:not(:has([name="publish"]:checked)) .connect-public-off,
-  .account-connect form:has([name="publish"]:checked) .connect-public-on { display: block; }
+  .account-connect form:has([name="publish"]:checked) .connect-public-on { display: list-item; }
 }
 /* The page keeps the shared account width so its tabs fit; reading content keeps a 70ch measure. */
 .reminders-page > :not(.page-header, .account-navigation) { max-inline-size: 70ch; }

@@ -12,17 +12,41 @@ templ Consent(p ConsentPage) {
 			<div class="account-sign-in account-connect">
 				<h1>Connect { p.ClientName } to Ticketopia?</h1>
 				<p>This app is published by <strong class="account-connect-host">{ p.ClientHost }</strong>. Only continue if you started connecting from that app just now.</p>
-				<p class="field-note">Signed in as <strong class="account-email">{ p.Email }</strong>.</p>
+				<p>Signed in as <strong class="account-email">{ p.Email }</strong>.</p>
 				<form action={ templ.URL(p.Action) } method="post" class="account-form">
 					@CSRF(p.CSRF)
 					for _, field := range p.Fields {
 						<input type="hidden" name={ field.Name } value={ field.Value }/>
 					}
-					<h2>What it can do</h2>
-					<ul class="account-connect-list">
-						<li>Search events and read their details</li>
-						<li>Read your radar, saved events, on-sale reminders, follows and Interested events</li>
-					</ul>
+					// What the app can and can't do, in the Privacy page's
+					// "Who sees what" pattern; the checkboxes below add to it.
+					<section class="summary-card privacy-summary connect-summary" aria-labelledby="connect-summary-heading">
+						<h2 id="connect-summary-heading">What it can do</h2>
+						<div class="privacy-summary-group">
+							<h3>Can</h3>
+							<ul>
+								<li>Search events and read their details</li>
+								<li>Read your radar, saved events, on-sale reminders, follows and Interested events</li>
+							</ul>
+						</div>
+						<div class="privacy-summary-group">
+							<h3>Can't</h3>
+							<ul>
+								<li>See your email</li>
+								<li>Change your profile or preferences</li>
+								if p.Publish {
+									// Exactly one item is shown for the checkbox's state; browsers
+									// without :has() show the one that is true in both states.
+									<li class="connect-public connect-public-either">Post anything publicly unless you allow it below; even then, anything it writes waits for you as a draft</li>
+									<li class="connect-public connect-public-off">Post anything publicly</li>
+									<li class="connect-public connect-public-on">Publish anything it writes: it waits for you as a draft</li>
+								} else {
+									<li>Post anything publicly</li>
+								}
+							</ul>
+						</div>
+						<p class="field-note">You can disconnect this app in Security &amp; Apps. The connection expires 30 days after you connect or after the app last refreshes its access.</p>
+					</section>
 					if p.Write || p.Publish {
 						<div class="account-checkboxes">
 							if p.Write {
@@ -30,7 +54,7 @@ templ Consent(p ConsentPage) {
 									<input type="checkbox" name="write" checked aria-labelledby="connect-write-label" aria-describedby="connect-write-help"/>
 									<span class="notification-copy">
 										<span id="connect-write-label" class="notification-title">Also allow changes</span>
-										<span id="connect-write-help" class="field-note">Save and remove events, set or stop on-sale reminders, follow artists and venues, mark events Interested (privately), and draft recommendation reasons, questions, tips and replies for you to review. Leave this off to keep it from changing anything in your account.</span>
+										<span id="connect-write-help" class="field-note">Save and remove events, set or stop on-sale reminders, follow artists and venues, mark events Interested (privately), and draft recommendation reasons, questions, tips and replies for you to review. Leave this off to keep it from making these changes.</span>
 									</span>
 								</label>
 							}
@@ -46,16 +70,6 @@ templ Consent(p ConsentPage) {
 							}
 						</div>
 					}
-					if p.Publish {
-						// Exactly one statement is shown for the checkbox's state; browsers
-						// without :has() show the one that is true in both states.
-						<p class="field-note connect-public connect-public-either">It can't see your email or change your profile or preferences. It can't post anything publicly unless you allow posting publicly above, and even then anything it writes waits for you as a draft.</p>
-						<p class="field-note connect-public connect-public-off">It can't see your email, change your profile or preferences, or post anything publicly.</p>
-						<p class="field-note connect-public connect-public-on">It can't see your email or change your profile or preferences. Publicly, it can only make your Interested choices public, recommend or withdraw recommendations without a reason, and mark posts Helpful; anything it writes waits for you as a draft.</p>
-					} else {
-						<p class="field-note">It can't see your email, change your profile or preferences, or post anything publicly.</p>
-					}
-					<p class="field-note">You can disconnect this app in Security &amp; Apps. The connection expires 30 days after you connect or after the app last refreshes its access.</p>
 					<div class="account-actions">
 						@button.Button(button.Props{Type: button.TypeSubmit, Class: "action", Attributes: templ.Attributes{"name": "decision", "value": "allow"}}) {
 							Connect

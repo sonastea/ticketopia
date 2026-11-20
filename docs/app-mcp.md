@@ -180,9 +180,11 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
 - **Authorization** at `/oauth/authorize` requires `response_type=code` and PKCE
   with `S256`; `resource`, when sent, must be `AUTH_BASE_URL/mcp`. Signed-out
   people sign in first and return to the request. The consent page names the app
-  and the host serving its metadata, lists what it can do, and offers **Also
-  allow changes** when `write` is requested; leaving it off makes a read-only
-  connection. When `publish` is requested it also offers **Also allow posting
+  and the host serving its metadata, states what it can and can't do in a "What
+  it can do" card (the Privacy page's Who-sees-what pattern), and offers **Also
+  allow changes** when `write` is requested; leaving it off withholds those
+  private changes, and the connection is read-only when posting publicly is
+  also off. When `publish` is requested it also offers **Also allow posting
   publicly as *display name***, unchecked by default, naming exactly what that
   allows. Responses carry `iss` (RFC 9207). The page cannot be framed.
 - **Scopes**: `read` (public tools, radar, saved events, reminders, follows,
@@ -192,9 +194,10 @@ the issuer and `AUTH_BASE_URL/mcp` as the only resource tokens are issued for.
   public, recommend without a reason, withdraw a recommendation, mark or
   unmark Helpful). `publish` implies `read`, not `write`. An
   omitted scope requests `read write`, never `publish`. Unless posting is
-  allowed, the consent page promises the app cannot post anything publicly;
-  with the box ticked (detected with `:has()`), it says what the app can post.
-  Browsers without `:has()` show a statement true either way.
+  allowed, the card's "Can't" list says the app cannot post anything publicly;
+  with the box ticked (detected with `:has()`), it says that anything the app
+  writes waits as a draft. Browsers without `:has()` show a statement true
+  either way.
 - **Tokens** from `/oauth/token` (form-encoded, public clients only): access
   tokens (`tko_at_…`) last one hour; refresh tokens (`tko_rt_…`), issued when
   the client's document lists the `refresh_token` grant, rotate on every use.

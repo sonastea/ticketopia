@@ -51,11 +51,13 @@ func TestAccountPagesKeepTheNotesBudget(t *testing.T) {
 // The public profile and sign-in keep the budget too.
 func TestPublicProfileAndSignInKeepTheNotesBudget(t *testing.T) {
 	for name, component := range map[string]templ.Component{
-		"public profile, no bio": Public(accounts.PublicProfile{ID: "a1", DisplayName: "Riley"}, interests.List{}, "/users/a1", "", recommendations.List{}, ""),
+		"consent, every permission": Consent(ConsentPage{ClientName: "Agent", ClientHost: "agent.example", RedirectHost: "agent.example", Write: true, Publish: true, DisplayName: "Riley", Email: "r@example.test", CSRF: "c", Action: "/oauth/authorize"}),
+		"consent, read only":        Consent(ConsentPage{ClientName: "Agent", ClientHost: "agent.example", LocalRedirect: true, Email: "r@example.test", CSRF: "c", Action: "/oauth/authorize"}),
+		"public profile, no bio":    Public(accounts.PublicProfile{ID: "a1", DisplayName: "Riley"}, interests.List{}, "/users/a1", "", recommendations.List{}, ""),
 		// An unavailable list's message sits under main beside the card's
 		// own note, which the card's section keeps apart.
 		"public profile, interest unavailable": Public(accounts.PublicProfile{ID: "a1", DisplayName: "Riley"}, interests.List{}, "/users/a1", "Public event interest is unavailable on this server.", recommendations.List{}, ""),
-		"sign in to save":        SignInContext(true, "/events/ticketmaster:E?section=community", "", "Show", "save"),
+		"sign in to save":                      SignInContext(true, "/events/ticketmaster:E?section=community", "", "Show", "save"),
 	} {
 		var out bytes.Buffer
 		if err := component.Render(t.Context(), &out); err != nil {
