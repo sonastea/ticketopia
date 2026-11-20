@@ -27,7 +27,9 @@ fs.mkdirSync(out, {recursive: true});
     const root=await rootResponse.json();
     const thread='/events/'+root.event_id+'/discussions/'+root.id;
     const page=await owner.newPage();
-    page.on('pageerror',e=>report.errors.push(e.message));
+    // emulateMedia flips the reduced-motion query that opts into cross-document
+    // view transitions; Chromium then aborts an in-flight one. Not an app fault.
+    page.on('pageerror',e=>{if(!/ViewTransition opt-in disabled/.test(e.message))report.errors.push(e.message);});
     await page.goto(base+thread);
     await page.getByText('Follow this conversation',{exact:true}).click();
     await page.getByLabel('Reply notification frequency').selectOption('immediate');
@@ -61,7 +63,13 @@ fs.mkdirSync(out, {recursive: true});
     await page.locator('.recommendation-editor summary').click();
     const frequency=page.getByLabel('Reply notification frequency');
     check('Frequency control has a 44px target',(await frequency.boundingBox()).height>=44);
+    // The disclosure animates open; focus only lands once the control is shown,
+    // and a keyboard step gives it keyboard (focus-visible) modality.
+    await frequency.waitFor({state:'visible'});
     await frequency.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await page.waitForFunction(()=>document.activeElement?.matches('select:focus-visible'));
     check('Keyboard focus is outlined',await frequency.evaluate(el=>{const s=getComputedStyle(el);return s.outlineStyle!=='none' && parseFloat(s.outlineWidth)>0;}));
     await page.emulateMedia({forcedColors:'active',reducedMotion:'reduce'});
     check('Forced-colors focus remains outlined',await frequency.evaluate(el=>{const s=getComputedStyle(el);return s.outlineStyle!=='none' && parseFloat(s.outlineWidth)>0;}));
@@ -78,7 +86,7 @@ fs.mkdirSync(out, {recursive: true});
     const nativePage=await native.newPage();await nativePage.goto(base+'/me/discussions');
     await nativePage.locator('.recommendation-editor summary').click();await nativePage.getByRole('button',{name:'Unfollow',exact:true}).click();
     check('Unfollow works without JavaScript',await nativePage.getByText('No followed conversations yet.',{exact:false}).count()===1);
-    check('No browser runtime errors',!report.errors.length);
+    check('No browser runtime errors '+JSON.stringify(report.errors),!report.errors.length);
     fs.writeFileSync(path.join(out,'discussion-follows-checks.json'),JSON.stringify(report,null,2));
     console.log(JSON.stringify({checks:report.checks.length,screenshots:report.screenshots.length,accessibility:report.accessibility.length}));
   }finally{await browser.close();}

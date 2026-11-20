@@ -167,15 +167,19 @@ fs.mkdirSync(out, { recursive: true });
     await page.getByRole('link', { name: 'More public recommendations' }).click();
     check('Profile endorsements paginate separately from interest', new URL(page.url()).searchParams.has('recommendation_cursor') && !new URL(page.url()).searchParams.has('cursor') && await page.locator('.recommendation-event').count() === 1);
     const profileOrigin = page.url();
+    // Focus, measure, then activate by keyboard: a pointer click would scroll
+    // again when the floating navigation covers the link, after measuring.
     await page.locator('.recommendation-event h3 a').scrollIntoViewIfNeeded();
+    await page.locator('.recommendation-event h3 a').focus();
     const profileScroll = await page.evaluate(() => scrollY);
-    await page.locator('.recommendation-event h3 a').click();
+    await Promise.all([page.waitForURL(url => url.pathname.startsWith('/events/')), page.keyboard.press('Enter')]);
     check('Profile-to-event return remains available', await page.getByRole('link', { name: 'Back to profile' }).count() === 1);
     await page.getByRole('link', { name: 'Questions & tips', exact: true }).click();
     await page.waitForFunction(() => new URL(location.href).searchParams.get('section') === 'discussion');
     await page.getByRole('link', { name: 'Back to profile' }).click();
     await page.waitForFunction(() => document.activeElement?.matches('.recommendation-event h3 a'));
-    check('Profile restores paginated title focus and scroll across sections', page.url() === profileOrigin && Math.abs(await page.evaluate(() => scrollY) - profileScroll) < 3);
+    const restoredProfile = { url: page.url(), scroll: await page.evaluate(() => scrollY) };
+    check('Profile restores paginated title focus and scroll across sections ' + JSON.stringify({ scroll: restoredProfile.scroll, profileScroll, sameURL: restoredProfile.url === profileOrigin }), restoredProfile.url === profileOrigin && Math.abs(restoredProfile.scroll - profileScroll) < 3);
     await page.goto(process.env.SAVED_FALLBACK_URL + '/events/' + id + '?section=community');
     check('Provider/cache outage keeps event and published reasons', await page.locator('.recommendation-reason').filter({ hasText: 'A native form reason.' }).count() === 1 && await page.getByText('Showing last-known details', { exact: false }).count() > 0);
     await page.goto(process.env.SAVED_DISABLED_URL + '/community');

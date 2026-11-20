@@ -64,9 +64,9 @@ fs.mkdirSync(out, {recursive: true});
       const file = path.join(out, name + '.png');
       await page.screenshot({path: file, fullPage: width < 992 || zoom}); report.screenshots.push(file);
       if (process.env.AXE_SCRIPT) {
-        await page.addScriptTag({path: process.env.AXE_SCRIPT});
-        const violations = await page.evaluate(async () => (await axe.run(document, {runOnly: {type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);
-        report.accessibility.push({name, violations}); check('Accessibility: ' + name, !violations.length);
+        // Drops only target-size findings caused by fixed chrome overlap.
+        const violations = await require('./axe-scan.cjs')(page, process.env.AXE_SCRIPT);
+        report.accessibility.push({name, violations}); check('Accessibility: ' + name + ' ' + JSON.stringify(violations.map(v => [v.id, v.nodes.map(n => n.target.join(' ') + ' :: ' + n.failureSummary.replace(/\s+/g, ' ').slice(0, 300))])), !violations.length);
       }
     };
 
@@ -84,6 +84,15 @@ fs.mkdirSync(out, {recursive: true});
       check(name + ': selection opens Overview within discovery', new URL(page.url()).pathname === '/' && !new URL(page.url()).searchParams.has('section') && await panel.getByRole('heading', {name: 'About the event'}).isVisible());
       check(name + ': layout has one readable primary view', width >= 992 && !zoom ? await page.locator('.discovery-content').isVisible() : !await page.locator('.discovery-content').isVisible());
       if (width < 992 || zoom) check(name + ': selection focus enters context', await panel.locator('.context-heading h2').evaluate(el => el === document.activeElement));
+      if (width < 992 || zoom) {
+        // Closing straight away, with no layout change in between, restores the
+        // exact browsing offset; then reopen to continue the journey.
+        await activate(panel.locator('[data-close-context]'));
+        await page.waitForFunction(() => document.activeElement?.matches('.event-link'), null, {timeout: 2000}).catch(() => {});
+        const exact = await page.evaluate(() => scrollY);
+        check(name + ': immediate close restores the exact offset (' + exact + ' vs ' + resultScroll + ')', Math.abs(exact - resultScroll) <= 2);
+        await activate(page.locator('.event-link').first()); await settled();
+      }
       check(name + ': tickets are directly available', await panel.locator('.ticket-link').isVisible());
       const save = panel.locator('[data-save-form] button');
       const initialSaved = await save.getAttribute('data-saved') === 'true';
@@ -95,10 +104,14 @@ fs.mkdirSync(out, {recursive: true});
       await page.waitForFunction(id => [...document.querySelectorAll('[data-interest-form]')].filter(f => f.dataset.interestId === id).every(f => f.getAttribute('aria-busy') !== 'true'), id);
       check(name + ': Interested remains distinct and private', (await panel.locator('[data-interest-count]').innerText()).includes('interested') && (await interest.innerText()).includes('Private'));
       await activate(panel.getByRole('link', {name: 'Recommend', exact: true}));
+      // Wait for the section load to finish: a composer seen mid-load is
+      // replaced, taking the typed reason and the submit with it.
+      await settled();
       await panel.locator('[data-recommendation-form] textarea').waitFor();
       await panel.locator('[data-recommendation-form] textarea').fill('A practical recommendation from ' + name + '.');
       await activate(panel.locator('[data-recommendation-form] button[value="set"]'));
-      await panel.locator('[data-recommendation-editor]:not([open])').waitFor();
+      try { await panel.locator('[data-recommendation-editor]:not([open])').waitFor(); }
+      catch (error) { throw new Error(error.message + '\n' + JSON.stringify({name, url: page.url(), editors: await panel.locator('[data-recommendation-editor]').evaluateAll(nodes => nodes.map(node => ({open: node.open, html: node.outerHTML.slice(0, 300)}))), feedback: await panel.locator('[data-recommendation-form] [role=alert], [data-recommendation-form] [role=status]').allInnerTexts()})); }
       check(name + ': public recommendation confirms without changing view', new URL(page.url()).pathname === '/' && await panel.getByText('A practical recommendation from ' + name + '.', {exact: true}).count() >= 1);
       await activate(panel.getByRole('link', {name: 'Questions & tips', exact: true}));
       await panel.locator('.discussion-editor > summary').waitFor();
@@ -153,7 +166,20 @@ fs.mkdirSync(out, {recursive: true});
       // when its update runs, so wait for it rather than sampling at once.
       const refocused = await page.waitForFunction(() => document.activeElement === document.querySelector('.event-link'), null, {timeout: 2000}).then(() => true, () => false);
       check(name + ': close restores result focus', !new URL(page.url()).searchParams.has('selected_event') && refocused);
-      if (width < 992 || zoom) check(name + ': return restores browsing position', Math.abs(await page.evaluate(() => scrollY) - resultScroll) <= 2);
+      if (width < 992 || zoom) {
+        // Widening to reach the event page makes the desktop scroll the browsing
+        // position (app.js on the layout change), so the original compact offset
+        // only applies when the journey stayed compact.
+        const restored = await page.evaluate(() => scrollY);
+        if (expanded) check(name + ': return restores browsing position (' + restored + ' vs ' + resultScroll + ')', Math.abs(restored - resultScroll) <= 2);
+        else check(name + ': return keeps the chosen title clear of the header and navigation', await page.locator('.event-link').first().evaluate(link => {
+          const box = link.getBoundingClientRect();
+          const header = document.querySelector('.compact-header')?.getBoundingClientRect();
+          const nav = document.querySelector('.bottom-nav')?.getBoundingClientRect();
+          const top = header?.height ? header.bottom : 0, bottom = nav?.width && nav.top > 0 ? nav.top : innerHeight;
+          return link === document.activeElement && box.top >= top - 1 && box.bottom <= bottom + 1;
+        }));
+      }
     }
 
     await page.evaluate(() => document.documentElement.style.fontSize = '');

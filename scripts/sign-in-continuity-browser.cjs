@@ -18,7 +18,9 @@ fs.mkdirSync(out, { recursive: true });
     try {
       for (const [mode, width, javaScriptEnabled] of [['desktop', 1440, true], ['phone', 390, true], ['native', 320, false]]) {
         const name = engine + '-' + mode;
-        const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled });
+        // The service worker would answer /auth/google/start itself, bypassing the
+        // fixture route below; block it so the route sees every navigation.
+        const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled, serviceWorkers: 'block' });
         await context.addCookies([{ name: 'ticketopia_session', value: fixtureToken, url: base }]);
         const me = await (await context.request.get(base + '/api/v1/me')).json();
         const headers = { 'X-CSRF-Token': me.csrf_token };
@@ -28,7 +30,9 @@ fs.mkdirSync(out, { recursive: true });
         }
         await context.clearCookies();
         const page = await context.newPage();
-        page.on('pageerror', error => report.consoleErrors.push(name + ': ' + error.message));
+        // The fixture's same-origin consent page doesn't opt into view transitions,
+        // so Chromium aborts the one leaving the app; Google is cross-origin.
+        page.on('pageerror', error => { if (!/ViewTransition opt-in disabled/.test(error.message)) report.consoleErrors.push(name + ': ' + error.message); });
         let cancel = false;
         // Run the real start, retain its Set-Cookie, then substitute a native
         // fixture consent link for the external provider redirect. The real
@@ -76,7 +80,8 @@ fs.mkdirSync(out, { recursive: true });
         let target = new URL(page.url()).searchParams.get('return_to');
         const selected = new URL(target, base);
         check(name + ' Save retains event and origin', selected.searchParams.get('selected_event') === id && selected.searchParams.get('cursor') === new URL(origin, base).searchParams.get('cursor') && selected.searchParams.get('city') === 'Chicago');
-        check(name + ' sign-in names event and explicit action', await page.getByRole('heading', { name: 'Something new for next weekend' }).count() === 1 && await page.getByText(/Choose your action there/).count() === 1);
+        // Sign in to save names the event and says it will be saved (docs/accounts.md).
+        check(name + ' sign-in names event and the Save it completes', await page.getByRole('heading', { name: 'Something new for next weekend' }).count() === 1 && await page.getByText(/we'll save this event to your private Saved list/).count() === 1);
         await capture('sign-in');
         if (mode === 'phone') {
           await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
@@ -99,14 +104,14 @@ fs.mkdirSync(out, { recursive: true });
         await page.waitForURL(url => url.pathname === '/auth/sign-in');
         cancel = false;
         await authenticate();
-        check(name + ' sign-in does not save', (await own('saved-events')).items.length === 0);
+        const savedAfterSignIn = (await own('saved-events')).items;
+        check(name + ' Sign in to save saves only the named event', savedAfterSignIn.length === 1 && savedAfterSignIn[0].event.id === id);
         check(name + ' sign-in does not mark interest', (await own('event-interests')).items.length === 0);
         check(name + ' sign-in does not publish', (await own('event-recommendations')).items.length === 0);
         const afterSignIn = await (await context.request.get(base + '/api/v1/me')).json();
         check(name + ' sign-in preserves notification and visibility choices', afterSignIn.item.interest_visibility === me.item.interest_visibility && JSON.stringify(afterSignIn.item.preferences) === JSON.stringify(me.item.preferences));
-        await page.locator('[data-event-shell] [data-save-form] button').click();
         await page.locator('[data-event-shell] [data-save-form] button[data-saved="true"]').waitFor();
-        check(name + ' explicit Save confirmed', (await own('saved-events')).items.length === 1);
+        check(name + ' resumed Save control shows the completed Save', (await own('saved-events')).items.length === 1);
         check(name + ' confirmed Save keeps pagination', new URL(page.url()).searchParams.get('cursor') === selected.searchParams.get('cursor'));
 
         // Expire the ambient session after rendering the controls. A rejected
@@ -160,7 +165,7 @@ fs.mkdirSync(out, { recursive: true });
       }
     } finally { await browser.close(); }
   }
-  check('No browser runtime errors', report.consoleErrors.length === 0);
+  check('No browser runtime errors ' + JSON.stringify(report.consoleErrors), report.consoleErrors.length === 0);
   fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ checks: report.checks.length, accessibility: report.accessibility.length, screenshots: report.screenshots.length }));
 })().catch(error => {

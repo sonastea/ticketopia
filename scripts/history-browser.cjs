@@ -7,6 +7,8 @@ const base = process.env.HISTORY_BASE_URL;
 const out = process.env.HISTORY_REVIEW_DIR;
 const report = { checks: [], accessibility: [], consoleErrors: [] };
 const check = (name, ok) => { assert.ok(ok, name); report.checks.push(name); };
+// Disclosures grow open over 200ms; wait for content to show rather than sampling at once.
+const shown = locator => locator.waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false);
 const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_date=2026-10-10&limit=3';
 
 (async () => {
@@ -109,16 +111,21 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     await page.getByRole('button', { name: 'Find events' }).click();
     check('SQL keyword finds catalog without provider', await page.locator('#event-list > li').count() === 3);
     await page.locator('#filters > summary').click();
+    // Disclosures animate open: focus lands once the field is shown, and a
+    // keyboard step gives it keyboard (focus-visible) modality.
+    await page.getByLabel('Sort events').waitFor({ state: 'visible' });
     await page.getByLabel('Sort events').focus();
-    check('Keyboard focus is outlined', await page.getByLabel('Sort events').evaluate(el => getComputedStyle(el).outlineStyle !== 'none'));
+    await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+    await page.waitForFunction(() => document.activeElement?.matches('select:focus-visible'), null, { timeout: 3000 }).catch(() => {});
+    check('Keyboard focus is outlined', await page.getByLabel('Sort events').evaluate(el => el === document.activeElement && getComputedStyle(el).outlineStyle !== 'none'));
     for (const [name, width, enlarged] of [['desktop',1440,false],['tablet',1024,false],['mobile',390,false],['compact',320,false],['enlarged',390,true]]) await capture(name,width,enlarged);
     await page.evaluate(() => document.documentElement.style.fontSize = '');
     await page.goto(base + '/events/ticketmaster:browser-Berlin-0?section=overview');
     // History is secondary content behind the native provenance disclosure.
     await page.getByText('Event source & history', { exact: true }).click();
-    check('First/last seen on event detail', await page.getByText('First seen', { exact: false }).isVisible());
-    check('Dated date change', await page.getByText('Previously scheduled for 2026-10-08', { exact: false }).isVisible());
-    check('Dated venue change with escaped public name', await page.getByText('Moved from Old <venue>', { exact: false }).isVisible());
+    check('First/last seen on event detail', await shown(page.getByText('First seen', { exact: false })));
+    check('Dated date change', await shown(page.getByText('Previously scheduled for 2026-10-08', { exact: false })));
+    check('Dated venue change with escaped public name', await shown(page.getByText('Moved from Old <venue>', { exact: false })));
     await capture('detail',390);
     const h = await (await context.request.get(base + '/api/v1/events/ticketmaster:browser-Berlin-0/history?limit=1')).json();
     check('API and HTML share changes', h.changes.length === 2 && h.changes.some(c => c.kind === 'venue'));
@@ -131,7 +138,7 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
         check(city + ': visible coverage summary', await disclosure.locator('summary').isVisible());
         await disclosure.locator('summary').click();
       }
-      check(city + ': honest state copy', await page.getByText(title, { exact: false }).first().isVisible());
+      check(city + ': honest state copy', await shown(page.getByText(title, { exact: false }).first()));
     }
     const native = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 1000 } });
     const nativePage = await native.newPage();

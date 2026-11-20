@@ -24,6 +24,10 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
         document.documentElement.style.fontSize = enlarged ? '200%' : '';
         await document.fonts.ready;
         scrollTo(0, 0);
+        // Entrances scale or slide in; measure the settled layout, not a frame of it.
+        // Only time-based ones end; scroll-driven ones (the header) follow scrolling.
+        const landing = document.getAnimations().filter(animation => animation.timeline === document.timeline && animation.effect?.getComputedTiming().iterations !== Infinity);
+        await Promise.race([Promise.allSettled(landing.map(animation => animation.finished)), new Promise(resolve => setTimeout(resolve, 2000))]);
       }, enlarged);
       check('No horizontal overflow: ' + name, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       if (await page.locator('.bottom-nav').isVisible()) {
@@ -175,7 +179,9 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     check('Mouse hover changes primary fill', hoverFill !== await page.locator('.search-bar button').evaluate(node => getComputedStyle(node).backgroundColor));
     const save = page.locator('.event-actions .save-button').first();
     const interest = page.locator('.event-actions .interest-button').first();
-    const actionStyle = node => {
+    // Colours transition between states, so a sample waits for them to land.
+    const actionStyle = async node => {
+      await Promise.allSettled(node.getAnimations().map(animation => animation.finished));
       const css = getComputedStyle(node);
       return { fill: css.backgroundColor, color: css.color, border: css.borderColor };
     };
@@ -245,7 +251,8 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
     const nativePage = await native.newPage();
     await nativePage.goto(base + '/');
     await nativePage.locator('#filters summary').click();
-    check('Native filters work without JavaScript', await nativePage.locator('#city').isVisible());
+    // The disclosure animates open; wait for its fields rather than sampling at once.
+    check('Native filters work without JavaScript', await nativePage.locator('#city').waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false));
     check('Open native filter fields retain the 16px floor', await nativePage.locator('input:visible, select:visible').evaluateAll(nodes => nodes.every(node => parseFloat(getComputedStyle(node).fontSize) >= 16)));
     await nativePage.evaluate(async () => { document.documentElement.style.fontSize = '200%'; await document.fonts.ready; });
     check('Native enlarged navigation keeps complete labels', await nativePage.locator('.bottom-nav .nav-label').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth + 1)));

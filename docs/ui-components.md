@@ -305,6 +305,11 @@ same read-only server. Set `BROWSER_ENGINE=webkit` for its WebKit pass, and
 `AXE_SCRIPT=/path/to/axe.min.js` for Chromium accessibility checks. It covers
 Overview, ticket access, named sections, long content, compact/desktop behavior,
 confirmed save/reminder presentation, provider/account failures, and native links.
+Journeys share `scripts/axe-scan.cjs` for their axe pass: it waits for
+time-based animations to land, and a target-size finding caused by the fixed
+bottom navigation or sticky header at the scan's scroll position is re-checked
+with the target scrolled clear and dropped only if it then passes. Journeys that use `page.route` for navigations block the
+service worker (`serviceWorkers: 'block'`), which otherwise answers them first.
 For real account writes and collection return continuity, use the isolated MariaDB
 browser harnesses in [saved events](saved-events.md#verification),
 [discussions](event-discussions.md#verification), [interest](event-interest.md),

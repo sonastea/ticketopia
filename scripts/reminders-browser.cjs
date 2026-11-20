@@ -33,7 +33,7 @@ fs.mkdirSync(out, {recursive: true});
           const focused=path.join(out,name+'-notifications.png');await target.locator('.notification-preferences').first().screenshot({path:focused});report.screenshots.push(focused);
         }
       }
-      if(process.env.AXE_SCRIPT){await target.addScriptTag({path:process.env.AXE_SCRIPT});const violations=await target.evaluate(async()=> (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);report.accessibility.push({name,violations});check('Accessibility '+name,!violations.length);}
+      if(process.env.AXE_SCRIPT){/* Drops only target-size findings caused by fixed chrome overlap. */const violations=await require('./axe-scan.cjs')(target,process.env.AXE_SCRIPT);report.accessibility.push({name,violations});check('Accessibility '+name+' '+JSON.stringify(violations.map(v=>[v.id,v.nodes.map(n=>n.target.join(' ')+' :: '+n.failureSummary.replace(/\s+/g,' ').slice(0,240))])),!violations.length);}
     };
     await page.goto(base+'/saved');
     check('Collections do not repeat reminder controls',await page.locator('.reminder-button').count()===0);
@@ -47,6 +47,9 @@ fs.mkdirSync(out, {recursive: true});
     await page.locator('.reminder-button').click();
     check('Explicit pending form',await page.getByRole('button',{name:'Save email reminder'}).count()===1);
     check('Defaults remain paused',(await page.locator('main').innerText()).includes('Delivery is paused'));
+    // Configuring a reminder never changes the account-wide pause (docs/reminders.md);
+    // accounts no longer start paused, so compare with the state before.
+    const pausedAtStart=(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused;
     const timing = page.getByLabel('Remind me before public sale', {exact:true});
     const custom = page.getByLabel('Custom lead time in minutes', {exact:true});
     check('Native preset select',await timing.evaluate(el=>el.tagName==='SELECT'));
@@ -69,7 +72,7 @@ fs.mkdirSync(out, {recursive: true});
     await custom.fill('45');
     await page.getByRole('button',{name:'Save email reminder'}).click();
     check('Native form persisted',(await (await owner.request.get(base+endpoint)).json()).lead_minutes===45);
-    check('Configuration did not unpause',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===true);
+    check('Configuration did not change the pause',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===pausedAtStart);
     check('Saved non-preset uses Custom',await timing.inputValue()==='custom' && await custom.inputValue()==='45');
     check('Unknown sale remains unscheduled',(await page.locator('main').innerText()).includes('Time not announced') && (await page.locator('[data-reminder-preview]').innerText()).includes('no target is scheduled'));
     await capture('reminders-desktop',1440);
@@ -171,8 +174,12 @@ fs.mkdirSync(out, {recursive: true});
     const touch=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     await touch.addCookies([{name:'ticketopia_session',value:process.env.SAVED_FIXTURE_TOKEN,url:base}]);
     const touchPage=await touch.newPage();await touchPage.goto(base+'/me/reminders/'+event);
+    // The earlier saves ran unpaused; pause the account so this save proves a
+    // reminder never lifts the account-wide pause.
+    check('Pause before touch save',(await write('patch','/api/v1/me/preferences',{notifications_paused:true})).ok() && (await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===true);
+    await touchPage.reload();
     await Promise.all([touchPage.waitForURL('**?saved=reminder'),touchPage.getByRole('button',{name:'Save email reminder',exact:true}).tap()]);
-    check('Touch save retains consent',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===true);
+    check('Touch save keeps the account paused',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused===true);
     await touchPage.goto(base+'/me/preferences');
     const touchPause=touchPage.getByRole('checkbox',{name:'Pause all notifications',exact:true});
     const touchPausedBefore=await touchPause.isChecked();

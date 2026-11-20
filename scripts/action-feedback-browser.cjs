@@ -11,11 +11,13 @@ const check = (name, result) => { assert.ok(result, name); report.checks.push(na
 fs.mkdirSync(out, { recursive: true });
 
 (async () => {
-  const browser = await (engine === 'webkit' ? webkit : chromium).launch({ headless: true });
+  const browser = await (engine === 'webkit' ? webkit : chromium).launch({ headless: true, executablePath: engine === 'webkit' ? undefined : process.env.CHROMIUM_EXECUTABLE });
   try {
     for (const [mode, width, javaScriptEnabled] of [['desktop', 1440, true], ['phone', 390, true], ['enlarged', 320, true], ['native', 320, false]]) {
       if (process.env.ACTION_FEEDBACK_MODE && process.env.ACTION_FEEDBACK_MODE !== mode) continue;
-      const context = await browser.newContext({ viewport: { width, height: 800 }, javaScriptEnabled });
+      // The service worker would answer form posts itself, bypassing page.route
+      // below and leaving the pending-state checks waiting forever.
+      const context = await browser.newContext({ viewport: { width, height: 800 }, javaScriptEnabled, serviceWorkers: 'block' });
       if (mode === 'enlarged') await context.addInitScript(() => document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.fontSize = '200%'; }));
       await context.addCookies([{ name: 'ticketopia_session', value: process.env.SAVED_FIXTURE_TOKEN, url: base }]);
       const page = await context.newPage();
@@ -36,10 +38,13 @@ fs.mkdirSync(out, { recursive: true });
         const overflow = await page.evaluate(() => ({ scrollX, width: innerWidth, scrollWidth: document.documentElement.scrollWidth, nodes: [...document.querySelectorAll('body *')].filter(node => node.getBoundingClientRect().right + scrollX > innerWidth + 1 || node.scrollWidth > node.clientWidth + 1).map(node => ({ tag: node.tagName, class: node.getAttribute('class'), text: node.textContent.slice(0, 90), width: node.getBoundingClientRect().width, scrollWidth: node.scrollWidth })).slice(-12) }));
         check(name + ' no horizontal overflow ' + JSON.stringify(overflow), await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         if (process.env.AXE_SCRIPT && javaScriptEnabled) {
+          // Let entrance fades (such as the privacy disclosure's) finish, or
+          // contrast is measured on a half-transparent element.
+          await page.waitForFunction(() => !document.getAnimations().some(animation => animation.playState === 'running' && animation.effect?.getComputedTiming().iterations !== Infinity), null, { timeout: 3000 }).catch(() => {});
           await page.addScriptTag({ path: process.env.AXE_SCRIPT });
           const violations = await page.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] } })).violations);
           report.accessibility.push({ name, violations });
-          check(name + ' axe ' + JSON.stringify(violations.map(item => item.id)), !violations.length);
+          check(name + ' axe ' + JSON.stringify(violations.map(item => [item.id, item.nodes.map(node => node.target.join(' ') + ' :: ' + node.failureSummary.replace(/\s+/g, ' ').slice(0, 240))])), !violations.length);
         }
       };
       // Preserve independently published activity across both private actions.
@@ -96,6 +101,11 @@ fs.mkdirSync(out, { recursive: true });
       }
       await capture('confirmed-event');
 
+      // Playwright's WebKit with JavaScript off can leave a page reached after
+      // native form posts at readyState "interactive": its cached preloaded
+      // fonts never report done (any route, which disables the cache, avoids
+      // it). The page is fully parsed, so wait for the DOM there, not load.
+      const openCollection = collection => page.goto(base + collection + '?limit=3', engine === 'webkit' && !javaScriptEnabled ? { waitUntil: 'domcontentloaded' } : undefined);
       for (const [collection, api, control, notice] of [['/saved', 'saved-events', '[data-save-form] button', '#saved-notice'], ['/me/interests', 'event-interests', '.interest-button', '[data-interest-notice]']]) {
         const seed = async () => {
           for (let i = 0; i < 6; i++) await request('delete', api + '/ticketmaster:Browser_' + i);
@@ -104,7 +114,7 @@ fs.mkdirSync(out, { recursive: true });
         for (const laterPage of [false, true]) {
           for (const index of [0, 1, 2]) {
             await seed();
-            await page.goto(base + collection + '?limit=3');
+            await openCollection(collection);
             if (laterPage) await page.getByRole('link', { name: api === 'saved-events' ? 'More saved events' : 'More interested events' }).click();
             const origin = page.url();
             const rows = page.locator('.event-row');
@@ -119,13 +129,16 @@ fs.mkdirSync(out, { recursive: true });
             check(mode + ' ' + collection + ' removes ' + index + ' later=' + laterPage, await rows.count() === (!javaScriptEnabled && !laterPage ? 3 : 2) && page.url() === origin);
             if (javaScriptEnabled) {
               await page.waitForFunction(({ id, control }) => document.querySelector('.event-row[data-event-id="' + id + '"]').querySelector(control) === document.activeElement, { id: ids[adjacent], control });
+              // Surviving rows slide into the gap for 240ms; measure where they land.
+              await page.waitForFunction(() => !document.getAnimations().some(animation => animation.playState === 'running' && animation.effect?.target?.closest?.('.event-row')));
               check(mode + ' removal names event', (await page.locator(notice).innerText()).includes(names[index].trim()));
               const after = await page.locator('.event-row[data-event-id="' + ids[adjacent] + '"]').evaluate(node => node.getBoundingClientRect().top);
               // Position may clamp at the document start or move just enough to
               // expose the focus target; it must not reset to the page heading.
               check(mode + ' removal retains reading position', index === 0 || Math.abs(after - before) < 4 || await page.evaluate(() => scrollY > 0));
               const rect = await page.locator('.event-row[data-event-id="' + ids[adjacent] + '"]').locator(control).boundingBox();
-              check(mode + ' removal focus is visible above compact nav', rect.y >= 0 && rect.y + rect.height <= await page.evaluate(() => document.querySelector('.bottom-nav').getBoundingClientRect().width ? document.querySelector('.bottom-nav').getBoundingClientRect().top : innerHeight));
+              const navTop = await page.evaluate(() => document.querySelector('.bottom-nav').getBoundingClientRect().width ? document.querySelector('.bottom-nav').getBoundingClientRect().top : innerHeight);
+              check(mode + ' removal focus is visible above compact nav ' + engine + ' ' + collection + ' ' + index + ' later=' + laterPage + ' ' + JSON.stringify({ y: rect.y, h: rect.height, navTop }), rect.y >= 0 && rect.y + rect.height <= navTop);
             }
           }
           // Empty just this page: newer choices still exist on the first page.
@@ -151,7 +164,7 @@ fs.mkdirSync(out, { recursive: true });
           if (laterPage) await capture(api + '-empty-page');
         }
         if (javaScriptEnabled) {
-          await seed(); await page.goto(base + collection + '?limit=3');
+          await seed(); await openCollection(collection);
           const row = page.locator('.event-row').first();
           const removeID = await row.getAttribute('data-event-id');
           const routePattern = '**/' + (api === 'saved-events' ? 'saved' : 'interests') + '/' + removeID;
@@ -170,7 +183,7 @@ fs.mkdirSync(out, { recursive: true });
           await page.unroute(routePattern);
         }
         if (mode === 'phone') {
-          await seed(); await page.goto(base + collection + '?limit=3');
+          await seed(); await openCollection(collection);
           await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
           await capture(api + '-enlarged');
         }

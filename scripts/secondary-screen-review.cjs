@@ -11,8 +11,8 @@ module.exports = async function review({page, name, check, report, out}) {
     check(label+' action targets',await page.locator('main a:visible, main button:visible, main summary:visible, main select:visible').evaluateAll(nodes=>nodes.every(n=>n.getBoundingClientRect().height>=44)));
     const file=path.join(out,label+'.png');await page.screenshot({path:file,fullPage:true});report.screenshots.push(file);
     if(process.env.AXE_SCRIPT) {
-      await page.addScriptTag({path:process.env.AXE_SCRIPT});
-      const violations=await page.evaluate(async()=> (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);
+      // Drops only target-size findings caused by fixed chrome overlap.
+      const violations=await require('./axe-scan.cjs')(page,process.env.AXE_SCRIPT);
       report.accessibility.push({name:label,violations});
       check(label+' axe '+JSON.stringify(violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))),!violations.length);
     }
