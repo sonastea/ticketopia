@@ -301,15 +301,31 @@ used by few people and already works.
 
 Open work:
 
-- A shared error layout for the 404, account failure and offline pages.
-- The consent page's "Can / Can't" summary.
-- `PageHeader` on the moderation case page.
-- Discover's height target: six results are 2,309px on desktop against the
-  1,700px aim, and 2,908px on a phone against 2,300px; the remaining height is
-  artwork-led card height.
-- Existing browser-harness failures recorded in
-  [the change history](../changes/app-rework.md), such as sign-in continuity in
-  WebKit and the action-feedback journey's timeout.
+- [ ] A shared error layout for the 404, account failure and offline pages.
+      The offline page must still work from one cached response with no
+      stylesheet.
+- [ ] The consent page's "Can / Can't" summary. It is part of the OAuth flow,
+      and its public-posting statement changes with the publish checkbox, so
+      it needs its own review.
+- [ ] `PageHeader` on the moderation case page, keeping "Back to review queue".
+- [ ] Discover's height target for six results: 2,309px on desktop against a
+      1,700px aim, and 2,908px on a phone against 2,300px. The remaining height
+      comes from the artwork in each card.
+- [ ] Full manual browser pass on Phases 5–7 after the review fixes: desktop
+      and phone, keyboard, reduced motion, forced colours, JavaScript off.
+      Phase 7's moderation alert has only the automated journey so far.
+- [ ] Browser test failures that predate the rework, recorded in
+      [the change history](../changes/app-rework.md):
+  - [ ] Sign-in continuity in WebKit, and its chromium-desktop check.
+  - [ ] The action-feedback journey's hang.
+  - [ ] Event context's "result and focus restoration".
+  - [ ] The css-browser preview's 44px check.
+  - [ ] Scroll restoration on phones in the responsive journey.
+  - [ ] Followed discussions: the forced-colours check and the target-size
+        findings on notification buttons.
+  - [ ] Target-size findings where the floating nav or fixed chrome covers the
+        captured element.
+  - [ ] The flaky `TestCappedRebuildHoldsQueuedAccounts` in `make check`.
 
 Deliberate departures, not backlog (each phase's note gives the reason):
 separate `EventCard`/`EventRow` components (Phase 0/2); one button group for
