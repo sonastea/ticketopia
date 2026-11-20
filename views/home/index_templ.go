@@ -1619,7 +1619,7 @@ func SourceFooter() templ.Component {
 			templ_7745c5c3_Var65 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<footer class=\"source-footer\">Event information from Ticketmaster. Advertised prices may exclude fees. Listings do not guarantee ticket availability; check the event's ticket page for current details.</footer>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "<footer class=\"source-footer\">Event information from Ticketmaster. Advertised prices may exclude fees. Listings do not guarantee ticket availability; check the event's ticket page for current details. Details it hasn't supplied, such as prices or sale times, are left out rather than guessed.</footer>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

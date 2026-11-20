@@ -54,7 +54,9 @@ templ draftItem(p DraftsPage, draft drafts.Draft, id string) {
 			} else {
 				from <strong>{ draft.ClientName }</strong> (<span class="account-connect-host">{ draft.ClientHost }</span>)
 			}
-			{ " · " }@layouts.StampDate(draft.CreatedAt)</p>
+			{ " · " }@layouts.StampDate(draft.CreatedAt)
+			{ " · not published, expires " }@layouts.StampDate(draft.ExpiresAt)
+		</p>
 		<blockquote class="recommendation-reason draft-text">{ draft.Text }</blockquote>
 		{{ publishable := p.publishable(draft) }}
 		switch draft.Kind {
@@ -81,7 +83,6 @@ templ draftItem(p DraftsPage, draft drafts.Draft, id string) {
 					<p class="field-note">You don't recommend this event yet; publishing recommends it.</p>
 				}
 		}
-		<p class="field-note">{ "Not published · expires " }@layouts.StampDate(draft.ExpiresAt)</p>
 		<form action={ templ.URL("/me/drafts/" + draft.ID) } method="post" class="account-actions">
 			@CSRF(p.CSRF)
 			if draft.Kind == drafts.KindRecommendation {

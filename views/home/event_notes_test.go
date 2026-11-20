@@ -209,3 +209,25 @@ func TestCommunityScreensKeepTheNotesBudget(t *testing.T) {
 		}
 	}
 }
+
+// Radar keeps one visible line that names its coverage state, staleness and
+// the time zone; each coverage state has its own explanation.
+func TestRadarFreshnessNamesEveryCoverageState(t *testing.T) {
+	at := time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC)
+	for status, want := range map[string]string{
+		"not_collected": "this is not a confirmed empty search",
+		"partial":       "more events may exist",
+		"stale":         "previously completed coverage",
+		"complete":      "Collected coverage for all requested dates",
+	} {
+		meta := models.Freshness{DataAsOf: at, Stale: status == "stale", Coverage: &models.Coverage{Status: status}}
+		var out bytes.Buffer
+		if err := RadarFreshness(meta).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		body := out.String()
+		if !strings.Contains(body, want) || !strings.Contains(body, "Venue-local event times") || strings.Contains(body, "<details") {
+			t.Errorf("%s: want visible %q and the time zone, got %s", status, want, body)
+		}
+	}
+}

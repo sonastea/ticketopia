@@ -4,6 +4,27 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-19 — Phase 5: personal collections
+
+- Radar's scope reads "Chicago, US · Nov 19, 2026 – Feb 16, 2027". Its
+  staleness, coverage state (each with its own wording, such as "not a
+  confirmed empty search") and "Updated … Venue-local event times" read as one
+  visible line; a result row shows "Updated…" only when its own data is stale.
+- Radar's bottom note moves into the shared source footer, which now also says
+  that details Ticketmaster hasn't supplied are left out rather than guessed.
+- A draft's expiry joins its metadata line ("· not published, expires …").
+- On wide screens, Reminders' tabs fit on one row: the page keeps the shared
+  account width, with a 70ch measure for its content.
+- The `Stamp` children guard now matches only a `{` on the same line as the
+  call, which is when templ treats it as children.
+- The reminders journey finds the Preferences city field and notification
+  group unambiguously, its pause copy check matches the current wording, and it
+  ignores Chromium's view-transition abort under emulated reduced motion, so it
+  runs to the end again. The radar journey checks the not-collected wording.
+  Run with non-fatal checks against Phase 4 with the same scripts, the radar,
+  reminders, saved, follows, interests and followed discussions journeys show
+  the same findings.
+
 ### 2026-11-19 — Phase 4: Community and Happening Now
 
 - Community and its Conversations tab start with `layouts.PageHeader`; Happening
@@ -57,26 +78,5 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   an "In reply to" link (axe target-size, 17px visible); readers can scroll it
   clear. That link's paragraph is now a flex line so its 44px target no longer
   overflows onto neighbors.
-
-### 2026-11-19 — Phase 2: Discover and result rows
-
-- Result rows in Discover, Saved, Radar and Interests show a **Tickets** link and
-  the Save button on one row. The button reads **Save** or **Saved**, and
-  **Remove** in Saved itself; its accessible name still says the action
-  ("Remove from Saved — event"), and the Tickets link is still named "Tickets
-  on Ticketmaster for" the event. On Interests, Interested follows the pair.
-- Each response renders at one time (`layouts.WithNow`, set from the API clock),
-  so a row and its preview always agree on whether a sale has started.
-- A public sale shows on a row only while it is ahead, as "Public sale starts",
-  in the row's metadata style.
-- The Discover preview, before an event is chosen, is one short prompt instead of
-  a heading and two generic messages.
-- Browser journeys updated for the account navigation (Radar, follows and
-  moderation reach their pages through family links) and a follows disclosure
-  check now waits for the open transition. The saved journey measures action
-  layout once running animations settle (at most a second), after an
-  in-flight animation intermittently read a 44px Recommend link as shorter.
-  Saved (four consecutive runs), interest, radar, follows and moderation
-  journeys pass.
 
 Older entries: [app rework archive](archive/app-rework/).

@@ -60,7 +60,9 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 								<li>{ reason.Text }</li>
 							}
 						</ul>
-						@Freshness(item.Meta)
+						if item.Meta.Stale {
+							@Freshness(item.Meta)
+						}
 					</div>
 				}
 				if !extended {
@@ -207,18 +209,34 @@ templ resultsFreshnessText(meta models.Freshness) {
 	}
 }
 
-templ CollectionCoverage(meta models.Freshness) {
-	if meta.Coverage != nil {
-		<p class="field-note" data-coverage={meta.Coverage.Status}>
-			switch meta.Coverage.Status {
-				case "not_collected":
-					Not collected yet. Ticketmaster could not be refreshed; this is not a confirmed empty search.
-				case "partial":
-					Partial coverage. Some dates or provider pages are missing; more events may exist. Try a shorter date range.
-				case "stale":
-					Showing older results from previously completed coverage while collection catches up.
-				default:
-					Collected coverage for all requested dates. Events not recently confirmed remain last-known records.
+// RadarFreshness states, in one visible line, whether results are last-known,
+// how complete Radar's coverage is, and when and in which time zone. Radar's
+// coverage wording is specific: its 90-day window can't be shortened.
+templ RadarFreshness(meta models.Freshness) {
+	if meta.Stale || meta.Coverage != nil || !meta.DataAsOf.IsZero() {
+		<p
+			class={ "freshness", templ.KV("is-stale", meta.Stale) }
+			if meta.Coverage != nil {
+				data-coverage={ meta.Coverage.Status }
+			}
+		>
+			if meta.Stale {
+				<strong>Showing last-known details, not live availability.</strong>{ " " }
+			}
+			if meta.Coverage != nil {
+				switch meta.Coverage.Status {
+					case "not_collected":
+						Not collected yet. Ticketmaster could not be refreshed; this is not a confirmed empty search.{ " " }
+					case "partial":
+						Partial coverage. Some dates or provider pages are missing; more events may exist.{ " " }
+					case "stale":
+						Showing older results from previously completed coverage while collection catches up.{ " " }
+					default:
+						Collected coverage for all requested dates.{ " " }
+				}
+			}
+			if !meta.DataAsOf.IsZero() {
+				Updated { freshnessLabel(meta.DataAsOf) }. Venue-local event times.
 			}
 		</p>
 	}

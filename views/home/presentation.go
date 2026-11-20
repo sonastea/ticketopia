@@ -1055,3 +1055,15 @@ func anyStale(feed recommendations.Feed) bool {
 	}
 	return false
 }
+
+// scopeDates shows a Radar date range ("2026-11-19", "2027-02-16") as
+// "Nov 19, 2026 – Feb 16, 2027", leaving unparseable values as they came.
+func scopeDates(start, end string) string {
+	label := func(raw string) string {
+		if day, err := time.Parse("2006-01-02", raw); err == nil {
+			return day.Format("Jan 2, 2006")
+		}
+		return raw
+	}
+	return label(start) + " – " + label(end)
+}

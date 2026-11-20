@@ -236,6 +236,16 @@ Files: `recommendations.templ`, `discussions.templ` (lists),
 
 ### Phase 5: Personal collections
 
+**Shipped 2026-11-19, with changes to the plan below.** Radar's scope uses
+readable dates; its staleness, coverage wording and time zone are one visible
+line; a row repeats "Updated…" only when its own data is stale; and its bottom
+note about unsupplied details moves into the shared source footer. A draft's expiry joins its metadata
+line. Reminders keeps the shared account width so its tabs fit, with a 70ch
+measure for its content. Saved, Interests, follows, followed discussions and
+notifications already used the shared rows and fit the notes budget, so they
+did not change. Radar keeps "Why this event" as a labelled list rather than one
+caller line, because a match can have several reasons.
+
 Files: `saved.templ`, `radar.templ`, `interests.templ`, `follows.templ`,
 `account/reminders.templ`, `account/drafts.templ`, `discussion_follows.templ`.
 

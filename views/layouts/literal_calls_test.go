@@ -27,7 +27,8 @@ func TestGeneratedViewsCallComponentsInsteadOfPrintingThem(t *testing.T) {
 	}
 }
 
-// A `{ "text" }` directly after a call becomes that component's children; a
+// A `{ "text" }` directly after a call, on the same line, becomes that
+// component's children (on the next line it is ordinary text); a
 // component that renders none (Stamp) silently drops the text.
 func TestStampCallsHaveNoSwallowedChildren(t *testing.T) {
 	sources, err := filepath.Glob(filepath.Join("..", "*", "*.templ"))
@@ -35,7 +36,7 @@ func TestStampCallsHaveNoSwallowedChildren(t *testing.T) {
 		t.Fatalf("no templ sources found: %v", err)
 	}
 	// Arguments may hold one level of nested calls, such as layouts.Now(ctx).
-	swallowed := regexp.MustCompile(`@layouts\.Stamp(?:Date)?\((?:[^()]|\([^()]*\))*\)\s*\{`)
+	swallowed := regexp.MustCompile(`@layouts\.Stamp(?:Date)?\((?:[^()]|\([^()]*\))*\)[ \t]*\{`)
 	for _, file := range sources {
 		body, err := os.ReadFile(file)
 		if err != nil {

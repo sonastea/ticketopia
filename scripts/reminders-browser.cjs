@@ -20,7 +20,9 @@ fs.mkdirSync(out, {recursive: true});
     check('Save synthetic event',(await write('put','/api/v1/me/saved-events/'+event)).status()===201);
     check('Saving does not subscribe',(await owner.request.get(base+endpoint)).status()===404);
     const page = await owner.newPage();
-    page.on('pageerror', e=>report.errors.push(e.message));
+    // emulateMedia flips the reduced-motion query that opts into cross-document
+    // view transitions; Chromium then aborts an in-flight one. Not an app fault.
+    page.on('pageerror', e=>{ if(!/ViewTransition opt-in disabled/.test(e.message)) report.errors.push(e.message); });
     const capture = async(name,width,zoom=false,height=1000,target=page)=>{
       await target.setViewportSize({width,height});
       await target.evaluate(async zoom=>{document.documentElement.style.fontSize=zoom?'200%':'';await document.fonts.ready;scrollTo(0,0);},zoom);
@@ -28,7 +30,7 @@ fs.mkdirSync(out, {recursive: true});
       if(!process.env.REMINDER_CAPTURE_ONLY || process.env.REMINDER_CAPTURE_ONLY===name) {
         const file=path.join(out,name+'.png');await target.screenshot({path:file,fullPage:true});report.screenshots.push(file);
         if(['preferences-desktop','preferences-phone','preferences-small'].includes(name)) {
-          const focused=path.join(out,name+'-notifications.png');await target.locator('.notification-preferences').screenshot({path:focused});report.screenshots.push(focused);
+          const focused=path.join(out,name+'-notifications.png');await target.locator('.notification-preferences').first().screenshot({path:focused});report.screenshots.push(focused);
         }
       }
       if(process.env.AXE_SCRIPT){await target.addScriptTag({path:process.env.AXE_SCRIPT});const violations=await target.evaluate(async()=> (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations);report.accessibility.push({name,violations});check('Accessibility '+name,!violations.length);}
@@ -113,7 +115,7 @@ fs.mkdirSync(out, {recursive: true});
     check('Digest is not interactive',await page.locator('[name="weekly_digest"]').count()===0);
     check('Preferences do not advertise future digests',!(await page.locator('main').innerText()).includes('Weekly discovery digest'));
     check('Email permission has local help',await page.getByRole('checkbox',{name:'Email me on-sale reminders',exact:true}).getAttribute('aria-describedby')==='email-reminders-help');
-    check('Pause explains both channels',(await page.locator('#notification-pause-help').innerText()).includes('on-sale emails and new reply updates'));
+    check('Pause explains both channels',(await page.locator('#notification-pause-help').innerText()).includes('on-sale emails and reply updates'));
     check('Delivery details start collapsed',!await page.locator('details').filter({has:page.getByText('About email delivery',{exact:true})}).evaluate(el=>el.open));
     const emailPermission=page.getByRole('checkbox',{name:'Email me on-sale reminders',exact:true});
     const permissionBefore=await emailPermission.isChecked();
@@ -126,7 +128,7 @@ fs.mkdirSync(out, {recursive: true});
     check('Delivery details open with keyboard',await page.locator('.notification-delivery').evaluate(el=>el.open));
     await page.keyboard.press('Enter');
     check('Delivery details close with keyboard',!await page.locator('.notification-delivery').evaluate(el=>el.open));
-    await page.getByLabel('City', {exact:false}).fill('Chicago');
+    await page.locator('#preferred-city').fill('Chicago');
     await page.getByRole('button',{name:'Save preferences',exact:true}).click();
     check('Unrelated preference save retains digest',(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).weekly_digest===true);
     await page.getByLabel('Time zone',{exact:true}).fill('Not/AZone');
@@ -143,7 +145,7 @@ fs.mkdirSync(out, {recursive: true});
     await capture('preferences-short',390,false,480);
     await capture('preferences-enlarged-text',390,true);
     check('Notification actions are separate from prose',await page.locator('.notification-preferences p a, .notification-copy a').count()===0);
-    check('Enlarged notification targets stay usable',await page.locator('.notification-preferences').evaluate(el=>[...el.querySelectorAll('label,a,summary')].every(target=>target.getBoundingClientRect().height>=44)));
+    check('Enlarged notification targets stay usable',await page.locator('.notification-preferences').first().evaluate(el=>[...el.querySelectorAll('label,a,summary')].every(target=>target.getBoundingClientRect().height>=44)));
     const guest=await browser.newContext();
     check('Guest denied private API',(await guest.request.get(base+'/api/v1/me/reminders')).status()===401);
     const other=await browser.newContext();
@@ -181,13 +183,13 @@ fs.mkdirSync(out, {recursive: true});
     await Promise.all([touchPage.waitForNavigation(),touchPage.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})))]);
     check('BFCache changed session cannot retain private reminder form',await touchPage.locator('[data-reminder-timing]').count()===0);
     await touchPage.goto(base+'/me/preferences');
-    check('Changed session preferences are revalidated',await touchPage.getByLabel('City',{exact:false}).inputValue()==='');
+    check('Changed session preferences are revalidated',await touchPage.locator('#preferred-city').inputValue()==='');
     await touchPage.goto(base+'/me/reminders');
     check('Other owner has an empty collection',(await touchPage.locator('main').innerText()).includes('No on-sale reminders yet'));
     await capture('reminders-empty-phone',390,false,1000,touchPage);
     await page.goto(process.env.SAVED_DISABLED_URL+'/me/reminders');
     check('Disabled server remains usable',(await page.locator('main').innerText()).includes('Email reminders are not enabled'));
-    check('No browser runtime errors',report.errors.length===0);
+    check('No browser runtime errors '+JSON.stringify(report.errors),report.errors.length===0);
     fs.writeFileSync(path.join(out,'reminders-checks.json'),JSON.stringify(report,null,2));
     console.log(JSON.stringify({checks:report.checks.length,screenshots:report.screenshots.length,accessibility:report.accessibility.length}));
   } finally {await browser.close();}

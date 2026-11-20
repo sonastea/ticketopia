@@ -206,7 +206,8 @@
   .account-connect form:not(:has([name="publish"]:checked)) .connect-public-off,
   .account-connect form:has([name="publish"]:checked) .connect-public-on { display: block; }
 }
-.destination-page.reminders-page { max-inline-size: 70ch; }
+/* The page keeps the shared account width so its tabs fit; reading content keeps a 70ch measure. */
+.reminders-page > :not(.page-header, .account-navigation) { max-inline-size: 70ch; }
 .reminders-page > h2 { margin-block-end: .75rem; }
 .reminders-page > .account-form { margin-block: 1.5rem 1rem; }
 .reminders-page > .field-note { margin-block-start: 1rem; }

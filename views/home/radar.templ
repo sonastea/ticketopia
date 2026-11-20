@@ -25,14 +25,14 @@ templ Radar(page RadarPage) {
 					@button.Button(button.Props{Href: "/me/preferences", Class: "action"}) { Choose your city }
 				}
 			} else {
-				<p class="radar-scope">{ page.List.Scope.City }, { page.List.Scope.Country } · { page.List.Scope.StartDate } – { page.List.Scope.EndDate }</p>
+				<p class="radar-scope">{ page.List.Scope.City }, { page.List.Scope.Country } · { scopeDates(page.List.Scope.StartDate, page.List.Scope.EndDate) }</p>
 				if page.List.Mode == "nearby" {
 					<p class="participation-note">These are nearby suggestions, not personalized matches yet. Follow an artist or venue, or choose categories to make Radar yours.</p>
 				} else {
 					<p class="sort-label">Strongest matches first, then soonest date. Artist follows carry more weight than venue follows, then category choices.</p>
 				}
-				@Freshness(page.List.Meta)
-				@CollectionCoverage(page.List.Meta)
+				// Staleness, Radar's coverage and the time zone read as one visible line.
+				@RadarFreshness(page.List.Meta)
 				if len(page.List.Items) == 0 {
 					@empty.Empty(empty.Props{Class: "destination-state"}) {
 						<h2>No matches in the available event data</h2>
@@ -53,7 +53,6 @@ templ Radar(page RadarPage) {
 						@button.Button(button.Props{Href: "/radar", Variant: button.VariantLink, Class: "text-link"}) { Refresh Radar }
 					</div>
 				}
-				<p class="field-note">Missing prices, sale times, images, or category labels stay unknown. Check the event and ticket page for current details and availability.</p>
 			}
 			<p id="save-feedback" class="sr-only" role="status"></p>
 			@SourceFooter()
