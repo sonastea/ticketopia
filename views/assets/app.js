@@ -1123,10 +1123,27 @@
     }
     while (old.childNodes.length > children.length) old.lastChild.remove();
   };
+  let recommendTurn = 0;
   const openRecommendation = host => {
     const editor = host.querySelector('[data-recommendation-editor]');
     if (editor) editor.open = true;
-    (editor?.querySelector('textarea') || host.querySelector('[data-event-recommendations] a[href^="/auth/sign-in"]'))?.focus();
+    const target = editor?.querySelector('textarea') || host.querySelector('[data-event-recommendations] a[href^="/auth/sign-in"]');
+    if (!target) return;
+    // A disclosure that is still growing open can refuse focus; retry each
+    // frame briefly, but stop as soon as the person moves focus elsewhere,
+    // closes the disclosure, or another Recommend starts.
+    const turn = ++recommendTurn;
+    const started = performance.now();
+    // Focus may move only from nowhere, the editor, or the control that asked
+    // for Recommend (often hidden once the section loads).
+    const unclaimed = active => !active || active === document.body || editor?.contains(active) || active.matches('[data-recommend-intent], [data-event-section]');
+    const attempt = () => {
+      if (turn !== recommendTurn || !target.isConnected || (editor && !editor.open)) return;
+      if (!unclaimed(document.activeElement)) return;
+      target.focus();
+      if (document.activeElement !== target && performance.now() - started < 500) requestAnimationFrame(attempt);
+    };
+    attempt();
   };
   const sectionError = (region, section, url, next, retry, retain) => {
     const message = region.querySelector('[data-section-status]');
