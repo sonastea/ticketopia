@@ -1771,8 +1771,19 @@
       const trigger = [...document.querySelectorAll('.event-link')].find(link => link.dataset.id === lastFocusID);
       trigger?.focus({ preventScroll: true });
       // Hidden results may not have kept their rows' sizes.
-      if (!desktop.matches) { unsettleRows(); scrollTo(0, resultsScroll); }
-      else if (push) revealRow(viewed, false);
+      if (!desktop.matches) {
+        unsettleRows(); scrollTo(0, resultsScroll);
+        // A reflow while they were hidden (text size, rotation) can leave that
+        // offset away from the result. The focused title must clear the sticky
+        // header and floating navigation; scroll-padding accounts for both.
+        if (trigger) {
+          const box = trigger.getBoundingClientRect();
+          const css = getComputedStyle(document.documentElement);
+          const top = parseFloat(css.scrollPaddingBlockStart) || 0;
+          const bottom = innerHeight - (parseFloat(css.scrollPaddingBlockEnd) || 0);
+          if (box.top < top || box.bottom > bottom) trigger.scrollIntoView({ block: 'nearest' });
+        }
+      } else if (push) revealRow(viewed, false);
     };
     if (push && desktop.matches) shellTransition('preview', close);
     else close();
