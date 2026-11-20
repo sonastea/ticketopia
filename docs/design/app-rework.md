@@ -1,8 +1,8 @@
 # App-wide rework: one job per screen
 
-**Status: approved; phases 0–7 shipped (2026-11-19).** Each phase's section
-notes what shipped and where it departed from the plan. Remaining items are
-listed under "Not yet done".
+**Status: shipped (phases 0–7 on 2026-11-19, follow-up on 2026-11-20).** Each
+phase's section notes what shipped and where it departed from the plan;
+"Follow-up" lists the open work done afterwards.
 
 ## Why
 
@@ -265,12 +265,9 @@ Files: `saved.templ`, `radar.templ`, `interests.templ`, `follows.templ`,
 leads with the same card as `/me`; sign-in's two notes are one, and its event
 context is its own short section; `/agents` uses the shared page header (its
 "On this page" navigation already existed); profile recommendation rows keep
-their date stub beside the artwork. Not done in this phase: the shared error
-layout (the 404, account failure and offline pages keep their own; the offline
-page must work from one cached response with no stylesheet), the consent page's
-"Can / Can't" summary (its public-posting statement changes with the publish
-checkbox, and it is part of the OAuth flow, so it waits for its own review), and
-the `EventRow` bullets of the earlier phases.
+their date stub beside the artwork. The shared error layout and the consent
+page's "Can / Can't" summary followed on 2026-11-20 (see "Follow-up" below);
+the `EventRow` bullets of the earlier phases stayed a deliberate departure.
 
 - **Public profile `/users/{id}`** mirrors the new `/me` card (initial, name,
   bio) and lists public activity with `EventRow`.
@@ -286,8 +283,8 @@ the `EventRow` bullets of the earlier phases.
 **Shipped 2026-11-19, reduced.** The queue and outcome pages already used the
 shared header from Phase 0. On a case, the status, author and reply target are
 one metadata line; reporter and moderator account IDs are metadata; and a
-failed decision's alert carries its own recovery advice. The case page keeps its
-own heading and "Back to review queue" link rather than `PageHeader`. Case
+failed decision's alert carries its own recovery advice. The case page moved to
+`PageHeader`, after its "Back to review queue" link, on 2026-11-20. Case
 actions don't use `ConfirmDisclosure`: a later decision can restore a hidden
 contribution, though it can't reopen the reports and review requests a decision
 closed. The form already requires a reason and states those effects beside the
@@ -297,38 +294,36 @@ The review queue and case pages move to `PageHeader` and the row grammar, and
 case actions use `ConfirmDisclosure`. This is a lower priority, because it is
 used by few people and already works.
 
-## Not yet done
+## Follow-up (2026-11-20)
 
-Open work:
+The open work left by the phases, done:
 
-- [ ] A shared error layout for the 404, account failure and offline pages.
-      The offline page must still work from one cached response with no
-      stylesheet.
-- [ ] The consent page's "Can / Can't" summary. It is part of the OAuth flow,
-      and its public-posting statement changes with the publish checkbox, so
-      it needs its own review.
-- [ ] `PageHeader` on the moderation case page, keeping "Back to review queue".
-- [ ] Discover's height target for six results: 2,309px on desktop against a
-      1,700px aim, and 2,908px on a phone against 2,300px. The remaining height
-      comes from the artwork in each card.
-- [ ] Full manual browser pass on Phases 5–7 after the review fixes: desktop
-      and phone, keyboard, reduced motion, forced colours, JavaScript off.
-      Phase 7's moderation alert has only the automated journey so far.
-- [ ] Browser test failures that predate the rework, recorded in
-      [the change history](../changes/app-rework.md):
-  - [ ] Sign-in continuity in WebKit, and its chromium-desktop check.
-  - [ ] The action-feedback journey's hang.
-  - [ ] Event context's "result and focus restoration".
-  - [ ] The css-browser preview's 44px check.
-  - [ ] Scroll restoration on phones in the responsive journey.
-  - [ ] Followed discussions: the forced-colours check and the target-size
-        findings on notification buttons.
-  - [ ] Target-size findings where the floating nav or fixed chrome covers the
-        captured element.
-  - [ ] The flaky `TestCappedRebuildHoldsQueuedAccounts` in `make check`.
+- [x] One error layout, `layouts.ErrorPage` (heading, what happened, optional
+      advice, then the way forward with the primary action first), for the
+      404/405 page and the account, event task, app connection and follow
+      failures. The offline page keeps its self-contained document, because it
+      must work from one cached response with no stylesheet, and repeats the
+      same shape.
+- [x] The consent page states what an app can and can't do as a "What it can
+      do" card in the Privacy page's Who-sees-what pattern. The public-posting
+      line still follows the publish checkbox, now as a list item.
+- [x] `PageHeader` on the moderation case page, after "Back to review queue".
+- [x] Manual browser pass on Phases 5–7 and the follow-up: desktop and phone,
+      keyboard focus (with and without forced colours), reduced motion and
+      JavaScript off, on Radar, Saved, Drafts, Reminders, consent, the agents
+      guide, a public profile, sign-in, the 404 and 405 pages and a moderation
+      case.
+- [x] Browser test failures that predated the rework. The causes and fixes are
+      in [the change history](../changes/app-rework.md). Every MariaDB
+      journey, `event-context` and `css-browser` pass in Chromium; the
+      sign-in continuity and action-feedback journeys, which also run in
+      WebKit, pass there too.
+- [x] The flaky `TestCappedRebuildHoldsQueuedAccounts`.
 
 Deliberate departures, not backlog (each phase's note gives the reason):
-separate `EventCard`/`EventRow` components (Phase 0/2); one button group for
+Discover's height target (six results are 2,294px on desktop against 1,700px,
+and 2,877px on a phone against 2,300px; the rest is card artwork, and the
+cards keep their look); separate `EventCard`/`EventRow` components (Phase 0/2); one button group for
 all event actions (Phase 1); Report behind a "More" disclosure and the owner's
 Edit/Remove in the action row (Phase 3); "Riley and 1 other" attribution and a
 single Community card link (Phase 4); Radar's reasons as one caller line

@@ -21,7 +21,7 @@ their status; they describe intended work rather than available features.
   enlarged-text navigation, sign-in continuity, conversation draft-safety, action/removal and return-hierarchy fixes,
   with remaining manual flow checks.
 - [App-wide rework: one job per screen](design/app-rework.md): **shipped**
-  (phases 0–7, with remaining items listed) phased rework applying the account pages' structure, notes budget and shared
+  (phases 0–7 and a follow-up, with deliberate departures listed) phased rework applying the account pages' structure, notes budget and shared
   header/event components to every screen, with measured targets per phase.
 - [Live community activity specification](design/live-community-activity.md): implemented
   delivery/first-name attribution, top-right toasts and **Happening Now**

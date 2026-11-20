@@ -4,6 +4,36 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-20 — Follow-up: error pages, consent, and the browser journeys
+
+- One error layout, `layouts.ErrorPage`, for the 404/405 page and the account,
+  event task, app connection and follow failures; the offline page repeats its
+  shape. The moderation case page uses `PageHeader`.
+- The consent page states what an app can and can't do in a "What it can do"
+  card; the publishing line still follows its checkbox. Tests hold consent to
+  the notes budget.
+- Fixes found by the journeys: removing a Saved or Interested row keeps the
+  next action above the phone navigation (stale row placeholder sizes, and a
+  WebKit scroll shift as rows land, unless the person scrolls first); closing a
+  compact preview brings the focused title clear of the header and navigation
+  when its old offset no longer fits; Recommend focuses the composer once its
+  disclosure opens, unless focus has moved on; the phone navigation's columns fit
+  "Community" whole at enlarged text (wrapping to more rows instead).
+- Journeys updated for current behavior: Sign in to save completes the Save;
+  accounts no longer start with notifications paused; the service worker is
+  blocked where `page.route` must see navigations; checks wait for disclosures,
+  transitions and focus instead of sampling at once; and axe scans share
+  `scripts/axe-scan.cjs`, which waits for animations and re-checks a target
+  covered by the fixed navigation after scrolling it clear, dropping it only if
+  it then passes. A paused account stays paused through a reminder save. Playwright's WebKit with
+  JavaScript off leaves some collection loads at "interactive" (cached font
+  preloads), so those loads wait for the DOM.
+- `TestCappedRebuildHoldsQueuedAccounts` lengthens the rebuild hold for its run:
+  convergence takes several 2s sweeps, which a loaded race build can push past
+  the 10s production hold.
+- Discover's height target stays a deliberate departure: the cards keep their
+  artwork.
+
 ### 2026-11-19 — Phase 7: moderation
 
 - A moderation case's status, author and reply target are one metadata line;
@@ -45,32 +75,5 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   Run with non-fatal checks against Phase 4 with the same scripts, the radar,
   reminders, saved, follows, interests and followed discussions journeys show
   the same findings.
-
-### 2026-11-19 — Phase 4: Community and Happening Now
-
-- Community and its Conversations tab start with `layouts.PageHeader`; Happening
-  Now uses the same header markup, keeping its focusable live heading.
-- Last-known details are explained once above the Community list; each affected
-  card shows "Price and sale status last known …" directly before those facts
-  instead of a warning box. Counts and "first recommended" are list metadata.
-- A recommender's name and "recommends this event" stay beside their avatar.
-- The `empty-display` token is capped below the page heading, so "All quiet
-  right now." and Community's empty states no longer outrank the page title.
-- Happening Now's scope summary is list metadata and its snapshot time a
-  `Stamp`. The live filter disclosure (also on Preferences) groups artists and
-  venues in one fieldset whose instructions both pickers reference, and makes
-  the city note field help.
-- A test fails when a `Stamp` call is given children, which templ silently
-  drops (it caught Happening Now's snapshot sentence during development; a
-  render test now checks that sentence). A test holds
-  Community, Conversations and Happening Now (live and paused) to the notes
-  budget.
-- In one non-fatal run each against Phase 3 (`aa59229`), the live activity,
-  recommendations and discussions journeys showed no new failures; two Phase 3
-  findings (recommendations' Community focus restoration and a tablet
-  target-size finding measured at one capture position) did not recur. The
-  live filter, entity and connection journeys ran as written (their checks
-  stop at the first failure) and failed at the same disclosure-timing checks
-  on both; later checks in those journeys did not run.
 
 Older entries: [app rework archive](archive/app-rework/).
