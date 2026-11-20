@@ -1,6 +1,7 @@
 package api
 
 import (
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,7 +18,7 @@ func TestNativeParticipationFailureKeepsSafeEventContext(t *testing.T) {
 		for _, origin := range []string{"/events/ticketmaster:recovery?section=discussion&return_to=%2Fsaved", "https://evil.example/", "//evil.example/"} {
 			body := url.Values{"action": {"remove"}, "return_to": {origin}}
 			w := accountRequest(a, "POST", route, body.Encode(), "", "", "", "", "application/x-www-form-urlencoded")
-			if w.Code != 401 || !strings.Contains(w.Body.String(), "Event request couldn't finish") {
+			if w.Code != 401 || !strings.Contains(html.UnescapeString(w.Body.String()), "Event request couldn't finish") {
 				t.Fatalf("%s: expected contextual authentication failure: %d %s", route, w.Code, w.Body.String())
 			}
 			markup := w.Body.String()

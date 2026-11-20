@@ -42,3 +42,20 @@ templ Stamp(at time.Time) {
 templ StampDate(at time.Time) {
 	<time datetime={ at.Format(time.RFC3339) } data-stamp="date">{ at.UTC().Format("Jan 2, 2006") }</time>
 }
+
+// ErrorPage is the one layout for a page that couldn't do what was asked: one
+// heading, what happened, optional advice, then the way forward as children
+// (the primary action first). The offline page (views/home/offline.templ)
+// repeats this shape in its own self-contained document.
+templ ErrorPage(title, message, advice string) {
+	<main id="main" class="destination-page error-page">
+		<h1>{ title }</h1>
+		<p>{ message }</p>
+		if advice != "" {
+			<p>{ advice }</p>
+		}
+		<div class="error-page-actions">
+			{ children... }
+		</div>
+	</main>
+}

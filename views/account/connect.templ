@@ -3,7 +3,6 @@ package account
 import "github.com/sonastea/ticketopia/internal/oauth"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
-import "github.com/sonastea/ticketopia/views/components/alert"
 
 // Consent asks whether an agent may use the signed-in account. The app is
 // named by the hostname serving its metadata, since no one reviewed it.
@@ -79,14 +78,12 @@ templ Consent(p ConsentPage) {
 // ConnectFailure explains a connection request that can't safely return to its app.
 templ ConnectFailure(message string) {
 	@layouts.App("profile", "App connection couldn't start") {
-		<main id="main" class="destination-page account-page">
-			@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
-				<h1>App connection couldn't start</h1><p>{ message }</p>
-				<p>Nothing was connected to your account.</p>
-				<a href="/me" class="text-link">Go to your profile</a>
+		@layouts.ErrorPage("App connection couldn't start", message, "Nothing was connected to your account.") {
+			@button.Button(button.Props{Href: "/me", Class: "action"}) {
+				Go to your profile
 			}
 			<a href="/" class="text-link">Discover events</a>
-		</main>
+		}
 	}
 }
 

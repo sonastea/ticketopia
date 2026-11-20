@@ -138,15 +138,10 @@ templ FollowRow(target models.FollowTarget, followed bool, page FollowsPage) {
 
 templ FollowFailure(message string, returnURL string) {
 	@layouts.App("follows", "Follow couldn't change") {
-		<main id="main" class="destination-page account-page follows-page">
-			@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
-				<h1>Follow couldn't change</h1>
-				<p>{ message }</p>
-				<p>If the result is uncertain, check your collection before retrying. Repeating Follow or Unfollow is safe.</p>
-				@button.Button(button.Props{Href: returnURL, Class: "action action-secondary"}) {
-					Return to your follows
-				}
+		@layouts.ErrorPage("Follow couldn't change", message, "If the result is uncertain, check your collection before retrying. Repeating Follow or Unfollow is safe.") {
+			@button.Button(button.Props{Href: returnURL, Class: "action"}) {
+				Return to your follows
 			}
-		</main>
+		}
 	}
 }

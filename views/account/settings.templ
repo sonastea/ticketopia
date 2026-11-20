@@ -63,32 +63,27 @@ templ SignInContext(enabled bool, returnTo string, message string, eventName str
 
 templ Failure(message string) {
 	@layouts.App("profile", "Account request couldn't finish") {
-		<main id="main" class="destination-page account-page">
-			@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
-				<h1>Account request couldn't finish</h1><p>{ message }</p>
-				<a href="/me" class="text-link">Return to your profile</a>
-				<a href="/auth/sign-in" class="text-link">Start sign-in again</a>
+		@layouts.ErrorPage("Account request couldn't finish", message, "") {
+			@button.Button(button.Props{Href: "/me", Class: "action"}) {
+				Return to your profile
 			}
+			<a href="/auth/sign-in" class="text-link">Start sign-in again</a>
 			<a href="/" class="text-link">Discover events without signing in</a>
-		</main>
+		}
 	}
 }
 
 // Task failures keep native recovery in the event journey, not the account area.
 templ EventTaskFailure(message string, returnURL string, signIn bool) {
 	@layouts.App("discover", "Event request couldn't finish") {
-		<main id="main" class="destination-page account-page">
-			@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
-				<h1>Event request couldn't finish</h1><p>{ message }</p>
-				<p>Return to the event or collection to check its current state, then try again.</p>
-				<div class="account-actions">
-					<a href={ templ.URL(returnURL) } class="text-link">Return and try again</a>
-					if signIn {
-						<a href={ templ.URL("/auth/sign-in?return_to=" + url.QueryEscape(returnURL)) } class="text-link">Sign in to continue here</a>
-					}
-				</div>
+		@layouts.ErrorPage("Event request couldn't finish", message, "Return to the event or collection to check its current state, then try again.") {
+			@button.Button(button.Props{Href: returnURL, Class: "action"}) {
+				Return and try again
 			}
-		</main>
+			if signIn {
+				<a href={ templ.URL("/auth/sign-in?return_to=" + url.QueryEscape(returnURL)) } class="text-link">Sign in to continue here</a>
+			}
+		}
 	}
 }
 

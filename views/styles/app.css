@@ -2730,6 +2730,13 @@ html:has(.filter-sheet:modal) {
   margin-inline-start: 1rem;
 }
 
+/* One layout for a page that couldn't do what was asked; offline.templ repeats
+   it without this stylesheet. */
+.error-page { display: grid; justify-items: start; gap: 1rem; padding-block-start: 2rem; }
+.error-page > :is(h1, p) { margin: 0; max-inline-size: 36rem; }
+.error-page > p { color: var(--muted-warm); }
+.error-page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-block-start: .5rem; }
+
 .error-state {
   background: var(--error-bg);
   border: 1px solid var(--error-line);

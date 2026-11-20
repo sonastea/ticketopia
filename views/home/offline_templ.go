@@ -17,6 +17,8 @@ import "github.com/sonastea/ticketopia/views/layouts"
 // worker serves this page in that URL's place. It is rendered once and replayed
 // from the cache, so its inline style and script carry no per-response nonce;
 // a future Content-Security-Policy must allow them by hash instead.
+// Its body has the same shape as layouts.ErrorPage (heading, what happened,
+// one way forward), plus the brand line the missing app shell would give.
 func Offline() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
