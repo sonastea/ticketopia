@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### 2026-11-21 — Community card actions
+
+- Community recommendation and conversation cards end in an action bar instead
+  of two underlined links: a soft-plum primary button (Recommendations, or Open
+  conversation with its reply count) and a ghost companion (See all, or Questions
+  & tips). Destinations and accessible names are unchanged.
+
 ### 2026-11-20 — Community depth: quote cards and raised panels
 
 - The event's community sections and threads gain the depth layer (raised by
