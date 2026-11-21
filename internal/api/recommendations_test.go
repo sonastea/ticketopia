@@ -275,7 +275,7 @@ func TestGroupedRecommendationsAPIAndWebCompatibility(t *testing.T) {
 		t.Fatal("existing API shape broken", response.Code, response.Body.String(), err)
 	}
 	response = accountRequest(a, "GET", "/community", "", "", "", "", "", "")
-	if response.Code != 200 || strings.Count(response.Body.String(), `class="recommendation-event"`) != 2 || !strings.Contains(response.Body.String(), "&lt;script&gt;untrusted reason&lt;/script&gt;") || strings.Contains(response.Body.String(), "<script>untrusted") || !strings.Contains(response.Body.String(), "See all recommendations for this event") {
+	if response.Code != 200 || strings.Count(response.Body.String(), `class="recommendation-event"`) != 2 || !strings.Contains(response.Body.String(), "&lt;script&gt;untrusted reason&lt;/script&gt;") || strings.Contains(response.Body.String(), "<script>untrusted") || !strings.Contains(response.Body.String(), `/recommendations?return_to=%2Fcommunity" class="card-action-secondary"`) || !strings.Contains(response.Body.String(), `See all<span class="sr-only"> recommendations for this event</span>`) {
 		t.Fatal("web grouping/escaping", response.Code, response.Body.String())
 	}
 	for _, path := range []string{"/api/v1/community/recommendations?owner=other", "/api/v1/community/recommendations?cursor=bad", "/api/v1/community/recommendations?city=a&city=b"} {

@@ -147,10 +147,17 @@ templ DiscussionRoots(list discussions.List,c listContext,returnURL string) {
 						if c.Place==inCommunity {
 							@EventFacts(post.Event)
 						}
-						<div class="account-actions">
-							<a href={ templ.URL(ThreadURL(post.EventID,post.ID,DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>Open conversation · { fmt.Sprint(post.ReplyCount) } replies</a>
+						<div class="card-actions">
+							<a href={ templ.URL(ThreadURL(post.EventID,post.ID,DiscussionOrigin(returnURL))) } class="card-action-primary" data-thread-link>
+								@layouts.Icon("message-circle")
+								<span>Open conversation<span class="card-action-count">{ " · " }{ fmt.Sprint(post.ReplyCount) } { ternary(post.ReplyCount == 1, "reply", "replies") }</span></span>
+								@layouts.IconClass("arrow", "icon card-action-arrow")
+							</a>
 							if c.showsEvent() {
-								<a href={ templ.URL(eventURL(post.EventID,"discussion",returnURL)) } class="text-link">Questions &amp; tips</a>
+								<a href={ templ.URL(eventURL(post.EventID,"discussion",returnURL)) } class="card-action-secondary">
+									@layouts.Icon("community")
+									<span>Questions &amp; tips</span>
+								</a>
 							}
 						</div>
 					</div>

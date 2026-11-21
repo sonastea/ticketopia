@@ -4447,7 +4447,71 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   border-start-end-radius: calc(var(--radius) - 1px);
 }
 .community-cards .recommendation-copy { padding: 1.25rem; }
-.community-cards .recommendation-copy > .account-actions { gap: 0 1rem; }
+/* Each card ends in an action bar: the main destination as a soft plum button
+   that fills the row (its arrow nudges forward on hover), and a compact ghost
+   companion. Both keep 44px targets and complete accessible names. */
+.card-actions {
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-block-start: 1rem;
+  padding-block-start: .875rem;
+  border-block-start: 1px solid color-mix(in oklch, var(--ink) 8%, transparent);
+}
+:is(.card-action-primary, .card-action-secondary) {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  min-block-size: 2.75rem;
+  padding-block: .5rem;
+  border: 1px solid transparent;
+  border-radius: .625rem;
+  font-size: .875rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-decoration: none;
+  transition-property: background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+:is(.card-action-primary, .card-action-secondary) .icon { flex: none; inline-size: 1.125rem; block-size: 1.125rem; }
+.card-action-arrow:dir(rtl) { scale: -1 1; }
+/* Sized from its whole label, so the companion wraps below rather than the
+   label breaking; it then fills the row. */
+.card-action-primary {
+  flex: 1 1 max-content;
+  padding-inline: .875rem .75rem;
+  background: color-mix(in oklch, var(--brand-soft) 65%, var(--surface));
+  color: var(--brand);
+}
+.card-action-primary > span { flex: 1; white-space: nowrap; }
+.card-action-count { color: var(--muted-warm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.card-action-secondary {
+  flex: 0 1 auto;
+  white-space: nowrap;
+  padding-inline: .75rem;
+  color: var(--muted-warm);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-action-primary:hover { background: var(--brand-soft); color: var(--brand-dark); box-shadow: var(--ring-hairline); }
+  .card-action-secondary:hover { background: color-mix(in oklch, var(--brand-soft) 55%, var(--surface)); color: var(--brand); }
+}
+:is(.card-action-primary, .card-action-secondary):active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); color: var(--brand-active); }
+/* Enlarged text on a narrow card: the decorative icons give their room to the
+   words, which may then wrap between words. */
+@container (width < 15rem) {
+  .card-action-primary .icon { display: none; }
+  :is(.card-action-primary > span, .card-action-secondary) { white-space: normal; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card-action-arrow { transition: translate 200ms var(--ease-out); }
+  @media (hover: hover) and (pointer: fine) {
+    .card-action-primary:hover .card-action-arrow { translate: .1875rem 0; }
+    .card-action-primary:dir(rtl):hover .card-action-arrow { translate: -.1875rem 0; }
+  }
+}
 .pull-quote { display: grid; gap: .75rem; margin-block: 1rem; margin-inline: 0; }
 .community-recommenders .pull-quote { margin: 0; }
 .pull-quote blockquote {

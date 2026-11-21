@@ -326,9 +326,16 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 						<p class="list-meta"><span data-live-total={ group.Event.ID }><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) }</span>{ " · first recommended " }@layouts.StampDate(group.FirstRecommendedAt)</p>
 						// Two places: the event's own Recommendations section, and the
 						// full paginated list for this event.
-						<div class="account-actions">
-							<a href={ templ.URL(eventURL(group.Event.ID,"community",returnURL)) } class="text-link">Recommendations</a>
-							<a href={ templ.URL(recommendationListURL(group.Event.ID,returnURL)) } class="text-link">See all recommendations for this event</a>
+						<div class="card-actions">
+							<a href={ templ.URL(eventURL(group.Event.ID,"community",returnURL)) } class="card-action-primary">
+								@layouts.Icon("community")
+								<span>Recommendations</span>
+								@layouts.IconClass("arrow", "icon card-action-arrow")
+							</a>
+							<a href={ templ.URL(recommendationListURL(group.Event.ID,returnURL)) } class="card-action-secondary">
+								@layouts.Icon("list")
+								<span>See all<span class="sr-only">{ " recommendations for this event" }</span></span>
+							</a>
 						</div>
 					</div>
 				</li>

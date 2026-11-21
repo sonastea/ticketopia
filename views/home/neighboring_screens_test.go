@@ -99,9 +99,10 @@ func TestPublicCollectionIdentityOpensOverview(t *testing.T) {
 				if link.Parent.Data == "h3" && neighborText(link) == event.Name {
 					title = attrs["href"]
 				}
-				if text := neighborText(link); text == "Recommendations" || text == "Questions & tips" {
+				// Icon-led card actions carry SVG whitespace; accessible names are trimmed.
+				if text := strings.TrimSpace(neighborText(link)); text == "Recommendations" || text == "Questions & tips" {
 					section = attrs["href"]
-				} else if strings.HasPrefix(neighborText(link), "Open conversation") {
+				} else if strings.HasPrefix(strings.TrimSpace(neighborText(link)), "Open conversation") {
 					conversation = attrs["href"]
 				}
 			}
