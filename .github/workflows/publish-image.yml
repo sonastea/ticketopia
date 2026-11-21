@@ -79,7 +79,9 @@ jobs:
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         with:
           name: ${{ steps.package.outputs.builder }}
-          # GHA layer exports do not include Go/npm cache mounts.
+          # The retained builder is the only layer/mount cache. A GHA layer cache
+          # held no Go modules or build cache and re-uploaded per-commit layers
+          # that the next commit never reuses; a replaced runner builds cold.
           keep-state: true
 
       - name: Build assets and validate Go in Docker
@@ -90,8 +92,6 @@ jobs:
           platforms: linux/amd64
           # Force fresh tests without --no-cache-filter clearing Go cache mounts.
           build-args: VALIDATION_RUN=${{ github.run_id }}-${{ github.run_attempt }}
-          cache-from: type=gha
-          # Export once, after validation, in the publishing step below.
 
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -121,7 +121,6 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           # This job already built the shared stages in this same builder.
-          cache-to: type=gha,mode=max
 
       - name: Verify private pulls and record image digest
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0

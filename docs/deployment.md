@@ -280,9 +280,10 @@ without clearing the Go compilation/module cache mounts. The runtime
 image still uses CGO-disabled binaries and contains no compiler or test tools.
 The builder has a stable repository/runner-specific name and retains BuildKit
 state between jobs on the same runner, including Go module/build and npm cache
-mounts (which GHA layer exports do not contain). BuildKit garbage collection or
-runner replacement may make a run cold without changing correctness. Remote
-layers are imported during validation and exported once during publication.
+mounts. That retained builder is the only build cache: no GitHub Actions layer
+cache is imported or exported, because it held no Go modules or compilation and
+re-uploaded per-commit layers the next commit never reuses. BuildKit garbage
+collection or runner replacement makes a run cold without changing correctness.
 Monitor local BuildKit disk use; keep this cache isolated from untrusted code.
 Publication stays serialized per ref without cancelling running jobs; `queue: max`
 also preserves pending runs, up to GitHub's limit of 100 pending runs per group.
@@ -290,9 +291,8 @@ See the [CI audit](ci-performance.md) for measurements and the unresolved absenc
 of required pre-merge validation.
 Real MariaDB integration tests are skipped without `MARIADB_TEST_ADDR`; this
 workflow does not provision a database or pass database credentials into the
-builder, nor does it run the local outage smoke script. Buildx uses GitHub Actions
-layer caching, a job-specific temporary Docker config, and automatic registry
-logout. Buildx handles Docker initialization; runner labels select Linux/x64.
+builder, nor does it run the local outage smoke script. Buildx uses a
+job-specific temporary Docker config and automatic registry logout. Buildx handles Docker initialization; runner labels select Linux/x64.
 Actions are pinned to reviewed commit SHAs. Package privacy and denied
 anonymous pulls are checked after publication; the run summary records the
 immutable image digest.
@@ -313,7 +313,8 @@ the app and its migration Job. Supply the matching Git commit as runtime
 GitHub runs exposed disabled CGO, missing GCC, and password-required `sudo` during
 host validation. Validation now uses the container's compiler with CGO enabled;
 local container race tests/vet and the amd64 runtime build passed on 2026-10-05.
-A successful end-to-end GitHub Actions publication with this fix remains unverified.
+The [CI follow-up](ci-performance.md#follow-up-2026-11-20) records nine successful
+end-to-end GitHub Actions publishing runs after the cache-preservation fix.
 
 The default cache is in memory. Add `-e KV_URL` after exporting a shared backend
 URL, or configure it in the deployment platform. See [cache configuration](cache.md)
