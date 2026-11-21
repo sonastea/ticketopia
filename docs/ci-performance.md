@@ -1,6 +1,133 @@
 # CI performance audit
 
-Audit date: **2026-11-16**. Scope: optimize the existing image-publishing
+## Follow-up: 2026-11-20
+
+The cache changes below are now deployed in commit `d7208ef`. This follow-up
+reads existing Actions runs only; it does not push, dispatch workflows, change
+repository settings, or execute untrusted PR code on the self-hosted runner.
+The measurements first justified no workflow change; a second pass below
+removed the remote layer cache and reduced race-suite time.
+
+### Second pass: remote cache and test time
+
+**Remote layer cache removed.** Local layer inspection showed what the
+`type=gha,mode=max` cache could offer a later run: the `go mod download` layer is
+49 kB (modules live in the cache mount), while `COPY . .` (7.9 MB), the
+asset/binary build layer (64 MB) and the runtime image change with every commit,
+so each publish re-uploaded layers the next commit cannot reuse. Only the Node
+copy (rebuildable from the pulled base image) and `npm ci` (22 MB) were reusable,
+and the retained runner builder already holds them. Both `cache-from` and
+`cache-to` were removed. Expected effect: part of the 39 s publish step, which
+grew from 25 s when the export moved there. **Unmeasured in CI** until an
+authorized push. Tradeoff: a replaced or garbage-collected runner rebuilds
+dependency layers cold, which it largely did already for Go.
+
+**Race-suite profile.** Per-test `go test -race -json` and CPU profiles found
+three removable costs. None of the changes removes a test, an assertion or race
+detection:
+
+| Cause | Fix | Package, race, host |
+| --- | --- | --- |
+| Every `appmcp.NewServer` re-inferred and resolved every tool schema (≈1 s under race); API tests build routes per request | One package-level SDK `SchemaCache`; output/argument schemas memoized per type so pointer lookups hit | appmcp 20.1 → 4.5 s; `TestCommunityToolsMatchHTTPRoutes` 8.6 → 0.4 s |
+| Discovery's 250 ms provider pacing applied to local `httptest` upstreams (≈25 reads in one test) | `discovery.Config.RequestInterval` (zero keeps 250 ms, with a test); API fake-upstream tests use 1 ms | api 41.0 → 14.0 s with both fixes |
+| Two CPU-only soak bootstraps (10 000 replicates) ran serially | `t.Parallel()` on those two; read-only fixtures, seeded local RNGs | persistence 27.0 → 15.6 s |
+
+Cached schemas are shared between servers, so registered schemas must not be
+modified. Production builds one server, so its behavior is unchanged. The
+pacing default is covered by `TestRequestIntervalDefaultsToProviderLimit`.
+
+`make check` then passed in **78.66 s** (race tests + vet 67.0 s, previously
+87.7 s; 100.08 s overall), one local partially warm ARM64 sample. `activity` is
+now the slowest package (32.5 s in Docker): its membership tests deliberately
+cross real refresh and rebuild deadlines, and include the unexplained
+queued-account failure, so their timing was left unchanged. API's remaining
+slow tests are deliberate 1 s bounds. Further reductions need changing those
+deliberate waits or compile time, not more caching.
+
+### Current Actions evidence
+
+The public REST API returned **106 available runs** of the requested latest 150,
+from 2026-10-02 through 2026-11-21 02:57 UTC (November 20 locally):
+95 main/push publishing runs (85 success, 8 failure, 2 cancelled) and 11 successful
+dynamic dependency-graph runs. All were completed at collection; none were PR,
+merge-group, tag or manual runs. One dependency-graph run reports attempt 4;
+all publishing runs report attempt 1. Earlier dependency-graph attempts were not
+retrieved and are not pooled with publishing.
+
+Job/step timestamps were collected for the latest **40 runs**: 35 successful
+publishing runs, one cancelled publishing run and four dependency-graph runs.
+This is a recent, non-random sample, ending at run `41006096076`; older jobs and
+authenticated build logs were not collected. Failures/cancellations remain in the
+inventory but are excluded from successful-completion quantiles, not counted as
+faster passes. Earlier run-level outcome measurements remain below.
+
+The successful publishing sample separates **26 before** and **9 after** the
+cache commit by Git ancestry. The after population is runs `44038124524`,
+`44232348070`, `44291322733`, `44662449175`, `44688555101`, `44738160228`,
+`44819584549`, `44838512627` and `44858614885`. Both populations use the same
+self-hosted Linux x64 job. Source changes and cache states differ: this is an
+observational comparison, **not a controlled estimate of the cache fix's effect**.
+
+| Metric, seconds unless noted | Before, n=26 | After, n=9 | Observed difference |
+| --- | ---: | ---: | --- |
+| PR feedback / required full-suite gate | Unavailable | Unavailable | Still absent |
+| Workflow creation → publishing-job completion, p50 / p95 | 190.5 / 218 | 120 / 202 | Median −70.5 s (37%) |
+| Publishing-job duration, p50 / p95 | 188.5 / 216 | 118 / 200 | Median −70.5 s |
+| Runner queue, p50 / p95 | 2 / 2 | 1 / 2 | Median −1 s |
+| Dispatch, p50 / p95 | 0.5 / 1 | 1 / 1 | Median +0.5 s |
+| Setup + checkout + preflight + Buildx, p50 / p95 | 7.5 / 9 | 8 / 10 | Median +0.5 s |
+| Assets/build/race/vet/cache import, p50 / p95 | 141.5 / 171 | 59 / 139 | Median −82.5 s |
+| Runtime build/push/cache export, p50 / p95 | 25 / 31 | 39 / 44 | Median +14 s |
+| Other job time including cleanup, p50 / p95 | 12 / 14 | 12 / 20 | Median unchanged |
+| Runner minutes per successful publish, mean | 3.12 | 2.10 | −1.02 min (33%) |
+| Compilation / tests / vet / cache transfers individually | Not separable | Not separable | Logs required |
+| Estimated self-hosted cost per publish | 3.12 × R | 2.10 × R | R = actual cost per runner-minute |
+
+p50 is the median; p95 uses nearest rank. With nine after samples, p95 is simply
+the maximum, not a reliable tail estimate. Quantiles must not be added. The
+single publishing job is the entire workflow's sequential critical path, but
+is not a verified required merge check. Queue and setup meet the skill's timing
+goals; job duration does not. PR/test-duration targets cannot be assessed.
+Total sampled successful runner consumption is 81.07 minutes before and 18.90
+after, over different run counts; totals are not a savings comparison.
+
+Historical cold/warm/partial cache states and cache-hit rates are unobservable
+without build logs. Do not classify the fast after runs as proven warm hits.
+Publication is slower in this sample; investigate registry/cache export logs
+before changing exports, artifacts, or retained state. Validation remains the
+largest measured stage. There is no evidence here for sharding, job splitting,
+selective tests, tool replacement, or a runner migration.
+
+### Local validation and remaining blockers
+
+An unchanged **`make check` passed in 100.08 s** on Linux ARM64/Colima:
+asset generation/static builds took 8.1 s and race tests plus vet 87.7 s.
+Dependency/npm layers were cached; the source/build layer was rebuilt, and no
+module downloads appeared. This is one partially warm local sample, not an
+amd64 CI comparison. All enabled package tests executed with `-race -count=1`;
+MariaDB/browser/load opt-ins were not enabled. The existing queued-account
+failure recorded below was not reproduced, but remains unexplained.
+
+The current workflow still has no PR or `merge_group` trigger. Classic branch
+protection returned HTTP 401; public repository rulesets and effective rules for
+`main` both returned empty arrays. **A required full-suite pre-merge gate is
+not established or verified.** Publishing is post-merge, and still omits the
+real MariaDB integration suite. Safely enabling pre-merge validation requires an
+owner decision about trusted execution and required-check settings; do not add
+arbitrary PR code to this Docker-enabled persistent runner.
+
+Successful end-to-end publication is now evidenced by the nine runs above.
+No extra service, credentials, billing, runner infrastructure or external writes
+were introduced. Dollar/month estimates remain unavailable without actual host,
+storage/network costs and expected run volume. At N successful publishes/month
+and R cost/runner-minute, the sampled variable-runner estimate is
+`3.12 × N × R` before versus `2.10 × N × R` after; fixed host costs need not fall.
+Further changes need authenticated stage logs and an authorized comparable CI
+measurement, not weaker validation.
+
+## Original audit: 2026-11-16
+
+Scope: optimize the existing image-publishing
 pipeline, without publishing, changing runners or repository protection, or
 adding PR execution to the trusted self-hosted runner.
 
