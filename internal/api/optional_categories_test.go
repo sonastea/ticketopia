@@ -39,7 +39,7 @@ func TestHappeningNowBoundsOptionalCategoryWait(t *testing.T) {
 	defer close(release)
 	cache := kv.NewMemory()
 	defer cache.Close()
-	provider := discovery.New(ctx, cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})
+	provider := discovery.New(ctx, cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})
 	defer provider.WaitRefreshes()
 	// Cancel shared refreshes before waiting for them during cleanup.
 	defer cancel()

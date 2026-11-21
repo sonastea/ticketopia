@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -41,7 +42,7 @@ func TestDiscoveryActivityBatchesRowsAndPartialPagination(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	repo := &eventActivityStub{}
 	WithEventActivity(repo)(a)
 	for _, partial := range []bool{false, true} {

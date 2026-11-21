@@ -75,7 +75,7 @@ func historyAPI(t *testing.T, count int) (*api, *historyCatalog) {
 	t.Cleanup(upstream.Close)
 	cache := kv.NewMemory()
 	t.Cleanup(func() { _ = cache.Close() })
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, Catalog: r})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond, Catalog: r})}
 	return a, r
 }
 
@@ -645,7 +645,7 @@ func TestDiscoverHistoryProviderOverlapDoesNotDuplicateRows(t *testing.T) {
 	t.Cleanup(upstream.Close)
 	cache := kv.NewMemory()
 	t.Cleanup(func() { _ = cache.Close() })
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	query := historyQuery + "&limit=2"
 	cursors := historyCursors(t, a, query, 2)
 	w := historyRequest(a, "/?"+query+"&through="+url.QueryEscape(cursors[1]), "", false)
@@ -677,7 +677,7 @@ func TestDiscoverHistoryProviderTargetBeyondPageCap(t *testing.T) {
 	newService := func() *discovery.Service {
 		cache := kv.NewMemory()
 		t.Cleanup(func() { _ = cache.Close() })
-		return discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})
+		return discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})
 	}
 	a := &api{events: newService()}
 	query := historyQuery + "&limit=1"
@@ -728,7 +728,7 @@ func TestDiscoverHistoryProviderFailureRetainsSuccessfulPagesAndRetryCursor(t *t
 	newService := func() *discovery.Service {
 		cache := kv.NewMemory()
 		t.Cleanup(func() { _ = cache.Close() })
-		return discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})
+		return discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})
 	}
 	a := &api{events: newService()}
 	query := historyQuery + "&limit=1"

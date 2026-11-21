@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/accounts"
@@ -33,7 +34,7 @@ func TestSelectedEventFailureDoesNotReplaceResults(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	for _, tc := range []struct {
 		path   string
 		status int

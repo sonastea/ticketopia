@@ -25,6 +25,9 @@ type Config struct {
 	Coordinator Coordinator
 	Catalog     Catalog
 	FreshFor    time.Duration
+	// RequestInterval spaces provider requests; zero keeps Ticketmaster's
+	// 5-per-second limit (250ms). Tests against a local upstream shorten it.
+	RequestInterval time.Duration
 	// Tints derives header colours from artwork before caching or storing
 	// events. Nil disables artwork requests.
 	Tints *Tints
@@ -67,10 +70,13 @@ func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Conf
 	if config.FreshFor <= 0 {
 		config.FreshFor = 6 * time.Hour
 	}
+	if config.RequestInterval <= 0 {
+		config.RequestInterval = 250 * time.Millisecond
+	}
 	return &Service{
 		ctx: ctx, cache: cache, logger: logger, key: strings.TrimSpace(config.APIKey),
 		baseURL: strings.TrimRight(config.BaseURL, "/"), client: config.HTTPClient,
-		gate: requestGate{budget: config.DailyBudget, interval: 250 * time.Millisecond}, now: time.Now, coordinator: config.Coordinator,
+		gate: requestGate{budget: config.DailyBudget, interval: config.RequestInterval}, now: time.Now, coordinator: config.Coordinator,
 		catalog: config.Catalog, freshFor: config.FreshFor, tints: config.Tints,
 	}
 }

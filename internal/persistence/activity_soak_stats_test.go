@@ -412,6 +412,8 @@ func TestActivitySoakSampleAnalysis(t *testing.T) {
 // The ablation order pairs full load with every arm four times, alternating
 // pair order within each arm, and each arm's ratio uses only its own pairs.
 func TestActivitySoakAblationAnalysis(t *testing.T) {
+	// Pure computation over read-only fixtures; overlaps the other bootstrap.
+	t.Parallel()
 	if len(soakAblationOrder) != 32 {
 		t.Fatalf("%d ablation periods", len(soakAblationOrder))
 	}
@@ -458,6 +460,7 @@ func TestActivitySoakAblationAnalysis(t *testing.T) {
 }
 
 func TestActivitySoakBootstrap(t *testing.T) {
+	t.Parallel()
 	// Synthetic ABBA×2 periods with autocorrelated latencies; loaded periods
 	// are exactly 1.5× their pair's no-live sequence.
 	r := rand.New(rand.NewPCG(1, 2))

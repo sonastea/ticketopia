@@ -150,7 +150,7 @@ func TestFollowOrdinaryFormsSearchAndSafeReturns(t *testing.T) {
 		}
 	}))
 	defer provider.Close()
-	a.events = discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "fixture", BaseURL: provider.URL})
+	a.events = discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "fixture", BaseURL: provider.URL, RequestInterval: time.Millisecond})
 	w := accountRequest(a, "GET", "/follows?kind=venue&keyword=Private", "", "", "", "", "", "")
 	if w.Code != 303 || !strings.Contains(w.Header().Get("Location"), "return_to=") {
 		t.Fatal("guest search return lost")

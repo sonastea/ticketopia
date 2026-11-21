@@ -36,7 +36,7 @@ func TestHTMLAndAPIShareEventsAndPagination(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "secret", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "secret", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	// If a discovery route touches durable storage, this disabled service fails.
 	// Reads must keep their existing cache/provider behavior in persistence mode.
 	WithPersistence(func(context.Context) error { return nil }, events.New(failOnDurableRead{t}))(a)
@@ -148,7 +148,7 @@ func TestDiscoverDefaultStartsOnBrowsedCityDay(t *testing.T) {
 	defer cache.Close()
 	// 01:30 UTC on Saturday is 18:30 on Friday in Los Angeles.
 	now := time.Date(2026, 10, 24, 1, 30, 0, 0, time.UTC)
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL}), now: func() time.Time { return now }}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond}), now: func() time.Time { return now }}
 	routes := a.Routes()
 	request := func(query string) string {
 		t.Helper()
@@ -206,7 +206,7 @@ func TestUnavailableResponsesAreVisibleAndRedacted(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "private-api-key", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "private-api-key", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	for _, path := range []string{"/api/v1/events", "/?city=Boston", "/api/v1/genres", "/api/v1/categories"} {
 		rec := httptest.NewRecorder()
 		a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
@@ -234,7 +234,7 @@ func TestOptionalCategoriesDoNotHoldEventPage(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	routes := a.Routes()
 	done := make(chan *httptest.ResponseRecorder, 1)
 	go func() {

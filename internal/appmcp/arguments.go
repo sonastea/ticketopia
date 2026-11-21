@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -23,13 +24,26 @@ type argumentSchemas map[string]*jsonschema.Schema
 // everything this check lets through.
 func addTool[In, Out any](server *mcp.Server, d Deps, tool *mcp.Tool, handler mcp.ToolHandlerFor[In, Out]) {
 	if d.arguments != nil {
-		schema, err := jsonschema.ForType(reflect.TypeFor[In](), &jsonschema.ForOptions{})
-		if err != nil {
-			panic(err)
-		}
-		d.arguments[tool.Name] = schema
+		d.arguments[tool.Name] = argumentSchema[In]()
 	}
 	mcp.AddTool(server, tool, handler)
+}
+
+// argumentInputs holds each input type's inferred schema; checkArguments only
+// reads them, so servers share one per type.
+var argumentInputs sync.Map // reflect.Type -> *jsonschema.Schema
+
+func argumentSchema[In any]() *jsonschema.Schema {
+	t := reflect.TypeFor[In]()
+	if s, ok := argumentInputs.Load(t); ok {
+		return s.(*jsonschema.Schema)
+	}
+	schema, err := jsonschema.ForType(t, &jsonschema.ForOptions{})
+	if err != nil {
+		panic(err)
+	}
+	cached, _ := argumentInputs.LoadOrStore(t, schema)
+	return cached.(*jsonschema.Schema)
 }
 
 // checkArguments refuses a tools/call whose arguments don't fit the tool,

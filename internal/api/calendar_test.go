@@ -37,7 +37,7 @@ func TestEventCalendarIsAPublicEventRepresentation(t *testing.T) {
 		Item: models.Event{ID: "ticketmaster:dated", Name: "Night Market: Live!", Start: models.EventStart{DateTime: &at}},
 		Meta: models.Freshness{DataAsOf: time.Now().UTC()},
 	}}
-	s := discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{Catalog: store, APIKey: "test", BaseURL: upstream.URL})
+	s := discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{Catalog: store, APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})
 	routes := (&api{events: s, authConfig: accounts.Config{BaseURL: "https://ticketopia.example"}}).Routes()
 	path := "/api/v1/events/ticketmaster:dated/calendar.ics"
 

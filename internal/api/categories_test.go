@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -52,7 +53,7 @@ func TestCategoryWebFiltersPaginationAndDetails(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	routes := a.Routes()
 	request := func(path string, partial bool) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
@@ -150,7 +151,7 @@ func TestCategoryCatalogFailureKeepsWebResultsAndFilters(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	for range 2 {
 		rec := httptest.NewRecorder()
 		a.Routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/?city=Chicago&category_id=KZFzniwnSyZfZ7v7nE&genre_id=basketball", nil))
@@ -184,7 +185,7 @@ func TestCategoryAPIAndMusicCompatibility(t *testing.T) {
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})}
+	a := &api{events: discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})}
 	routes := a.Routes()
 	request := func(path string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()

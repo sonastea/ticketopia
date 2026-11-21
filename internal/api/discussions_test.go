@@ -332,7 +332,7 @@ func TestEventContextShowsDiscussionAndCommunityAcrossEntryPoints(t *testing.T) 
 	defer upstream.Close()
 	cache := kv.NewMemory()
 	defer cache.Close()
-	a.events = discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL})
+	a.events = discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})
 
 	for _, cookie := range []string{"", browser} {
 		for _, section := range []string{"overview", "discussion", "community"} {

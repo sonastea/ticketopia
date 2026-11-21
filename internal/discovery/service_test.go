@@ -378,6 +378,16 @@ func TestRequestGatePacesCallsAndHonorsCancellation(t *testing.T) {
 	}
 }
 
+// Production leaves RequestInterval unset, so the provider rate limit holds.
+func TestRequestIntervalDefaultsToProviderLimit(t *testing.T) {
+	if s := New(t.Context(), kv.NewMemory(), zerolog.Nop(), Config{}); s.gate.interval != 250*time.Millisecond {
+		t.Fatalf("default request interval = %v, want 250ms", s.gate.interval)
+	}
+	if s := New(t.Context(), kv.NewMemory(), zerolog.Nop(), Config{RequestInterval: time.Millisecond}); s.gate.interval != time.Millisecond {
+		t.Fatalf("configured request interval = %v, want 1ms", s.gate.interval)
+	}
+}
+
 func TestProviderFilterRejectionDoesNotPauseOtherSearches(t *testing.T) {
 	var calls atomic.Int32
 	s := newTestService(t, func(w http.ResponseWriter, r *http.Request) {

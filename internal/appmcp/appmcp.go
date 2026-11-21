@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -108,6 +109,7 @@ func NewServer(d Deps) *mcp.Server {
 			"Only make_interest_public, recommend_event, withdraw_recommendation, mark_helpful and unmark_helpful act publicly in the user's name; they need the user's permission to post publicly, " +
 			"and you should use them only when the user asks. You never publish words: draft_recommendation, draft_question and draft_reply save a private draft, " +
 			"and the user reads and publishes it on Ticketopia at the review_url it returns. You cannot edit or remove the user's posts; they do that on Ticketopia.",
+		SchemaCache: schemaCache,
 	})
 	d.arguments = argumentSchemas{}
 	server.AddReceivingMiddleware(observe(d.Logger, d.Metrics), checkArguments(d.arguments))
@@ -195,10 +197,22 @@ type detailsInput struct {
 	EventID string `json:"event_id" jsonschema:"event ID from find_events"`
 }
 
+// schemaCache shares inferred and resolved tool schemas between servers, which
+// tests and fixtures build many times; resolution dominated their build cost.
+// Cached schemas are shared, so nothing may modify a registered tool's schema.
+var (
+	schemaCache   = mcp.NewSchemaCache()
+	outputSchemas sync.Map // reflect.Type -> *jsonschema.Schema
+)
+
 // outputSchema describes a tool's structured result, overriding inference for
 // custom JSON: Freshness serializes an unknown data_as_of as null, and history
-// changes carry raw JSON values, not byte arrays.
+// changes carry raw JSON values, not byte arrays. Each type's schema is built
+// once, so schemaCache recognizes it by pointer and resolves it once.
 func outputSchema[T any]() *jsonschema.Schema {
+	if s, ok := outputSchemas.Load(reflect.TypeFor[T]()); ok {
+		return s.(*jsonschema.Schema)
+	}
 	s, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: map[reflect.Type]*jsonschema.Schema{
 		reflect.TypeFor[json.RawMessage](): {},
 		reflect.TypeFor[models.Freshness](): {Type: "object", Properties: map[string]*jsonschema.Schema{
@@ -212,7 +226,8 @@ func outputSchema[T any]() *jsonschema.Schema {
 	if err != nil {
 		panic(err)
 	}
-	return s
+	cached, _ := outputSchemas.LoadOrStore(reflect.TypeFor[T](), s)
+	return cached.(*jsonschema.Schema)
 }
 
 // eventSearch is find_events' result: the event list, plus the account's

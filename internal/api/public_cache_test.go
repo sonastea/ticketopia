@@ -218,7 +218,7 @@ func TestPublicServicePrecedenceAndUTCBoundary(t *testing.T) {
 	store := &publicCatalog{list: models.EventList{Items: []models.Event{}, Meta: models.Freshness{DataAsOf: time.Now().UTC()}}}
 	upstream := httptest.NewServer(http.NotFoundHandler())
 	t.Cleanup(upstream.Close)
-	s := discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{Catalog: store, APIKey: "test", BaseURL: upstream.URL})
+	s := discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{Catalog: store, APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond})
 	now := time.Date(2026, 10, 15, 23, 59, 59, 0, time.UTC)
 	a := &api{events: s, now: func() time.Time { return now }}
 	routes := a.Routes()

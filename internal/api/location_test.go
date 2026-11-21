@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -74,7 +75,7 @@ func TestLocationDefaultsOverrideRememberAndShareEventCache(t *testing.T) {
 	cache := kv.NewMemory()
 	defer cache.Close()
 	a := &api{
-		events:    discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL}),
+		events:    discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond}),
 		locations: location.New(t.Context(), cache, zerolog.Nop(), location.Config{BaseURL: geo.URL}),
 	}
 	routes := a.Routes()
@@ -144,7 +145,7 @@ func TestUnknownLocationNeverFetchesWorldwideEvents(t *testing.T) {
 	cache := kv.NewMemory()
 	defer cache.Close()
 	a := &api{
-		events:    discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL}),
+		events:    discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "test", BaseURL: upstream.URL, RequestInterval: time.Millisecond}),
 		locations: location.New(t.Context(), cache, zerolog.Nop(), location.Config{BaseURL: geo.URL}),
 	}
 	for _, ip := range []string{"127.0.0.1:1234", "8.8.8.8:1234"} {
