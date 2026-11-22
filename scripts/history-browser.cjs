@@ -33,15 +33,17 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
       }
     };
     await page.goto(base + query('Berlin'));
-    check('Discover works without provider key', await page.locator('#event-list > li').count() === 3);
+    check('Discover works without provider key', await page.locator('#event-list > .event-row').count() === 3);
     check('Complete collection shown', await page.locator('[data-coverage="complete"]').first().isVisible());
     await page.getByRole('link', { name: 'Load more events' }).click();
-    await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 6);
+    await page.waitForFunction(() => document.querySelectorAll('#event-list > .event-row').length === 6);
     await page.getByRole('link', { name: 'Load more events' }).click();
-    await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 7);
-    check('SQL load more has no duplicates', await page.locator('#event-list > li').evaluateAll(nodes => new Set(nodes.map(n => n.dataset.eventId)).size === nodes.length));
+    await page.waitForFunction(() => document.querySelectorAll('#event-list > .event-row').length === 7);
+    check('SQL load more has no duplicates', await page.locator('#event-list > .event-row').evaluateAll(nodes => new Set(nodes.map(n => n.dataset.eventId)).size === nodes.length));
+    // A page continuing the last calendar stretch doesn't repeat its agenda heading.
+    check('Load more keeps one agenda heading per stretch', await page.locator('#event-list > .event-group').evaluateAll(nodes => new Set(nodes.map(n => n.dataset.eventGroup)).size === nodes.length));
     // Loaded pages live in the URL as through=, written once htmx settles.
-    const rows = () => page.locator('#event-list > li').evaluateAll(nodes => nodes.map(n => n.dataset.eventId));
+    const rows = () => page.locator('#event-list > .event-row').evaluateAll(nodes => nodes.map(n => n.dataset.eventId));
     const synced = () => page.waitForFunction(() => new URL(location.href).searchParams.get('through') === document.getElementById('pagination').dataset.pageCursor);
     await synced();
     const loaded = await rows();
@@ -67,7 +69,7 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
       else await page.locator('.event-link').first().click();
       await started;
       await page.getByRole('link', { name: 'Load more events' }).click();
-      await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 6);
+      await page.waitForFunction(() => document.querySelectorAll('#event-list > .event-row').length === 6);
       await synced();
       release();
       await page.waitForFunction(section => {
@@ -84,7 +86,7 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     await page.locator('.event-link').first().click();
     await page.waitForFunction(() => new URL(location.href).searchParams.has('selected_event'));
     await page.getByRole('link', { name: 'Load more events' }).click();
-    await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 6);
+    await page.waitForFunction(() => document.querySelectorAll('#event-list > .event-row').length === 6);
     await synced();
     await page.goBack();
     await page.waitForFunction(() => !new URL(location.href).searchParams.has('selected_event'));
@@ -94,14 +96,14 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     // The cursor is bound to the remembered city, so the URL must name it.
     await page.goto(base + '/?start_date=2026-10-08&end_date=2026-10-10&limit=3');
     await page.getByRole('link', { name: 'Load more events' }).click();
-    await page.waitForFunction(() => document.querySelectorAll('#event-list > li').length === 6);
+    await page.waitForFunction(() => document.querySelectorAll('#event-list > .event-row').length === 6);
     await synced();
     const shared = page.url();
     const otherCity = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const otherPage = await otherCity.newPage();
     await otherPage.goto(base + query('Partial'));
     await otherPage.goto(shared);
-    check('Restore link opens the same pages for a viewer with another remembered city', JSON.stringify(await otherPage.locator('#event-list > li').evaluateAll(nodes => nodes.map(n => n.dataset.eventId))) === JSON.stringify(await rows()));
+    check('Restore link opens the same pages for a viewer with another remembered city', JSON.stringify(await otherPage.locator('#event-list > .event-row').evaluateAll(nodes => nodes.map(n => n.dataset.eventId))) === JSON.stringify(await rows()));
     await otherCity.close();
     await page.locator('#filters > summary').click();
     await page.getByLabel('Sort events').selectOption('name_asc');
@@ -109,7 +111,7 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     check('Native sort survives submission', await page.getByLabel('Sort events').inputValue() === 'name_asc');
     await page.getByLabel('Event, performer, team, or venue', { exact: true }).fill('Band');
     await page.getByRole('button', { name: 'Find events' }).click();
-    check('SQL keyword finds catalog without provider', await page.locator('#event-list > li').count() === 3);
+    check('SQL keyword finds catalog without provider', await page.locator('#event-list > .event-row').count() === 3);
     await page.locator('#filters > summary').click();
     // Disclosures animate open: focus lands once the field is shown, and a
     // keyboard step gives it keyboard (focus-visible) modality.
@@ -144,7 +146,7 @@ const query = city => '/?city=' + city + '&country=DE&start_date=2026-10-08&end_
     const nativePage = await native.newPage();
     await nativePage.goto(base + query('Berlin'));
     await nativePage.getByRole('link', { name: 'Load more events' }).click();
-    check('No-JavaScript pagination', await nativePage.locator('#event-list > li').count() === 3 && nativePage.url().includes('cursor='));
+    check('No-JavaScript pagination', await nativePage.locator('#event-list > .event-row').count() === 3 && nativePage.url().includes('cursor='));
     await native.close();
     check('No browser runtime errors', report.consoleErrors.length === 0);
     if (out) fs.writeFileSync(path.join(out,'history-checks.json'),JSON.stringify(report,null,2));

@@ -75,9 +75,10 @@ templ EventContext(page EventPage) {
 		@EventPrimaryActions(page)
 		@EventParticipation(page, "context-participation-note")
 		<div class="context-tools">
-			@button.Button(button.Props{Href: sectionURL(page, "overview"), Variant: button.VariantLink, Class: "text-link open-event"}) {
-				<span>Open event page</span>@layouts.Icon("arrow")
-			}
+			<a href={ templ.URL(sectionURL(page, "overview")) } class="card-action-secondary open-event">
+				<span>Open event page</span>
+				@layouts.IconClass("arrow", "icon card-action-arrow")
+			</a>
 		</div>
 		@EventSections(page)
 		@EventSectionRegion(page, true)

@@ -29,9 +29,9 @@ templ HappeningNow(p HappeningNowPage) {
 						@layouts.LiveFilterFields(p.editingFilters(), p.Categories, p.Editor)
 					</form>
 					<div class="account-actions">
-						<button type="button" class="text-link" data-live-hide hidden>Hide activity toasts</button>
-						<button type="button" class="text-link" data-live-show hidden>Show activity toasts</button>
-						<a href={ templ.URL(p.ReturnURL) } class="text-link" data-live-refresh>Refresh</a>
+						<button type="button" class="card-action-secondary" data-live-hide hidden>@layouts.Icon("bell-off")<span>Hide activity toasts</span></button>
+						<button type="button" class="card-action-secondary" data-live-show hidden>@layouts.Icon("bell")<span>Show activity toasts</span></button>
+						<a href={ templ.URL(p.ReturnURL) } class="card-action-secondary" data-live-refresh>@layouts.Icon("refresh-cw")<span>Refresh</span></a>
 					</div>
 				</div>
 				<p class="field-note" data-live-paused hidden?={ !p.Paused }>Live activity is paused or disabled. <a class="text-link" href="/me/preferences">Notification preferences</a></p>

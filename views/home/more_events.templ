@@ -10,9 +10,28 @@ import "github.com/sonastea/ticketopia/views/components/skeleton"
 
 templ MoreEventsList(page SearchPage) {
 	<ul hx-swap-oob="beforeend:#event-list">
-		@EventRowsWithActivity(page.Events.Items, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, page.Activity)
+		@DiscoverRows(page)
 	</ul>
 	@Pagination(page)
+}
+
+// DiscoverRows reads date-sorted results as an agenda: a calendar heading
+// opens each stretch (Today, This week, Next week, later months) and the
+// soonest event on the first page leads as a wide card. Headings repeat each
+// row's full date, so they're visual only; app.js drops a repeated heading
+// when Load more continues the same stretch.
+templ DiscoverRows(page SearchPage) {
+	for _, row := range discoverRows(page, layouts.Now(ctx)) {
+		if row.Group != nil {
+			<li class="event-group" aria-hidden="true" data-event-group={ row.Group.Key }>
+				<span class="event-group-label">{ row.Group.Label }</span>
+				if row.Group.Range != "" {
+					<span class="event-group-range">{ row.Group.Range }</span>
+				}
+			</li>
+		}
+		@EventRow(row.Event, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, nil, page.Activity, true, row.Lead)
+	}
 }
 
 templ EventRows(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView) {
@@ -29,62 +48,73 @@ templ EventRowsWithActivity(events []models.Event, returnURL string, selectedID 
 
 templ EventRowsContent(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview, extended bool) {
 	for _, event := range events {
-		<li class="event-row" data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
-			<div class="event-art">
-				<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } tabindex="-1" aria-hidden="true">
+		@EventRow(event, returnURL, selectedID, saves, actionReturnURL, interests, matches, activity, extended, false)
+	}
+}
+
+templ EventRow(event models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview, extended bool, lead bool) {
+	<li class={ "event-row", templ.KV("event-row-lead", lead) } data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
+		<div class="event-art">
+			<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } tabindex="-1" aria-hidden="true">
+				if lead {
+					@EventImage(event, artLead)
+				} else {
 					@EventImage(event, artResult)
-				</a>
-				<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
-			</div>
-			<div class="event-copy">
-				<p class="event-date">
-					{ startLabel(event.Start) }
-					if extended {
-						<span class="viewing-label" aria-hidden="true">@layouts.Icon("viewing")<span>Viewing</span></span>
-					}
-				</p>
-				<h3 style={ transitionStyle("title", event.ID) }><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
-				<p class="event-venue">{ venueLabel(event) }</p>
-				<div class="event-metadata">@EventStatus(event.Status)
+				}
+			</a>
+			if lead {
+				<span class="lead-badge" aria-hidden="true">@layouts.Icon("sparkles")<span>Up next</span></span>
+			}
+			<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
+		</div>
+		<div class="event-copy">
+			<p class="event-date">
+				{ startLabel(event.Start) }
+				if extended {
+					<span class="viewing-label" aria-hidden="true">@layouts.Icon("viewing")<span>Viewing</span></span>
+				}
+			</p>
+			<h3 style={ transitionStyle("title", event.ID) }><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
+			<p class="event-venue">{ venueLabel(event) }</p>
+			<div class="event-metadata">@EventStatus(event.Status)
 <span>{ priceLabel(event.PriceRanges) }</span>
-					if event.Meta != nil && event.Meta.Stale {
-						<span class="event-last-known">Last-known as of { freshnessLabel(event.Meta.DataAsOf) }</span>
-					}
-				</div>
-				<p class="genre-label">{ classificationLabel(event) }</p>
-				if item, ok := matches[event.ID]; ok {
-					<div class="radar-match">
-						<p class="field-note"><strong>Why this event</strong></p>
-						<ul class="radar-reasons">
-							for _, reason := range item.Reasons {
-								<li>{ reason.Text }</li>
-							}
-						</ul>
-						if item.Meta.Stale {
-							@Freshness(item.Meta)
-						}
-					</div>
-				}
-				if !extended {
-					@EventRowTools(event, returnURL, saves, actionReturnURL, interests, false)
+				if event.Meta != nil && event.Meta.Stale {
+					<span class="event-last-known">Last-known as of { freshnessLabel(event.Meta.DataAsOf) }</span>
 				}
 			</div>
-			if extended {
-				<div class="event-row-extension">
-					<div class="row-details">
-						if featuringLabel(event) != "" {
-							<p><strong>Featuring</strong> { featuringLabel(event) }</p>
+			<p class="genre-label">{ classificationLabel(event) }</p>
+			if item, ok := matches[event.ID]; ok {
+				<div class="radar-match">
+					<p class="field-note"><strong>Why this event</strong></p>
+					<ul class="radar-reasons">
+						for _, reason := range item.Reasons {
+							<li>{ reason.Text }</li>
 						}
-						if sale := upcomingSaleLabel(event, layouts.Now(ctx)); sale != "" {
-							<p class="sale-date">{ sale }</p>
-						}
-					</div>
-					@EventRowActivity(event.ID, activity[event.ID], returnURL)
-					@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
+					</ul>
+					if item.Meta.Stale {
+						@Freshness(item.Meta)
+					}
 				</div>
 			}
-		</li>
-	}
+			if !extended {
+				@EventRowTools(event, returnURL, saves, actionReturnURL, interests, false)
+			}
+		</div>
+		if extended {
+			<div class="event-row-extension">
+				<div class="row-details">
+					if featuringLabel(event) != "" {
+						<p><strong>Featuring</strong> { featuringLabel(event) }</p>
+					}
+					if sale := upcomingSaleLabel(event, layouts.Now(ctx)); sale != "" {
+						<p class="sale-date">{ sale }</p>
+					}
+				</div>
+				@EventRowActivity(event.ID, activity[event.ID], returnURL)
+				@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
+			</div>
+		}
+	</li>
 }
 
 templ EventRowTools(event models.Event, returnURL string, saves SaveView, actionReturnURL string, interests InterestView, extended bool) {
@@ -98,7 +128,9 @@ templ EventRowTools(event models.Event, returnURL string, saves SaveView, action
 	}
 	@EventActionControlsThen(event.ID, event.Name, saves, actionReturnURL, false, rowInterest(event, returnURL, actionReturnURL, interests)) {
 		if event.Source.URL != "" {
-			@button.Button(button.Props{Href: event.Source.URL, Variant: button.VariantOutline, Class: "action action-secondary", Attributes: templ.Attributes{"aria-label": "Tickets on Ticketmaster for " + event.Name}}) {
+			// The event page's Tickets action in its tonal form: the same shape,
+			// type and icon, quieter so a grid of cards isn't a wall of gradients.
+			@button.Button(button.Props{Href: event.Source.URL, Class: "action ticket-row-link", Attributes: templ.Attributes{"aria-label": "Tickets on Ticketmaster for " + event.Name}}) {
 				// The accessible name keeps the provider and event; the visible label is short so Save fits beside it.
 				<span>Tickets</span>@layouts.Icon("external")
 			}
@@ -110,15 +142,23 @@ templ EventRowTools(event models.Event, returnURL string, saves SaveView, action
 
 templ EventRowActivity(id string, preview eventactivity.Preview, returnURL string) {
 	if preview.Questions > 0 || preview.Recommendations > 0 || layouts.LiveActivityEnabled(ctx) {
+		// Count chips, like the community sections' count pills: each opens the
+		// event's section. Live updates rewrite only the inner label.
 		<div class="row-activity" aria-label="Public event activity" data-live-count-group hidden?={ preview.Questions == 0 && preview.Recommendations == 0 }>
 			if preview.Questions > 0 {
 				<div>
-					<h4><a href={ templ.URL(eventURL(id, "discussion", returnURL)) } class="text-link" data-event-link data-id={ id }>{ activityCount(preview.Questions, "question or tip", "questions & tips") }</a></h4>
+					<a href={ templ.URL(eventURL(id, "discussion", returnURL)) } class="activity-chip" data-event-link data-id={ id }>
+						@layouts.Icon("message-circle")
+						<span>{ activityCount(preview.Questions, "question or tip", "questions & tips") }</span>
+					</a>
 				</div>
 			}
-				<div data-live-recommendation-wrap hidden?={ preview.Recommendations == 0 }>
-					<h4><a href={ templ.URL(eventURL(id, "community", returnURL)) } class="text-link" data-event-link data-id={ id } data-live-recommendation-count={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</a></h4>
-				</div>
+			<div data-live-recommendation-wrap hidden?={ preview.Recommendations == 0 }>
+				<a href={ templ.URL(eventURL(id, "community", returnURL)) } class="activity-chip" data-event-link data-id={ id }>
+					@layouts.Icon("quote")
+					<span data-live-recommendation-count={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</span>
+				</a>
+			</div>
 		</div>
 	}
 }
@@ -128,7 +168,7 @@ templ EventImage(event models.Event, slot artSlot) {
 		<div class="image-fallback" aria-hidden="true">@layouts.Icon(eventIcon(event))
 </div>
 		if art := artFor(event.Images, slot); art.Src != "" {
-			if slot == artDetail {
+			if slot == artDetail || slot == artLead {
 				<img
 					src={ art.Src }
 					if art.SrcSet != "" {

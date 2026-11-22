@@ -59,6 +59,6 @@ templ CollectionEventArt(event models.Event, returnURL string) {
 
 templ CollectionEventHeading(event models.Event, returnURL string) {
 	<p class="event-date">{ startLabel(event.Start) }</p>
-	<h3><a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="text-link" data-event-link data-id={ event.ID }>{ event.Name }</a></h3>
+	<h3><a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="event-link" data-event-link data-id={ event.ID }>{ event.Name }</a></h3>
 	<p class="event-venue">{ venueLabel(event) }</p>
 }

@@ -47,6 +47,9 @@ type SearchPage struct {
 	ActivityError         string
 	// PageCursor read the last rendered page; empty for the first page.
 	PageCursor string
+	// Today is the browsed city's calendar day (YYYY-MM-DD) once its time
+	// zone is known; Discover's agenda headings are relative to it.
+	Today string
 }
 
 type EventPage struct {
@@ -817,6 +820,7 @@ const (
 	artThumb                     // fixed 5.5rem squares (Happening Now)
 	artCollection                // stacked art, 8rem squares or community cards
 	artDetail                    // event page and preview banner
+	artLead                      // Discover's Up next card: full width in lists, half the card grid
 )
 
 // artBand is one viewport range of a slot: the frame's inline size, in rem or
@@ -842,6 +846,9 @@ var artBands = map[artSlot][]artBand{
 	artThumb:      {{"", 5.5, false, 1}},
 	artCollection: {{"42rem", 100, true, 16.0 / 9}, {"", 30, false, 16.0 / 9}},
 	artDetail:     {{"62rem", 100, true, 2}, {"", 50, false, 2}},
+	// Stacked full width up to 48rem results (about 51rem of viewport), then
+	// the start of a full-row card, at most about 55% of a 120rem workspace.
+	artLead: {{"51rem", 100, true, 16.0 / 9}, {"", 40, false, 16.0 / 9}},
 }
 
 type eventArt struct{ Src, SrcSet, Sizes string }
@@ -852,8 +859,11 @@ type eventArt struct{ Src, SrcSet, Sizes string }
 // crop and the detail banner the widest, since those waste the fewest pixels;
 // a crop needs two renditions to offer a choice.
 func artFor(images []models.Image, slot artSlot) eventArt {
+	// Wide frames (the event banner and Discover's lead card) prefer the
+	// widest crop and a larger fallback.
+	wide := slot == artDetail || slot == artLead
 	target := 480
-	if slot == artDetail {
+	if wide {
 		target = 1000
 	}
 	crops := map[string][]models.Image{}
@@ -875,7 +885,7 @@ func artFor(images []models.Image, slot artSlot) eventArt {
 			continue
 		}
 		a := cropAspect(crop)
-		if chosen == nil || (slot == artDetail && a > aspect) || (slot != artDetail && a < aspect) {
+		if chosen == nil || (wide && a > aspect) || (!wide && a < aspect) {
 			chosen, aspect = crop, a
 		}
 	}

@@ -1528,9 +1528,11 @@ html:has(.filter-sheet:modal) {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, max(16rem, (100% - 3rem) / 3)), 1fr));
     gap: 1.5rem;
   }
+  /* Cards share the Community cards' anatomy: full-bleed artwork with the
+     date stub, padded facts, and a hairline-divided action bar at the foot. */
   .event-row {
     grid-template-columns: minmax(0, 1fr);
-    padding: .75rem;
+    padding: 0;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--surface);
@@ -1544,7 +1546,15 @@ html:has(.filter-sheet:modal) {
     }
   }
   .event-row .event-art { margin-block-end: 1rem; }
-  .event-row .event-art .event-image { aspect-ratio: 16 / 9; }
+  .event-row { --card-art-radius: calc(var(--radius) - 1px); }
+  .event-row .event-art .event-image {
+    aspect-ratio: 16 / 9;
+    border-radius: 0;
+    border-start-start-radius: var(--card-art-radius);
+    border-start-end-radius: var(--card-art-radius);
+  }
+  .event-row > :is(.event-copy, .event-row-extension) { padding-inline: 1.25rem; }
+  .event-row > :last-child { padding-block-end: 1.25rem; }
 
   /* Grid cells already stretch to the tallest card in their row; a column
      flow lets the actions take the leftover space so CTAs line up. */
@@ -1554,8 +1564,32 @@ html:has(.filter-sheet:modal) {
   .event-row:has(> .event-row-extension) > .event-copy { flex: none; }
   .event-row > :is(.event-copy, .event-row-extension) > .event-action-group {
     margin-block-start: auto;
-    padding-block-start: .5rem;
+    padding-block-start: .875rem;
+    border-block-start: 1px solid color-mix(in oklch, var(--ink) 8%, transparent);
   }
+  .event-row > :is(.event-copy, .event-row-extension) > :has(+ .event-action-group) { margin-block-end: 1rem; }
+
+  /* The soonest event leads Discover's first page across the whole grid:
+     artwork at the start, its facts and actions beside it. */
+  .event-row-lead {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .event-row-lead > .event-art { grid-row: 1 / -1; grid-column: 1; margin: 0; }
+  .event-row-lead > .event-art > a { block-size: 100%; }
+  .event-row-lead > .event-art .event-image {
+    aspect-ratio: auto;
+    block-size: 100%;
+    min-block-size: 16rem;
+    border-start-end-radius: 0;
+    border-end-start-radius: var(--card-art-radius);
+  }
+  .event-row-lead > :is(.event-copy, .event-row-extension) { grid-column: 2; padding-inline: 1.5rem; }
+  .event-row-lead > .event-copy { padding-block-start: 1.5rem; }
+  .event-row-lead > :last-child { padding-block-end: 1.5rem; }
+  .event-row-lead .event-copy h3 { font-size: 1.5rem; line-height: 1.25; letter-spacing: -.01em; }
 }
 
 /* The open preview owns the selected event's shared transition names. */
@@ -1682,9 +1716,115 @@ html:has(.filter-sheet:modal) {
 .row-details p, .row-activity p { font-size: .875rem; color: var(--muted-warm); max-inline-size: 70ch; }
 /* An upcoming sale reads with the row metadata, not as body text. */
 .row-details .sale-date { margin-block-start: 0; font-size: .8125rem; }
-.row-activity { display: flex; flex-wrap: wrap; gap: .25rem 1rem; padding-block: .5rem; }
-.row-activity h4 { font-size: .875rem; margin-block-end: .25rem; font-variant-numeric: tabular-nums; }
-.row-activity h4 a { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
+/* Public activity reads as count chips, like the community sections' count
+   pills; each opens that event section. */
+.row-activity { display: flex; flex-wrap: wrap; gap: .5rem; padding-block: .25rem .75rem; }
+.activity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  max-inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding-block: .375rem;
+  padding-inline: .75rem .875rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface));
+  color: var(--brand);
+  font-size: .8125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  transition-property: background-color, color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+.activity-chip .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
+@media (hover: hover) and (pointer: fine) {
+  .activity-chip:hover { background: var(--brand-soft); color: var(--brand-dark); box-shadow: var(--ring-hairline); }
+}
+/* Count chips keep their own press wash (excluded from the title/artwork reset below). */
+.activity-chip:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); color: var(--brand-active); }
+
+/* Discover's agenda headings: a calendar stretch in the display voice, its
+   dates, and a hairline running to the edge. They span the card grid. */
+.event-group {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .125rem .75rem;
+  padding-block: 2rem .75rem;
+  padding-inline: .75rem;
+}
+.event-group:first-child { padding-block-start: .5rem; }
+.event-group-label {
+  color: var(--ink);
+  font-family: var(--font-display);
+  /* Sized to the results column too, so enlarged text on a phone keeps a
+     month name whole. */
+  font-size: clamp(1rem, 11cqi, 1.375rem);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+.event-group-range {
+  color: var(--muted-warm);
+  font-size: .8125rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.event-group::after {
+  content: "";
+  flex: 1 1 3rem;
+  align-self: center;
+  border-block-start: 1px solid color-mix(in oklch, var(--ink) 10%, transparent);
+}
+/* In lists the heading already separates the stretch from the row above. */
+@container results (width < 48rem) {
+  .event-group + .event-row { border-block-start-color: transparent; }
+}
+@container results (min-width: 48rem) {
+  .event-group { padding-block: 1rem 0; padding-inline: 0; }
+  .event-group:first-child { padding-block-start: 0; }
+}
+
+/* The lead's marker sits in the artwork's top start corner, clear of the date stub. */
+.lead-badge {
+  pointer-events: none;
+  position: absolute;
+  inset-block-start: .625rem;
+  inset-inline-start: .625rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding-block: .25rem;
+  padding-inline: .5rem .625rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--brand);
+  box-shadow: var(--ring-hairline), 0 2px 6px oklch(0.3 0.05 337 / .14);
+  font-size: .75rem;
+  font-weight: 750;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.lead-badge .icon { flex: none; inline-size: .875rem; block-size: .875rem; }
+
+/* On phones and tablets the lead keeps its artwork full width above the facts,
+   so the first thing in the list is a picture rather than a thumbnail. With a
+   preview open it is an ordinary row, so selection never reflows the list. */
+@container results (min-width: 17.5rem) and (width < 48rem) {
+  .discovery-workspace:not(.has-selection) .event-row-lead { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .discovery-workspace:not(.has-selection) .event-row-lead > .event-copy > :is(.event-date, h3, .event-venue) { grid-column: 1; }
+  .discovery-workspace:not(.has-selection) .event-row-lead .event-art { grid-row: auto; margin-block-end: .75rem; }
+  .discovery-workspace:not(.has-selection) .event-row-lead .event-art .event-image { aspect-ratio: 16 / 9; }
+  .discovery-workspace:not(.has-selection) .event-row-lead .event-art .date-marker { inset-block-end: .5rem; inset-inline-start: .5rem; max-inline-size: calc(100% - 1rem); padding-inline: .75rem; }
+  .discovery-workspace:not(.has-selection) .event-row-lead .event-copy h3 { font-size: 1.25rem; }
+  /* Beside a small thumbnail the marker would crowd the artwork. */
+  .has-selection .lead-badge { display: none; }
+}
 .row-activity-links { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; }
 .row-activity-links a { display: inline-flex; align-items: center; min-block-size: 2.75rem; font-size: .8125rem; }
 
@@ -1719,8 +1859,8 @@ html:has(.filter-sheet:modal) {
    behind just the title text, reading as highlighted text, and iOS Safari
    paints it on touch-down, even when the touch starts a scroll. The title
    keeps a colour cue; Community cards take a press wash like rows. */
-:is(.event-row, .community-cards > li, .live-card) [data-event-link]:active { background-color: transparent; }
-:is(.event-row, .community-cards > li) [data-event-link]:active { color: var(--brand-active); }
+:is(.event-row, .community-cards > li, .live-card) [data-event-link]:not(.activity-chip):active { background-color: transparent; }
+:is(.event-row, .community-cards > li) [data-event-link]:not(.activity-chip):active { color: var(--brand-active); }
 .community-cards > li:has([data-event-link]:active) { background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface)); }
 
 .event-venue {
@@ -3695,7 +3835,17 @@ html:has(.filter-sheet:modal) {
 .recommendation-list > li { border-block-start: 1px solid var(--line); padding-block: 1.25rem; padding-inline: 0; }
 .recommendation-copy { min-inline-size: 0; }
 .recommendation-copy h3 { margin-block: .5rem; margin-inline: 0; font-size: 1.125rem; line-height: 1.4; font-weight: 750; }
-.recommendation-copy h3 a { font: inherit; }
+/* Titles read like Discover's: ink, plum and underlined on hover, a 44px
+   target that still wraps long names (see .event-copy h3 a). */
+.recommendation-copy h3 a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-block-size: 2.75rem;
+  font: inherit;
+}
 .recommendation-copy .event-summary { margin-block-start: .75rem; }
 .recommendation-attribution { margin-block-start: .75rem; }
 .recommendation-via { color: var(--muted); }
@@ -3991,7 +4141,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   line-height: 1.4;
 }
 .note .note-head :is(time, .note-meta) { font-variant-numeric: tabular-nums; }
-:is(.note, .rec-card) .note-author {
+:is(.note, .rec-card, .byline) .note-author {
   display: inline-flex;
   align-items: center;
   min-inline-size: 2.75rem;
@@ -4005,11 +4155,11 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   text-underline-offset: .2em;
 }
 @media (hover: hover) and (pointer: fine) {
-  :is(.note, .rec-card) .note-author:hover { color: var(--brand); text-decoration-color: currentColor; }
+  :is(.note, .rec-card, .byline) .note-author:hover { color: var(--brand); text-decoration-color: currentColor; }
 }
-:is(.note, .rec-card) .note-author:active { color: var(--brand-active); }
+:is(.note, .rec-card, .byline) .note-author:active { color: var(--brand-active); }
 /* A real (shrinkable) flex item, so an unbroken long name wraps inside the note. */
-:is(.note, .rec-card) .note-author > span { min-inline-size: 0; overflow-wrap: anywhere; }
+:is(.note, .rec-card, .byline) .note-author > span { min-inline-size: 0; overflow-wrap: anywhere; }
 .note-tag {
   padding-block: .0625rem;
   padding-inline: .5rem;
@@ -4508,10 +4658,31 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 @media (prefers-reduced-motion: no-preference) {
   .card-action-arrow { transition: translate 200ms var(--ease-out); }
   @media (hover: hover) and (pointer: fine) {
-    .card-action-primary:hover .card-action-arrow { translate: .1875rem 0; }
-    .card-action-primary:dir(rtl):hover .card-action-arrow { translate: -.1875rem 0; }
+    :is(.card-action-primary, .open-event):hover .card-action-arrow { translate: .1875rem 0; }
+    :is(.card-action-primary, .open-event):dir(rtl):hover .card-action-arrow { translate: -.1875rem 0; }
   }
 }
+
+/* One Tickets and Save family on rows, cards, the preview and the event page:
+   the action bar's corners, a 1.125rem icon and the same 44px rhythm. Tickets
+   takes the brand gradient everywhere (depth layer); a row's Tickets fills
+   its action bar beside Save, like the event page's. */
+:is(.ticket-link, .ticket-row-link, .event-actions .button-quiet) { border-radius: .625rem; }
+:is(.ticket-link, .ticket-row-link) .icon { flex: none; inline-size: 1.125rem; block-size: 1.125rem; }
+.ticket-row-link { flex: 1 1 7rem; max-inline-size: min(100%, 22rem); }
+/* Enlarged text in a narrow row: the decorative icon and some inset give
+   their room to the label, so "Tickets" never breaks mid-word. */
+.event-row .event-action-group { container: row-actions / inline-size; }
+@container row-actions (width < 15rem) {
+  .ticket-row-link { padding-inline: .75rem; }
+  .ticket-row-link .icon { display: none; }
+}
+
+/* The preview's way to the full page is the action bar's ghost companion. */
+.context-tools .open-event { margin-inline-start: -.75rem; color: var(--brand); }
+
+/* Happening Now's toast and refresh controls are ghost actions on its bar. */
+.live-filter-bar > .account-actions { gap: 0 .25rem; }
 .pull-quote { display: grid; gap: .75rem; margin-block: 1rem; margin-inline: 0; }
 .community-recommenders .pull-quote { margin: 0; }
 .pull-quote blockquote {
@@ -4535,6 +4706,10 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   line-height: 1;
 }
 .byline { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; max-inline-size: 100%; }
+/* Community bylines follow the quote cards: the name, then a quiet line of
+   what they did (and any app it came through). */
+.community-recommenders .byline > p { display: grid; justify-items: start; color: var(--muted-warm); font-size: .8125rem; line-height: 1.3; }
+.community-recommenders .byline .note-meta { padding-block-end: .25rem; }
 /* Name link (a 44px target) and the rest of the sentence wrap as units. */
 .byline > p { flex: 1 1 12rem; display: flex; flex-wrap: wrap; align-items: center; column-gap: .3em; min-inline-size: 0; margin: 0; }
 .byline > p > span { min-inline-size: 0; }
@@ -4634,18 +4809,19 @@ details.composer-card > .composer-form { padding: 1.125rem; }
    resting shadow, so the primary things still stand out. Transparent borders
    keep every surface framed in forced colours. */
 
-/* Discover only (Saved, Interests and Radar share the results container and
-   stay flat). List rows lift onto a raised surface only when lit; with a
-   preview open the results are always a list, so selection uses this. */
+/* Discover and the Saved, Interests and Radar collections share these rows.
+   List rows lift onto a raised surface only when lit; with a preview open
+   the results are always a list, so selection uses this. */
 @container results (width < 48rem) {
-  .discovery-content .event-row:is([data-selected="true"], :has(:is(.event-link, .event-art > a):active)) { box-shadow: var(--elevation-1); }
+  .event-list > .event-row:is([data-selected="true"], :has(:is(.event-link, .event-art > a):active)) { box-shadow: var(--elevation-1); }
   @media (hover: hover) and (pointer: fine) {
-    .discovery-content .event-row:has(:is(.event-link, .event-art > a):hover) { box-shadow: var(--elevation-1); }
+    .event-list > .event-row:has(:is(.event-link, .event-art > a):hover) { box-shadow: var(--elevation-1); }
   }
 }
-/* Wide results (no preview open) are raised cards. */
+/* Wide results (no preview open) are raised cards, like Community's. */
 @container results (min-width: 48rem) {
-  .discovery-content .event-row {
+  .event-list > .event-row {
+    --card-art-radius: calc(var(--radius) + .25rem - 1px);
     border-color: transparent;
     border-radius: calc(var(--radius) + .25rem);
     background: var(--gradient-glow), var(--surface);
@@ -4653,23 +4829,22 @@ details.composer-card > .composer-form { padding: 1.125rem; }
     transition-property: background-color, border-color, box-shadow;
     transition-duration: 220ms;
   }
-  .discovery-content .event-row .event-art .event-image { border-radius: var(--radius); }
   @media (hover: hover) and (pointer: fine) {
-    .discovery-content .event-row:has(:is(.event-link, .event-art > a):hover) {
+    .event-list > .event-row:has(:is(.event-link, .event-art > a):hover) {
       border-color: transparent;
       background: var(--gradient-glow), var(--surface);
       box-shadow: var(--elevation-2);
     }
   }
-  .discovery-content .event-row:has(:is(.event-link, .event-art > a):active) {
+  .event-list > .event-row:has(:is(.event-link, .event-art > a):active) {
     background: var(--row-press);
     box-shadow: var(--elevation-1);
   }
 }
 @media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
   @container results (min-width: 48rem) {
-    .discovery-content .event-row { transition-property: background-color, border-color, box-shadow, translate; }
-    .discovery-content .event-row:has(:is(.event-link, .event-art > a):hover) { translate: 0 -2px; }
+    .event-list > .event-row { transition-property: background-color, border-color, box-shadow, translate; }
+    .event-list > .event-row:has(:is(.event-link, .event-art > a):hover) { translate: 0 -2px; }
   }
 }
 
@@ -4720,27 +4895,32 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 60%, transparent), var(--elevation-1);
 }
 
-/* Tickets on the event page and preview: the brand gradient, highlight and
-   coloured lift; pressing settles it. */
-.event-primary-actions .ticket-link {
+/* Tickets on the event page, the preview and every result row: the brand
+   gradient over an opaque plum base, with a top highlight; pressing settles
+   it. The event's own Tickets rests on the coloured lift; in a list of events
+   the lift appears only on hover, so a grid of cards doesn't glow. */
+:is(.event-primary-actions .ticket-link, .ticket-row-link) {
   border-color: transparent;
-  background: var(--gradient-brand);
+  background: var(--gradient-brand) var(--brand);
+  color: var(--surface);
   box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand);
   transition-property: box-shadow;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
+.event-row .ticket-row-link { box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent); }
 @media (hover: hover) and (pointer: fine) {
-  .event-primary-actions .ticket-link:hover { background: var(--gradient-brand); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
+  :is(.event-primary-actions .ticket-link, .ticket-row-link):hover { background: var(--gradient-brand) var(--brand); color: var(--surface); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
 }
-.event-primary-actions .ticket-link:active { background: var(--brand-active); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
+:is(.event-primary-actions .ticket-link, .ticket-row-link):active { background: var(--brand-active); color: var(--surface); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
 
-/* Save and the plans controls rest on the hairline ring with a soft shadow. */
-:is(.event-primary-actions, .event-participation) .event-actions .button-quiet {
+/* Save and the plans controls rest on the hairline ring with a soft shadow,
+   on the event and in every result row alike. */
+:is(.event-primary-actions, .event-participation, .event-row) .event-actions .button-quiet {
   box-shadow: var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .08);
   transition-property: background-color, border-color, color, box-shadow;
 }
-:is(.event-primary-actions, .event-participation) .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
+:is(.event-primary-actions, .event-participation, .event-row) .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
   box-shadow: 0 1px 2px oklch(0.3 0.05 337 / .1);
 }
 

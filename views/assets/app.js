@@ -1584,6 +1584,20 @@
   // settle in as one batch; rows already read don't move.
   let rowsBeforePage = null;
   let pageHadFocus = false;
+  // A page that continues the last calendar stretch repeats its agenda
+  // heading; keep the one already shown. Results are date-sorted whenever
+  // headings exist, so a key seen again is a continuation. Rows arrive by an
+  // out-of-band swap, so this runs on the mutation itself, before paint.
+  const agenda = document.getElementById('event-list');
+  if (agenda && window.MutationObserver) {
+    new MutationObserver(() => {
+      let shown = null;
+      for (const item of agenda.querySelectorAll(':scope > .event-group')) {
+        if (item.dataset.eventGroup === shown) item.remove();
+        else shown = item.dataset.eventGroup;
+      }
+    }).observe(agenda, { childList: true });
+  }
   document.addEventListener('htmx:beforeRequest', event => {
     if (!event.target.closest?.('#pagination')) return;
     rowsBeforePage = document.getElementById('event-list')?.children.length ?? null;
@@ -1592,13 +1606,14 @@
   document.addEventListener('htmx:load', event => {
     if (event.target.id !== 'pagination') return;
     syncThrough();
-    const rows = rowsBeforePage === null ? [] : [...document.getElementById('event-list')?.children || []].slice(rowsBeforePage);
+    const list = document.getElementById('event-list');
+    const rows = rowsBeforePage === null ? [] : [...list?.children || []].slice(rowsBeforePage);
     rowsBeforePage = null;
     for (const row of rows) enter(row, { opacity: [0, 1], translate: ['0 .375rem', '0 0'] }, 200);
     // The swap removed the pressed Load more; continue from the first new
     // event rather than dropping keyboard focus to the page.
     if (pageHadFocus && (!document.activeElement || document.activeElement === document.body)) {
-      (rows[0]?.querySelector('.event-link') || event.target.querySelector('a[href], button:not([hidden])'))?.focus();
+      (rows.find(item => item.matches('.event-row'))?.querySelector('.event-link') || event.target.querySelector('a[href], button:not([hidden])'))?.focus();
     }
     pageHadFocus = false;
   });

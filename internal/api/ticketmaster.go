@@ -158,6 +158,11 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			page.CategoriesUnavailable = catalogErr != nil
 		}
 	}
+	// The agenda's calendar day: the city's own once its zone is known, so
+	// every loaded page groups events against the same day.
+	if today, ok := a.events.CityToday(page.Filters, now); ok {
+		page.Today = today
+	}
 	returnValues := page.Filters.Values()
 	if cursor := filters.Get("cursor"); cursor != "" {
 		returnValues.Set("cursor", cursor)
