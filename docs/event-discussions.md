@@ -96,7 +96,8 @@ thread/target/reply-page state is encoded separately from event-result paginatio
 Expansion/return, Back/reload and resizing preserve selection and scoped drafts.
 Storage failures retain in-page drafts only; drafts are neither sent through OAuth
 nor synced across devices. Late responses cannot replace a different selected event.
-No live polling is included. [Followed discussions](followed-discussions.md) add opt-in
+Open conversations check for new replies only while the person takes part (see
+[live replies](#live-replies)). [Followed discussions](followed-discussions.md) add opt-in
 in-app reply notifications with frequency controls and visibility-safe direct links.
 
 ### Conversation ergonomics and draft safety
@@ -186,6 +187,55 @@ for getting in?", "What time should I arrive?", "Has anyone been to one of these
 before?"). They fill the field with editable text, move focus there and never
 publish. Without JavaScript they show as examples. See the
 [community list revamp](design/community-list-revamp.md).
+
+## Live replies
+
+While a signed-in person takes part in an open conversation, it checks for
+other people's new replies, on its own page and in Discover's event panel.
+Taking part means they follow the thread, started it, have a reply on the page
+they're reading, or type in its composer. Everyone else, and anyone without
+JavaScript, sees new replies when they reload, as before. Threads stay
+asynchronous: there are no typing indicators, presence or chat.
+
+The page records the database time it was read at (`as_of`). The browser asks
+`GET /events/{event_id}/discussions/{discussion_id}/new-replies?since={as_of}`
+for other people's visible replies. It checks every ten seconds (±20%) while
+the person is active, every thirty after two idle minutes, and stops after ten
+idle minutes. It never checks while the tab is hidden. Any key, pointer,
+scroll or input resumes (scrolling Discover's panel counts too), and a visible
+tab checks at once. A check gives up after ten seconds, and a server's
+`Retry-After` holds across reschedules.
+
+The answer has two lists of other people's visible replies, oldest first, each
+of `id` and `created_at`. `replies` holds up to 50 created after `since` (`more`
+when there are others), which the page can't hold. `recent` holds those in the
+overlap just before it. A reply can be stamped before the page's read and
+committed after it, so the overlap is the database query timeout plus a second
+(at least five seconds), the longest any reply's write can take. No reply is
+missed by both the page and the checks. The browser skips replies it already
+shows by ID, so nothing is offered twice, and the person's own replies are
+never listed. A check that finds nothing unseen, for example after moderation
+hid the new reply, withdraws the control.
+
+New replies are announced politely ("2 new replies in this conversation"). A
+**Show 2 new replies** control sticks above the phone navigation while the
+conversation scrolls. Nothing moves until it is used. It then refreshes only the
+conversation at the first new reply, selected and focused, keeping drafts as
+every in-place refresh does. It opens the replies starting at that one
+(`from`, with an **Earlier replies** link back), so every new reply is on the
+page however long the thread, and the refreshed page's `as_of` moves past what
+it offered. In Discover's panel the start and selection stay in the URL
+(`discussion_from`, `discussion_post`) for Back, Forward and reload.
+
+The route serves signed-in browsers only (session cookie, `private, no-store`);
+agents read threads with `discussion_thread`. It checks the thread and window
+first, then makes one range read on the reply index. Each account may check
+`DISCUSSION_LIVE_CHECKS_PER_MINUTE` times a minute per replica (unset or empty: 30, five
+open conversations; 0 turns live replies off). Over that it answers 429 with
+`Retry-After`, and the browser waits. The limit bounds reply reads; every
+request still pays the session lookup that all account routes do. A stale page (as_of older than a day), a
+signed-out session or a gone thread stops checking until the page reloads. Its
+capacity is measured by the [live replies benchmark](load-testing.md#live-replies).
 
 ## API
 

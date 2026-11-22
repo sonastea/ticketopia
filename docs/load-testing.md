@@ -235,6 +235,69 @@ action (`user_actions`). Review servers run no background workers, so
 notification digests and reminder emails are not exercised, nor are the live
 activity streams (see the [live-activity soak](live-activity-rollout.md)).
 
+## Live replies
+
+`make live-replies` holds people taking part in open conversations: each k6 VU
+is one participant with a thread open, checking it for new replies at the
+browser's pace (every `POLL` seconds, ±20%), while writers post a reply every
+`WRITE_EVERY` seconds across the threads. It measures the check's latency and
+`live_noticed_after`: how long after a reply was created a participant's check
+first counted it. `make live-replies-benchmark` steps the number of
+participants until a step fails and writes `.local/load/live-replies-<UTC>/report.html`,
+with each step's k6 summary and log, and the review server's and MariaDB's CPU.
+
+```sh
+# terminal 1: participants share the 40 member sessions, so raise the
+# per-account limit for the run (production keeps its default)
+DISCUSSION_LIVE_CHECKS_PER_MINUTE=6000 make review-server scenario=populated
+make live-replies participants=200 duration=2m     # terminal 2: one held load
+make live-replies-benchmark                         # or step to the limit
+STEPS=400,800,1600 STEP=2m make live-replies-benchmark
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `STEPS` | `50,100,200,400,800,1600,3200` | Participants per step (benchmark) |
+| `STEP` / `RAMP` / `PAUSE` | `1m` / `15s` / `20` | Held duration, ramp and seconds between steps |
+| `THREADS` | `10` | Threads participants spread across (at most 40) |
+| `POLL` | `10` | Seconds between one participant's checks |
+| `WRITE_EVERY` | `10` | Seconds between replies across all threads |
+| `P95` | `300` | Live check p95 limit, ms |
+
+Thousands of k6 VUs cost the load generator memory, and every VU shares one
+of 40 member sessions. To find a limit beyond a few thousand participants,
+shorten `POLL`: at `POLL=2`, each VU stands for five people checking at the
+browser's ten-second pace (the report's **At 10s pace** column). Raise the
+review server's `DISCUSSION_LIVE_CHECKS_PER_MINUTE` (up to 6000) to match.
+
+A step passes when the checks started during the hold (not the ramp or the
+grace after it) keep their p95 under `P95` with under 1% failing; writes don't
+fail or drop; replies are noticed (`live_noticed_after`, each reply from its
+creation to the first check listing it, within `POLL × 1.2 + 3` seconds at
+p95); and the hold makes at least 85% of the checks the participants' pace
+calls for. Participants slowed by long checks make fewer of them, which would
+otherwise look like a pass. The report's **At 10s pace** figure is the held
+checks per second × 10, from what was achieved, not the configured VUs.
+
+The driver refuses anything but a local populated review server. It seeds the
+threads once for every step and keeps the writers rotating across steps, so
+each member stays far under 20 contributions per ten minutes. Runs within ten
+minutes of each other share that budget, so leave a gap between benchmarks.
+CPU is sampled after the ramp, while the load is held. Like the other local
+runs, k6, the app and MariaDB share one machine, so run nothing else alongside.
+
+`scripts/live-replies-browser.cjs` measures the same in a real browser. The
+owner holds their thread open with a draft in the reply composer. The other
+account replies, and the script times creation → **Show N new replies**
+rendered → the reply shown and focused, and fails if the page moved before
+the person asked, nothing was announced, or the draft was lost:
+
+```sh
+MANIFEST=$TMPDIR/ticketopia-review/manifest.json \
+PLAYWRIGHT_MODULE=/path/to/node_modules/playwright ROUNDS=5 \
+node scripts/live-replies-browser.cjs
+```
+
 ## Results
 
 ### 2026-11-09 — Local baseline (Apple M1, 8 cores, 16 GB)
@@ -294,3 +357,21 @@ contract v1.22.0 overload timeouts answer `temporarily_unavailable`). It recover
 within seconds once load stopped. Server resource use was not recorded, so the
 exact ceiling between 480 and 800 is unmeasured.
 
+### 2026-11-22 — Live replies (Apple M1, 8 cores, 16 GB)
+
+`make live-replies-benchmark` on the populated review server
+(`DISCUSSION_LIVE_CHECKS_PER_MINUTE=6000`), 10 threads, a reply every 10
+seconds, nothing else running. Steps to 3,200 VUs checked every 10 seconds;
+the larger ones used `POLL=2`. People = held checks/s × 10.
+
+| People at the 10s pace | Checks/s | p95 | p99 | App / MariaDB CPU (avg) | Result |
+|---|---|---|---|---|---|
+| 3,200 | 320 | 15 ms | 29 ms | 21% / 28% | pass |
+| 7,950 | 795 | 29 ms | 106 ms | 60% / 85% | pass |
+| 11,860 | 1,186 | 115 ms | 242 ms | 70% / 102% | pass |
+| 13,940 (of 16,000) | 1,394 | 932 ms | 1.35 s | 68% / 97% | fail: p95 over 300 ms |
+
+No check or write failed at any step; MariaDB reached about one core first. In
+a browser, a reply was offered 5.8 s after creation at p50 (about one interval
+at p95) and shown 62 ms after the click. See the
+[revamp plan](design/community-list-revamp.md#phase-3--threads-that-update-while-you-read).

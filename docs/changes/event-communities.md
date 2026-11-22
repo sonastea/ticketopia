@@ -4,6 +4,25 @@
 
 ## Unreleased
 
+### 2026-11-22 — Live replies for people taking part
+
+- While a signed-in person takes part in an open conversation (following it,
+  its author, a replier on the page, or writing a reply) and its tab is
+  visible, it checks for other people's new replies. It checks every 10s while
+  active, every 30s when idle, and stops after ten idle minutes or when hidden.
+  A polite announcement and a sticky **Show N new replies** open the
+  conversation at the first new reply, keeping drafts; nothing moves first.
+  Approved in PRODUCT.md. `DISCUSSION_LIVE_CHECKS_PER_MINUTE` (default 30, 0
+  off) bounds each account.
+- Checks find every reply, including one committing just after the page's
+  read (an overlap bounded by the query timeout). "Show" opens the replies from
+  the first unseen one, so long threads show them all.
+- New `make live-replies` and `make live-replies-benchmark`, and a browser
+  measurement. Locally the limit is about 12,000–14,000 people taking part at
+  once, with MariaDB saturating first. Replies are offered within one interval
+  and shown in about 60 ms. See [live replies](../event-discussions.md#live-replies)
+  and the [benchmark](../design/community-list-revamp.md#phase-3--threads-that-update-while-you-read).
+
 ### 2026-11-22 — Open questions, Same question, reasons on cards and First post
 
 - **Can you help?** (`/community/questions`, a new **Open questions** tab) lists
@@ -79,16 +98,3 @@
   recommendations 3.3 -> 1.5 ms; 3.0 MB -> 0.2 MB). At the 2.6 KB fixture size,
   community pages are 37% faster and recommendations 4% faster, while thread
   pages are about 5% (0.09 ms) slower. All allocate about half the bytes.
-
-### 2026-10-29 — Optional category filters wait at most one second
-
-- Community, discussions, Happening Now and interest pages give the optional
-  category catalog Discover's one-second budget instead of the ten-second refresh.
-
-### 2026-10-28 — Concurrent interest and recommendation reads
-
-- A PUT that omits visibility applies the account default only when it inserts
-  the choice. An explicit choice committed while that request fetched event
-  details keeps its visibility, so a delayed default can no longer publish it.
-- An event's recommendation page and total count share one read snapshot, so a
-  concurrent withdrawal can no longer report fewer recommendations than it lists.

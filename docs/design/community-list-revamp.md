@@ -1,6 +1,6 @@
 # Community list revamp: making participation feel alive
 
-**Status: Phases 0–2 shipped (2026-11-22); Phases 3–6 proposed.** Each phase
+**Status: Phases 0–3 shipped (2026-11-22); Phases 4–6 proposed.** Each phase
 can ship on its own and lists what it needs, what success looks like and what
 it leaves out. Shipped phases end with a **Shipped** note recording departures
 from the plan. Check a phase only when its user-facing behavior ships and is
@@ -9,7 +9,7 @@ verified.
 - [x] Phase 0 — Baseline (fixture numbers; production numbers still to record)
 - [x] Phase 1 — Show what is already there
 - [x] Phase 2 — "Can you help?"
-- [ ] Phase 3 — Threads that update while you read (needs a product decision)
+- [x] Phase 3 — Threads that update while you read
 - [ ] Phase 4 — "Your answer helped"
 - [ ] Phase 5 — Conversations that fit the moment
 - [ ] Phase 6, optional — Anonymous signs of others
@@ -207,6 +207,73 @@ tab, headed "Can you help?". Departures from the plan:
 **Done when** two browsers on different replicas see each other's replies
 without reloading, a draft survives a refresh, and stream metrics stay within
 the [live activity rollout](../live-activity-rollout.md) gates.
+
+**Shipped (2026-11-22)**, approved in [PRODUCT.md](../../PRODUCT.md) for people
+actively taking part. See [live replies](../event-discussions.md#live-replies).
+Departures from the plan:
+
+- **Every reply is found.** Each check lists replies created after the page's
+  `as_of`, plus a short overlap before it. The overlap is the query timeout
+  plus a second, which bounds every reply's write, so a reply committing after
+  the page read is still found. The browser drops replies it already shows by
+  ID. "Show" opens the replies starting at the first unseen one (`from`), so
+  every new reply is on that page on long threads too.
+- **Polling, not the stream.** The browser checks a small web route instead of
+  subscribing to the live activity stream. The stream fans out recommendation
+  candidates per city and filter, while a thread's question is one indexed
+  count. Polling holds no connection per reader and works on any replica
+  because it reads MariaDB, and its cost is measurable on its own. So the
+  live activity rollout gates don't apply; this phase has its own benchmark.
+- **Only for people taking part**: signed in, the tab visible, and following
+  the thread, its author, a replier on the page, or typing in its composer.
+  Checks run every 10s (±20%) while active, every 30s after two idle minutes,
+  and stop after ten. Others reload as before.
+- The control reads "Show *N* new replies", sticks above the phone navigation,
+  and opens the conversation at the first new reply, focused, keeping drafts.
+  Edits, removals and hides appear on that refresh, never pushed.
+- `DISCUSSION_LIVE_CHECKS_PER_MINUTE` (default 30 per account per replica, 0
+  off) bounds runaway or shared sessions. The route is browser-only, so it has
+  no `/api/v1` twin or agent tool: agents read threads with `discussion_thread`
+  and have no open view to keep current.
+
+**Benchmark (2026-11-22, Apple M1, 8 cores; k6, the app and MariaDB on one
+machine, nothing else running).** [`make live-replies-benchmark`](../load-testing.md#live-replies)
+on the final implementation, holding 10 threads with a reply every 10
+seconds. "People" is the held checks per second × 10: people checking at the
+browser's ten-second pace.
+
+| People | Checks/s | p50 | p95 | p99 | Noticed p95 | App CPU avg | MariaDB CPU avg / peak | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 400 | 40 | 3 ms | 5 ms | 9 ms | 9.8 s | 2% | 3% / 5% | pass |
+| 1,600 | 160 | 3 ms | 9 ms | 28 ms | 10.1 s | 9% | 11% / 18% | pass |
+| 3,200 | 320 | 4 ms | 15 ms | 29 ms | 9.9 s | 21% | 28% / 67% | pass |
+| 7,950 | 795 | 9 ms | 29 ms | 106 ms | 1.9 s¹ | 60% | 85% / 116% | pass |
+| 11,860 | 1,186 | 11 ms | 115 ms | 242 ms | 1.9 s¹ | 70% | 102% / 122% | pass |
+| 13,940 of 16,000 | 1,394 | 207 ms | **932 ms** | 1.35 s | 2.6 s¹ | 68% | 97% / 116% | fail (p95 over 300 ms; held 87% of pace) |
+
+¹ From 7,950 people the steps used 2-second checks, each VU standing for five
+people, so replies were noticed within that shorter interval. No check or
+write failed at any step.
+
+Locally the limit is **about 12,000–14,000 people taking part at once**
+(roughly 1,200–1,400 checks/s). MariaDB runs out first, at about one core; the
+app was at 70% of one. An earlier version without the commit-safe overlap
+(one statement per check) held 12,000 at a 29 ms p95. The second statement
+and overlap read cost about a sixth of that headroom, in exchange for never
+missing a reply. The production profile (app 1 CPU, MariaDB 2 CPUs) is
+unmeasured; a production run should precede raising the default limit or
+relying on these figures. Taking part is a small subset of visitors, so this
+leaves wide headroom over the 768-tab ceiling the live activity stream is
+configured for.
+
+In a real browser (`scripts/live-replies-browser.cjs`, replies at random
+points in the interval), **Show N new replies** appeared 5.8 s after a reply was
+created at p50 (11.3 s p95, about one interval plus a check). After the click
+the reply was shown and focused in 62 ms (263 ms p95). Nothing moved before the
+click, the draft was kept, each round offered only its own reply, and it was
+announced. On a thread with a full first page, three new replies all opened on
+one page starting at the first. Alongside 8,000 simulated people an earlier
+build took 3.8 s (8.3 s p95) and 134 ms (354 ms p95).
 
 ## Phase 4 — "Your answer helped"
 

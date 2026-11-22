@@ -31,10 +31,11 @@ their status; they describe intended work rather than available features.
   and six working parts plus a toast/navigation presentation checkpoint
   with incremental verification and three-replica performance gates.
 - [Community list revamp](design/community-list-revamp.md): phased plan to make
-  community feel alive. Phases 0–2 are **shipped** (reasons on cards, composer
-  starters, First post, and the "Can you help?" open-questions list with Same
-  question); live thread replies, Helpful acknowledgments, event-phase prompts
-  and venue tips are proposed, within existing privacy and no-bumping guardrails.
+  community feel alive. Phases 0–3 are **shipped** (reasons on cards, composer
+  starters, First post, the "Can you help?" open-questions list with Same
+  question, and benchmarked live replies for people taking part); Helpful
+  acknowledgments, event-phase prompts and venue tips are proposed, within
+  existing privacy and no-bumping guardrails.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
 - [Feature backlog](goals/feature-backlog.md): ordered candidate features for when

@@ -78,6 +78,15 @@ counts, and explicitly chosen first-name-only notification attribution, with Som
 as the fallback. Private saves remain private; named Interested broadcasts are a
 separate future slice.
 
+Approved 2026-11-22: an open conversation may poll for new replies while the
+signed-in person is actively participating in it (following it, its author, a
+replier on the page, or writing in its composer) and the tab is visible. It
+backs off when they go idle and stops when the tab is hidden. New replies are
+announced with a "Show N new replies" control, and nothing moves until the
+person asks. Threads stay asynchronous: no typing indicators, presence or
+chat. The polling limit is measured by benchmark before rollout. See the
+[community list revamp](docs/design/community-list-revamp.md#phase-3--threads-that-update-while-you-read).
+
 ## Brand Personality
 
 Friendly, clear, practical. Combine the local discovery clarity of Yelp/Google

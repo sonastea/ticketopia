@@ -34,6 +34,11 @@ schema 24 and start, with no grant changes. See
 the runtime grants (INSERT/DELETE on `discussion_same_question`), then start.
 See [open questions](event-discussions.md#open-questions-same-question-and-first-post).
 
+Live replies need no migration or grant. `DISCUSSION_LIVE_CHECKS_PER_MINUTE`
+(unset or empty uses the default, 30; 0 turns them off) bounds each account's
+checks per replica; see [live replies](event-discussions.md#live-replies) and its
+[benchmark](load-testing.md#live-replies) before raising it.
+
 Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and
 60 combined snapshot/connection starts per trusted IP per minute (`LIVE_ACTIVITY_STARTS_PER_MINUTE`,
 1–600). Configure the existing trusted-proxy IP policy. Budget database pools and
