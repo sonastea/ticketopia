@@ -18,7 +18,10 @@
 - Row activity links became count chips (questions, recommendations); live
   count updates rewrite only the chip's label. The preview's Open event page
   and Happening Now's toast/Refresh controls are ghost actions with icons.
-  See [indexed event rows](../../DESIGN.md#indexed-event-rows).
+- Cards lead their facts with an ink price tag (From USD 25.00), shorten the
+  visible date under agenda headings (full date kept for screen readers), and
+  ease the photo in on hover with motion allowed. The event's Tickets shows the
+  price where the bar has room. See [indexed event rows](../../DESIGN.md#indexed-event-rows).
 
 ### 2026-11-20 — Depth layer across Discover and the event page
 

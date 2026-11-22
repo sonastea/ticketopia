@@ -675,14 +675,31 @@ func resultsTitle(total int) string {
 }
 
 func startLabel(start models.EventStart) string {
-	if start.DateTBA || start.DateTBD || start.LocalDate == nil {
+	date, ok := eventDay(start)
+	if !ok {
 		return "Event date to be announced"
 	}
-	date, err := time.Parse(time.DateOnly, *start.LocalDate)
-	if err != nil {
-		return "Event date to be announced"
+	return withTime(date.Format("Mon, Jan 2, 2006"), start)
+}
+
+// agendaStartLabel shortens a row's visible date under an agenda heading,
+// which (with the date stub) already says when: the weekday inside a week,
+// the day without the year inside a month. Undated rows keep startLabel.
+func agendaStartLabel(start models.EventStart, kind string) string {
+	date, ok := eventDay(start)
+	if !ok {
+		return ""
 	}
-	label := date.Format("Mon, Jan 2, 2006")
+	switch kind {
+	case "day", "week":
+		return withTime(date.Format("Monday"), start)
+	case "later", "month":
+		return withTime(date.Format("Mon, Jan 2"), start)
+	}
+	return ""
+}
+
+func withTime(label string, start models.EventStart) string {
 	if start.NoSpecificTime {
 		return label
 	}
@@ -767,6 +784,21 @@ func priceLabel(prices []models.PriceRange) string {
 		}
 	}
 	return "Price not listed"
+}
+
+// fromPriceLabel is the lowest known price, as a card's lead fact: "From
+// USD 25.00" for a range, the price alone when it has one value, and empty
+// when unknown (the card then keeps priceLabel's explicit "Price not listed").
+func fromPriceLabel(prices []models.PriceRange) string {
+	for _, price := range prices {
+		if price.Min != nil && price.Currency != "" {
+			if price.Max != nil && *price.Max != *price.Min {
+				return "From " + price.Currency + " " + *price.Min
+			}
+			return price.Currency + " " + *price.Min
+		}
+	}
+	return ""
 }
 
 func saleLabel(event models.Event) string {

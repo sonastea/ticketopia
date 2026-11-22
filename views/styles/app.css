@@ -1878,6 +1878,26 @@ html:has(.filter-sheet:modal) {
   color: var(--muted-warm);
 }
 
+/* The lowest price is a card's lead fact: ink, heavier and a step larger than
+   the status and metadata around it. */
+.price-tag {
+  color: var(--ink);
+  font-size: .9375rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  font-variant-numeric: tabular-nums;
+}
+.ticket-from { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Opening a card's artwork or title eases its photo in a little, inside the
+   frame's clip; only with motion allowed and a fine hover pointer. */
+@media (prefers-reduced-motion: no-preference) {
+  .event-image img { transition: scale 450ms var(--ease-out); }
+  @media (hover: hover) and (pointer: fine) {
+    :is(.event-row, .community-cards > li):has(:is(.event-link, .event-art > a, .event-image-link):hover) .event-image img { scale: 1.04; }
+  }
+}
+
 .event-status {
   display: inline-flex;
   align-items: center;
@@ -3535,6 +3555,18 @@ html:has(.filter-sheet:modal) {
        visible provider (still in the accessible name); enlarged text wraps. */
     :root:not([data-short-viewport]) .event-page .event-primary-actions > .event-action-group { container: event-actions / inline-size; }
     :root:not([data-short-viewport]) .event-page .event-primary-actions .ticket-link { flex: 1 1 auto; }
+    /* The price joins the provider below the width where Tickets, price and
+       Save share one row; both stay in the accessible name. */
+    @container event-actions (max-width: 24rem) {
+      :root:not([data-short-viewport]) .event-page .event-primary-actions .ticket-from {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: clip;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    }
     @container event-actions (max-width: 26rem) {
       :root:not([data-short-viewport]) .event-page .event-primary-actions .ticket-provider {
         position: absolute;

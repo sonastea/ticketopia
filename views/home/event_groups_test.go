@@ -91,3 +91,34 @@ func TestDiscoverRowsUseTheCitysDayAcrossPages(t *testing.T) {
 		t.Fatalf("grouped against UTC's day: %+v", got)
 	}
 }
+
+func TestAgendaRowsShortenWhatTheHeadingAlreadySays(t *testing.T) {
+	start := dated("2026-12-06")
+	clock := "19:30:00"
+	start.LocalTime = &clock
+	for kind, want := range map[string]string{"week": "Sunday · 7:30 PM", "month": "Sun, Dec 6 · 7:30 PM", "": ""} {
+		if got := agendaStartLabel(start, kind); got != want {
+			t.Errorf("%q: got %q, want %q", kind, got, want)
+		}
+	}
+	if got := agendaStartLabel(models.EventStart{DateTBA: true}, "tba"); got != "" {
+		t.Errorf("an undated row lost its explicit label: %q", got)
+	}
+}
+
+func TestFromPriceLabelLeadsWithTheLowestKnownPrice(t *testing.T) {
+	low, high := "25.00", "40.00"
+	for _, tc := range []struct {
+		prices []models.PriceRange
+		want   string
+	}{
+		{[]models.PriceRange{{Currency: "USD", Min: &low, Max: &high}}, "From USD 25.00"},
+		{[]models.PriceRange{{Currency: "USD", Min: &low, Max: &low}}, "USD 25.00"},
+		{[]models.PriceRange{{Min: &low}}, ""},
+		{nil, ""},
+	} {
+		if got := fromPriceLabel(tc.prices); got != tc.want {
+			t.Errorf("got %q, want %q", got, tc.want)
+		}
+	}
+}

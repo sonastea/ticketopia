@@ -30,7 +30,7 @@ templ DiscoverRows(page SearchPage) {
 				}
 			</li>
 		}
-		@EventRow(row.Event, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, nil, page.Activity, true, row.Lead)
+		@EventRow(row.Event, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, nil, page.Activity, true, rowMode{Lead: row.Lead, Kind: row.Kind})
 	}
 }
 
@@ -48,36 +48,50 @@ templ EventRowsWithActivity(events []models.Event, returnURL string, selectedID 
 
 templ EventRowsContent(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview, extended bool) {
 	for _, event := range events {
-		@EventRow(event, returnURL, selectedID, saves, actionReturnURL, interests, matches, activity, extended, false)
+		@EventRow(event, returnURL, selectedID, saves, actionReturnURL, interests, matches, activity, extended, rowMode{})
 	}
 }
 
-templ EventRow(event models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview, extended bool, lead bool) {
-	<li class={ "event-row", templ.KV("event-row-lead", lead) } data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
+templ EventRow(event models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview, extended bool, mode rowMode) {
+	<li class={ "event-row", templ.KV("event-row-lead", mode.Lead) } data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
 		<div class="event-art">
 			<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } tabindex="-1" aria-hidden="true">
-				if lead {
+				if mode.Lead {
 					@EventImage(event, artLead)
 				} else {
 					@EventImage(event, artResult)
 				}
 			</a>
-			if lead {
+			if mode.Lead {
 				<span class="lead-badge" aria-hidden="true">@layouts.Icon("sparkles")<span>Up next</span></span>
 			}
 			<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
 		</div>
 		<div class="event-copy">
 			<p class="event-date">
-				{ startLabel(event.Start) }
+				// Under an agenda heading the visible date drops what the heading
+				// and stub already say; assistive technology keeps the full date.
+				if short := agendaStartLabel(event.Start, mode.Kind); short != "" {
+					<span aria-hidden="true">{ short }</span><span class="sr-only">{ startLabel(event.Start) }</span>
+				} else {
+					{ startLabel(event.Start) }
+				}
 				if extended {
 					<span class="viewing-label" aria-hidden="true">@layouts.Icon("viewing")<span>Viewing</span></span>
 				}
 			</p>
 			<h3 style={ transitionStyle("title", event.ID) }><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
 			<p class="event-venue">{ venueLabel(event) }</p>
-			<div class="event-metadata">@EventStatus(event.Status)
-<span>{ priceLabel(event.PriceRanges) }</span>
+			// The lowest known price leads the facts, in ink; an unknown price
+			// keeps its explicit label.
+			<div class="event-metadata">
+				if from := fromPriceLabel(event.PriceRanges); from != "" {
+					<strong class="price-tag"><span class="sr-only">Price </span>{ from }</strong>
+				}
+				@EventStatus(event.Status)
+				if fromPriceLabel(event.PriceRanges) == "" {
+					<span>{ priceLabel(event.PriceRanges) }</span>
+				}
 				if event.Meta != nil && event.Meta.Stale {
 					<span class="event-last-known">Last-known as of { freshnessLabel(event.Meta.DataAsOf) }</span>
 				}

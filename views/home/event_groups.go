@@ -1,6 +1,7 @@
 package home
 
 import (
+	"strings"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/models"
@@ -22,7 +23,16 @@ type eventGroup struct {
 type discoverRow struct {
 	Event models.Event
 	Group *eventGroup
-	Lead  bool
+	// Kind names the stretch the event sits in (day, week, later, month,
+	// tba), empty when results aren't grouped.
+	Kind string
+	Lead bool
+}
+
+// rowMode is how a result row sits in Discover's agenda.
+type rowMode struct {
+	Lead bool
+	Kind string
 }
 
 // discoverRows groups date-sorted results under calendar headings and marks
@@ -39,6 +49,7 @@ func discoverRows(page SearchPage, now time.Time) []discoverRow {
 		row := discoverRow{Event: event}
 		if dated {
 			group := groupFor(event.Start, today)
+			row.Kind, _, _ = strings.Cut(group.Key, ":")
 			if group.Key != previous {
 				row.Group = &group
 				previous = group.Key

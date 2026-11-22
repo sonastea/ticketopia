@@ -458,7 +458,7 @@ same image frame, so a failed image does not erase the event's place in the list
 
 Compact, confident, plainly labeled controls. Primary actions pair plum with white text; secondary actions use white, plum text, and a control-line border. Both use the frontmatter's action typography and padding with a minimum height of 2.75rem (44px), not a fixed height that clips wrapping labels. Minimum heights, borders, focus outlines, and transitions live in the sidecar snippets because the frontmatter's component schema cannot express them accurately. Hover darkens primary actions and gives secondary actions a pale-plum fill. Pressed primary actions use `brand-active`; there is no pressed translation or raised effect.
 
-**One Tickets and Save family.** Tickets is the same control on the event page, the preview and every result row: the depth layer's gradient over an opaque plum base, .625rem corners (shared with Save, the plans controls and card action bars), a trailing 1.125rem external-link icon and a 44px minimum. Only its label length changes: **Tickets on Ticketmaster** on the event (the provider drops from view in a bar under 26rem) and **Tickets** in rows, whose accessible name keeps the provider and event. A row's Tickets fills its action bar beside Save (up to 22rem) and, in a row's action group narrower than 15rem (enlarged text), drops its icon rather than break the word. Save is the same ringed quiet control everywhere. Ghost companions (`.card-action-secondary`) carry other one-step destinations: the preview's **Open event page** (plum, with the nudging arrow) and Happening Now's **Hide/Show activity toasts** and **Refresh**, each with an icon.
+**One Tickets and Save family.** Tickets is the same control on the event page, the preview and every result row: the depth layer's gradient over an opaque plum base, .625rem corners (shared with Save, the plans controls and card action bars), a trailing 1.125rem external-link icon and a 44px minimum. Only its label length changes: **Tickets on Ticketmaster · From USD 25.00** on the event (the price drops from view in a pinned bar under 24rem and the provider under 26rem, both kept in the accessible name) and **Tickets** in rows, whose accessible name keeps the provider and event. A row's Tickets fills its action bar beside Save (up to 22rem) and, in a row's action group narrower than 15rem (enlarged text), drops its icon rather than break the word. Save is the same ringed quiet control everywhere. Ghost companions (`.card-action-secondary`) carry other one-step destinations: the preview's **Open event page** (plum, with the nudging arrow) and Happening Now's **Hide/Show activity toasts** and **Refresh**, each with an icon.
 
 Quiet event controls use transparent fills, quiet-action typography, and the same
 minimum target height. Recommend is a secondary link that opens the native
@@ -629,7 +629,14 @@ open, so selection never reflows the list). A white
 **Event cards.** Wide result lists in Discover, Saved, Interests and Radar use the
 Community cards' anatomy: full-bleed 16:9 artwork with the date stub, 1.25rem
 padded facts, and a hairline-divided action bar at the foot that lines up across
-a row of cards. Excerpts and author links belong in event sections. Saved, Interests, and
+a row of cards. The lowest known price leads the facts as an ink price tag
+(.9375rem, weight 800, tabular: **From USD 25.00**, or the single price) before the
+sale status; an unknown price keeps "Price not listed". Under an agenda heading a
+row's visible date drops what the heading and stub already say (**Sunday · 7:30
+PM** within a week, **Sun, Dec 6 · 7:30 PM** within a month) while screen readers
+keep the full date. With motion allowed and a fine pointer, hovering a card's
+title or artwork eases its photo to 1.04× inside the frame (450ms, `--ease-out`);
+Community cards share it. Excerpts and author links belong in event sections. Saved, Interests, and
 Radar share the Overview title/image links and direct ticket action, preserving
 collection context and Radar reasons. Only Interests retains interest management
 in its rows; reminders remain in event views. Missing URLs and disabled accounts
