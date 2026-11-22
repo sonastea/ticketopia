@@ -632,21 +632,24 @@ artwork at the start and a 1.5rem title beside it, and with full-width 16:9
 artwork above its facts in narrower lists (an ordinary row while a preview is
 open, so selection never reflows the list). A white
 pill marks its artwork's top start corner with how soon it is (**Up next ·
-Tonight**, Today, Tomorrow, In N days within two weeks, otherwise **Up next**).
+Tonight** for a known evening start, Today, Tomorrow, In N days within two weeks,
+otherwise **Up next**). An event already under way passes the lead to the next.
 With three card columns (a results column of at least 51rem) the lead takes two
-and the next event sits beside it. From 62rem, where the compact header doesn't
+when another event of its stretch follows to sit beside it. From 62rem, where the compact header doesn't
 stick, each agenda heading is sticky at the top of the viewport over a paper
-background that fades out along its lower 1rem, and the root's block-start scroll
+background that fades out along its lower 1rem (an opaque `Canvas` fill in forced
+colours, so each later heading covers the one stuck before it), and the root's block-start scroll
 padding grows to 4.5rem so revealed and focused rows clear it. Count chips show a
-short visible form (**2 questions**, **2 recommend**) with a bold count; the full
-count (2 public recommendations) is their accessible name, and live updates
-rewrite both.
+short visible form (**2 questions**, **2 recommend**) with a bold count that begins
+its accessible name (2 questions & tips, 2 recommend this event), so voice control
+can use the visible words; live updates rebuild the same label.
 
 **Event cards.** Wide result lists in Discover, Saved, Interests and Radar use the
 Community cards' anatomy: full-bleed 16:9 artwork with the date stub, 1.25rem
 padded facts, and a hairline-divided action bar at the foot that lines up across
 a row of cards. The lowest known price leads the facts as an ink price tag
-(.9375rem, weight 800, tabular: **From USD 25.00**, or the single price) before the
+(.9375rem, weight 800, tabular: **From USD 25.00**, compared numerically within the
+first priced currency, or the price alone when there is one fixed range) before the
 sale status; an unknown price keeps "Price not listed". Under an agenda heading a
 row's visible date drops what the heading and stub already say (**Sunday · 7:30
 PM** within a week, **Sun, Dec 6 · 7:30 PM** within a month) while screen readers
@@ -683,7 +686,7 @@ scope labels wrap in ordinary text; an empty match explicitly offers Reset witho
 widening automatically. Guest settings stay browser-local, while account settings
 have equivalent native controls in Preferences. Applying filters replaces only the
 live region, preserving event composers, drafts, focus and participation controls.
-Happening Now puts its scope summary, the filter disclosure and the toast and Refresh ghost actions in one compact bar. Its heading carries a small uppercase **Live** pill (success green, its dot pulsing a ring outward with motion allowed) once the stream has delivered data, **Reconnecting** (warning colours) while it retries, and nothing when stopped or paused; it is decorative, since the connection line says the same in words. Activity renders as compact cards (20rem grid minimum): a square thumbnail with the date chip, drawn from stored snapshots on the server render. Each card shows an initials circle with the first name's initial, the group count, or an empty dashed circle for Someone, plus attribution, the title link (stretched to cover the card) and city/time. Live-pushed cards use fallback art until the next render, and no reason is shown beside anonymous attribution. Empty Community and Happening Now states lead with a large `empty-display` line and the main action as a primary button. See [live filtering](docs/live-community-activity.md#city-and-event-type-filters-part-2).
+Happening Now puts its scope summary, the filter disclosure and the toast and Refresh ghost actions in one compact bar. Its heading carries a small uppercase **Live** pill (success green, its dot pulsing a ring outward with motion allowed) once a stream message has arrived, **Reconnecting** (warning colours) while a retry is scheduled, and nothing when stopped, paused or only polling over HTTP. Its word is read with the heading; the dot is decorative. Activity renders as compact cards (20rem grid minimum): a square thumbnail with the date chip, drawn from stored snapshots on the server render. Each card shows an initials circle with the first name's initial, the group count, or an empty dashed circle for Someone, plus attribution, the title link (stretched to cover the card) and city/time. Live-pushed cards use fallback art until the next render, and no reason is shown beside anonymous attribution. Empty Community and Happening Now states lead with a large `empty-display` line and the main action as a primary button. See [live filtering](docs/live-community-activity.md#city-and-event-type-filters-part-2).
 
 ### Event Discussions
 

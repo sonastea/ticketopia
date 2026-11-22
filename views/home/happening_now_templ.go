@@ -55,7 +55,7 @@ func HappeningNow(p HappeningNowPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "><header class=\"page-header account-heading\"><div class=\"live-heading\"><h1 tabindex=\"-1\" data-live-heading>Happening Now</h1><p class=\"live-signal\" data-live-signal hidden aria-hidden=\"true\"><span class=\"live-dot\"></span><span data-live-signal-label>Live</span></p></div><p class=\"intro\">Public recommendations from the last 10 minutes</p></header>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "><header class=\"page-header account-heading\"><div class=\"live-heading\"><h1 tabindex=\"-1\" data-live-heading>Happening Now</h1><p class=\"live-signal\" data-live-signal hidden><span class=\"live-dot\" aria-hidden=\"true\"></span><span data-live-signal-label>Live</span></p></div><p class=\"intro\">Public recommendations from the last 10 minutes</p></header>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

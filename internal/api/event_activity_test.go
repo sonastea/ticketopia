@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -53,8 +54,10 @@ func TestDiscoveryActivityBatchesRowsAndPartialPagination(t *testing.T) {
 		w := httptest.NewRecorder()
 		a.Routes().ServeHTTP(w, r)
 		body := w.Body.String()
-		for _, want := range []string{"2 questions &amp; tips", "1 public recommendation", "section=discussion", "section=community"} {
-			if w.Code != 200 || !strings.Contains(body, want) {
+		// Count chips split their label across elements; compare the text read aloud.
+		text := regexp.MustCompile(`<[^>]+>`).ReplaceAllString(body, "")
+		for _, want := range []string{"2 questions &amp; tips", "1 recommends this event", "section=discussion", "section=community"} {
+			if w.Code != 200 || !strings.Contains(body, want) && !strings.Contains(text, want) {
 				t.Fatal("initial/partial discovery lost row detail or public activity", partial, w.Code, want)
 			}
 		}

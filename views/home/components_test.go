@@ -2,6 +2,7 @@ package home
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -298,8 +299,10 @@ func TestDiscoveryRowsExposeDetailsAndOnlyRealPublicActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	markup := out.String()
-	for _, want := range []string{"The Local Band", "1 question or tip", "2 public recommendations", "section=discussion", "section=community", "Ticket link unavailable."} {
-		if !strings.Contains(markup, want) {
+	// Count chips split their label across elements; compare the text read aloud.
+	text := regexp.MustCompile(`<[^>]+>`).ReplaceAllString(markup, "")
+	for _, want := range []string{"The Local Band", "1 question or tip", "2 recommend this event", "section=discussion", "section=community", "Ticket link unavailable."} {
+		if !strings.Contains(markup, want) && !strings.Contains(text, want) {
 			t.Errorf("missing useful row information %q", want)
 		}
 	}

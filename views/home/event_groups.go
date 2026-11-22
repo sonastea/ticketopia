@@ -49,6 +49,18 @@ func discoverRows(page SearchPage, now time.Time) []discoverRow {
 	dated := ascending || page.Filters.Sort == "date_desc"
 	today := agendaDay(page, now)
 	previous := ""
+	// "Up next" is the first event that hasn't started: the soonest-first page
+	// that starts the search (a restored Back render starts there too), with
+	// a known date on or after the city's day and a start instant still ahead.
+	lead := -1
+	if ascending && page.Filters.Page == 0 {
+		for i, event := range events {
+			if upcoming(event.Start, today) && (event.Start.DateTime == nil || event.Start.DateTime.After(now)) {
+				lead = i
+				break
+			}
+		}
+	}
 	for i, event := range events {
 		row := discoverRow{Event: event}
 		if dated {
@@ -59,10 +71,7 @@ func discoverRows(page SearchPage, now time.Time) []discoverRow {
 				previous = group.Key
 			}
 		}
-		// "Up next" only for the soonest-first page that starts the search
-		// (a restored Back render starts there too), and only for an event
-		// with a known date that hasn't passed.
-		row.Lead = i == 0 && ascending && page.Filters.Page == 0 && upcoming(event.Start, today)
+		row.Lead = i == lead
 		if row.Lead {
 			row.Countdown = countdown(event.Start, today)
 		}
@@ -147,6 +156,10 @@ func countdown(start models.EventStart, today time.Time) string {
 	}
 	switch days := int(date.Sub(calendarDay(today)).Hours() / 24); {
 	case days == 0:
+		// Only a known evening start is "Tonight".
+		if start.TimeTBA || start.NoSpecificTime {
+			return "Up next · Today"
+		}
 		if clock, err := time.Parse(time.TimeOnly, deref(start.LocalTime)); err == nil && clock.Hour() >= 17 {
 			return "Up next · Tonight"
 		}

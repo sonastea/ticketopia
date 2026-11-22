@@ -1470,8 +1470,9 @@
     if (!row) return;
     unsettleRows();
     const rect = row.getBoundingClientRect();
-    if (!center && rect.top >= 0 && rect.bottom <= innerHeight) return;
+    // The scroll padding clears a stuck agenda heading; a row under it isn't visible.
     const inset = parseFloat(getComputedStyle(document.documentElement).scrollPaddingBlockStart) || 0;
+    if (!center && rect.top >= inset && rect.bottom <= innerHeight) return;
     scrollTo(0, scrollY + rect.top - Math.max(inset, (innerHeight - rect.height) / 2));
   };
   const detailURL = (id, section = 'overview', recommend = false) => {

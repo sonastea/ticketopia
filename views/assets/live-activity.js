@@ -3,8 +3,9 @@
   const root = document.querySelector('[data-live-activity]');
   if (!root) return;
   const node = name => root.querySelector(`[data-live-${name}]`);
-  // Happening Now's heading signal shows only what the connection has proven:
-  // Live once data arrives, Reconnecting while it retries, nothing when stopped.
+  // Happening Now's heading signal shows only what the stream has proven: Live
+  // once a stream message arrives (never for HTTP polling), Reconnecting while a
+  // retry is scheduled, nothing when stopped or paused.
   const signal = state => {
     const el = node('signal'); if (!el) return;
     el.hidden = !state; el.dataset.state = state;
@@ -191,7 +192,6 @@
   };
   const receive = data => {
     if (!Array.isArray(data.items) || !Number.isFinite(Date.parse(data.as_of))) throw new Error();
-    signal('live');
     if (!baseline && Date.parse(data.as_of) < serverAt) return;
     // Metadata changes can admit older contributions. They replace this view
     // quietly rather than being announced as newly published recommendations.
@@ -267,13 +267,12 @@
         setHidden(element, item.interested_count === 0); delete element.dataset.countsStale;
       }
       for (const element of recommendations.get(item.event_id) || []) {
-        const label = `${item.recommendation_count} public ${item.recommendation_count === 1 ? 'recommendation' : 'recommendations'}`;
-        if (element.textContent !== label) element.textContent = label;
-        // A count chip also shows a short visible form ("2 recommend").
-        const short = element.parentElement?.querySelector('[data-live-short]');
-        if (short && short.firstChild?.textContent !== String(item.recommendation_count)) {
-          const count = document.createElement('strong'); count.textContent = item.recommendation_count;
-          short.replaceChildren(count, document.createTextNode(item.recommendation_count === 1 ? ' recommends' : ' recommend'));
+        // "2 recommend" visibly, "2 recommend this event" as the chip's name.
+        const count = item.recommendation_count, verb = count === 1 ? ' recommends' : ' recommend';
+        if (element.textContent !== count + verb + ' this event') {
+          const number = document.createElement('strong'); number.textContent = count;
+          const rest = document.createElement('span'); rest.className = 'sr-only'; rest.textContent = ' this event';
+          element.replaceChildren(number, document.createTextNode(verb), rest);
         }
         setHidden(element.closest('[data-live-recommendation-wrap]'), item.recommendation_count === 0);
         const group = element.closest('[data-live-count-group]'); setHidden(group, ![...group.children].some(child => !child.hidden));
@@ -307,7 +306,7 @@
     catch { if (turn === generation) { interrupted(); preferences(); } }
   };
   const interrupted = () => {
-    stop(); staleCounts(); text('connection', 'Live activity is reconnecting'); signal('reconnecting');
+    stop(); staleCounts(); text('connection', 'Live activity is reconnecting'); signal(allowed() ? 'reconnecting' : '');
     if (allowed()) { reconnectTimer = setTimeout(connect, backoff * (0.8 + Math.random() * 0.2)); backoff = Math.min(60000, backoff * 2); }
   };
   const connect = () => {
@@ -320,7 +319,7 @@
     const listen = (type, callback) => stream.addEventListener(type, event => {
       if (turn !== generation || !allowed()) return;
       lastMessage = performance.now(); backoff = 5000;
-      try { callback(JSON.parse(event.data)); } catch { interrupted(); }
+      try { callback(JSON.parse(event.data)); signal('live'); } catch { interrupted(); }
     });
     listen('activity.snapshot', receive);
     listen('counts.snapshot', data => { ++countsGeneration; applyCounts(data); });

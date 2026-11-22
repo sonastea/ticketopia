@@ -115,6 +115,10 @@ func TestFromPriceLabelLeadsWithTheLowestKnownPrice(t *testing.T) {
 	}{
 		{[]models.PriceRange{{Currency: "USD", Min: &low, Max: &high}}, "From USD 25.00"},
 		{[]models.PriceRange{{Currency: "USD", Min: &low, Max: &low}}, "USD 25.00"},
+		// Provider order doesn't decide the lowest price, and a minimum-only
+		// range isn't presented as a fixed price.
+		{[]models.PriceRange{{Currency: "USD", Min: &high, Max: &high}, {Currency: "USD", Min: &low, Max: &low}}, "From USD 25.00"},
+		{[]models.PriceRange{{Currency: "USD", Min: &low}}, "From USD 25.00"},
 		{[]models.PriceRange{{Min: &low}}, ""},
 		{nil, ""},
 	} {
@@ -150,6 +154,7 @@ func TestCountdownSaysHowSoonTheLeadIs(t *testing.T) {
 	}{
 		{at("2026-11-21", &evening), "Up next · Tonight"},
 		{at("2026-11-21", &afternoon), "Up next · Today"},
+		{func() models.EventStart { s := at("2026-11-21", &evening); s.TimeTBA = true; return s }(), "Up next · Today"},
 		{at("2026-11-22", nil), "Up next · Tomorrow"},
 		{at("2026-11-25", nil), "Up next · In 4 days"},
 		{at("2026-12-20", nil), "Up next"},
@@ -157,5 +162,18 @@ func TestCountdownSaysHowSoonTheLeadIs(t *testing.T) {
 		if got := countdown(tc.start, today); got != tc.want {
 			t.Errorf("%s: got %q, want %q", *tc.start.LocalDate, got, tc.want)
 		}
+	}
+}
+
+func TestTheLeadSkipsAnEventThatHasStarted(t *testing.T) {
+	now := time.Date(2026, 11, 22, 2, 0, 0, 0, time.UTC) // 8pm in Chicago
+	started := time.Date(2026, 11, 22, 1, 30, 0, 0, time.UTC)
+	later := time.Date(2026, 11, 23, 1, 30, 0, 0, time.UTC)
+	first, second := dated("2026-11-21"), dated("2026-11-22")
+	first.DateTime, second.DateTime = &started, &later
+	page := SearchPage{Today: "2026-11-21", Filters: discovery.Query{Sort: "date_asc"}, Events: models.EventList{Items: []models.Event{{ID: "a", Start: first}, {ID: "b", Start: second}}}}
+	rows := discoverRows(page, now)
+	if rows[0].Lead || !rows[1].Lead || rows[1].Countdown != "Up next · Tomorrow" {
+		t.Fatalf("an event already under way stayed up next: %+v", rows)
 	}
 }

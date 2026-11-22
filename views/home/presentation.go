@@ -826,19 +826,34 @@ func priceLabel(prices []models.PriceRange) string {
 	return "Price not listed"
 }
 
-// fromPriceLabel is the lowest known price, as a card's lead fact: "From
-// USD 25.00" for a range, the price alone when it has one value, and empty
-// when unknown (the card then keeps priceLabel's explicit "Price not listed").
+// fromPriceLabel is the lowest known price, as a card's lead fact. Provider
+// ranges arrive in any order, so minima are compared numerically within the
+// first priced currency. It is a fixed price ("USD 25.00") only when that
+// currency has one range with equal bounds; otherwise "From USD 25.00". It is
+// empty when unknown (the card keeps priceLabel's explicit "Price not listed").
 func fromPriceLabel(prices []models.PriceRange) string {
+	currency, lowest, lowestValue, ranges, fixed := "", "", 0.0, 0, false
 	for _, price := range prices {
-		if price.Min != nil && price.Currency != "" {
-			if price.Max != nil && *price.Max != *price.Min {
-				return "From " + price.Currency + " " + *price.Min
-			}
-			return price.Currency + " " + *price.Min
+		if price.Min == nil || price.Currency == "" || currency != "" && price.Currency != currency {
+			continue
 		}
+		value, err := strconv.ParseFloat(*price.Min, 64)
+		if err != nil {
+			continue
+		}
+		currency, ranges = price.Currency, ranges+1
+		if lowest == "" || value < lowestValue {
+			lowest, lowestValue = *price.Min, value
+		}
+		fixed = price.Max != nil && *price.Max == *price.Min
 	}
-	return ""
+	switch {
+	case lowest == "":
+		return ""
+	case ranges == 1 && fixed:
+		return currency + " " + lowest
+	}
+	return "From " + currency + " " + lowest
 }
 
 func saleLabel(event models.Event) string {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -479,7 +480,8 @@ func TestDiscoverHistoryCurrentPrivateStateCSRFAndBatches(t *testing.T) {
 		}
 		historyBatches(t, choices.batches, historyIDs(catalog.items[:175]), 2)
 		historyBatches(t, activity.batches, historyIDs(catalog.items[:175]), 2)
-		if strings.Count(w.Body.String(), "2 questions &amp; tips") != 2 {
+		// Count chips split their label across elements; count the text read aloud.
+		if strings.Count(regexp.MustCompile(`<[^>]+>`).ReplaceAllString(w.Body.String(), ""), "2 questions &amp; tips") != 2 {
 			t.Fatal("activity counts from the first or second batch were lost")
 		}
 		wantOwner := ""

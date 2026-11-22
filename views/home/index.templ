@@ -59,6 +59,9 @@ templ Index(page SearchPage) {
 							@DiscoverRows(page)
 						</ul>
 						@Pagination(page)
+						// Outside #pagination: Load more replaces that, and this
+						// first page's time must stay with the rows it describes.
+						@ResultsUpdated(page.Events.Meta)
 					</section>
 				} else {
 					@empty.Empty(empty.Props{Class: "first-visit", Attributes: templ.Attributes{"aria-labelledby": "first-visit-heading"}}) {

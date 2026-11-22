@@ -163,18 +163,17 @@ templ EventRowActivity(id string, preview eventactivity.Preview, returnURL strin
 				<div>
 					<a href={ templ.URL(eventURL(id, "discussion", returnURL)) } class="activity-chip" data-event-link data-id={ id }>
 						@layouts.Icon("message-circle")
-						<span class="chip-short" aria-hidden="true"><strong>{ fmt.Sprint(preview.Questions) }</strong>{ ternary(preview.Questions == 1, " question", " questions") }</span>
-						<span class="sr-only">{ activityCount(preview.Questions, "question or tip", "questions & tips") }</span>
+						// The visible words begin the accessible name (label in name).
+						<span><strong>{ fmt.Sprint(preview.Questions) }</strong>{ ternary(preview.Questions == 1, " question", " questions") }<span class="sr-only">{ ternary(preview.Questions == 1, " or tip", " & tips") }</span></span>
 					</a>
 				</div>
 			}
 			<div data-live-recommendation-wrap hidden?={ preview.Recommendations == 0 }>
 				<a href={ templ.URL(eventURL(id, "community", returnURL)) } class="activity-chip" data-event-link data-id={ id }>
 					@layouts.Icon("quote")
-					// A short visible form ("2 recommend"); the full count is the
-					// accessible name, which live updates rewrite with the short form.
-					<span class="chip-short" aria-hidden="true" data-live-short><strong>{ fmt.Sprint(preview.Recommendations) }</strong>{ ternary(preview.Recommendations == 1, " recommends", " recommend") }</span>
-					<span class="sr-only" data-live-recommendation-count={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</span>
+					// "2 recommend" reads as the start of its accessible name, "2 recommend
+					// this event"; live updates rebuild the same label (live-activity.js).
+					<span data-live-recommendation-count={ id }><strong>{ fmt.Sprint(preview.Recommendations) }</strong>{ ternary(preview.Recommendations == 1, " recommends", " recommend") }<span class="sr-only">{ " this event" }</span></span>
 				</a>
 			</div>
 		</div>
@@ -345,8 +344,6 @@ templ Pagination(page SearchPage) {
 		}
 		if page.Filters.Page > 0 {
 			@ResultsFreshness(page.Events.Meta)
-		} else {
-			@ResultsUpdated(page.Events.Meta)
 		}
 		<p id="load-error" class="load-error" role="alert"></p>
 	</div>

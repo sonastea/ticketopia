@@ -1767,8 +1767,7 @@ html:has(.filter-sheet:modal) {
   transition-timing-function: var(--ease-out);
 }
 .activity-chip .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
-.chip-short { white-space: nowrap; }
-.chip-short strong { font-weight: 800; margin-inline-end: .2em; }
+.activity-chip strong { font-weight: 800; margin-inline-end: .2em; }
 @media (hover: hover) and (pointer: fine) {
   .activity-chip:hover { background: var(--brand-soft); color: var(--brand-dark); box-shadow: var(--ring-hairline); }
 }
@@ -1817,9 +1816,10 @@ html:has(.filter-sheet:modal) {
   .event-group { padding-block: 1rem 0; padding-inline: 0; }
   .event-group:first-child { padding-block-start: .75rem; }
 }
-/* With three columns the lead takes two, and the next event sits beside it. */
+/* With three columns the lead takes two when another event of its stretch
+   follows to sit beside it; alone, it keeps the whole row. */
 @container results (min-width: 51rem) {
-  .event-list > .event-row-lead { grid-column: span 2; }
+  .event-list > .event-row-lead:has(+ .event-row) { grid-column: span 2; }
 }
 /* On desktop (no sticky compact header) each heading holds the top of the
    viewport while its stretch scrolls beneath it, like a calendar's day
@@ -1836,6 +1836,11 @@ html:has(.filter-sheet:modal) {
     .event-group { padding-block: 1rem 1.25rem; margin-block: -.25rem -1.25rem; }
   }
   html:has(.event-group) { scroll-padding-block-start: 4.5rem; }
+  /* Each later heading covers the one stuck before it; forced colours drop
+     the gradient, so the cover is an opaque system fill. */
+  @media (forced-colors: active) {
+    .event-group { background: Canvas; }
+  }
 }
 
 /* The lead's marker sits in the artwork's top start corner, clear of the date stub. */
@@ -1857,7 +1862,8 @@ html:has(.filter-sheet:modal) {
   font-size: .75rem;
   font-weight: 750;
   line-height: 1.3;
-  white-space: nowrap;
+  /* Stays one line until enlarged text leaves the frame too narrow. */
+  max-inline-size: calc(100% - 1.25rem);
 }
 .lead-badge .icon { flex: none; inline-size: .875rem; block-size: .875rem; }
 
