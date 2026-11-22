@@ -229,7 +229,7 @@
     "rules": [
       { "name": "The Plum State, Rose Date Rule", "body": "Plum carries actions, focus, and selection; dusty rose belongs only to date indexing. Availability stays neutral, and every navigation layout shares the pale-plum current state.", "section": "colors" },
       { "name": "The One Family, Clear Roles Rule", "body": "Use Manrope's size, weight, leading, and spacing to distinguish headings, facts, and controls; keep dates tabular and long event names able to wrap.", "section": "typography" },
-      { "name": "The Border-Only Depth Rule", "body": "Separate surfaces with tone, spacing, and borders; selection changes the fill without lifting the component or adding a cast shadow. Exception: the depth layer (event page, Discover, Community, Happening Now) uses elevation-1/2, gradient-brand and gradient-glow by hierarchy; account, collection and navigation surfaces stay flat.", "section": "elevation" }
+      { "name": "The Border-Only Depth Rule", "body": "Separate surfaces with tone, spacing, and borders; selection changes the fill without lifting the component or adding a cast shadow. Exception: the depth layer (event page, Discover and the Saved, Interests and Radar event collections, Community, Happening Now) uses elevation-1/2, gradient-brand and gradient-glow by hierarchy; account and navigation surfaces stay flat.", "section": "elevation" }
     ],
     "dos": [
       "Do use plum for actions, focus, and selection; light stone for navigation; near-white surfaces for reading; and dusty rose only for date indexes.",

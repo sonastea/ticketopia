@@ -167,6 +167,17 @@ A new form submission starts at the first page.
   on every row's artwork. The selected row keeps its geometry: a flat, rounded
   pale-plum wash with a "Viewing" label after its date (cards also tint their
   border), and list separators beside it give way.
+- Date-sorted Discover results read as an agenda: visual headings open each
+  stretch of the browsed city's calendar (Today, This week through Sunday, Next
+  week, Later in {month}, then each month), and the soonest event on the first
+  page leads as a wide **Up next** card when its date is known and not past (with
+  its own wide image sizes). Every page groups against the city's remembered
+  calendar day, so loaded pages agree. Headings are `aria-hidden` because every
+  row already states its full date; Load more drops a heading that continues the
+  previous page's stretch and focuses the first new event. Name-sorted results
+  are one list. Cards end in an action bar: the gradient **Tickets** shared with
+  the event page, Save, and count chips for public questions and recommendations
+  above it. See [indexed event rows](../DESIGN.md#indexed-event-rows).
 - One command bar joins location and search: **Events in {city}** (**Choose your
   city** before one is chosen) is a link that opens the native Filters disclosure
   and focuses City (with an accessible "change city" suffix), and the keyword

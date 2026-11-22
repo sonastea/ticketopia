@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### 2026-11-21 — Agenda Discover, one Tickets button and shared event cards
+
+- Date-sorted Discover reads as an agenda: visual headings open each stretch
+  (Today, This week, Next week, Later in {month}, then each month) in the
+  browsed city's calendar, and the soonest event on the first page leads as a
+  wide **Up next** card (known, non-past date; full-width artwork in narrower
+  lists, with its own image sizes). Pages share the city's day. Load more drops a
+  repeated heading and focuses the first new event. Name sort stays one list.
+- Result cards (Discover, Saved, Interests, Radar) share the Community cards'
+  anatomy: full-bleed artwork, raised surface, a hairline action bar. Tickets is
+  the event page's gradient button everywhere (rows rest without the coloured
+  lift); Save carries the same ring as on the event page. In narrow rows with
+  enlarged text, Tickets drops its icon rather than breaking the word.
+- Row activity links became count chips (questions, recommendations); live
+  count updates rewrite only the chip's label. The preview's Open event page
+  and Happening Now's toast/Refresh controls are ghost actions with icons.
+  See [indexed event rows](../../DESIGN.md#indexed-event-rows).
+
 ### 2026-11-20 — Depth layer across Discover and the event page
 
 - Discover's result cards (Saved, Interests and Radar stay flat), the preview
@@ -67,33 +85,6 @@
 - Opening the desktop preview centers the chosen row before paint, without motion,
   after cards reflow into rows. Closing or widening moves only an out-of-view row;
   visible rows never shift under the pointer. See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-23 — Faster Discover rendering
-
-- Memoize loaded time zones, which `time.LoadLocation` re-read from disk on every
-  Discover search and render, and bounded `utils.CN` class-merge results. A
-  20-event Discover render fell from 1.20 ms to 0.45 ms (local benchmark).
-- Pause artwork tint requests for a minute after a transient batch failure, so an
-  unavailable CDN no longer adds the 1.5s deadline to every uncached search.
-  See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-23 — Quiet spotlight selection
-
-- Replace the selected row's plum leading edge and shadow, whose rounded corners
-  clashed with straight list separators, with a flat 35% pale-plum wash and a
-  "Viewing" label after the date (space reserved, so nothing reflows). List
-  separators beside the selected row turn transparent; cards tint their border.
-- Rows gain a stone hover and flat press wash from their title or artwork links;
-  forced colors frame the selection with `SelectedItem`.
-  See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-23 — Tonight's events in US evenings
-
-- Start the default Discover range on the browsed city's calendar day, not the UTC
-  date, which is already tomorrow during a US evening. The city's zone is learned
-  from its results into a bounded memo, so only a city's first search may refetch
-  once. Explicit `start_date`, cursors and the `/api/v1/events` UTC default are
-  unchanged. See [discovery](../discovery.md#web-ui).
 
 Older entries: [discovery archive](archive/discovery/).
 

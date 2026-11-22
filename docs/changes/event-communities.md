@@ -10,6 +10,9 @@
   of two underlined links: a soft-plum primary button (Recommendations, or Open
   conversation with its reply count) and a ghost companion (See all, or Questions
   & tips). Destinations and accessible names are unchanged.
+- Community card bylines follow the event's quote cards: the ink name link, then
+  a muted "recommends this event" line with any app. Community, conversation and
+  profile event titles are ink like Discover's (plum and underlined on hover).
 
 ### 2026-11-20 — Community depth: quote cards and raised panels
 
