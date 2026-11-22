@@ -25,10 +25,14 @@ func (a *api) discussionRoutes(e *echo.Echo) {
 	e.DELETE("/api/v1/posts/:post_id", a.removePostHandler)
 	e.PUT("/api/v1/posts/:post_id/reactions/helpful", a.helpfulHandler)
 	e.DELETE("/api/v1/posts/:post_id/reactions/helpful", a.helpfulHandler)
+	e.PUT("/api/v1/posts/:post_id/reactions/same-question", a.sameQuestionHandler)
+	e.DELETE("/api/v1/posts/:post_id/reactions/same-question", a.sameQuestionHandler)
 	e.GET("/api/v1/community/discussions", a.discussionListHandler)
+	e.GET("/api/v1/community/questions", a.openQuestionsHandler)
 	e.GET("/events/:event_id/discussions", a.discussionCollectionPage)
 	e.GET("/events/:event_id/discussions/:discussion_id", a.discussionCollectionPage)
 	e.GET("/community/discussions", a.discussionCommunityPage)
+	e.GET("/community/questions", a.openQuestionsPage)
 	e.POST("/discussion-actions", a.discussionActionPage)
 }
 func (a *api) discussionsEnabled() bool { return a.enabled() && a.discussions != nil }
@@ -165,6 +169,31 @@ func (a *api) helpfulHandler(c echo.Context) error {
 		return accountProblem(c, err)
 	}
 	post, err := a.discussions.React(c.Request().Context(), p.Account.ID, c.Param("post_id"), c.Request().Method == "PUT")
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	return c.JSON(200, post)
+}
+func (a *api) openQuestionsHandler(c echo.Context) error {
+	p, err := a.discussionViewer(c, false)
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	list, err := a.discussions.OpenQuestions(c.Request().Context(), p.Account.ID, c.QueryParams())
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	return c.JSON(200, list)
+}
+func (a *api) sameQuestionHandler(c echo.Context) error {
+	p, err := a.discussionWriter(c)
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	if err = emptyDiscussionBody(c); err != nil {
+		return accountProblem(c, err)
+	}
+	post, err := a.discussions.SameQuestion(c.Request().Context(), p.Account.ID, c.Param("post_id"), c.Request().Method == "PUT")
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -307,6 +336,34 @@ func (a *api) discussionCommunityPage(c echo.Context) error {
 	}
 	return render(c, status, home.DiscussionCommunity(p))
 }
+func (a *api) openQuestionsPage(c echo.Context) error {
+	principal, err := a.discussionViewer(c, true)
+	p := home.OpenQuestionsPage{Enabled: a.discussionsEnabled(), URL: c.Request().URL.RequestURI()}
+	if !p.Enabled {
+		return render(c, 200, home.OpenQuestions(p))
+	}
+	if err != nil {
+		return a.accountPageError(c, err)
+	}
+	p.ViewerID, p.CSRF = principal.Account.ID, principal.CSRF
+	p.Filters, p.Mine, err = discussions.ParseOpenQuery(principal.Account.ID, c.QueryParams())
+	if errors.Is(err, accounts.ErrUnauthenticated) {
+		return c.Redirect(303, "/auth/sign-in?return_to="+url.QueryEscape(p.URL))
+	}
+	if err == nil {
+		p.List, err = a.discussions.OpenQuestions(c.Request().Context(), principal.Account.ID, c.QueryParams())
+	}
+	status := 200
+	if err != nil {
+		status, _, p.Error, _ = accountError(err)
+	}
+	if a.events != nil {
+		catalog, e := a.optionalCategories(c.Request().Context())
+		p.Categories = catalog.Items
+		p.CategoriesUnavailable = e != nil
+	}
+	return render(c, status, home.OpenQuestions(p))
+}
 func (a *api) discussionActionPage(c echo.Context) error {
 	privateAccountResponse(c)
 	if err := parseBoundedAccountForm(c, 65536, "action", "body", "event_id", "thread_id", "parent_id", "post_id", "idempotency_key", "return_to"); err != nil {
@@ -367,6 +424,13 @@ func (a *api) discussionActionPage(c echo.Context) error {
 	case "helpful", "unhelpful":
 		_, err = a.discussions.React(c.Request().Context(), principal.Account.ID, f.PostID, f.Action == "helpful")
 		notice = "Helpful choice saved."
+	case "same_question", "not_same_question":
+		_, err = a.discussions.SameQuestion(c.Request().Context(), principal.Account.ID, f.PostID, f.Action == "same_question")
+		notice = "Same question choice saved."
+		if strings.HasPrefix(f.ReturnURL, "/community/questions") && discussions.PostID(f.PostID) == nil {
+			// The native form returns to its card, not the top of the list.
+			location += "#question-" + f.PostID
+		}
 	default:
 		err = &accounts.ValidationError{Field: "action", Message: "choose a supported discussion action"}
 	}
@@ -383,7 +447,7 @@ func (a *api) discussionActionPage(c echo.Context) error {
 }
 func isDiscussionReturn(raw string) bool {
 	u, err := url.Parse(raw)
-	return err == nil && (u.Path == "/community/discussions" || strings.Contains(u.Path, "/discussions"))
+	return err == nil && (u.Path == "/community/discussions" || u.Path == "/community/questions" || strings.Contains(u.Path, "/discussions"))
 }
 func safeDiscussionReturn(raw string) string {
 	u, err := url.Parse(raw)
@@ -393,6 +457,19 @@ func safeDiscussionReturn(raw string) string {
 	values, err := url.ParseQuery(u.RawQuery)
 	if err != nil {
 		return "/"
+	}
+	if u.Path == "/community/questions" {
+		copy := url.Values{}
+		for k, v := range values {
+			copy[k] = v
+		}
+		copy.Del("cursor")
+		// Validated as a signed-in viewer so "mine" passes; the page itself
+		// still requires sign-in for it.
+		if _, _, err := discussions.ParseOpenQuery(strings.Repeat("0", 32), copy); err == nil && len(values["cursor"]) <= 1 && len(values.Get("cursor")) <= 1024 {
+			return u.String()
+		}
+		return "/community/questions"
 	}
 	if u.Path == "/community/discussions" {
 		copy := url.Values{}

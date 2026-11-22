@@ -1331,7 +1331,8 @@
         else if (confirmation) {
           const post = [...region.querySelectorAll('.discussion-post')].find(item => item.id === 'post-' + confirmation.post);
           let target = post;
-          if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') acknowledge(target = post?.querySelector('button[aria-pressed]'), confirmation.action);
+          if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') acknowledge(target = post?.querySelector('.helpful-button'), confirmation.action);
+          else if (confirmation.action === 'same_question' || confirmation.action === 'not_same_question') target = post?.querySelector('.same-question-button') || post;
           else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary');
           if (target) { if (target === post) target.tabIndex = -1; target.focus({ preventScroll: true }); }
           if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
@@ -1780,10 +1781,11 @@
         const post = [...context.querySelectorAll('.discussion-post')].find(item => item.id === 'post-' + confirmation.post);
         let target = heading;
         if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') {
-          const helpful = post?.querySelector('button[aria-pressed]');
+          const helpful = post?.querySelector('.helpful-button');
           acknowledge(helpful, confirmation.action);
           target = helpful || heading;
         }
+        else if (confirmation.action === 'same_question' || confirmation.action === 'not_same_question') target = post?.querySelector('.same-question-button') || heading;
         else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary') || heading;
         else if (confirmation.action === 'remove' && post) { post.tabIndex = -1; target = post; }
         if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);

@@ -55,9 +55,11 @@ func TestMariaDBLivePreferenceUpgrade(t *testing.T) {
 	oldPool := &Pool{db: db, config: f.migration}
 	detail := savedDetail("LivePreferenceUpgrade")
 	// Today's discussion writers, which produce the real reply fan-out below,
-	// also read and write schema 24's nullable attribution. Add it only while
-	// seeding and drop it again, so the upgrade still starts from v16.
+	// also read and write schema 24's nullable attribution and read schema 25's
+	// Same question marks. Add them only while seeding and drop them again, so
+	// the upgrade still starts from v16.
 	execSQL(t, db, `ALTER TABLE discussion_posts ADD COLUMN via_client_name VARCHAR(80) NULL, ADD COLUMN via_client_host VARCHAR(253) NULL`)
+	execSQL(t, db, `CREATE TABLE discussion_same_question (account_id VARBINARY(32) NOT NULL, post_id VARBINARY(32) NOT NULL, created_at DATETIME(6) NOT NULL DEFAULT UTC_TIMESTAMP(6), PRIMARY KEY (post_id, account_id)) ENGINE=InnoDB`)
 	posts := discussions.New(oldPool.Discussions(), discussionDetailFixture{detail})
 	root, _, err := posts.Create(t.Context(), fmt.Sprintf("%032d", 1), detail.Item.ID, "", "", "Upgrade discussion", accounts.ID())
 	if err != nil {
@@ -69,6 +71,7 @@ func TestMariaDBLivePreferenceUpgrade(t *testing.T) {
 	if _, _, err = posts.Create(t.Context(), fmt.Sprintf("%032d", 1), root.EventID, root.ID, "", "Existing reply", accounts.ID()); err != nil {
 		t.Fatal(err)
 	}
+	execSQL(t, db, `DROP TABLE discussion_same_question`)
 	execSQL(t, db, `ALTER TABLE discussion_posts DROP COLUMN via_client_host, DROP COLUMN via_client_name`)
 	// Seed historical rows directly: today's writers require schema 19's
 	// membership revision and schema 20's reminder enrollment, absent here.

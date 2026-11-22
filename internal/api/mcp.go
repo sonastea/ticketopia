@@ -117,6 +117,7 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 		if a.discussionsEnabled() {
 			// Discussions with Drafts also enable drafting questions and replies.
 			deps.Discussions, deps.Helpful = a.discussions, a.discussions
+			deps.SameQuestion, deps.OpenQuestions = a.discussions, a.discussions
 			if a.discussionFollows != nil {
 				deps.FollowedDiscussions = a.discussionFollows
 			}

@@ -187,6 +187,10 @@ templ CommunityNav(current string) {
 			Conversations
 			@tabMark(current == "conversations")
 		</a>
+		<a href="/community/questions" aria-current={ layouts.CurrentPage(current == "questions") } class="text-link">
+			Open questions
+			@tabMark(current == "questions")
+		</a>
 		if layouts.LiveActivityEnabled(ctx) {
 			<a href="/happening-now" aria-current={ layouts.CurrentPage(current == "happening-now") } class="text-link">
 				Happening Now
@@ -209,6 +213,13 @@ templ Community(p CommunityPage) {
 				@CommunityFilters(CommunityFilterBar{Action:"/community",Prefix:"community",Label:"Filter recommendations",City:p.Filters.City,Country:p.Filters.Country,CategoryID:p.Filters.CategoryID,Categories:p.Categories})
 				if p.CategoriesUnavailable {
 					<p class="field-note">Category options couldn't refresh. Recommendations and your selected filter are still available.</p>
+				}
+				if p.OpenQuestions>0 {
+					<a href={ templ.URL(p.openQuestionsLink()) } class="open-questions-line">
+						@layouts.Icon("hand-helping")
+						<span><strong>{ p.openQuestionsLabel() }</strong> nobody has answered yet. Can you help?</span>
+						@layouts.IconClass("arrow", "icon card-action-arrow")
+					</a>
 				}
 				if p.Error!="" {
 					@alert.Alert(alert.Props{Class:"feedback error-state",Variant:alert.VariantDestructive}) {
@@ -267,6 +278,15 @@ templ CommunityFilters(f CommunityFilterBar) {
 			}
 			for _,category := range f.Categories {
 				<option value={ category.ID } selected?={ category.ID==f.CategoryID }>{ category.Name }</option>
+			}
+		}
+		if f.ShowConnections {
+			@label.Label(label.Props{For:f.Prefix+"-connections",Class:"sr-only"}) {
+				Events
+			}
+			@selectcomp.Native(selectcomp.NativeProps{ID:f.Prefix+"-connections",Name:"connections"}) {
+				<option value="all">All events</option>
+				<option value="mine" selected?={ f.Mine }>Your events</option>
 			}
 		}
 		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {

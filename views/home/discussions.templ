@@ -179,6 +179,9 @@ templ PostAttribution(post discussions.Post) {
 		if post.Via!="" {
 			<span class="post-via">{ postViaLabel(post) }</span>
 		}
+		if post.FirstPost {
+			<span class="first-post-label">First post</span>
+		}
 		@layouts.Stamp(post.CreatedAt)
 		if !post.CreatedAt.Equal(post.UpdatedAt) {
 			<span>Edited</span>
@@ -232,6 +235,14 @@ templ DiscussionPost(post discussions.Post,v DiscussionView,returnURL string) {
 						<span class="note-action-static">
 							@layouts.Icon("helpful")
 							<span>{ fmt.Sprint(post.HelpfulCount) } Helpful</span>
+						</span>
+					}
+					if canMarkSame(post,v.ViewerID) {
+						@SameQuestionControl(post,v.ViewerID,v.CSRF,returnURL,true)
+					} else if post.ID==post.ThreadID && wantToKnow(post.SameQuestionCount)!="" {
+						<span class="note-action-static">
+							@layouts.Icon("users")
+							<span>{ wantToKnow(post.SameQuestionCount) }</span>
 						</span>
 					}
 					if post.Profile!=nil && post.Profile.ID==v.ViewerID {
@@ -289,6 +300,9 @@ templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
 			Your display name, profile link and post are public, even if your interest is private. Keep it relevant and respectful, and don't share private details.
 		</p>
 		<label class="field">{ fieldLabel } <span>(up to 4000 characters)</span><textarea name="body" rows="4" maxlength="4000" required>{ f.Body }</textarea></label>
+		if f.startsThread() {
+			@ComposerStarters()
+		}
 		<div class="discussion-composer-actions composer-actions">
 			if f.CSRF!="" && !f.Conflict {
 				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action composer-submit",Attributes:templ.Attributes{"name":"action","value":f.Action}}) {
@@ -306,6 +320,21 @@ templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
 		<p data-composer-status class="field-note" role="status" aria-atomic="true"></p>
 		<p hidden data-discussion-error class="field-note" role="alert"></p>
 	</form>
+}
+
+// ComposerStarters offers a few ways into an empty question or tip. Script
+// reveals them as buttons that fill the field with editable text; they never
+// publish. Without script they are plain examples.
+templ ComposerStarters() {
+	<div class="composer-starters" hidden data-composer-starters role="group" aria-label="Start with">
+		<span class="composer-starters-label" aria-hidden="true">Start with</span>
+		for _, starter := range composerStarters {
+			@button.Button(button.Props{Type:button.TypeButton,Variant:button.VariantOutline,Class:"composer-starter",Attributes:templ.Attributes{"data-composer-starter":starter}}) {
+				{ starter }
+			}
+		}
+	</div>
+	<noscript><p class="composer-starters-examples">For example: { composerStarterExamples() }</p></noscript>
 }
 
 templ Discussion(p DiscussionPage) {
@@ -442,4 +471,102 @@ templ DiscussionFailure(f DiscussionForm,message string,signIn bool) {
 			<a href={ templ.URL(f.ReturnURL) } class="text-link">Back to conversation</a>
 		</main>
 	}
+}
+
+// OpenQuestions is "Can you help?": questions and tips on upcoming events
+// nobody has answered yet, newest started first like every community list.
+// Same question annotates a card; it never reorders the list.
+templ OpenQuestions(p OpenQuestionsPage) {
+	@layouts.App("community","Can you help?") {
+		<main id="main" class="destination-page community-page">
+			@layouts.PageHeader("Can you help?", "Questions about upcoming events that nobody has answered yet. Share what you know.") {
+				@CommunityNav("questions")
+			}
+			if !p.Enabled {
+				<p>Discussions require accounts to be enabled on this server.</p><a href="/" class="text-link">Discover events</a>
+			} else {
+				@CommunityFilters(CommunityFilterBar{Action:"/community/questions",Prefix:"questions",Label:"Filter open questions",City:p.Filters.City,Country:p.Filters.Country,CategoryID:p.Filters.CategoryID,Categories:p.Categories,ShowConnections:p.ViewerID!="",Mine:p.Mine})
+				if p.CategoriesUnavailable {
+					<p class="field-note">Category options couldn't refresh. Open questions and your selected filter are still available.</p>
+				}
+				if p.Error!="" {
+					<p role="alert">{ p.Error }</p><a href="/community/questions" class="text-link">Reset filters and retry</a>
+				} else {
+					<div class="results-heading">
+						<h2>Open questions</h2>
+						<span class="sort-label"><strong>{ fmt.Sprint(p.List.Count) }</strong> waiting · Newest first</span>
+					</div>
+					@OpenQuestionCards(p)
+					if p.List.NextCursor!=nil {
+						<a href={ templ.URL(CollectionNextURL(p.URL,p.List.NextCursor)) } class="text-link">More open questions</a>
+					}
+				}
+			}
+		</main>
+	}
+}
+
+templ OpenQuestionCards(p OpenQuestionsPage) {
+	if len(p.List.Items)==0 {
+		if first:=laterPage(p.URL,"cursor"); first!="" {
+			@CommunityEmpty("No more open questions on this page.","",first,"Back to the newest questions")
+		} else if p.Mine {
+			@CommunityEmpty("No open questions on your events.","Questions on events you save, mark Interested, or whose artists and venues you follow appear here.","/community/questions","See every open question")
+		} else if p.Filters.City!="" || p.Filters.Country!="" || p.Filters.CategoryID!="" {
+			@CommunityEmpty("No open questions match these filters.","Try another city or category, or clear the filters.","/community/questions","Reset filters")
+		} else {
+			@CommunityEmpty("Every question has an answer.","When someone asks about an upcoming event and nobody has replied yet, it shows up here.","/community/discussions","Browse conversations")
+		}
+	} else {
+		<ul class="discussion-list recommendation-list community-cards open-questions">
+			for _,post:=range p.List.Items {
+				<li class="recommendation-event" id={ "question-"+post.ID }>
+					@CollectionEventArt(post.Event,p.URL)
+					<div class="recommendation-copy">
+						@CollectionEventHeading(post.Event,p.URL)
+						<figure class="pull-quote">
+							<blockquote class="discussion-body">{ post.Body }</blockquote>
+							<figcaption class="byline">
+								if post.Profile!=nil {
+									@Avatar(initials(post.Profile.DisplayName))
+								}
+								@PostAttribution(post)
+							</figcaption>
+						</figure>
+						if wantToKnow(post.SameQuestionCount)!="" {
+							<p class="want-to-know">@layouts.Icon("users")<span>{ wantToKnow(post.SameQuestionCount) }</span></p>
+						}
+						@EventFacts(post.Event)
+						<div class="card-actions">
+							<a href={ templ.URL(answerURL(post,p.URL)) } class="card-action-primary">
+								@layouts.Icon("reply")
+								<span>Answer<span class="sr-only">{ " this question" }</span></span>
+								@layouts.IconClass("arrow", "icon card-action-arrow")
+							</a>
+							if canMarkSame(post,p.ViewerID) {
+								@SameQuestionControl(post,p.ViewerID,p.CSRF,p.URL,false)
+							}
+							<a href={ templ.URL(eventURL(post.EventID,"discussion",p.URL)) } class="card-action-secondary">
+								@layouts.Icon("community")
+								<span>Questions &amp; tips</span>
+							</a>
+						</div>
+					</div>
+				</li>
+			}
+		</ul>
+	}
+}
+
+// SameQuestionControl marks someone else's question as the viewer's too.
+// In a conversation it refreshes in place like Helpful (enhanced); on the
+// community list it is a native form that returns to the card.
+templ SameQuestionControl(post discussions.Post,viewer,csrf,returnURL string,enhanced bool) {
+	<form action="/discussion-actions" method="post" class="same-question-form" data-discussion-form?={ enhanced }>
+		@DiscussionMetadata(DiscussionForm{EventID:post.EventID,ThreadID:post.ThreadID,PostID:post.ID,Action:sameQuestionVerb(post.SameQuestion),ReturnURL:returnURL,CSRF:csrf,ViewerID:viewer})
+		@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"button-quiet same-question-button",Attributes:templ.Attributes{"name":"action","value":sameQuestionVerb(post.SameQuestion),"aria-pressed":fmt.Sprint(post.SameQuestion)}}) {
+			@layouts.Icon("message-circle-question-mark")<span>Same question · <span class="same-question-count">{ fmt.Sprint(post.SameQuestionCount) }</span></span>
+		}
+		<p hidden data-discussion-error class="field-note" role="alert"></p>
+	</form>
 }

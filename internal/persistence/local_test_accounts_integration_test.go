@@ -39,7 +39,7 @@ func TestMariaDBLocalTestAccountTablesAreComplete(t *testing.T) {
 	}
 	defer rows.Close()
 	handled := append(slices.Clone(localTestAccountTables), "accounts", "discussion_posts", "discussion_follows", "discussion_notifications",
-		"post_helpful", "event_reminders", "moderation_reports", "moderation_decisions", "account_roles", "account_role_events")
+		"post_helpful", "discussion_same_question", "event_reminders", "moderation_reports", "moderation_decisions", "account_roles", "account_role_events")
 	for rows.Next() {
 		var table string
 		if err := rows.Scan(&table); err != nil {

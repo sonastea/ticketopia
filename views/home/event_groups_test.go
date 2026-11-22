@@ -181,7 +181,7 @@ func TestTheLeadSkipsAnEventThatHasStarted(t *testing.T) {
 	}
 }
 
-func TestOnlyTheLeadQuotesItsNewestRecommendation(t *testing.T) {
+func TestCardsQuoteTheirNewestRecommendation(t *testing.T) {
 	events := []models.Event{{ID: "a", Start: dated("2026-12-01")}, {ID: "b", Start: dated("2026-12-02")}}
 	reason := &eventactivity.Contribution{Body: "<b>Go early</b>", AuthorName: "Riley"}
 	page := SearchPage{Today: "2026-11-21", Filters: discovery.Query{Sort: "date_asc"}, Events: models.EventList{Items: events},
@@ -191,12 +191,12 @@ func TestOnlyTheLeadQuotesItsNewestRecommendation(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := out.String()
-	if strings.Count(body, "lead-quote") != 1 || !strings.Contains(body, "&lt;b&gt;Go early&lt;/b&gt;") || !strings.Contains(body, "Riley recommends this event") || strings.Contains(body, "Second row") {
-		t.Fatalf("the lead should quote its own escaped reason, and no other row any: %s", body)
+	if strings.Count(body, "lead-quote") != 1 || strings.Count(body, "row-quote") != 2 || !strings.Contains(body, "&lt;b&gt;Go early&lt;/b&gt;") || !strings.Contains(body, "Riley recommends this event") || !strings.Contains(body, "Sam recommends this event") {
+		t.Fatalf("each card should quote its own escaped reason, and only the lead in the lead style: %s", body)
 	}
 	page.Activity["a"] = eventactivity.Preview{Recommendations: 1, Recommendation: &eventactivity.Contribution{AuthorName: "Riley"}}
 	out.Reset()
-	if err := DiscoverRows(page).Render(t.Context(), &out); err != nil || strings.Contains(out.String(), "lead-quote") {
+	if err := DiscoverRows(page).Render(t.Context(), &out); err != nil || strings.Contains(out.String(), "lead-quote") || strings.Count(out.String(), "row-quote") != 1 {
 		t.Fatal("a reason-less recommendation produced an empty quote")
 	}
 }

@@ -36,11 +36,11 @@ templ DiscoverRows(page SearchPage) {
 }
 
 templ EventRows(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView) {
-	@EventRowsWithRadar(events, returnURL, selectedID, saves, actionReturnURL, interests, nil)
+	@EventRowsWithRadar(events, returnURL, selectedID, saves, actionReturnURL, interests, nil, nil)
 }
 
-templ EventRowsWithRadar(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item) {
-	@EventRowsContent(events, returnURL, selectedID, saves, actionReturnURL, interests, matches, nil, false)
+templ EventRowsWithRadar(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview) {
+	@EventRowsContent(events, returnURL, selectedID, saves, actionReturnURL, interests, matches, activity, false)
 }
 
 templ EventRowsWithActivity(events []models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, activity map[string]eventactivity.Preview) {
@@ -112,6 +112,7 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 				</div>
 			}
 			if !extended {
+				@RowQuote(activity[event.ID], false)
 				@EventRowTools(event, returnURL, saves, actionReturnURL, interests, false)
 			}
 		</div>
@@ -125,9 +126,7 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 						<p class="sale-date">{ sale }</p>
 					}
 				</div>
-				if mode.Lead {
-					@LeadQuote(activity[event.ID])
-				}
+				@RowQuote(activity[event.ID], mode.Lead)
 				@EventRowActivity(event.ID, activity[event.ID], returnURL)
 				@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
 			</div>
@@ -158,14 +157,14 @@ templ EventRowTools(event models.Event, returnURL string, saves SaveView, action
 	}
 }
 
-// LeadQuote gives the Up next card the newest public recommendation's words,
-// so the first thing on Discover carries a person's reason to go. Only the
-// lead shows one; other rows keep counts, and the full text and author link
-// live in the event's Recommendations section. A reason-less recommendation
-// shows nothing here.
-templ LeadQuote(preview eventactivity.Preview) {
+// RowQuote gives an event card the newest public recommendation's words, so
+// browsing carries people's reasons to go, not only counts. The Up next lead
+// shows three lines and other cards two; the full text and author link live in
+// the event's Recommendations section. A reason-less recommendation shows
+// nothing here.
+templ RowQuote(preview eventactivity.Preview, lead bool) {
 	if r := preview.Recommendation; r != nil && strings.TrimSpace(r.Body) != "" {
-		<figure class="pull-quote lead-quote">
+		<figure class={ "pull-quote row-quote", templ.KV("lead-quote", lead) }>
 			<blockquote class="recommendation-reason">{ r.Body }</blockquote>
 			<figcaption>{ r.AuthorName } recommends this event</figcaption>
 		</figure>

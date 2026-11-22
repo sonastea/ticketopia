@@ -39,6 +39,13 @@ type Helpful interface {
 	React(ctx context.Context, who, id string, set bool) (discussions.Post, error)
 }
 
+// SameQuestion sets or clears the caller's Same question mark on someone
+// else's question or tip, as PUT/DELETE
+// /api/v1/posts/{post_id}/reactions/same-question do.
+type SameQuestion interface {
+	SameQuestion(ctx context.Context, who, id string, set bool) (discussions.Post, error)
+}
+
 // Token info extras the HTTP boundary sets for OAuth connections: the app's
 // self-declared name and verified metadata host, for attribution and logs,
 // and the connection's ID, which owns its drafts. API tokens carry none.
@@ -197,6 +204,53 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 	if d.Helpful != nil {
 		addHelpfulTools(server, d)
 	}
+	if d.SameQuestion != nil {
+		addSameQuestionTools(server, d)
+	}
+}
+
+var errQuestionNotFound = callMistake{errors.New("post_id: no visible question or tip with this id; use a question or tip id (not a reply's) from open_questions, " +
+	"event_discussions or community_discussions (removed or hidden posts can't be marked)")}
+
+var errQuestionGone = callMistake{errors.New("post_id: no question or tip with this id; use a question or tip id (not a reply's) from open_questions, " +
+	"event_discussions or community_discussions")}
+
+// addSameQuestionTools registers Same question: like Helpful, a public signal
+// without words, so it is a publish action rather than a draft.
+func addSameQuestionTools(server *mcp.Server, d Deps) {
+	addTool(server, d, &mcp.Tool{Name: "mark_same_question", Title: "Mark Same question", OutputSchema: outputSchema[sameQuestionState](),
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
+		Description: "Mark someone else's question or tip as the signed-in user's question too, by its id (post_id) from open_questions, event_discussions or community_discussions. " +
+			"It is public: it adds to the post's same_question_count that everyone sees (\"N people want to know\"), though nobody sees who marked it. " +
+			"It never changes any list's order. Replies and the user's own posts can't be marked. Marking again changes nothing. " +
+			"Needs the connection's permission to post publicly. " + publicNote},
+		publishTool(d, func(ctx context.Context, owner string, _ *mcp.CallToolRequest, in questionInput) (sameQuestionState, error) {
+			return d.sameQuestion(ctx, owner, in.PostID, true)
+		}))
+	addTool(server, d, &mcp.Tool{Name: "unmark_same_question", Title: "Remove Same question", OutputSchema: outputSchema[sameQuestionState](),
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: &yes, IdempotentHint: true, OpenWorldHint: &no},
+		Description: "Remove the signed-in user's Same question mark from a question or tip, by its id (post_id). Its public same_question_count goes down by one. " +
+			"Removing a mark that isn't there changes nothing. Needs the connection's permission to post publicly. " + publicNote},
+		publishTool(d, func(ctx context.Context, owner string, _ *mcp.CallToolRequest, in questionInput) (sameQuestionState, error) {
+			return d.sameQuestion(ctx, owner, in.PostID, false)
+		}))
+}
+
+func (d Deps) sameQuestion(ctx context.Context, owner, id string, set bool) (sameQuestionState, error) {
+	post, err := d.SameQuestion.SameQuestion(ctx, owner, id, set)
+	if errors.Is(err, discussions.ErrNotFound) {
+		if !set {
+			return sameQuestionState{}, errQuestionGone
+		}
+		return sameQuestionState{}, errQuestionNotFound
+	}
+	if errors.Is(err, discussions.ErrOwnQuestion) {
+		return sameQuestionState{}, callMistake{errors.New("post_id: mark Same question on someone else's question or tip; this one is the user's own")}
+	}
+	if err != nil {
+		return sameQuestionState{}, err
+	}
+	return sameQuestionState{PostID: id, SameQuestion: post.SameQuestion, Post: &post}, nil
 }
 
 // draftNote ends every drafting tool's description.
@@ -360,6 +414,19 @@ type helpfulState struct {
 	PostID  string            `json:"post_id"`
 	Helpful bool              `json:"helpful"`
 	Post    *discussions.Post `json:"post,omitempty"`
+}
+
+// questionInput names a question or tip; replies can't take Same question.
+type questionInput struct {
+	PostID string `json:"post_id" jsonschema:"id of a question or tip (not a reply) from open_questions, event_discussions or community_discussions"`
+}
+
+// sameQuestionState is the caller's resulting Same question mark and the
+// post with its public count.
+type sameQuestionState struct {
+	PostID       string            `json:"post_id"`
+	SameQuestion bool              `json:"same_question"`
+	Post         *discussions.Post `json:"post,omitempty"`
 }
 
 type draftIDInput struct {

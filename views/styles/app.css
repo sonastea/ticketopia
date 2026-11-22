@@ -2670,8 +2670,10 @@ html:has(.filter-sheet:modal) {
      them, without its (now opaque) surface; plain tabs drop their underline. */
   .section-nav .tab-mark { z-index: 1; border-color: Highlight; background: none; }
   .section-nav:not(.event-section-nav) a { border-block-end-color: Canvas; }
-  :is(.event-actions, .discussion-actions) .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
+  :is(.event-actions, .discussion-actions) .button-quiet:is([data-saved="true"], [aria-pressed="true"]),
+  .same-question-button[aria-pressed="true"] {
     border-color: Highlight;
+    border-width: 2px;
   }
   /* Washes vanish here, so the selected row gains a system-colored frame. */
   .event-row[data-selected="true"] {
@@ -4148,6 +4150,11 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .composer-actions > .composer-submit:active:not(:disabled) { background: var(--brand-active); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
 .composer-form .composer-audience { margin: 0; }
 .composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+/* Starters fill an empty question or tip; they wrap as whole phrases. */
+.composer-starters { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.composer-starters[hidden] { display: none; }
+.composer-starters-label, .composer-starters-examples { margin: 0; color: var(--muted-warm); font-size: .8125rem; }
+.composer-starter { min-block-size: 2.75rem; block-size: auto; max-inline-size: 100%; white-space: normal; text-align: start; font-size: .875rem; }
 /* Enlarged text wraps a long action label instead of widening the card. */
 .composer-actions > [data-slot="button"] { max-inline-size: 100%; min-inline-size: 0; flex-shrink: 1; }
 .composer-card [data-recommendation-error] { color: var(--error); }
@@ -4263,6 +4270,19 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   line-height: 1.4;
 }
 .note .note-head :is(time, .note-meta) { font-variant-numeric: tabular-nums; }
+/* A quiet welcome for someone's first question or tip: text in the brand ink
+   on a faint tint, never louder than the author's name. */
+.first-post-label {
+  padding-block: .0625rem;
+  padding-inline: .5rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--brand) 10%, transparent);
+  color: var(--brand);
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+@media (forced-colors: active) { .first-post-label { border: 1px solid CanvasText; } }
 :is(.note, .rec-card, .byline) .note-author {
   display: inline-flex;
   align-items: center;
@@ -4777,8 +4797,60 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   .card-action-primary .icon { display: none; }
   :is(.card-action-primary > span, .card-action-secondary) { white-space: normal; }
 }
+/* Open questions: Same question sits in the action bar as a quiet toggle, and
+   its count reads as a fact beneath the quote. */
+.same-question-form { display: contents; }
+.same-question-form > [data-discussion-error] { flex-basis: 100%; }
+.same-question-button { flex: 0 1 auto; min-block-size: 2.75rem; block-size: auto; max-inline-size: 100%; font-variant-numeric: tabular-nums; }
+/* Enlarged text on a narrow card: the label wraps between words, not off the card. */
+.same-question-button > span { white-space: normal; text-align: start; }
+.same-question-button[aria-pressed="true"] { border-color: color-mix(in oklch, var(--brand) 35%, transparent); color: var(--brand); }
+.same-question-button .icon { fill: currentColor; fill-opacity: 0; transition: fill-opacity 160ms var(--ease-out); }
+.same-question-button[aria-pressed="true"] .icon { fill-opacity: .25; }
+.note-actions .same-question-form { display: block; }
+.want-to-know {
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+  margin-block: .5rem 0;
+  color: var(--muted-warm);
+  font-size: .8125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.want-to-know .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
+/* The Community landing's way into open questions: one soft plum line. */
+.open-questions-line {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  min-block-size: 2.75rem;
+  margin-block: 0 1.25rem;
+  padding-block: .625rem;
+  padding-inline: .875rem .75rem;
+  border-radius: .75rem;
+  background: color-mix(in oklch, var(--brand-soft) 65%, var(--surface));
+  color: var(--ink);
+  font-size: .9375rem;
+  text-decoration: none;
+  transition-property: background-color, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+.open-questions-line > span { flex: 1; min-inline-size: 0; }
+.open-questions-line strong { color: var(--brand); font-variant-numeric: tabular-nums; }
+.open-questions-line .icon { flex: none; inline-size: 1.25rem; block-size: 1.25rem; color: var(--brand); }
+@media (hover: hover) and (pointer: fine) {
+  .open-questions-line:hover { background: var(--brand-soft); box-shadow: var(--ring-hairline); }
+}
+.open-questions-line:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); }
+@media (forced-colors: active) { .open-questions-line { border: 1px solid LinkText; } }
 @media (prefers-reduced-motion: no-preference) {
   .card-action-arrow { transition: translate 200ms var(--ease-out); }
+  @media (hover: hover) and (pointer: fine) {
+    .open-questions-line:hover .card-action-arrow { translate: .1875rem 0; }
+    .open-questions-line:dir(rtl):hover .card-action-arrow { translate: -.1875rem 0; }
+  }
   @media (hover: hover) and (pointer: fine) {
     :is(.card-action-primary, .open-event):hover .card-action-arrow { translate: .1875rem 0; }
     :is(.card-action-primary, .open-event):dir(rtl):hover .card-action-arrow { translate: -.1875rem 0; }
@@ -4807,18 +4879,6 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .live-filter-bar > .account-actions { gap: 0 .25rem; }
 .pull-quote { display: grid; gap: .75rem; margin-block: 1rem; margin-inline: 0; }
 .community-recommenders .pull-quote { margin: 0; }
-/* The Up next card's quote: the newest public reason, three lines at most
-   (the full text is one tap away in Recommendations), then who said it. */
-.lead-quote { gap: .5rem; margin-block: 0 1rem; }
-.lead-quote blockquote {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: clip;
-  margin: 0;
-}
-.lead-quote figcaption { padding-inline-start: 1.75rem; color: var(--muted-warm); font-size: .8125rem; }
 .pull-quote blockquote {
   position: relative;
   margin: 0;
@@ -4839,6 +4899,23 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   font-weight: 800;
   line-height: 1;
 }
+/* A card's quote: the newest public reason, two lines at most (three on the
+   Up next lead; the full text is one tap away in Recommendations), then who
+   said it. Ordinary cards use body size so the quote doesn't outrank the
+   title. These follow the shared pull-quote rule so their size wins. */
+.row-quote { gap: .375rem; margin-block: .5rem .75rem; }
+.row-quote blockquote {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: clip;
+  margin: 0;
+  font-size: .9375rem;
+}
+.row-quote figcaption { padding-inline-start: 1.75rem; color: var(--muted-warm); font-size: .8125rem; }
+.lead-quote { gap: .5rem; margin-block: 0 1rem; }
+.lead-quote blockquote { -webkit-line-clamp: 3; line-clamp: 3; font-size: 1.0625rem; }
 .byline { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; max-inline-size: 100%; }
 /* Community bylines follow the quote cards: the name, then a quiet line of
    what they did (and any app it came through). */

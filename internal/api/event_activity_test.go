@@ -61,8 +61,8 @@ func TestDiscoveryActivityBatchesRowsAndPartialPagination(t *testing.T) {
 				t.Fatal("initial/partial discovery lost row detail or public activity", partial, w.Code, want)
 			}
 		}
-		if strings.Contains(body, "Useful event description") || strings.Contains(body, "A public question") || strings.Contains(body, "A public recommendation") || !reflect.DeepEqual(repo.batches[len(repo.batches)-1], []string{"ticketmaster:One", "ticketmaster:Two"}) {
-			t.Fatal("row includes excerpts or activity was not one page-sized batch", repo.batches)
+		if strings.Contains(body, "Useful event description") || strings.Contains(body, "A public question") || !strings.Contains(body, "A public recommendation") || !reflect.DeepEqual(repo.batches[len(repo.batches)-1], []string{"ticketmaster:One", "ticketmaster:Two"}) {
+			t.Fatal("row includes question excerpts, lost its recommendation quote, or activity was not one page-sized batch", repo.batches)
 		}
 	}
 	w := httptest.NewRecorder()

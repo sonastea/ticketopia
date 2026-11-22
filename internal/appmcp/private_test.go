@@ -78,7 +78,7 @@ func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest
 	handler := Handler(Deps{Events: &f.events, Details: &f.events, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
 		Radar: fakeRadar{f}, Follows: fakeFollows{f}, Catalog: fakeCatalog{f}, Interests: fakeInterests{f}, Accounts: fakeAccounts{f},
 		EventCommunity: fakeCommunity{f}, ProfileActivity: fakeCommunity{f}, EventRecommendations: fakeCommunity{f}, InterestedPeople: fakeCommunity{f}, Discussions: fakeCommunity{f}, CommunityRecommendations: fakeCommunity{f}, Profiles: fakeCommunity{f}, LiveActivity: fakeCommunity{f}, FollowedDiscussions: fakeFollowed{f},
-		Recommendations: fakeRecommendations{f}, Drafts: fakeDrafts{f}, Helpful: fakeCommunity{f}, DraftsURL: "https://events.example/me/drafts", PublishLimit: f.limiter, Logger: f.logger,
+		Recommendations: fakeRecommendations{f}, Drafts: fakeDrafts{f}, Helpful: fakeCommunity{f}, SameQuestion: fakeCommunity{f}, OpenQuestions: fakeCommunity{f}, DraftsURL: "https://events.example/me/drafts", PublishLimit: f.limiter, Logger: f.logger,
 		Describe:        func(err error) string { return "public: " + err.Error() },
 		DescribeCatalog: func(err error) string { return "catalog: " + err.Error() },
 		DescribePrivate: func(err error) string { return "private: " + err.Error() }})
@@ -239,7 +239,7 @@ func TestReadOnlyTokensCannotWrite(t *testing.T) {
 func TestSignedInToolsMatchRegistration(t *testing.T) {
 	reply := rpc(t, privateServer(t, &fakeAccount{}).URL, "", "tools/list", map[string]any{})
 	public := map[string]bool{"find_events": true, "list_categories": true, "event_details": true, "event_community": true, "profile_activity": true,
-		"event_recommendations": true, "event_interested_people": true, "event_discussions": true, "discussion_thread": true, "community_recommendations": true, "community_discussions": true, "user_profile": true, "happening_now": true}
+		"event_recommendations": true, "event_interested_people": true, "event_discussions": true, "discussion_thread": true, "community_recommendations": true, "community_discussions": true, "open_questions": true, "user_profile": true, "happening_now": true}
 	listed := 0
 	for _, tool := range reply.Result.Tools {
 		if public[tool.Name] {

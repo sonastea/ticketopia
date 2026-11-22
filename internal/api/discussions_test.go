@@ -26,6 +26,7 @@ type discussionStub struct {
 	input       discussions.Create
 	unavailable bool
 	listCalls   int
+	lastQuery   discussions.Query
 }
 
 func (r *discussionStub) Snapshot(context.Context) (time.Time, error) { return time.Now().UTC(), nil }
@@ -59,8 +60,9 @@ func (r *discussionStub) Get(_ context.Context, viewer, id string) (discussions.
 	}
 	return r.post, nil
 }
-func (r *discussionStub) List(context.Context, string, string, string, discussions.Query) ([]discussions.Post, int, error) {
+func (r *discussionStub) List(_ context.Context, _, _, _ string, q discussions.Query) ([]discussions.Post, int, error) {
 	r.listCalls++
+	r.lastQuery = q
 	if r.unavailable {
 		return nil, 0, discussions.ErrUnavailable
 	}
@@ -93,6 +95,20 @@ func (r *discussionStub) React(_ context.Context, who, id string, set bool) (dis
 	r.post.HelpfulCount = 0
 	if set {
 		r.post.HelpfulCount = 1
+	}
+	return r.post, nil
+}
+func (r *discussionStub) SameQuestion(_ context.Context, who, id string, set bool) (discussions.Post, error) {
+	if id != r.post.ID || r.post.ID != r.post.ThreadID {
+		return discussions.Post{}, discussions.ErrNotFound
+	}
+	if set && r.post.Profile != nil && r.post.Profile.ID == who {
+		return discussions.Post{}, discussions.ErrOwnQuestion
+	}
+	r.post.SameQuestion = set
+	r.post.SameQuestionCount = 0
+	if set {
+		r.post.SameQuestionCount = 1
 	}
 	return r.post, nil
 }
@@ -386,5 +402,58 @@ func TestEventContextShowsDiscussionAndCommunityAcrossEntryPoints(t *testing.T) 
 	a.Routes().ServeHTTP(w, r)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "Is there a coat check?") || !strings.Contains(w.Body.String(), "Public recommendations couldn&#39;t load") {
 		t.Fatal("community failure hid conversation or fabricated empty activity", w.Code, w.Body.String())
+	}
+}
+
+// Open questions are public, "mine" needs sign-in and reaches the query as
+// the viewer's own connections, and Same question refuses the author's own
+// post and returns native forms to their card.
+func TestOpenQuestionsRoutesAndSameQuestion(t *testing.T) {
+	a, repo, browser, bearer, csrf, event := discussionAPI(t)
+	w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Is there a cloakroom?"}`, bearer, accounts.ID())
+	if w.Code != 201 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	post := repo.post
+	if w = discussionRequest(a, "GET", "/api/v1/community/questions?city=Berlin", "", "", ""); w.Code != 200 || !repo.lastQuery.Open || repo.lastQuery.Connected != "" || repo.lastQuery.City != "Berlin" {
+		t.Fatal("public open questions", w.Code, repo.lastQuery, w.Body.String())
+	}
+	if w = discussionRequest(a, "GET", "/api/v1/community/questions?connections=mine", "", "", ""); w.Code != 401 {
+		t.Fatal("anonymous mine", w.Code, w.Body.String())
+	}
+	if w = discussionRequest(a, "GET", "/api/v1/community/questions?connections=mine", "", bearer, ""); w.Code != 200 || repo.lastQuery.Connected != post.Profile.ID {
+		t.Fatal("signed-in mine", w.Code, repo.lastQuery)
+	}
+	if w = discussionRequest(a, "GET", "/api/v1/community/questions?connections=friends", "", bearer, ""); w.Code != 400 {
+		t.Fatal("unknown connections", w.Code)
+	}
+	if w = discussionRequest(a, "PUT", "/api/v1/posts/"+post.ID+"/reactions/same-question", "", bearer, ""); w.Code != 400 || !strings.Contains(w.Body.String(), "someone else") {
+		t.Fatal("own question marked", w.Code, w.Body.String())
+	}
+	if w = discussionRequest(a, "DELETE", "/api/v1/posts/"+post.ID+"/reactions/same-question", "", bearer, ""); w.Code != 200 {
+		t.Fatal("clearing a mark", w.Code, w.Body.String())
+	}
+
+	page := accountRequest(a, "GET", "/community/questions", "", browser, "", "", "", "")
+	body := page.Body.String()
+	if page.Code != 200 || !strings.Contains(body, "Can you help?") || !strings.Contains(body, "#discussion-composer") || !strings.Contains(body, `value="mine"`) || strings.Contains(body, "same-question-button") {
+		t.Fatal("open questions page: answer link, Your events choice, and no Same question on your own post", page.Code)
+	}
+	if w = accountRequest(a, "GET", "/community/questions?connections=mine", "", "", "", "", "", ""); w.Code != http.StatusSeeOther || !strings.Contains(w.Header().Get("Location"), "/auth/sign-in") {
+		t.Fatal("signed-out Your events should ask to sign in", w.Code)
+	}
+	repo.post.Profile = &accounts.PublicProfile{ID: accounts.ID(), DisplayName: "Someone else"}
+	if body = accountRequest(a, "GET", "/community/questions?city=Berlin", "", browser, "", "", "", "").Body.String(); !strings.Contains(body, "same-question-button") || !strings.Contains(body, `name="return_to" value="/community/questions?city=Berlin"`) {
+		t.Fatal("someone else's question has no Same question control returning to this list")
+	}
+	form := url.Values{"action": {"same_question"}, "event_id": {event}, "thread_id": {post.ID}, "post_id": {post.ID}, "return_to": {"/community/questions?city=Berlin"}, "csrf_token": {csrf}}
+	w = accountRequest(a, "POST", "/discussion-actions", form.Encode(), browser, "", "", "https://events.example", "application/x-www-form-urlencoded")
+	if w.Code != http.StatusSeeOther || w.Header().Get("Location") != "/community/questions?city=Berlin#question-"+post.ID || !repo.post.SameQuestion {
+		t.Fatal("native Same question should return to its card", w.Code, w.Header().Get("Location"))
+	}
+	for raw, want := range map[string]string{"/community/questions?connections=mine&city=Berlin": "/community/questions?connections=mine&city=Berlin", "/community/questions?owner=x": "/community/questions"} {
+		if got := safeDiscussionReturn(raw); got != want {
+			t.Fatal("open questions return", raw, got)
+		}
 	}
 }

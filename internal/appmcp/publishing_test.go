@@ -90,6 +90,24 @@ func (f fakeCommunity) React(_ context.Context, who, id string, set bool) (discu
 	return discussions.Post{ID: id, ThreadID: id, Helpful: set, HelpfulCount: count}, nil
 }
 
+// SameQuestion knows question "3…3"; "4…4" is the caller's own question and
+// other IDs are not found.
+func (f fakeCommunity) SameQuestion(_ context.Context, who, id string, set bool) (discussions.Post, error) {
+	f.record(fmt.Sprintf("discussions.SameQuestion %s %s %v", who, id, set))
+	switch id {
+	case strings.Repeat("3", 32):
+	case strings.Repeat("4", 32):
+		return discussions.Post{}, discussions.ErrOwnQuestion
+	default:
+		return discussions.Post{}, discussions.ErrNotFound
+	}
+	count := 0
+	if set {
+		count = 1
+	}
+	return discussions.Post{ID: id, ThreadID: id, SameQuestion: set, SameQuestionCount: count}, nil
+}
+
 func (f fakeDrafts) List(_ context.Context, account string) ([]drafts.Draft, error) {
 	f.record("drafts.List " + account)
 	return []drafts.Draft{}, nil
@@ -110,6 +128,8 @@ var publishingTools = map[string]map[string]any{
 	"withdraw_recommendation": {"event_id": "ticketmaster:x"},
 	"mark_helpful":            {"post_id": strings.Repeat("3", 32)},
 	"unmark_helpful":          {"post_id": strings.Repeat("3", 32)},
+	"mark_same_question":      {"post_id": strings.Repeat("3", 32)},
+	"unmark_same_question":    {"post_id": strings.Repeat("3", 32)},
 }
 
 var draftAndVisibilityTools = map[string]map[string]any{
@@ -428,5 +448,35 @@ func TestPublishingDescriptions(t *testing.T) {
 				t.Errorf("%s description lacks %q: %s", name, word, descriptions[name])
 			}
 		}
+	}
+}
+
+// Same question names the mistake an agent can fix: a reply or unknown id,
+// or the user's own question.
+func TestSameQuestionToolsReportMistakes(t *testing.T) {
+	base := privateServer(t, &fakeAccount{}).URL
+	var state sameQuestionState
+	r := tool(t, base, "publisher-token", "mark_same_question", map[string]any{"post_id": strings.Repeat("3", 32)})
+	_ = json.Unmarshal(r.Result.StructuredContent, &state)
+	if r.Result.IsError || !state.SameQuestion || state.Post == nil || state.Post.SameQuestionCount != 1 {
+		t.Fatalf("mark_same_question: %+v %s", r.Result, r.Result.StructuredContent)
+	}
+	for id, want := range map[string]string{strings.Repeat("4", 32): "someone else's question or tip", strings.Repeat("9", 32): "no visible question or tip"} {
+		if r := tool(t, base, "publisher-token", "mark_same_question", map[string]any{"post_id": id}); !r.Result.IsError || !strings.Contains(r.Result.Content[0].Text, want) {
+			t.Fatalf("%s: %+v", id, r.Result)
+		}
+	}
+}
+
+// mine is the caller's own events: it needs a reading sign-in and reaches the
+// service as connections=mine.
+func TestOpenQuestionsMineNeedsSignIn(t *testing.T) {
+	f := &fakeAccount{}
+	base := privateServer(t, f).URL
+	if r := tool(t, base, "", "open_questions", map[string]any{"mine": true}); !r.Result.IsError || !strings.Contains(r.Result.Content[0].Text, "mine needs a signed-in connection") || len(f.calls) != 0 {
+		t.Fatalf("anonymous mine: %+v %v", r.Result, f.calls)
+	}
+	if r := tool(t, base, "reader-token", "open_questions", map[string]any{"mine": true}); r.Result.IsError || strings.Join(f.calls, "|") != "discussions.OpenQuestions owner-id connections=mine" {
+		t.Fatalf("signed-in mine: %+v %v", r.Result, f.calls)
 	}
 }

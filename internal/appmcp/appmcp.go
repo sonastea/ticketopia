@@ -68,6 +68,10 @@ type Deps struct {
 	// Helpful enables mark_helpful and unmark_helpful; with Drafts,
 	// Discussions also enables draft_question and draft_reply.
 	Helpful Helpful
+	// SameQuestion enables mark_same_question and unmark_same_question.
+	SameQuestion SameQuestion
+	// OpenQuestions enables open_questions, the public "Can you help?" list.
+	OpenQuestions OpenQuestions
 	// EventCommunity and ProfileActivity enable the public community read
 	// tools, which add the caller's own state when signed in.
 	EventCommunity           EventCommunity
@@ -103,10 +107,10 @@ func NewServer(d Deps) *mcp.Server {
 		Instructions: "Ticketopia finds live events (music, sports, arts and more) from Ticketmaster data. " +
 			"Results carry meta.data_as_of and meta.stale; say when data is not live, and send people to the event's ticket link to buy. " +
 			"Community reads are public: event_community totals an event's interest, recommendations and discussions; event_recommendations, " +
-			"event_interested_people, event_discussions and discussion_thread show them; community_recommendations, community_discussions and " +
-			"happening_now browse across events; user_profile and profile_activity describe a person, by a profile id those tools return. " +
+			"event_interested_people, event_discussions and discussion_thread show them; community_recommendations, community_discussions, open_questions and " +
+			"happening_now browse across events (open_questions lists questions nobody has answered yet, for people who can help); user_profile and profile_activity describe a person, by a profile id those tools return. " +
 			"Signed in, my_radar suggests events from the user's follows and categories, and tools manage their saves, reminders, follows and Interested choices privately. " +
-			"Only make_interest_public, recommend_event, withdraw_recommendation, mark_helpful and unmark_helpful act publicly in the user's name; they need the user's permission to post publicly, " +
+			"Only make_interest_public, recommend_event, withdraw_recommendation, mark_helpful, unmark_helpful, mark_same_question and unmark_same_question act publicly in the user's name; they need the user's permission to post publicly, " +
 			"and you should use them only when the user asks. You never publish words: draft_recommendation, draft_question and draft_reply save a private draft, " +
 			"and the user reads and publishes it on Ticketopia at the review_url it returns. You cannot edit or remove the user's posts; they do that on Ticketopia.",
 		SchemaCache: schemaCache,

@@ -89,6 +89,10 @@ func (a *api) radarPage(c echo.Context) error {
 		}
 		page.Saves = a.saveView(c, ids)
 		page.Interests = a.interestView(c, ids)
+		// Optional, as on Discover: a failed preview read only drops the quotes.
+		if a.eventActivity != nil && len(ids) > 0 {
+			page.Activity, _ = a.eventActivity.Previews(c.Request().Context(), ids[:min(len(ids), stateBatch)])
+		}
 	}
 	return render(c, status, home.Radar(page))
 }

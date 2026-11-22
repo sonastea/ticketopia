@@ -91,6 +91,7 @@ func (p *Pool) RemoveLocalTestAccounts(ctx context.Context) (int, error) {
 		// Notifications cascade from their follows.
 		{`DELETE FROM discussion_follows WHERE account_id IN ` + in + ` OR thread_id IN ` + pin, concat(args, pargs)},
 		{`DELETE FROM post_helpful WHERE account_id IN ` + in + ` OR post_id IN ` + pin, concat(args, pargs)},
+		{`DELETE FROM discussion_same_question WHERE account_id IN ` + in + ` OR post_id IN ` + pin, concat(args, pargs)},
 		// Newest first, so replies go before what they answer.
 		{`DELETE FROM discussion_posts WHERE post_id IN ` + pin + ` ORDER BY created_at DESC, post_id DESC`, pargs},
 		{`DELETE j FROM reminder_jobs j JOIN event_reminders r ON r.reminder_id=j.reminder_id WHERE r.account_id IN ` + in, args},

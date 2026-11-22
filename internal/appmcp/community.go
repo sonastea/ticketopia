@@ -45,6 +45,15 @@ type Discussions interface {
 	Thread(ctx context.Context, viewer, event, id string) (discussions.Post, error)
 }
 
+// OpenQuestions reads questions and tips nobody has answered yet, as
+// GET /api/v1/community/questions does; viewer adds the caller's own marks
+// and makes connections=mine possible.
+type OpenQuestions interface {
+	OpenQuestions(ctx context.Context, viewer string, values url.Values) (discussions.List, error)
+}
+
+var errOpenMineSignIn = callMistake{errors.New("mine needs a signed-in connection that may read the user's account; omit mine to list every open question")}
+
 // CommunityRecommendations reads the grouped community feed, as
 // GET /api/v1/community/recommendations does.
 type CommunityRecommendations interface {
@@ -174,6 +183,24 @@ func addCommunityTools(server *mcp.Server, d Deps) {
 				return d.Discussions.List(ctx, viewer, "", "", in.values())
 			}))
 	}
+	if d.OpenQuestions != nil {
+		addTool(server, d, &mcp.Tool{Name: "open_questions", Title: "Open questions", OutputSchema: outputSchema[discussions.List](), Annotations: readOnly,
+			Description: "Questions and tips on upcoming events that nobody has answered yet, newest started first, each with its event and same_question_count " +
+				"(how many people want to know too; it never changes the order). Answered questions leave the list. city, country (ISO code such as US) and category_id " +
+				"from list_categories each narrow it on their own. Signed in, mine=true keeps only events the user saved, marked Interested, or whose artist or venue they follow; " +
+				"that match is private and never shown to anyone. To help, open the conversation with discussion_thread (its event_id and thread_id) and suggest draft_reply. " +
+				"For the next page, pass next_cursor as cursor with the same filters, mine and sign-in (cursors belong to the caller)."},
+			publicRead(d, func(ctx context.Context, viewer string, in openQuestionsInput) (discussions.List, error) {
+				values := in.communityInput.values()
+				if in.Mine {
+					if viewer == "" {
+						return discussions.List{}, errOpenMineSignIn
+					}
+					values.Set("connections", discussions.ConnectionsMine)
+				}
+				return d.OpenQuestions.OpenQuestions(ctx, viewer, values)
+			}))
+	}
 	if d.CommunityRecommendations != nil {
 		addTool(server, d, &mcp.Tool{Name: "community_recommendations", Title: "Community recommendations", OutputSchema: outputSchema[recommendations.Feed](), Annotations: readOnly,
 			Description: "Events people recommend, one entry per event with its total count and up to three recommendations, newest first by when " +
@@ -293,6 +320,12 @@ func (in communityInput) values() url.Values {
 		}
 	}
 	return v
+}
+
+// openQuestionsInput is communityInput plus the signed-in "Your events" choice.
+type openQuestionsInput struct {
+	communityInput
+	Mine bool `json:"mine,omitempty" jsonschema:"signed in only: keep events the user saved, marked Interested, or whose artist or venue they follow"`
 }
 
 type userInput struct {

@@ -219,6 +219,19 @@ func (a *api) communityPage(c echo.Context) error {
 	if err != nil {
 		status, _, p.Error, _ = accountError(err)
 	}
+	// Optional: the open-questions line follows the same filters, and a failed
+	// count only hides it.
+	if err == nil && p.Enabled && a.discussionsEnabled() {
+		values := url.Values{"limit": {"1"}}
+		for key, value := range map[string]string{"city": p.Filters.City, "country": p.Filters.Country, "category_id": p.Filters.CategoryID} {
+			if value != "" {
+				values.Set(key, value)
+			}
+		}
+		if open, openErr := a.discussions.OpenQuestions(c.Request().Context(), "", values); openErr == nil {
+			p.OpenQuestions = open.Count
+		}
+	}
 	// Catalog failure never blocks durable community reads or clears the filter.
 	if p.Enabled && a.events != nil {
 		catalog, catalogErr := a.optionalCategories(c.Request().Context())

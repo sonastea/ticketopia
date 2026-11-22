@@ -28,6 +28,8 @@ var (
 	ErrConflict    = errors.New("idempotency key already used for another contribution")
 	// ErrDraftGone is an Attribution.Draft already published, discarded or expired.
 	ErrDraftGone = errors.New("draft already published, discarded or expired")
+	// ErrOwnQuestion is a Same question mark on the person's own post.
+	ErrOwnQuestion error = &accounts.ValidationError{Field: "post_id", Message: "mark Same question on someone else's question or tip"}
 )
 
 const MaxBody = 4000
@@ -47,17 +49,26 @@ type Post struct {
 	// post; empty for a person's own writing. Agents never post directly.
 	Via string `json:"via,omitempty"`
 	// ViaHost is that app's verified metadata host, empty for API-token drafts.
-	ViaHost      string           `json:"via_host,omitempty"`
-	Body         string           `json:"body"`
-	CreatedAt    time.Time        `json:"created_at"`
-	UpdatedAt    time.Time        `json:"updated_at"`
-	Removed      bool             `json:"removed"`
-	Hidden       bool             `json:"hidden"`
-	ReplyCount   int              `json:"reply_count"`
-	HelpfulCount int              `json:"helpful_count"`
-	Helpful      bool             `json:"helpful"`
-	Event        models.Event     `json:"event"`
-	Meta         models.Freshness `json:"meta"`
+	ViaHost      string    `json:"via_host,omitempty"`
+	Body         string    `json:"body"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Removed      bool      `json:"removed"`
+	Hidden       bool      `json:"hidden"`
+	ReplyCount   int       `json:"reply_count"`
+	HelpfulCount int       `json:"helpful_count"`
+	Helpful      bool      `json:"helpful"`
+	// SameQuestionCount is how many people marked this question or tip as
+	// theirs too; SameQuestion is the viewer's own mark. Both are withheld,
+	// like Helpful, for removed and hidden posts.
+	SameQuestionCount int  `json:"same_question_count"`
+	SameQuestion      bool `json:"same_question"`
+	// FirstPost marks a person's first visible question or tip while they
+	// have fewer than three visible contributions, so others can welcome them.
+	// It is derived from post history, never stored.
+	FirstPost bool             `json:"first_post"`
+	Event     models.Event     `json:"event"`
+	Meta      models.Freshness `json:"meta"`
 }
 type List struct {
 	Items      []Post  `json:"items"`
@@ -75,6 +86,11 @@ type Query struct {
 	City, Country, CategoryID string
 	Cursor                    *Cursor
 	Snapshot                  time.Time
+	// Open keeps visible roots with no visible reply on upcoming events.
+	Open bool
+	// Connected limits roots to events this account saved, marked
+	// Interested, or whose artist or venue it follows.
+	Connected string
 }
 type Create struct {
 	Owner, EventID, ThreadID, ParentID, Body, Key string
@@ -102,6 +118,7 @@ type Repository interface {
 	Edit(context.Context, string, string, string) (Post, error)
 	Remove(context.Context, string, string) error
 	React(context.Context, string, string, bool) (Post, error)
+	SameQuestion(context.Context, string, string, bool) (Post, error)
 }
 type Details interface {
 	Detail(context.Context, string) (models.EventDetail, error)
@@ -273,6 +290,77 @@ func (s *Service) React(ctx context.Context, who, id string, set bool) (Post, er
 	}
 	return s.repo.React(ctx, who, id, set)
 }
+
+// SameQuestion sets or clears the person's "Same question" mark on someone
+// else's visible question or tip.
+func (s *Service) SameQuestion(ctx context.Context, who, id string, set bool) (Post, error) {
+	if err := owner(who); err != nil {
+		return Post{}, err
+	}
+	if err := PostID(id); err != nil {
+		return Post{}, err
+	}
+	return s.repo.SameQuestion(ctx, who, id, set)
+}
+
+// ConnectionsMine is the connections value that limits open questions to the
+// signed-in person's own events.
+const ConnectionsMine = "mine"
+
+// OpenQuestions lists visible questions and tips that have no visible reply
+// yet, on upcoming events, newest started first like every community list.
+// connections=mine, for a signed-in viewer, keeps only events they saved,
+// marked Interested, or whose artist or venue they follow.
+func (s *Service) OpenQuestions(ctx context.Context, viewer string, values url.Values) (List, error) {
+	values, connected, err := openQuestionScope(viewer, values)
+	if err != nil {
+		return List{}, err
+	}
+	return s.list(ctx, viewer, "", "", values, &Query{Open: true, Connected: connected})
+}
+
+// openQuestionScope separates connections from the shared community filters.
+func openQuestionScope(viewer string, values url.Values) (url.Values, string, error) {
+	raw, ok := values["connections"]
+	if !ok {
+		return values, "", nil
+	}
+	copy := url.Values{}
+	for k, v := range values {
+		copy[k] = v
+	}
+	copy.Del("connections")
+	if len(raw) != 1 || (raw[0] != ConnectionsMine && raw[0] != "all") {
+		return copy, "", invalid("connections", "use mine or all")
+	}
+	if raw[0] != ConnectionsMine {
+		return copy, "", nil
+	}
+	if err := owner(viewer); err != nil {
+		return copy, "", err
+	}
+	return copy, viewer, nil
+}
+
+// ParseOpenQuery is ParseQuery for the open-questions collection, reporting
+// whether it is limited to the viewer's own events.
+func ParseOpenQuery(viewer string, values url.Values) (Query, bool, error) {
+	rest, connected, err := openQuestionScope(viewer, values)
+	q, parseErr := ParseQuery(rest, openScope(viewer, connected), true)
+	if err == nil {
+		err = parseErr
+	}
+	return q, connected != "", err
+}
+
+func openScope(viewer, connected string) string {
+	scope := "questions:" + viewer
+	if connected != "" {
+		scope += ":mine"
+	}
+	return scope
+}
+
 func queryScope(scope string, q Query) string {
 	data, _ := json.Marshal([]string{scope, strings.ToLower(q.City), q.Country, q.CategoryID})
 	return fmt.Sprintf("%x", sha256.Sum256(data))
@@ -307,6 +395,12 @@ func ParseQuery(values url.Values, scope string, community bool) (Query, error) 
 	return q, nil
 }
 func (s *Service) List(ctx context.Context, viewer, event, thread string, values url.Values) (List, error) {
+	return s.list(ctx, viewer, event, thread, values, nil)
+}
+
+// list reads one collection; open, when set, selects open questions and
+// their own cursor scope.
+func (s *Service) list(ctx context.Context, viewer, event, thread string, values url.Values, open *Query) (List, error) {
 	if event != "" {
 		if err := saved.ValidateID(event); err != nil {
 			return List{}, err
@@ -324,9 +418,15 @@ func (s *Service) List(ctx context.Context, viewer, event, thread string, values
 	if thread != "" {
 		scope += "/thread:" + thread
 	}
+	if open != nil {
+		scope = openScope(viewer, open.Connected)
+	}
 	q, err := ParseQuery(values, scope, event == "")
 	if err != nil {
 		return List{}, err
+	}
+	if open != nil {
+		q.Open, q.Connected = open.Open, open.Connected
 	}
 	// MariaDB owns creation timestamps. Use the same clock for pagination rather
 	// than temporarily hiding read-after-write results when app/DB clocks differ.

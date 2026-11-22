@@ -36,6 +36,7 @@ var runtimeTablePermissions = []struct {
 	{"live_recommendation_activity", "", true},
 	{"discussion_posts", "body", false},
 	{"post_helpful", "post_id", true},
+	{"discussion_same_question", "", true},
 	{"discussion_follows", "frequency", true},
 	{"discussion_notifications", "read_at", true},
 	{"discussion_notification_posts", "", false},

@@ -3,6 +3,7 @@ package home
 import (
 	"net/url"
 
+	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/radar"
 	"github.com/sonastea/ticketopia/views/layouts"
@@ -15,6 +16,9 @@ type RadarPage struct {
 	List             radar.List
 	Saves            SaveView
 	Interests        InterestView
+	// Activity holds each match's public preview for its recommendation quote;
+	// nil when previews are unavailable, which leaves the matches usable.
+	Activity map[string]eventactivity.Preview
 }
 
 func (p RadarPage) nextURL() string {

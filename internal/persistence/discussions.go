@@ -42,8 +42,12 @@ const postTail = `,e.data_as_of,
  (SELECT COUNT(*) FROM discussion_posts replies WHERE replies.root_id=p.post_id AND replies.removed_at IS NULL AND replies.hidden_at IS NULL),
  (SELECT COUNT(*) FROM post_helpful h WHERE h.post_id=p.post_id),
  EXISTS(SELECT 1 FROM post_helpful h WHERE h.post_id=p.post_id AND h.account_id=?),
+ (SELECT COUNT(*) FROM discussion_same_question s WHERE s.post_id=p.post_id),
+ EXISTS(SELECT 1 FROM discussion_same_question s WHERE s.post_id=p.post_id AND s.account_id=?),
  COALESCE((SELECT CASE WHEN parent.removed_at IS NOT NULL THEN 'Removed contribution' WHEN parent.hidden_at IS NOT NULL THEN 'Hidden contribution' ELSE author.display_name END FROM discussion_posts parent JOIN accounts author ON author.account_id=parent.account_id WHERE parent.post_id=p.parent_id),''),
- COALESCE(p.via_client_name,''),COALESCE(p.via_client_host,'')`
+ COALESCE(p.via_client_name,''),COALESCE(p.via_client_host,''),
+ (p.root_id IS NULL AND (SELECT COUNT(*) FROM discussion_posts mine WHERE mine.account_id=p.account_id AND mine.removed_at IS NULL AND mine.hidden_at IS NULL)<3
+  AND NOT EXISTS(SELECT 1 FROM discussion_posts earlier WHERE earlier.account_id=p.account_id AND earlier.root_id IS NULL AND earlier.removed_at IS NULL AND earlier.hidden_at IS NULL AND (earlier.created_at<p.created_at OR (earlier.created_at=p.created_at AND earlier.post_id<p.post_id))))`
 const postJoin = ` FROM discussion_posts p JOIN accounts a ON a.account_id=p.account_id JOIN event_snapshots e ON e.event_id=p.event_id`
 
 func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
@@ -62,7 +66,7 @@ func scanPost(row interface{ Scan(...any) error }) (discussions.Post, error) {
 func scanPostRow(row interface{ Scan(...any) error }, p *discussions.Post) ([]byte, error) {
 	var profile accounts.PublicProfile
 	var data []byte
-	err := row.Scan(&p.ID, &p.EventID, &p.ThreadID, &p.ParentID, &profile.ID, &profile.DisplayName, &profile.Bio, &p.Body, &p.CreatedAt, &p.UpdatedAt, &p.Removed, &p.Hidden, &data, &p.Meta.DataAsOf, &p.ReplyCount, &p.HelpfulCount, &p.Helpful, &p.ParentName, &p.Via, &p.ViaHost)
+	err := row.Scan(&p.ID, &p.EventID, &p.ThreadID, &p.ParentID, &profile.ID, &profile.DisplayName, &profile.Bio, &p.Body, &p.CreatedAt, &p.UpdatedAt, &p.Removed, &p.Hidden, &data, &p.Meta.DataAsOf, &p.ReplyCount, &p.HelpfulCount, &p.Helpful, &p.SameQuestionCount, &p.SameQuestion, &p.ParentName, &p.Via, &p.ViaHost, &p.FirstPost)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, discussions.ErrNotFound
 	}
@@ -79,6 +83,9 @@ func scanPostRow(row interface{ Scan(...any) error }, p *discussions.Post) ([]by
 		p.Via, p.ViaHost = "", ""
 		p.HelpfulCount = 0
 		p.Helpful = false
+		p.SameQuestionCount = 0
+		p.SameQuestion = false
+		p.FirstPost = false
 	} else {
 		p.Profile = &profile
 	}
@@ -92,7 +99,7 @@ type postReader interface {
 const postSelect = `SELECT ` + postColumns + postJoin
 
 func readPost(ctx context.Context, db postReader, viewer, id string) (discussions.Post, error) {
-	return scanPost(db.QueryRowContext(ctx, postSelect+` WHERE p.post_id=?`, viewer, id))
+	return scanPost(db.QueryRowContext(ctx, postSelect+` WHERE p.post_id=?`, viewer, viewer, id))
 }
 
 // readPosts is readPost for a bounded set of IDs in one statement, keyed by ID.
@@ -105,7 +112,7 @@ func readPosts(ctx context.Context, db interface {
 		return posts, nil
 	}
 	var scanErr error
-	err := queryRowsTx(ctx, db, postSelect+` WHERE p.post_id IN (`+placeholders(len(ids))+`)`, append([]any{viewer}, ids...), func(rows *sql.Rows) error {
+	err := queryRowsTx(ctx, db, postSelect+` WHERE p.post_id IN (`+placeholders(len(ids))+`)`, append([]any{viewer, viewer}, ids...), func(rows *sql.Rows) error {
 		p, err := scanPost(rows)
 		scanErr = err
 		posts[p.ID] = p
@@ -306,6 +313,9 @@ func (r *DiscussionRepository) Remove(ctx context.Context, owner, id string) err
 	if _, err = tx.ExecContext(ctx, `DELETE FROM post_helpful WHERE post_id=?`, id); err != nil {
 		return safeError("discussion removal", err)
 	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM discussion_same_question WHERE post_id=?`, id); err != nil {
+		return safeError("discussion removal", err)
+	}
 	if err = tx.Commit(); err != nil {
 		return safeError("discussion removal", err)
 	}
@@ -344,6 +354,45 @@ func (r *DiscussionRepository) React(ctx context.Context, owner, id string, set 
 	}
 	return p, nil
 }
+// SameQuestion sets or clears the owner's mark on someone else's visible
+// question or tip. Marks only annotate; they never change any list order.
+func (r *DiscussionRepository) SameQuestion(ctx context.Context, owner, id string, set bool) (discussions.Post, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return discussions.Post{}, safeError("Same question write", err)
+	}
+	defer tx.Rollback()
+	var author string
+	var reply, withheld bool
+	err = tx.QueryRowContext(ctx, `SELECT account_id,root_id IS NOT NULL,(removed_at IS NOT NULL OR hidden_at IS NOT NULL) FROM discussion_posts WHERE post_id=? FOR UPDATE`, id).Scan(&author, &reply, &withheld)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && (reply || (withheld && set))) {
+		return discussions.Post{}, discussions.ErrNotFound
+	}
+	if err != nil {
+		return discussions.Post{}, safeError("Same question write", err)
+	}
+	if author == owner && set {
+		return discussions.Post{}, discussions.ErrOwnQuestion
+	}
+	if set {
+		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO discussion_same_question (account_id,post_id) VALUES (?,?)`, owner, id)
+	} else {
+		_, err = tx.ExecContext(ctx, `DELETE FROM discussion_same_question WHERE account_id=? AND post_id=?`, owner, id)
+	}
+	if err != nil {
+		return discussions.Post{}, safeError("Same question write", err)
+	}
+	p, err := readPost(ctx, tx, owner, id)
+	if err != nil {
+		return discussions.Post{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return discussions.Post{}, safeError("Same question write", err)
+	}
+	return p, nil
+}
 func discussionQueries(viewer, event, thread string, q discussions.Query) (string, []any, string, []any) {
 	where := ` WHERE p.created_at<=?`
 	args := []any{q.Snapshot.UTC()}
@@ -356,6 +405,27 @@ func discussionQueries(viewer, event, thread string, q discussions.Query) (strin
 	if event != "" {
 		where += ` AND p.event_id=?`
 		args = append(args, event)
+	}
+	if q.Open {
+		// Visible questions and tips with no visible reply, on events that have
+		// not started (or whose date is unknown). A removed or hidden reply
+		// returns the root at its original position. Eligibility uses the
+		// database's current time, not the cursor's creation snapshot, so an
+		// event that starts mid-pagination leaves later pages. A date-only event
+		// counts until its own local day ends; without a usable time zone, a day
+		// later than UTC's, so no event leaves early.
+		where += ` AND p.removed_at IS NULL AND p.hidden_at IS NULL AND NOT EXISTS(SELECT 1 FROM discussion_posts answer WHERE answer.root_id=p.post_id AND answer.removed_at IS NULL AND answer.hidden_at IS NULL)
+ AND EXISTS(SELECT 1 FROM events ev WHERE ev.event_id=p.event_id AND (ev.start_utc>=UTC_TIMESTAMP(6) OR (ev.start_utc IS NULL AND (ev.local_date IS NULL
+  OR ev.local_date>=COALESCE(DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00',ev.timezone)),UTC_DATE()-INTERVAL 1 DAY)))))`
+	}
+	if q.Connected != "" {
+		// The signed-in viewer's own private connections only; the match is
+		// never returned or shown to anyone else.
+		where += ` AND (EXISTS(SELECT 1 FROM saved_events cs WHERE cs.account_id=? AND cs.event_id=p.event_id)
+ OR EXISTS(SELECT 1 FROM event_interests ci WHERE ci.account_id=? AND ci.event_id=p.event_id)
+ OR EXISTS(SELECT 1 FROM artist_follows ca JOIN event_search_facets cf ON cf.kind='artist' AND cf.value=ca.artist_id WHERE ca.account_id=? AND cf.event_id=p.event_id)
+ OR EXISTS(SELECT 1 FROM venue_follows cv JOIN event_search_facets cf ON cf.kind='venue' AND cf.value=cv.venue_id WHERE cv.account_id=? AND cf.event_id=p.event_id))`
+		args = append(args, q.Connected, q.Connected, q.Connected, q.Connected)
 	}
 	filters, filterArgs := communityFilters(q.City, q.Country, q.CategoryID)
 	where += filters
@@ -370,7 +440,7 @@ func discussionQueries(viewer, event, thread string, q discussions.Query) (strin
 		where += ` AND (p.created_at` + op + `? OR (p.created_at=? AND p.post_id` + op + `?))`
 		args = append(args, q.Cursor.At.UTC(), q.Cursor.At.UTC(), q.Cursor.ID)
 	}
-	args = append([]any{viewer}, args...)
+	args = append([]any{viewer, viewer}, args...)
 	args = append(args, q.Limit+1)
 	ordering := ` ORDER BY p.created_at ` + order + `,p.post_id ` + order
 	keys := `SELECT p.post_id,p.event_id` + postJoin + where + ordering + ` LIMIT ?`

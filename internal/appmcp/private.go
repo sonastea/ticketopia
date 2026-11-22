@@ -49,6 +49,7 @@ var SignedInTools = map[string]string{
 	"recommend_event": ScopePublish, "withdraw_recommendation": ScopePublish, "my_recommendations": ScopeRead,
 	"draft_recommendation": ScopeWrite, "my_drafts": ScopeRead, "discard_draft": ScopeWrite,
 	"draft_question": ScopeWrite, "draft_reply": ScopeWrite, "mark_helpful": ScopePublish, "unmark_helpful": ScopePublish,
+	"mark_same_question": ScopePublish, "unmark_same_question": ScopePublish,
 	"my_followed_discussions": ScopeRead, "my_notifications": ScopeRead, "mark_notification_read": ScopeWrite,
 	"my_preferences": ScopeRead, "follow_discussion": ScopeWrite, "unfollow_discussion": ScopeWrite,
 }

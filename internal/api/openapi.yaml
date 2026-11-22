@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.28.0
+  version: 1.29.0
   license:
     name: MIT
     identifier: MIT
@@ -1964,6 +1964,55 @@ paths:
         '403': {$ref: '#/components/responses/CSRFRejected'}
         '404': {$ref: '#/components/responses/DiscussionNotFound'}
         '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/posts/{post_id}/reactions/same-question:
+    parameters:
+      - {$ref: '#/components/parameters/PostID'}
+    put:
+      operationId: setPostSameQuestion
+      summary: Mark someone else's question as yours too
+      description: Empty body, no query. One mark per user and question or tip (root post); retries cannot double-count. Replies, removed or hidden posts are 404; your own post is 400 (post_id). Marks annotate open questions and never reorder any list. Cookie writes require CSRF and same-origin checks.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+    delete:
+      operationId: removePostSameQuestion
+      summary: Remove your Same question mark
+      description: Empty body, no query. Idempotent; returns the authoritative count and viewer state, including for a removed post. Cookie writes require CSRF and same-origin checks.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionPost'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404': {$ref: '#/components/responses/DiscussionNotFound'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
+  /api/v1/community/questions:
+    get:
+      operationId: listOpenQuestions
+      summary: Browse questions nobody has answered yet
+      security: [{}, {sessionCookie: []}, {bearerToken: []}]
+      description: Visible questions and tips with no visible reply, on events that have not started (or whose date is unknown), newest started first. A reply removes a question; removing or hiding that reply returns it at its original position. Same question marks never reorder the list. Filters match /api/v1/community/discussions. connections=mine, signed in, keeps events the caller saved, marked Interested, or whose artist or venue they follow; the match is private. Cursors bind filters, connections, viewer and creation boundary.
+      parameters:
+        - {name: city, in: query, schema: {type: string, maxLength: 120}}
+        - {name: country, in: query, schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
+        - {name: category_id, in: query, schema: {type: string, maxLength: 64}}
+        - {name: connections, in: query, description: 'mine (signed in only) or all, the default.', schema: {type: string, enum: [all, mine]}}
+        - {$ref: '#/components/parameters/InterestLimit'}
+        - {$ref: '#/components/parameters/DiscussionCursor'}
+      responses:
+        '200': {$ref: '#/components/responses/DiscussionList'}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/DiscussionsUnavailable'}
   /api/v1/community/discussions:
     get:
       operationId: listCommunityDiscussions
@@ -2739,7 +2788,7 @@ components:
     DiscussionPost:
       type: object
       additionalProperties: false
-      required: [id, event_id, thread_id, body, created_at, updated_at, removed, hidden, reply_count, helpful_count, helpful, event, meta]
+      required: [id, event_id, thread_id, body, created_at, updated_at, removed, hidden, reply_count, helpful_count, helpful, same_question_count, same_question, first_post, event, meta]
       properties:
         id: {$ref: '#/components/schemas/AccountID'}
         event_id: {type: string}
@@ -2757,6 +2806,9 @@ components:
         reply_count: {type: integer, minimum: 0, description: Visible replies to this root; zero for replies.}
         helpful_count: {type: integer, minimum: 0}
         helpful: {type: boolean, description: This authenticated viewer's choice; false for guests.}
+        same_question_count: {type: integer, minimum: 0, description: People who marked this question or tip as theirs too; zero for replies and withheld for removed or hidden posts.}
+        same_question: {type: boolean, description: This authenticated viewer's Same question mark; false for guests.}
+        first_post: {type: boolean, description: "The author's first visible question or tip while they have fewer than three visible contributions, shown as a welcome label. Derived from visible post history; always false for replies and removed or hidden posts."}
         event: {$ref: '#/components/schemas/Event'}
         meta: {$ref: '#/components/schemas/Freshness'}
     DiscussionFrequency:

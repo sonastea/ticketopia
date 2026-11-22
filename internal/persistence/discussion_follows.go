@@ -109,8 +109,8 @@ func (r *DiscussionFollowRepository) List(ctx context.Context, who string, q dis
 		where += ` AND (f.created_at<? OR (f.created_at=? AND f.thread_id<?))`
 		args = append(args, q.Cursor.At, q.Cursor.At, q.Cursor.ID)
 	}
-	// The viewer argument fills postColumns' Helpful placeholder.
-	args = append([]any{who}, append(args, q.Limit+1)...)
+	// The viewer argument fills postColumns' Helpful and Same question placeholders.
+	args = append([]any{who, who}, append(args, q.Limit+1)...)
 	// Roots load with the page, using the same projection as readPost.
 	rows, err := r.db.QueryContext(ctx, `SELECT f.frequency,f.created_at,`+postColumns+` FROM discussion_follows f JOIN discussion_posts p ON p.post_id=f.thread_id JOIN accounts a ON a.account_id=p.account_id JOIN event_snapshots e ON e.event_id=p.event_id`+where+` ORDER BY f.created_at DESC,f.thread_id DESC LIMIT ?`, args...)
 	if err != nil {

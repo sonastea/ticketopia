@@ -50,6 +50,8 @@ UPDATE discussion_posts SET body = body WHERE FALSE;
 INSERT INTO post_helpful SELECT * FROM post_helpful WHERE FALSE;
 UPDATE post_helpful SET post_id = post_id WHERE FALSE;
 DELETE FROM post_helpful WHERE FALSE;
+INSERT INTO discussion_same_question SELECT * FROM discussion_same_question WHERE FALSE;
+DELETE FROM discussion_same_question WHERE FALSE;
 INSERT INTO discussion_follows SELECT * FROM discussion_follows WHERE FALSE;
 UPDATE discussion_follows SET frequency=frequency WHERE FALSE;
 DELETE FROM discussion_follows WHERE FALSE;

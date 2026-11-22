@@ -105,6 +105,34 @@ type CommunityPage struct {
 	Categories            []models.Category
 	CategoriesUnavailable bool
 	ReturnURL, Error      string
+	// OpenQuestions counts unanswered questions in the same city, country and
+	// category, for the "Can you help?" line; zero hides it.
+	OpenQuestions int
+}
+
+// openQuestionsLink keeps the community filters on the way to open questions.
+func (p CommunityPage) openQuestionsLink() string {
+	v := url.Values{}
+	for key, value := range map[string]string{"city": p.Filters.City, "country": p.Filters.Country, "category_id": p.Filters.CategoryID} {
+		if value != "" {
+			v.Set(key, value)
+		}
+	}
+	if len(v) == 0 {
+		return "/community/questions"
+	}
+	return "/community/questions?" + v.Encode()
+}
+
+func (p CommunityPage) openQuestionsLabel() string {
+	where := ""
+	if p.Filters.City != "" {
+		where = " in " + p.Filters.City
+	}
+	if p.OpenQuestions == 1 {
+		return "1 open question" + where
+	}
+	return fmt.Sprintf("%d open questions", p.OpenQuestions) + where
 }
 
 // listContext tells a shared list where it renders, so its empty state can name
@@ -196,6 +224,9 @@ type CommunityFilterBar struct {
 	Action, Prefix, Label     string
 	City, Country, CategoryID string
 	Categories                []models.Category
+	// ShowConnections offers the signed-in "Your events" choice; Mine is
+	// that choice selected.
+	ShowConnections, Mine bool
 }
 
 func (f CommunityFilterBar) hasCategory() bool {

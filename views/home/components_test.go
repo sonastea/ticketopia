@@ -314,10 +314,15 @@ func TestDiscoveryRowsExposeDetailsAndOnlyRealPublicActivity(t *testing.T) {
 	if strings.Count(markup, "data-event-link") != 4 || strings.Count(markup, `tabindex="-1" aria-hidden="true"`) != 1 {
 		t.Fatal("row artwork adds a second tab stop for the same event")
 	}
-	for _, unwanted := range []string{"Where is the entrance?", "Public reason", "Public author", "Read conversation", "data-thread-link"} {
+	// Rows quote the newest recommendation reason, escaped, but never question
+	// text or conversation links; those stay in the event's sections.
+	for _, unwanted := range []string{"Where is the entrance?", "<script>", "Read conversation", "data-thread-link"} {
 		if strings.Contains(markup, unwanted) {
 			t.Errorf("row includes full community content %q", unwanted)
 		}
+	}
+	if !strings.Contains(markup, "&lt;script&gt;Public reason&lt;/script&gt;") || !strings.Contains(markup, "Public author recommends this event") {
+		t.Error("row lost its escaped recommendation quote")
 	}
 	out.Reset()
 	if err := EventRowsWithActivity([]models.Event{event}, "/", "", SaveView{}, "/", InterestView{}, nil).Render(t.Context(), &out); err != nil {

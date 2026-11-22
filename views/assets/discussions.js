@@ -73,6 +73,9 @@
     }
     const dirty = form.elements.post_id.value ? form.elements.body.value !== form.elements.body.defaultValue : Boolean(form.elements.body.value);
     if (discard) discard.hidden = Boolean(attempt) || form.dataset.pending === 'true' || !dirty;
+    // Starters only help an empty field; they never publish anything.
+    const starters = form.querySelector('[data-composer-starters]');
+    if (starters) starters.hidden = Boolean(form.elements.body.value) || form.elements.body.readOnly;
   }
   function saveDraft(form, later) {
     if (!form.isConnected || !form.dataset.discussionDraft || confirmedForms.has(form)) return;
@@ -107,6 +110,18 @@
     if (form) { confirmedForms.delete(form); saveDraft(form, true); keepComposerVisible(); }
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+  // A starter fills the empty field with editable text and moves focus there,
+  // as typing would; the input event saves it like any other draft.
+  document.addEventListener('click', event => {
+    const starter = event.target.closest('[data-composer-starter]');
+    if (!starter) return;
+    const form = starter.closest('[data-discussion-draft]');
+    if (!form || form.elements.body.value || form.elements.body.readOnly) return;
+    form.elements.body.value = starter.dataset.composerStarter;
+    form.elements.body.focus();
+    form.elements.body.setSelectionRange(form.elements.body.value.length, form.elements.body.value.length);
+    form.elements.body.dispatchEvent(new Event('input', {bubbles: true}));
+  });
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-discard-draft]');
     if (!button) return;
@@ -240,7 +255,8 @@
         scrollTo(0, saved.scroll);
       } else if (confirmation) {
         const post = document.getElementById('post-' + confirmation.post);
-        target = confirmation.action === 'helpful' || confirmation.action === 'unhelpful' ? post?.querySelector('button[aria-pressed]')
+        const marked = {helpful: '.helpful-button', unhelpful: '.helpful-button', same_question: '.same-question-button', not_same_question: '.same-question-button'}[confirmation.action];
+        target = marked ? post?.querySelector(marked)
           : confirmation.action === 'edit' ? post?.querySelector('.discussion-editor > summary') : post;
         if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') acknowledge(target, confirmation.action);
         if (confirmation.action !== 'create') scrollTo(0, position);
@@ -375,9 +391,16 @@
       if (draft) save(form);
     }
   });
+  const focusComposer = () => {
+    if (location.hash === '#discussion-composer' && (!document.activeElement || document.activeElement === document.body)) document.querySelector('#discussion-composer textarea')?.focus();
+  };
   document.addEventListener('DOMContentLoaded', () => {
     restore(); keepComposerVisible();
-    if (location.hash === '#discussion-composer') document.querySelector('#discussion-composer textarea')?.focus();
+    focusComposer();
+    // A cross-document view transition drops focus set while the page loads
+    // (arriving from Answer or Reply), so place it again once it finishes.
+    // This deferred script runs after pagereveal, so read the active one.
+    document.activeViewTransition?.finished.then(focusComposer, focusComposer);
   });
   document.addEventListener('htmx:afterSwap', restore);
   document.addEventListener('ticketopia:remember-drafts', () => document.querySelectorAll('[data-discussion-draft]').forEach(save));
