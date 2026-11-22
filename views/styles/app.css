@@ -630,6 +630,10 @@ h3 {
 .app-workspace {
   min-inline-size: 0;
   container: workspace / inline-size;
+  /* viewport-fit=cover paints under a landscape notch and rounded corners;
+     pages keep clear of them. Physical: safe areas are screen geometry. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* Discovery can use wide displays without widening dedicated reading pages. */
@@ -675,7 +679,12 @@ h3 {
   gap: min(1rem, 5vw);
   min-block-size: 4.5rem;
   padding-block: .75rem;
-  padding-inline: min(1.25rem, 6.25vw);
+  /* The bar runs under the safe areas edge to edge while its content clears
+     them (the workspace is inset by the same amounts). */
+  margin-left: calc(-1 * env(safe-area-inset-left, 0px));
+  margin-right: calc(-1 * env(safe-area-inset-right, 0px));
+  padding-left: calc(min(1.25rem, 6.25vw) + env(safe-area-inset-left, 0px));
+  padding-right: calc(min(1.25rem, 6.25vw) + env(safe-area-inset-right, 0px));
   background: var(--surface);
   border-block-end: 1px solid var(--line);
   color: var(--ink);
