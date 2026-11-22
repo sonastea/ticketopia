@@ -25,7 +25,9 @@
   (stored tint, or one of seven hues chosen from the ID) with a perforation dot
   grid. The lead says how soon it is (Tonight, Tomorrow, In 4 days) and takes two
   of three columns beside the next event; desktop agenda headings stick while
-  their stretch scrolls; count chips read "2 questions" / "2 recommend".
+  their stretch scrolls; count chips read "2 questions" / "2 recommend". The
+  routine "Updated …" line moves below the results (warnings stay above), and
+  Happening Now shows a Live / Reconnecting signal that follows the stream.
   See [indexed event rows](../../DESIGN.md#indexed-event-rows).
 
 ### 2026-11-20 — Depth layer across Discover and the event page
@@ -87,12 +89,6 @@
   events, drop overlapping rows, use the oldest page's time and batch private
   reads. A stale `through` on a whole page falls back to the requested page.
   See [discovery](../discovery.md#restoring-loaded-pages).
-
-### 2026-10-24 — Selected row stays in view
-
-- Opening the desktop preview centers the chosen row before paint, without motion,
-  after cards reflow into rows. Closing or widening moves only an out-of-view row;
-  visible rows never shift under the pointer. See [discovery](../discovery.md#responsive-navigation-and-event-details).
 
 Older entries: [discovery archive](archive/discovery/).
 

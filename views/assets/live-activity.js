@@ -3,6 +3,13 @@
   const root = document.querySelector('[data-live-activity]');
   if (!root) return;
   const node = name => root.querySelector(`[data-live-${name}]`);
+  // Happening Now's heading signal shows only what the connection has proven:
+  // Live once data arrives, Reconnecting while it retries, nothing when stopped.
+  const signal = state => {
+    const el = node('signal'); if (!el) return;
+    el.hidden = !state; el.dataset.state = state;
+    el.querySelector('[data-live-signal-label]').textContent = state === 'live' ? 'Live' : 'Reconnecting';
+  };
   const details = node('details'), list = node('list'), updates = node('updates');
   const onPage = !!node('page'), toasts = node('toasts');
   const text = (name, value) => { if (node(name)) node(name).textContent = value; };
@@ -113,7 +120,7 @@
     clearTimeout(expiryTimer);
     clearTimeout(announceTimer);
   };
-  const stop = () => { ++generation; stream?.close(); stream = null; clearTimeout(reconnectTimer); reconnectTimer = undefined; clear(); baseline = true; };
+  const stop = () => { ++generation; stream?.close(); stream = null; clearTimeout(reconnectTimer); reconnectTimer = undefined; clear(); baseline = true; signal(''); };
   const controls = () => {
     if (!onPage) return;
     details.hidden = paused;
@@ -184,6 +191,7 @@
   };
   const receive = data => {
     if (!Array.isArray(data.items) || !Number.isFinite(Date.parse(data.as_of))) throw new Error();
+    signal('live');
     if (!baseline && Date.parse(data.as_of) < serverAt) return;
     // Metadata changes can admit older contributions. They replace this view
     // quietly rather than being announced as newly published recommendations.
@@ -299,7 +307,7 @@
     catch { if (turn === generation) { interrupted(); preferences(); } }
   };
   const interrupted = () => {
-    stop(); staleCounts(); text('connection', 'Live activity is reconnecting');
+    stop(); staleCounts(); text('connection', 'Live activity is reconnecting'); signal('reconnecting');
     if (allowed()) { reconnectTimer = setTimeout(connect, backoff * (0.8 + Math.random() * 0.2)); backoff = Math.min(60000, backoff * 2); }
   };
   const connect = () => {

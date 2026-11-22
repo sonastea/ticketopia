@@ -39,7 +39,7 @@ templ Index(page SearchPage) {
 							<h2 id="results-heading">Upcoming events <span>{ resultsTitle(page.Events.Total) }</span></h2>
 							<span class="sort-label"><span class="sr-only">Sorted by </span>{ sortLabel(page.Filters.Sort) }</span>
 						</div>
-						@ResultsFreshness(page.Events.Meta)
+						@ResultsWarning(page.Events.Meta)
 						if len(page.Events.Items) == 0 {
 							@empty.Empty(empty.Props{Class: "feedback empty-state"}) {
 								<h3>{ emptySearchTitle(page.Events.Meta) }</h3>

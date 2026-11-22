@@ -1786,14 +1786,14 @@ html:has(.filter-sheet:modal) {
   padding-block: 2rem .75rem;
   padding-inline: .75rem;
 }
-.event-group:first-child { padding-block-start: .5rem; }
+.event-group:first-child { padding-block-start: 1rem; }
 .event-group-label {
   color: var(--ink);
   font-family: var(--font-display);
   /* Sized to the results column too, so enlarged text on a phone keeps a
      month name whole. */
-  font-size: clamp(1rem, 11cqi, 1.375rem);
-  font-weight: 750;
+  font-size: clamp(1rem, 11cqi, 1.1875rem);
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: -.02em;
 }
@@ -1815,7 +1815,7 @@ html:has(.filter-sheet:modal) {
 }
 @container results (min-width: 48rem) {
   .event-group { padding-block: 1rem 0; padding-inline: 0; }
-  .event-group:first-child { padding-block-start: 0; }
+  .event-group:first-child { padding-block-start: .75rem; }
 }
 /* With three columns the lead takes two, and the next event sits beside it. */
 @container results (min-width: 51rem) {
@@ -4853,6 +4853,40 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   .live-card-link:hover { color: var(--brand); text-decoration: underline; }
 }
 .live-card:has(.live-card-link:active) { background: color-mix(in oklch, var(--brand-soft) 45%, var(--surface)); }
+
+/* Happening Now's heading signal: Live (success green, its dot pulsing a ring
+   outward with motion allowed) once the stream delivers, Reconnecting (warning)
+   while it retries, hidden otherwise. The connection line states it in words. */
+.live-heading { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.live-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  margin: 0;
+  padding-block: .25rem;
+  padding-inline: .5rem .7rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--success) 10%, var(--surface));
+  color: var(--success);
+  font-size: .75rem;
+  font-weight: 750;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.live-signal[data-state="reconnecting"] { background: var(--warning-bg); color: var(--warning); }
+.live-dot { position: relative; flex: none; inline-size: .5rem; block-size: .5rem; border-radius: 50%; background: currentColor; }
+.live-dot::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: currentColor; opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .live-signal[data-state="live"] .live-dot::after { animation: live-pulse 2s var(--ease-out) infinite; }
+}
+@keyframes live-pulse {
+  from { opacity: .45; scale: 1; }
+  to { opacity: 0; scale: 2.6; }
+}
+@media (forced-colors: active) {
+  .live-dot { forced-color-adjust: none; background: CanvasText; }
+}
 
 /* Empty Community states are a typographic moment, not a grey sentence. */
 /* The shrinkable column lets a long word in the display heading wrap, not overflow. */

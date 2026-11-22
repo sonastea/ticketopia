@@ -192,7 +192,7 @@ func Index(page SearchPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = ResultsFreshness(page.Events.Meta).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = ResultsWarning(page.Events.Meta).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

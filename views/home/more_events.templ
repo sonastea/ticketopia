@@ -255,6 +255,21 @@ templ ResultsFreshness(meta models.Freshness) {
 	}
 }
 
+// ResultsWarning keeps a stale or partial-coverage warning above the results,
+// where it qualifies them; ResultsUpdated puts the routine "Updated …" line
+// after them, so the first event comes sooner.
+templ ResultsWarning(meta models.Freshness) {
+	if resultsNoticeSummary(meta) != "" {
+		@ResultsFreshness(meta)
+	}
+}
+
+templ ResultsUpdated(meta models.Freshness) {
+	if resultsNoticeSummary(meta) == "" {
+		@ResultsFreshness(meta)
+	}
+}
+
 templ resultsFreshnessText(meta models.Freshness) {
 	if meta.Stale {
 		<strong>Showing last-known results, not live availability.</strong>{ " " }
@@ -330,6 +345,8 @@ templ Pagination(page SearchPage) {
 		}
 		if page.Filters.Page > 0 {
 			@ResultsFreshness(page.Events.Meta)
+		} else {
+			@ResultsUpdated(page.Events.Meta)
 		}
 		<p id="load-error" class="load-error" role="alert"></p>
 	</div>

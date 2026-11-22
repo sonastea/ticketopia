@@ -619,8 +619,8 @@ the event's Questions & tips or Recommendations section.
 **Discover as an agenda.** Date-sorted results are grouped by the browsed city's
 calendar: **Today**, **This week** (through Sunday), **Next week**, **Later in
 {month}**, then each month (with the year once it differs). Each stretch opens
-with a heading in the display face (fluid 1–1.375rem, sized to the results
-column so a month name stays whole), its dates in muted tabular text, and a
+with a heading in the display face (fluid 1–1.1875rem, weight 700, below the
+"Upcoming events" heading; sized to the results column so a month name stays whole), its dates in muted tabular text, and a
 hairline running to the edge. Headings span the card grid; in lists they replace
 the next row's rule. They repeat each row's full date, so they are `aria-hidden`
 list items rather than headings, and Load more drops one that continues the
@@ -683,7 +683,7 @@ scope labels wrap in ordinary text; an empty match explicitly offers Reset witho
 widening automatically. Guest settings stay browser-local, while account settings
 have equivalent native controls in Preferences. Applying filters replaces only the
 live region, preserving event composers, drafts, focus and participation controls.
-Happening Now puts its scope summary, the filter disclosure and the toast and Refresh ghost actions in one compact bar. Activity renders as compact cards (20rem grid minimum): a square thumbnail with the date chip, drawn from stored snapshots on the server render. Each card shows an initials circle with the first name's initial, the group count, or an empty dashed circle for Someone, plus attribution, the title link (stretched to cover the card) and city/time. Live-pushed cards use fallback art until the next render, and no reason is shown beside anonymous attribution. Empty Community and Happening Now states lead with a large `empty-display` line and the main action as a primary button. See [live filtering](docs/live-community-activity.md#city-and-event-type-filters-part-2).
+Happening Now puts its scope summary, the filter disclosure and the toast and Refresh ghost actions in one compact bar. Its heading carries a small uppercase **Live** pill (success green, its dot pulsing a ring outward with motion allowed) once the stream has delivered data, **Reconnecting** (warning colours) while it retries, and nothing when stopped or paused; it is decorative, since the connection line says the same in words. Activity renders as compact cards (20rem grid minimum): a square thumbnail with the date chip, drawn from stored snapshots on the server render. Each card shows an initials circle with the first name's initial, the group count, or an empty dashed circle for Someone, plus attribution, the title link (stretched to cover the card) and city/time. Live-pushed cards use fallback art until the next render, and no reason is shown beside anonymous attribution. Empty Community and Happening Now states lead with a large `empty-display` line and the main action as a primary button. See [live filtering](docs/live-community-activity.md#city-and-event-type-filters-part-2).
 
 ### Event Discussions
 

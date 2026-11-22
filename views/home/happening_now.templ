@@ -8,7 +8,11 @@ templ HappeningNow(p HappeningNowPage) {
 	@layouts.App("community", "Happening Now") {
 		<main id="main" class="destination-page live-activity" data-live-page data-live-guest?={ !p.SignedIn && p.Error == "" }>
 			<header class="page-header account-heading">
-				<h1 tabindex="-1" data-live-heading>Happening Now</h1>
+				<div class="live-heading">
+					<h1 tabindex="-1" data-live-heading>Happening Now</h1>
+					// Decorative: the connection line below states the same in words.
+					<p class="live-signal" data-live-signal hidden aria-hidden="true"><span class="live-dot"></span><span data-live-signal-label>Live</span></p>
+				</div>
 				<p class="intro">Public recommendations from the last 10 minutes</p>
 			</header>
 			@CommunityNav("happening-now")
