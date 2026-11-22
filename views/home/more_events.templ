@@ -178,7 +178,7 @@ templ EventRowActivity(id string, preview eventactivity.Preview, returnURL strin
 }
 
 templ EventImage(event models.Event, slot artSlot) {
-	<div class="event-image" style={ transitionStyle("art", event.ID) }>
+	<div class="event-image" style={ artStyle(event) }>
 		<div class="image-fallback" aria-hidden="true">@layouts.Icon(eventIcon(event))
 </div>
 		if art := artFor(event.Images, slot); art.Src != "" {

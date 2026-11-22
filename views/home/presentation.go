@@ -2,6 +2,7 @@ package home
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math"
 	"net/url"
 	"regexp"
@@ -523,6 +524,45 @@ func transitionStyle(part, id string) templ.SafeCSS {
 
 // tintStyle carries the stored artwork colour into the event header. Only a
 // strict #rrggbb value is emitted; anything else keeps the brand fallback.
+// artStyle names the artwork for view transitions and gives its fallback a
+// colour of its own (--art-tint): the artwork's stored tint, or, for an event
+// without artwork, a hue derived from its ID at the stored tints' fixed
+// lightness and chroma, so placeholders differ but stay in the same family.
+func artStyle(event models.Event) templ.SafeCSS {
+	style := string(transitionStyle("art", event.ID))
+	tint := fallbackTint(event)
+	if tint == "" {
+		return templ.SafeCSS(style)
+	}
+	if style != "" {
+		style += ";"
+	}
+	return templ.SafeCSS(style + "--art-tint:" + tint)
+}
+
+func fallbackTint(event models.Event) string {
+	if style := tintStyle(event); style != "" {
+		return event.Tint
+	}
+	if event.ID == "" {
+		return ""
+	}
+	hash := fnv.New32a()
+	hash.Write([]byte(event.ID))
+	// Finalize (murmur3 fmix32) so IDs differing in one character spread
+	// across the whole palette rather than alternating.
+	h := hash.Sum32()
+	h ^= h >> 16
+	h *= 0x85ebca6b
+	h ^= h >> 13
+	h *= 0xc2b2ae35
+	h ^= h >> 16
+	return fmt.Sprintf("oklch(0.66 0.08 %d)", fallbackHues[h%uint32(len(fallbackHues))])
+}
+
+// fallbackHues sit beside plum: plum, rose, amber, sage, teal, indigo, orchid.
+var fallbackHues = []int{337, 12, 65, 150, 200, 265, 305}
+
 func tintStyle(event models.Event) templ.SafeCSS {
 	t := event.Tint
 	if len(t) != 7 || t[0] != '#' {

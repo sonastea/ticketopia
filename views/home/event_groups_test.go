@@ -1,6 +1,7 @@
 package home
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -120,5 +121,21 @@ func TestFromPriceLabelLeadsWithTheLowestKnownPrice(t *testing.T) {
 		if got := fromPriceLabel(tc.prices); got != tc.want {
 			t.Errorf("got %q, want %q", got, tc.want)
 		}
+	}
+}
+
+func TestFallbackTintPrefersArtworkAndSpreadsDerivedHues(t *testing.T) {
+	if got := fallbackTint(models.Event{ID: "a", Tint: "#8a5577"}); got != "#8a5577" {
+		t.Fatalf("stored artwork tint ignored: %q", got)
+	}
+	if got := fallbackTint(models.Event{}); got != "" {
+		t.Fatalf("an event-less live card should use the CSS brand tint, got %q", got)
+	}
+	seen := map[string]bool{}
+	for i := range 12 {
+		seen[fallbackTint(models.Event{ID: fmt.Sprintf("ticketmaster:Review_%d", i)})] = true
+	}
+	if len(seen) < 4 {
+		t.Fatalf("sequential IDs share too few placeholder hues: %v", seen)
 	}
 }

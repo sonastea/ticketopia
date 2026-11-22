@@ -1639,6 +1639,33 @@ html:has(.filter-sheet:modal) {
   block-size: 2.5rem;
 }
 
+/* An event without artwork still gets a picture of its own: its tint (stored,
+   or derived from its ID at the same lightness and chroma) as a diagonal
+   wash with a corner light and a faint ticket-perforation dot grid, and the
+   category icon on a frosted disc. Live-pushed cards without an event use
+   the brand tint. Forced colours drop the paint; the icon remains. */
+.image-fallback {
+  --fallback-tint: var(--art-tint, var(--brand-tint));
+  background:
+    radial-gradient(circle at center, color-mix(in oklch, var(--fallback-tint) 30%, transparent) 1px, transparent 1.5px) 0 0 / .875rem .875rem,
+    radial-gradient(120% 90% at 0% 0%, color-mix(in oklch, var(--fallback-tint) 12%, var(--surface)), transparent 65%),
+    linear-gradient(135deg, color-mix(in oklch, var(--fallback-tint) 28%, var(--surface)), color-mix(in oklch, var(--fallback-tint) 55%, var(--surface)));
+  color: color-mix(in oklch, var(--fallback-tint), black 45%);
+}
+.image-fallback .icon {
+  box-sizing: content-box;
+  padding: .625rem;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--surface) 55%, transparent);
+  box-shadow: 0 1px 0 color-mix(in oklch, var(--surface) 70%, transparent) inset;
+}
+/* Thumbnails keep the disc small and clear of the date stub. */
+.live-card .image-fallback .icon { padding: .375rem; translate: 0 -.625rem; }
+@container results (min-width: 17.5rem) and (width < 48rem) {
+  .event-row:not(.event-row-lead) .image-fallback .icon { inline-size: 1.75rem; block-size: 1.75rem; padding: .375rem; translate: 0 -.625rem; }
+}
+.has-selection .event-row-lead .image-fallback .icon { inline-size: 1.75rem; block-size: 1.75rem; padding: .375rem; translate: 0 -.625rem; }
+
 /* A ticket stub: radial-gradient masks punch perforations into both inline edges. */
 .date-marker {
   --stub-hole: .2rem;

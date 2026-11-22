@@ -451,6 +451,13 @@ Icons are outline SVGs with a 24-unit viewBox, rounded caps/joins, and stroke wi
 decorative/fallback icons retain explicit rem sizes. The fallback uses a music
 icon for classified music events and a ticket icon otherwise. It occupies the
 same image frame, so a failed image does not erase the event's place in the list.
+The fallback carries the event's own colour (`--art-tint`): its stored artwork
+tint, or, without artwork, one of seven hues beside plum (plum, rose, amber, sage,
+teal, indigo, orchid) chosen from its ID at the stored tints' fixed OKLCH
+lightness .66 and chroma .08. It paints a diagonal wash, a pale top-start light and
+a faint .875rem perforation dot grid, with the icon on a frosted disc (smaller and
+raised clear of the date stub in thumbnails). Forced colours drop the paint and keep
+the icon.
 
 ## Components
 
