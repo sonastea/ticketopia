@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### 2026-11-22 — Same question marks, schema v25
+
+- Schema 25 adds `discussion_same_question` (one mark per account and root
+  post). Runtime needs INSERT and DELETE on it, in every provisioning path and
+  startup probe. Open questions are computed from replies and `events` with no
+  new columns. See [persistence](../persistence.md).
+
 ### 2026-11-15 — Discussion drafts and post attribution, schema v24
 
 - Add nullable `discussion_posts.via_client_name`/`via_client_host`, the app

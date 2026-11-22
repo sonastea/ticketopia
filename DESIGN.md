@@ -662,7 +662,12 @@ row's visible date drops what the heading and stub already say (**Sunday · 7:30
 PM** within a week, **Sun, Dec 6 · 7:30 PM** within a month) while screen readers
 keep the full date. With motion allowed and a fine pointer, hovering a card's
 title or artwork eases its photo to 1.04× inside the frame (300ms, `--ease-out`);
-Community cards share it. Excerpts and author links belong in event sections, with one exception: the Up next lead quotes its newest public recommendation's reason as a pull quote (at most three lines, the plum opening mark, then a muted "{name} recommends this event", no profile link); a reason-less recommendation shows nothing. Saved, Interests, and
+Community cards share it. Discover and Radar cards quote their event's newest
+public recommendation reason as a pull quote: two lines at most (three on the Up
+next lead), body size (the lead's larger), the plum opening mark, then a muted
+"{name} recommends this event" with no profile link; a reason-less recommendation
+shows nothing. Question text and author links stay in event sections, and the
+compact collection rows show no quotes. Saved, Interests, and
 Radar share the Overview title/image links and direct ticket action, preserving
 collection context and Radar reasons. Only Interests retains interest management
 in its rows; reminders remain in event views. Missing URLs and disabled accounts

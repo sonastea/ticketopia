@@ -8,6 +8,14 @@ not compare it. A bounded `Snapshots` batch read (at most 50 IDs, one SELECT on
 `event_snapshots`) supplies display-only artwork to Happening Now. See
 [discovery](discovery.md#responsive-navigation-and-event-details).
 
+Schema 25 adds `discussion_same_question` (account, root post and time; one
+mark per account and post), for "Same question" on open questions. Runtime
+needs INSERT and DELETE on it, added to every provisioning path; startup probes
+require both. Removing a post deletes its marks in the same transaction, and
+hidden posts withhold their counts. "Unanswered" and "upcoming" are computed
+from replies and `events`, with no new columns. See
+[open questions](event-discussions.md#open-questions-same-question-and-first-post).
+
 Schema 24 adds nullable `discussion_posts.via_client_name`/`via_client_host`
 (the app whose drafted question, tip or reply the author published; existing
 rows stay `NULL`, and the author's edit or removal clears them) and

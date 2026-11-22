@@ -1,9 +1,18 @@
 # Community list revamp: making participation feel alive
 
-**Status: proposed (2026-11-22).** Nothing here is implemented. Each phase can
-ship on its own and lists what it needs, what success looks like and what it
-leaves out. Check a phase only when its user-facing behavior ships and is
+**Status: Phases 0–2 shipped (2026-11-22); Phases 3–6 proposed.** Each phase
+can ship on its own and lists what it needs, what success looks like and what
+it leaves out. Shipped phases end with a **Shipped** note recording departures
+from the plan. Check a phase only when its user-facing behavior ships and is
 verified.
+
+- [x] Phase 0 — Baseline (fixture numbers; production numbers still to record)
+- [x] Phase 1 — Show what is already there
+- [x] Phase 2 — "Can you help?"
+- [ ] Phase 3 — Threads that update while you read (needs a product decision)
+- [ ] Phase 4 — "Your answer helped"
+- [ ] Phase 5 — Conversations that fit the moment
+- [ ] Phase 6, optional — Anonymous signs of others
 
 ## Why
 
@@ -65,6 +74,39 @@ Add no new tracking.
 **Done when** the numbers are recorded in this doc. They are the comparison point
 for Phases 2 and 4.
 
+**Recorded (2026-11-22).** Page heights on the `populated` review scenario,
+signed in, before Phase 2 added the open-questions line:
+
+| Page | 1440px desktop | 390px phone |
+| --- | --- | --- |
+| `/community` | 1,359px | 2,584px |
+| `/community/discussions` | 1,069px | 2,001px |
+
+The fixture's discussion numbers describe seeded data, not people, so the
+reply and Helpful baseline must come from production. Run these read-only
+queries there and record the results here before judging Phase 2:
+
+```sql
+-- Visible roots with no visible reply, and the share they make up.
+SELECT COUNT(*) AS roots,
+       SUM(NOT EXISTS (SELECT 1 FROM discussion_posts r WHERE r.root_id = p.post_id
+           AND r.removed_at IS NULL AND r.hidden_at IS NULL)) AS unanswered
+FROM discussion_posts p
+WHERE p.root_id IS NULL AND p.removed_at IS NULL AND p.hidden_at IS NULL;
+
+-- Hours to the first visible reply, per answered root (take the median).
+SELECT TIMESTAMPDIFF(MINUTE, p.created_at, MIN(r.created_at)) / 60 AS hours
+FROM discussion_posts p JOIN discussion_posts r ON r.root_id = p.post_id
+WHERE p.root_id IS NULL AND p.removed_at IS NULL AND p.hidden_at IS NULL
+  AND r.removed_at IS NULL AND r.hidden_at IS NULL
+GROUP BY p.post_id ORDER BY hours;
+
+-- Share of visible replies with at least one Helpful.
+SELECT COUNT(*) AS replies, SUM(EXISTS (SELECT 1 FROM post_helpful h WHERE h.post_id = r.post_id)) AS helped
+FROM discussion_posts r
+WHERE r.root_id IS NOT NULL AND r.removed_at IS NULL AND r.hidden_at IS NULL;
+```
+
 ## Phase 1 — Show what is already there
 
 Low-risk presentation work with no schema changes.
@@ -84,6 +126,21 @@ Low-risk presentation work with no schema changes.
 
 **Done when** cards stay inside their measured heights, starters never publish by
 themselves, and the welcome label is never shown on hidden or removed posts.
+
+**Shipped (2026-11-22).** This reverses the earlier rule that only the Up next
+lead quotes a reason ([DESIGN.md](../../DESIGN.md#indexed-event-rows)).
+Departures from the plan:
+
+- Discover and Radar cards quote reasons; Saved, Interests and other compact
+  collection rows don't, because rows summarize and cards browse. Quotes show
+  the author's display name, as the lead already did, not a first name. Cards
+  allow two lines and the lead three, because one line cut most reasons
+  mid-phrase.
+- The starters are "First time at this venue. Any tips for getting in?", "What
+  time should I arrive?" and "Has anyone been to one of these before?". They ask
+  about going, not about a performer, so they fit sports and arts too. They show
+  only while the field is empty.
+- First post shows on the conversation, the event's notes and Community cards.
 
 ## Phase 2 — "Can you help?"
 
@@ -115,6 +172,22 @@ A third Community collection beside **Recommendations** and **Conversations**.
 
 **Done when** the time to first reply in the pilot improves on the Phase 0
 baseline, and no hidden, removed or past-event root ever appears in the list.
+
+**Shipped (2026-11-22)**, at `/community/questions` under an **Open questions**
+tab, headed "Can you help?". Departures from the plan:
+
+- Same question can be marked on any visible question or tip that isn't the
+  person's own, answered or not, so people can still find a question's answer.
+  It also appears beside Helpful on the conversation's opening post.
+- The Community line follows the page's city, country and category filters
+  ("3 open questions in Chicago nobody has answered yet. Can you help?") rather
+  than a detected location, which Community doesn't use.
+- The signed-out "Your events" link sends people to sign in. The agent tools
+  are `open_questions` (public) and `mark_same_question` /
+  `unmark_same_question` (`publish`), next to Helpful.
+- Schema 25 adds `discussion_same_question`, with runtime INSERT and DELETE.
+  "Unanswered" and "upcoming" are computed from replies and `events.start_utc`
+  (or the local date when no time is known); events with no date stay listed.
 
 ## Phase 3 — Threads that update while you read
 

@@ -31,6 +31,7 @@ use their browser’s address.
 | `discussion_thread` | One question or tip with a page of its replies (oldest first), as `GET …/discussions/{discussion_id}` and `…/replies` together; the thread is returned on every page. |
 | `community_recommendations` | Recommended events grouped per event, optionally by city, country and `category_id`, as `GET /api/v1/community/recommendations`. |
 | `community_discussions` | Recent questions and tips across events with the same filters, as `GET /api/v1/community/discussions`. |
+| `open_questions` | Questions and tips on upcoming events that nobody has answered yet, with the same filters, as `GET /api/v1/community/questions`. Signed in with `read`, `mine` keeps the caller's saved, Interested and followed events (`connections=mine`); anonymous `mine` is a tool error. |
 | `user_profile` | One public profile (ID, display name, bio; never email or settings), as `GET /api/v1/users/{user_id}`; signed in, omitting `user_id` reads the caller's own. |
 | `happening_now` | The public Happening Now snapshot, optionally by city with country and `category_ids`, as `GET /api/v1/community/activity` without credentials. Listed when live activity is on; it needs no accounts. |
 
@@ -63,6 +64,7 @@ tools also need [email reminders](reminders.md) (`REMINDERS_ENABLED=true`):
 | `draft_reply` | Store a private reply in a question or tip's conversation (`write`), by `event_id` and `thread_id`, answering the reply `parent_id` when given; the thread must be a question or tip on that event and the parent a post in it. Nothing is published. |
 | `my_drafts` / `discard_draft` | List the caller's pending drafts of every kind (`recommendation`, `question`, `reply`), or delete one (`write`). `discarded` is `false` when no pending draft had that id (already gone, or never the caller's, without saying which); a malformed id is an error naming `draft_id`. |
 | `mark_helpful` / `unmark_helpful` | Set or remove the caller's Helpful mark on a question, tip or reply by `post_id` (`publish`), as `PUT`/`DELETE /api/v1/posts/{post_id}/reactions/helpful`, returning the post with its public `helpful_count`. Removed and hidden posts can't be marked. |
+| `mark_same_question` / `unmark_same_question` | Set or remove the caller's Same question mark on someone else's question or tip by `post_id` (`publish`), as `PUT`/`DELETE /api/v1/posts/{post_id}/reactions/same-question`, returning the post with its public `same_question_count`. Replies, the caller's own posts, and removed or hidden posts can't be marked. |
 | `my_followed_discussions` | The questions and tips the caller [follows](followed-discussions.md) privately, with frequency and the question, as `GET /api/v1/me/discussions`. |
 | `my_notifications` | New replies in followed discussions, read or unread, with a site path to each reply, as `GET /api/v1/me/notifications`. Listing marks nothing read. |
 | `mark_notification_read` | Mark one notification read (`write`), idempotently, as `PUT /api/v1/me/notifications/{notification_id}/read`. |
@@ -83,13 +85,13 @@ the web and API, because it reaches the provider.
 Read tools are annotated read-only. `unsave_event`, `stop_reminder`,
 `set_reminder` (changing a reminder replaces its timing), `unfollow_artist_or_venue`,
 `unmark_interested`, `make_interest_private`, `withdraw_recommendation`,
-`discard_draft`, `unmark_helpful`, `follow_discussion` (changing a follow replaces its frequency)
+`discard_draft`, `unmark_helpful`, `unmark_same_question`, `follow_discussion` (changing a follow replaces its frequency)
 and `unfollow_discussion` are marked destructive; `save_event`, `follow_artist_or_venue`,
-`mark_interested`, `make_interest_public`, `recommend_event`, `mark_helpful`,
+`mark_interested`, `make_interest_public`, `recommend_event`, `mark_helpful`, `mark_same_question`,
 `draft_recommendation`, `draft_question`, `draft_reply` and `mark_notification_read` are additive. All writes are idempotent (an identical
 pending draft is returned, not repeated) and return the resulting state.
 `make_interest_public`, `recommend_event`, `withdraw_recommendation`,
-`mark_helpful` and `unmark_helpful` need the `publish` scope; the other writes
+`mark_helpful`, `unmark_helpful`, `mark_same_question` and `unmark_same_question` need the `publish` scope; the other writes
 need `write`.
 
 `find_events` dates are `YYYY-MM-DD` and match each event's local date, as on

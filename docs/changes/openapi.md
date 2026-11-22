@@ -1,6 +1,15 @@
 # OpenAPI contract changes
 
+[Older history](archive/openapi/).
+
 ## Unreleased
+
+### 2026-11-22 — Open questions and Same question, contract v1.29.0
+
+- Adds `GET /api/v1/community/questions` (Community filters plus
+  `connections=mine` when signed in) and `PUT`/`DELETE
+  /api/v1/posts/{post_id}/reactions/same-question`. `DiscussionPost` gains
+  required `same_question_count`, `same_question` and `first_post`.
 
 ### 2026-11-15 — Event community not-found, contract v1.28.0
 
@@ -82,11 +91,3 @@
   VEVENT with event-detail cache semantics and no query parameters. A date that is
   still TBA/TBD returns 404 with the new `date_not_announced` problem code. See
   [discovery](../discovery.md#json-api).
-
-### 2026-10-23 — Artwork tint on events, contract v1.19.0
-
-- Add optional `Event.tint` (`#rrggbb`), an artwork-derived header colour
-  normalized to a fixed OKLCH lightness and computed once when the event is cached
-  or stored. Clients may ignore it. See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-Older entries: [OpenAPI contract archive](archive/openapi/).

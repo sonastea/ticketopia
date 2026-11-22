@@ -29,7 +29,10 @@ runtime grants (including INSERT/DELETE on `agent_drafts`), then start the new
 binary. Schema 24 (discussion drafts and post attribution) adds only nullable
 columns to `discussion_posts` and `agent_drafts`: drain, migrate through
 schema 24 and start, with no grant changes. See
-[agent tools](app-mcp.md#publishing-in-your-name).
+[agent tools](app-mcp.md#publishing-in-your-name). Schema 25 adds the
+`discussion_same_question` table: drain, migrate through schema 25, reconcile
+the runtime grants (INSERT/DELETE on `discussion_same_question`), then start.
+See [open questions](event-discussions.md#open-questions-same-question-and-first-post).
 
 Defaults are 256 streams per replica (`LIVE_ACTIVITY_MAX_STREAMS`, 1–4096) and
 60 combined snapshot/connection starts per trusted IP per minute (`LIVE_ACTIVITY_STARTS_PER_MINUTE`,

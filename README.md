@@ -106,6 +106,8 @@ in the app.
 - [x] Follow/unfollow a discussion and receive frequency-controlled in-app reply updates.
 - [x] Report a concern privately and receive acknowledgment.
 - [x] Review reports as a moderator and communicate clear outcomes.
+- [x] Find questions nobody has answered yet, mark Same question, and see
+  people's reasons on event cards ([community list revamp](docs/design/community-list-revamp.md)).
 - [ ] Later: Record Went and share a post-event reflection.
 
 ### Responsive event and discussion experience

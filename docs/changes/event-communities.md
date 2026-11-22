@@ -4,6 +4,28 @@
 
 ## Unreleased
 
+### 2026-11-22 — Open questions, Same question, reasons on cards and First post
+
+- **Can you help?** (`/community/questions`, a new **Open questions** tab) lists
+  questions and tips on upcoming events that nobody has answered yet, newest
+  started first, with Community's filters. Signed in, **Your events** keeps
+  saved, Interested and followed events privately. **Answer** opens the reply
+  composer. `/community` shows how many are waiting for its filters.
+- **Same question** marks someone else's question as yours too ("*N* people want
+  to know") on cards and the conversation's opening post. It never reorders a
+  list, and it is withheld or deleted with the post. API and agent tools:
+  `GET /api/v1/community/questions`, `PUT`/`DELETE …/reactions/same-question`,
+  `open_questions`, `mark_same_question` and `unmark_same_question`.
+- Discover and Radar cards quote their newest public recommendation reason (two
+  lines; three on Up next), reversing the lead-only rule. A person's first
+  question or tip carries a quiet **First post** label while they have fewer
+  than three visible contributions. Empty question composers offer starters
+  that fill the field and never publish.
+- Verified with MariaDB integration, HTTP, agent-tool and Chromium checks
+  (desktop/phone, JavaScript off, forced colours, 200% text at 320px, axe). See
+  [open questions](../event-discussions.md#open-questions-same-question-and-first-post)
+  and the [revamp plan](../design/community-list-revamp.md).
+
 ### 2026-11-21 — Community card actions
 
 - Community recommendation and conversation cards end in an action bar instead
@@ -70,28 +92,3 @@
   details keeps its visibility, so a delayed default can no longer publish it.
 - An event's recommendation page and total count share one read snapshot, so a
   concurrent withdrawal can no longer report fewer recommendations than it lists.
-
-### 2026-10-23 — Community cards and typographic empty states
-
-- Community recommendations and conversations are flat bordered cards in an
-  intrinsic grid. Each has artwork with the ticket-stub date chip, event identity,
-  each person's words as a pull quote with an initials circle, then event facts.
-  City, country and category share one compact filter bar.
-- Happening Now groups are compact cards. Artwork and dates come from one bounded,
-  provider-free read of stored snapshots on the server render (live-pushed cards
-  use fallback art; the live DTO is unchanged and no reason is shown beside
-  "Someone"). Scope, filters and Refresh share one bar.
-- Empty Community and Happening Now states lead with a large display line and the
-  main action as a primary button. See
-  [recommendations](../event-recommendations.md#public-browsing) and
-  [live activity](../live-community-activity.md#attribution-and-controls).
-
-### 2026-10-22 — Pilot empty states and Community tabs
-
-- Empty states now depend on where they render. Event sections invite the first
-  question or recommendation through the action already there. Community offers
-  Find an event, or Reset filters when filters matched nothing. "On this page" plus a
-  newest-page link appears only on later cursor pages. Zero counts are hidden; live
-  counts that rise above zero hide the empty copy.
-- Community gains a **Happening Now** tab; see
-  [live activity](live-community-activity.md). Browser checks were updated, not rerun.

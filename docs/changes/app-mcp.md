@@ -1,6 +1,17 @@
 # Agent tools (MCP) changes
 
+[Older history](archive/app-mcp/).
+
 ## Unreleased
+
+### 2026-11-22 — Open questions and Same question tools
+
+- `open_questions` (public) lists questions nobody has answered yet on upcoming
+  events, with Community's filters. Signed in with `read`, `mine` keeps the
+  caller's saved, Interested and followed events. `mark_same_question` and
+  `unmark_same_question` (`publish`) mark someone else's question as the
+  caller's too. Posts now carry `same_question_count`, `same_question` and
+  `first_post`. See [Agent tools](../app-mcp.md).
 
 ### 2026-11-17 — In-app agents and API guide
 
@@ -65,34 +76,3 @@
   so agents and API clients get identical results. Signed in with `read`,
   `event_community` adds the caller's own state, and `profile_activity` without
   `user_id` reads the caller's own timeline. See [tools](../app-mcp.md#tools).
-
-### 2026-11-14 — Agent publishing, phase 1
-
-- Add a third OAuth scope, `publish`: never implied by `write`, never requested
-  when a client names no scope, and never carried by API tokens (now an explicit
-  `read write` list). The consent page offers **Also allow posting publicly as
-  *name***, unchecked, only when an app asks; its "can't post anything publicly"
-  promise now matches the checkbox. Connected apps label such connections
-  **Can post publicly**. Existing connections keep their scopes; a refresh
-  cannot add `publish`.
-- With `publish`: `make_interest_public`, `recommend_event` (no reason; an
-  existing recommendation is returned unchanged) and `withdraw_recommendation`
-  (only what an app published without a reason: agents never erase the
-  person's words), at most 20 an hour per account per replica, each logged as `Agent published`
-  with only the tool and app host. With `write`: `make_interest_private`,
-  `draft_recommendation` and `discard_draft`; `my_recommendations` and
-  `my_drafts` read. `SignedInTools` maps each tool to its scope; the boundary
-  answers 403 `insufficient_scope` naming it, and tools check again.
-- Agents never publish words: a drafted reason waits privately at `/me/drafts`
-  (seven days, 20 per account, deleted with its connection) beside the reason it
-  would replace, until the person publishes it with a CSRF-protected form that
-  refuses a stale review and consumes the draft in the same transaction.
-  Recommendations an agent published, or whose reason it drafted, show
-  "via *app* (*host*)" on the event, profile and Community, and carry `via` and
-  `via_host` in the API (contract 1.24.0); API-token drafts say "via an API
-  client". Client names naming Ticketopia are refused. Schema 22 adds
-  `event_recommendations.via_client_name`/`via_client_host` and `agent_drafts`,
-  with runtime grants in every provisioning path. Discussions and Helpful are phase 2; see
-  the [guide](../app-mcp.md#publishing-in-your-name).
-
-Older entries: [agent tools archive](archive/app-mcp/).

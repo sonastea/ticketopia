@@ -1,6 +1,14 @@
 # Event discovery changes
 
+[Older history](archive/discovery/).
+
 ## Unreleased
+
+### 2026-11-22 — Every card quotes a recommendation reason
+
+- Discover and Radar cards quote their event's newest public recommendation
+  reason (two lines; the Up next lead keeps three). Saved, Interests and other
+  compact rows don't. See [DESIGN.md](../../DESIGN.md#indexed-event-rows).
 
 ### 2026-11-21 — Agenda Discover, one Tickets button and shared event cards
 
@@ -79,18 +87,3 @@
 - Off-screen rows skip rendering once they have rendered at the current layout,
   keeping scroll restores and the selected-row correction exact.
   See [discovery](../discovery.md#loading-performance).
-
-### 2026-10-25 — Server-rebuilt result history
-
-- Stop storing result HTML in history. Load more mirrors the last page's cursor
-  into the Discover URL (with an implicit city and dates spelled out, kept in
-  step on same-document Back) as HTML-only `through=<cursor>`; the server renders
-  every page through it, with current saved/interest state and CSRF, so reload
-  and Back restore at once. Restores take whole pages up to 10 pages or 200
-  events, drop overlapping rows, use the oldest page's time and batch private
-  reads. A stale `through` on a whole page falls back to the requested page.
-  See [discovery](../discovery.md#restoring-loaded-pages).
-
-Older entries: [discovery archive](archive/discovery/).
-
-See [discovery](../discovery.md) and [cache behavior](../cache.md) for current details.

@@ -15,8 +15,9 @@ zero-downtime rollout. See [persistence](persistence.md#rolling-update-compatibi
 Local `make db-setup` applies migrations/grants; testing uses isolated schemas
 and does not upgrade the running development database.
 
-Runtime needs SELECT plus INSERT/UPDATE on `discussion_posts`, and
-INSERT/UPDATE/DELETE on `post_helpful`, alongside existing snapshot/account grants.
+Runtime needs SELECT plus INSERT/UPDATE on `discussion_posts`,
+INSERT/UPDATE/DELETE on `post_helpful`, and (from schema 25) INSERT/DELETE on
+`discussion_same_question`, alongside existing snapshot/account grants.
 Posts are not physically deleted: removal preserves immutable ancestry and retry
 identity. Root creation commits identity, snapshot, and post atomically. Replies,
 edits, removal, Helpful, and direct thread reads do not need Ticketmaster.
@@ -152,9 +153,43 @@ Storage denial supports same-document drafts only, not reload/native navigation.
 Physical-phone keyboards, manual screen readers and people/device journeys remain
 open in the [priority record](design/ui-flow-polish-2026-10-12.md#2-phone-conversation-ergonomics-and-draft-safety).
 
+## Open questions, Same question and First post
+
+**Can you help?** (`/community/questions`, the **Open questions** Community tab)
+lists visible questions and tips that have no visible reply yet, on events that
+haven't started; events with no known date stay listed. Like every community
+list it shows newest started first, with the same city, country and category
+filters. A reply removes a question from the list; if that reply is then
+removed or hidden, the question comes back at its original position. Signed in,
+**Your events** keeps only events the person saved, marked Interested, or whose
+artist or venue they follow. That match is computed for them alone and never
+shown to anyone. Signed out, choosing it asks them to sign in. Each card's
+**Answer** opens the conversation at its reply composer. `/community` shows
+"*N* open questions nobody has answered yet. Can you help?" for the same filters
+when there are any. A failed count only hides that line.
+
+**Same question** lets a signed-in person mark someone else's question or tip
+as theirs too, once, with no negative form. Cards and the conversation's opening
+post show "*N* people want to know". Marks never reorder any list. Replies and
+your own posts can't be marked. Like Helpful counts, marks are withheld while a
+post is hidden and deleted when its author removes it. On the list the mark is a
+native form that returns to its card (`#question-{id}`). In a conversation it
+refreshes in place like Helpful.
+
+**First post** is a quiet label on a person's earliest visible question or tip
+while they have fewer than three visible contributions, so others can welcome
+them. It is derived from visible post history, never stored, and never shown on
+replies or on removed or hidden posts.
+
+The empty question composer offers starters ("First time at this venue. Any tips
+for getting in?", "What time should I arrive?", "Has anyone been to one of these
+before?"). They fill the field with editable text, move focus there and never
+publish. Without JavaScript they show as examples. See the
+[community list revamp](design/community-list-revamp.md).
+
 ## API
 
-The [OpenAPI contract](openapi.md) is version **1.12.0**.
+The [OpenAPI contract](openapi.md) is version **1.29.0**.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -163,7 +198,9 @@ The [OpenAPI contract](openapi.md) is version **1.12.0**.
 | GET, POST | `/api/v1/events/{event_id}/discussions/{discussion_id}/replies` | Independent reply pagination / publish reply |
 | PATCH, DELETE | `/api/v1/posts/{post_id}` | Author-only text replacement / removal |
 | PUT, DELETE | `/api/v1/posts/{post_id}/reactions/helpful` | Set/remove your positive acknowledgment |
+| PUT, DELETE | `/api/v1/posts/{post_id}/reactions/same-question` | Mark/unmark someone else's question or tip as yours too |
 | GET | `/api/v1/community/discussions` | City/country/category root browsing |
+| GET | `/api/v1/community/questions` | Open questions, with the same filters and `connections=mine` when signed in |
 
 Creation takes `{"body":"Question or reply"}`; replies may add `parent_id`.
 Send one **Idempotency-Key** header: 16–128 ASCII letters/digits/hyphens/underscores,
