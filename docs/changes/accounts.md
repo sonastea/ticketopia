@@ -57,8 +57,8 @@
 - Correct stale sorting, ticket-layout and quiet-control guidance. See the
   [interaction guide](../design-guidelines.md). Moderation case-first links are unchanged.
 - Verify public-list section returns with isolated Chromium fixtures and 16
-  desktop/compact/enlarged-text layouts. Existing bottom-nav labels overlap at 200%
-  text; that shared-shell issue remains a separate follow-up.
+  desktop/compact/enlarged-text layouts. Bottom-nav labels that broke at 200%
+  text were later fixed in the shared shell (2026-11-20: a 6em minimum column).
 
 ### 2026-10-12 — Shorter notification preferences
 

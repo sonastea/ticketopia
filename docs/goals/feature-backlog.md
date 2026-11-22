@@ -53,6 +53,9 @@ than in editors, and those apps connect only through OAuth. See the
 
 From [event communities](event-communities.md#small-goals-one-at-a-time).
 
+- [ ] [Community list revamp](../design/community-list-revamp.md): phased plan
+  to make participation feel alive (open questions, live thread replies, Helpful
+  acknowledgments, venue tips); proposed.
 - [ ] Going/Went records with visibility controls, distinct from Interested and
   never implying verified attendance.
 - [ ] Post-event Went prompts and structured reflections in the same discussions.

@@ -30,6 +30,10 @@ their status; they describe intended work rather than available features.
   city/type/artist/venue and private connection filtering with shared candidate indexing;
   and six working parts plus a toast/navigation presentation checkpoint
   with incremental verification and three-replica performance gates.
+- [Community list revamp](design/community-list-revamp.md): **proposed** phased
+  plan to make community feel alive: reasons on cards, a "Can you help?" open
+  questions list, live thread replies, Helpful acknowledgments, event-phase prompts
+  and venue tips, within existing privacy and no-bumping guardrails.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
 - [Feature backlog](goals/feature-backlog.md): ordered candidate features for when
