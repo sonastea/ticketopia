@@ -4022,6 +4022,55 @@ html:has(.filter-sheet:modal) {
 .conversation-record .account-actions { margin-block-start: .5rem; align-items: start; }
 .conversation-record .recommendation-editor { margin-block: .25rem 0; max-inline-size: 100%; }
 .discussion-replies { margin-block-start: .75rem; padding-inline-start: var(--space-reply-indent); border-inline-start: 1px solid var(--line); }
+/* New replies wait behind one control that sticks above the phone navigation
+   while the conversation scrolls, then settles after its composer. Only the
+   control takes pointer input, so the strip never blocks what is beneath it. */
+.live-replies {
+  position: sticky;
+  z-index: 12;
+  inset-block-end: calc(var(--bottom-nav-block-size, 0px) + var(--nav-float-gap, .75rem) + .5rem);
+  display: flex;
+  justify-content: center;
+  margin-block: .5rem;
+  pointer-events: none;
+}
+.live-replies-show {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  min-block-size: 2.75rem;
+  max-inline-size: 100%;
+  padding-block: .5rem;
+  padding-inline: 1rem 1.125rem;
+  border: 1px solid color-mix(in oklch, var(--brand) 25%, transparent);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--ring-hairline), 0 .5rem 1.5rem -.5rem color-mix(in oklch, var(--brand) 35%, transparent);
+  color: var(--brand);
+  font-size: .875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  pointer-events: auto;
+  transition-property: background-color, color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+.live-replies-show[hidden] { display: none; }
+/* While someone writes a reply, and on short or text-enlarged viewports, the
+   control stays in place after the composer instead of covering it. */
+:has(> .discussion-reply-composer:focus-within) > .live-replies,
+:root[data-short-viewport] .live-replies { position: static; }
+.live-replies-show .icon { flex: none; inline-size: 1.125rem; block-size: 1.125rem; }
+@media (hover: hover) and (pointer: fine) {
+  .live-replies-show:hover { background: var(--brand-soft); color: var(--brand-dark); }
+}
+.live-replies-show:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); color: var(--brand-active); }
+@media (prefers-reduced-motion: no-preference) {
+  .live-replies-show:not([hidden]) { animation: live-replies-in 200ms var(--ease-out); }
+  @keyframes live-replies-in { from { opacity: 0; translate: 0 .5rem; } }
+}
+@media (forced-colors: active) { .live-replies-show { border: 2px solid LinkText; } }
 .discussion-reply-composer { margin-block-start: 2rem; scroll-margin-block-start: 1rem; }
 .discussion-composer textarea { scroll-margin-block-end: calc(6rem + env(safe-area-inset-bottom, 0px)); max-block-size: min(24rem, max(8rem, calc(var(--discussion-viewport-block-size, 100dvh) * .35))); }
 .discussion-composer-actions { display: flex; flex-wrap: wrap; align-items: start; gap: .5rem 1rem; }

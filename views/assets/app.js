@@ -1206,7 +1206,7 @@
   // link rather than trusting document.activeElement.
   let clickedSection = null;
   document.addEventListener('click', event => { clickedSection = event.target.closest?.('[data-event-section]') || null; }, true);
-  const selectionParams = ['selected_event', 'section', 'recommend', 'selected_thread', 'reply_to', 'discussion_cursor'];
+  const selectionParams = ['selected_event', 'section', 'recommend', 'selected_thread', 'reply_to', 'discussion_cursor', 'discussion_post', 'discussion_from'];
   const selectionHistoryURL = next => {
     if (!workspace) return next;
     // Load more can finish during a panel/section request. Keep its current,
@@ -1341,7 +1341,12 @@
             scrollTo(0, confirmation.documentScroll);
           }
         } else if (url.hash === '#discussion-composer') (region.querySelector('#discussion-composer textarea') || region.querySelector('#discussion-composer a[href^="/auth/sign-in"]'))?.focus();
-        else {
+        else if (url.hash.startsWith('#post-') && region.querySelector(url.hash)) {
+          const post = region.querySelector(url.hash);
+          post.tabIndex = -1;
+          post.focus({ preventScroll: true });
+          post.scrollIntoView({ block: 'center' });
+        } else {
           // Persistent links usually keep focus themselves, but WebKit leaves
           // focus on the nearest focusable container (the scrollable panel) or
           // the body. Do not reclaim it after the reader has already moved to
@@ -1707,12 +1712,15 @@
     else next.searchParams.delete('section');
     if (recommend) next.searchParams.set('recommend', 'true');
     else next.searchParams.delete('recommend');
-    for (const key of ['selected_thread', 'reply_to', 'discussion_cursor']) next.searchParams.delete(key);
+    for (const key of ['selected_thread', 'reply_to', 'discussion_cursor', 'discussion_post', 'discussion_from']) next.searchParams.delete(key);
     if (conversation) {
       const parts = conversation.pathname.split('/');
       if (parts[4]) next.searchParams.set('selected_thread', decodeURIComponent(parts[4]));
       if (conversation.searchParams.has('reply_to')) next.searchParams.set('reply_to', conversation.searchParams.get('reply_to'));
       if (conversation.searchParams.has('cursor')) next.searchParams.set('discussion_cursor', conversation.searchParams.get('cursor'));
+      // A selected contribution (such as the first new reply) survives Back/Forward and reload.
+      if (conversation.searchParams.has('post_id')) next.searchParams.set('discussion_post', conversation.searchParams.get('post_id'));
+      if (conversation.searchParams.has('from')) next.searchParams.set('discussion_from', conversation.searchParams.get('from'));
     }
     const url = conversation || detailURL(id, section, recommend);
     url.searchParams.set('return_to', workspace.dataset.resultsUrl);
@@ -1801,6 +1809,12 @@
           || context.querySelector('#discussion-composer a[href^="/auth/sign-in"]')
           || heading;
         composer.focus();
+      } else if (conversation?.hash.startsWith('#post-') && context.querySelector(conversation.hash)) {
+        // A selected contribution, such as the first new reply: focus and show it.
+        const post = context.querySelector(conversation.hash);
+        post.tabIndex = -1;
+        post.focus({ preventScroll: true });
+        post.scrollIntoView({ block: 'center' });
       } else if (recommend) openRecommendation(context);
       // A chosen event takes focus on every layout so screen readers land on what
       // was selected; history restores keep focus where the browser left it.
@@ -1831,7 +1845,7 @@
       url.searchParams.delete('selected_event');
       url.searchParams.delete('section');
       url.searchParams.delete('recommend');
-      for (const key of ['selected_thread', 'reply_to', 'discussion_cursor']) url.searchParams.delete(key);
+      for (const key of ['selected_thread', 'reply_to', 'discussion_cursor', 'discussion_post', 'discussion_from']) url.searchParams.delete(key);
       writeHistory('pushState', { ...history.state }, '', url);
     }
     renderedURL = location.href;
@@ -1900,6 +1914,11 @@
       conversation = new URL('/events/' + encodeURIComponent(id) + '/discussions' + (params.has('selected_thread') ? '/' + encodeURIComponent(params.get('selected_thread')) : ''), location.origin);
       if (params.has('reply_to')) conversation.searchParams.set('reply_to', params.get('reply_to'));
       if (params.has('discussion_cursor')) conversation.searchParams.set('cursor', params.get('discussion_cursor'));
+      if (params.has('discussion_from')) conversation.searchParams.set('from', params.get('discussion_from'));
+      if (params.has('discussion_post')) {
+        conversation.searchParams.set('post_id', params.get('discussion_post'));
+        conversation.hash = 'post-' + params.get('discussion_post');
+      }
     }
     if (id) select(id, params.get('section') || 'overview', false, params.get('recommend') === 'true', conversation);
     else closeContext(false);

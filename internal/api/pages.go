@@ -49,7 +49,7 @@ func canonicalPage(u *url.URL, supported func(string) bool) (string, bool) {
 	return target, true
 }
 
-var webSelectionParams = []string{"selected_event", "section", "recommend", "selected_thread", "reply_to", "discussion_cursor"}
+var webSelectionParams = []string{"selected_event", "section", "recommend", "selected_thread", "reply_to", "discussion_cursor", "discussion_post", "discussion_from"}
 
 func homeParam(key string) bool {
 	return discovery.QueryParam(key) || key == "genre_category_id" || key == "through" || slices.Contains(webSelectionParams, key)
@@ -72,6 +72,12 @@ func webSearch(values url.Values) (url.Values, string, string, error) {
 	}
 	if parent := filters.Get("reply_to"); parent != "" && (thread == "" || discussions.PostID(parent) != nil) {
 		return nil, "", "", &discovery.ValidationError{Field: "reply_to", Message: "choose a contribution in the selected thread"}
+	}
+	if from := filters.Get("discussion_from"); from != "" && (thread == "" || discussions.PostID(from) != nil || filters.Get("discussion_cursor") != "") {
+		return nil, "", "", &discovery.ValidationError{Field: "discussion_from", Message: "start from a reply in the selected thread"}
+	}
+	if post := filters.Get("discussion_post"); post != "" && (thread == "" || discussions.PostID(post) != nil) {
+		return nil, "", "", &discovery.ValidationError{Field: "discussion_post", Message: "select a contribution in the selected thread"}
 	}
 	if cursor := filters.Get("discussion_cursor"); cursor != "" && (id == "" || section != "discussion" || len(cursor) > 1024) {
 		return nil, "", "", &discovery.ValidationError{Field: "discussion_cursor", Message: "paginate the selected thread"}

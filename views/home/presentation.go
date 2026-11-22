@@ -267,6 +267,8 @@ func returnOrigin(raw string) string {
 	values.Del("selected_thread")
 	values.Del("reply_to")
 	values.Del("discussion_cursor")
+	values.Del("discussion_post")
+	values.Del("discussion_from")
 	values.Del("recommend")
 	u.RawQuery = values.Encode()
 	return u.String()
@@ -332,6 +334,8 @@ func recommendationSignInReturn(id, returnURL string) string {
 	values.Del("selected_thread")
 	values.Del("reply_to")
 	values.Del("discussion_cursor")
+	values.Del("discussion_post")
+	values.Del("discussion_from")
 	if index := strings.Index(u.Path, "/discussions/"); index >= 0 {
 		u.Path = u.Path[:index]
 		values.Del("cursor")

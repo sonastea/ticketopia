@@ -104,7 +104,121 @@
       }
       sync(form);
     });
+    scheduleLive();
   }
+  // Live replies (PRODUCT.md, approved 2026-11-22). While the viewer takes part
+  // in an open conversation and its tab is visible, check for other people's
+  // new replies: every ten seconds while active, every thirty after two idle
+  // minutes, and not at all after ten idle minutes or while hidden. Any
+  // interaction resumes checking. Each check lists replies from just before
+  // the page's as_of; those already on the page are skipped by ID.
+  const IDLE_SLOW = 2 * 60000, IDLE_STOP = 10 * 60000, CHECK_TIMEOUT = 10000;
+  const live = {timer: 0, active: Date.now(), request: null, element: null, announced: 0, notBefore: 0, writing: ''};
+  const liveElement = () => document.querySelector('[data-live-replies]');
+  // Typing in a conversation's composer counts as taking part, and survives
+  // that conversation refreshing; another conversation starts over.
+  const liveTaking = element => element.hasAttribute('data-live-engaged') || live.writing === element.dataset.liveReplies;
+  function stopLive() {
+    clearTimeout(live.timer); live.timer = 0;
+    live.request?.abort(); live.request = null;
+  }
+  function scheduleLive(delay) {
+    const element = liveElement();
+    if (element !== live.element) {
+      // A refreshed or different conversation: drop the old one's check and count.
+      live.request?.abort(); live.request = null;
+      live.element = element; live.announced = 0;
+    }
+    clearTimeout(live.timer); live.timer = 0;
+    if (!element || document.hidden || live.request || !liveTaking(element)) return;
+    const idle = Date.now() - live.active;
+    if (idle > IDLE_STOP) return;
+    // Jitter spreads many open conversations across each interval; a server's
+    // Retry-After holds however the check was rescheduled.
+    const pace = (idle > IDLE_SLOW ? 30000 : 10000) * (0.8 + Math.random() * 0.4);
+    const wait = Math.max(delay ?? pace, live.notBefore - Date.now(), 0);
+    live.timer = setTimeout(checkLive, wait);
+  }
+  async function checkLive() {
+    live.timer = 0;
+    const element = liveElement();
+    // Recheck everything that may have changed while waiting.
+    if (!element || element !== live.element || document.hidden || !liveTaking(element) || Date.now() - live.active > IDLE_STOP || live.request) return;
+    const controller = live.request = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CHECK_TIMEOUT);
+    const url = new URL(element.dataset.liveReplies, location.origin);
+    url.searchParams.set('since', element.dataset.liveSince);
+    let retry;
+    try {
+      const response = await fetch(url, {credentials: 'same-origin', headers: {Accept: 'application/json'}, signal: controller.signal});
+      if ([400, 401, 403, 404].includes(response.status)) {
+        // Signed out, a stale page or a gone thread: stop; reloading still works.
+        element.removeAttribute('data-live-replies');
+        showNewReplies(element, null);
+        return;
+      }
+      if (response.status === 429 || response.status >= 500) {
+        retry = 1000 * Math.max(15, Number(response.headers.get('Retry-After')) || 30);
+        live.notBefore = Date.now() + retry;
+      } else {
+        const result = await response.json();
+        if (element.isConnected && Array.isArray(result.replies) && Array.isArray(result.recent)) showNewReplies(element, result);
+      }
+    } catch (_) {
+      // A timeout, an abort for a refreshed conversation or a network failure.
+      if (!element.isConnected || element !== liveElement()) return;
+      retry = 30000;
+    } finally {
+      clearTimeout(timeout);
+      if (live.request === controller) live.request = null;
+    }
+    if (element.isConnected) scheduleLive(retry);
+  }
+  // Shows, updates or (with no unseen replies) withdraws the control.
+  function showNewReplies(element, result) {
+    const link = element.querySelector('[data-live-replies-show]');
+    // Recent replies (the overlap before as_of) may already be on the page;
+    // later ones can't be, but are checked the same way.
+    const unseen = [...(result?.recent || []), ...(result?.replies || [])].filter(reply => !document.getElementById('post-' + reply.id));
+    const status = element.querySelector('[data-live-replies-status]');
+    if (unseen.length === 0) {
+      link.hidden = true;
+      if (live.announced) { live.announced = 0; status.textContent = ''; }
+      return;
+    }
+    const count = unseen.length + (result.more ? '+' : '');
+    // The replies from the oldest unseen one, selected: a fresh read holding
+    // it and those after it, whose as_of moves past what this offered.
+    // reply_to keeps the draft's target.
+    const target = new URL(element.dataset.liveThread, location.origin);
+    target.searchParams.delete('cursor');
+    target.searchParams.set('from', unseen[0].id);
+    target.searchParams.set('post_id', unseen[0].id);
+    target.hash = 'post-' + unseen[0].id;
+    link.href = target.pathname + target.search + target.hash;
+    element.querySelector('[data-live-replies-label]').textContent = unseen.length === 1 && !result.more ? 'Show 1 new reply' : `Show ${count} new replies`;
+    link.hidden = false;
+    if (count !== live.announced) {
+      live.announced = count;
+      status.textContent = unseen.length === 1 && !result.more ? '1 new reply in this conversation' : `${count} new replies in this conversation`;
+    }
+  }
+  const liveActivity = event => {
+    live.active = Date.now();
+    const element = liveElement();
+    if (!element) return;
+    if (event.type === 'input' && event.target.closest?.('[data-discussion-draft]') && live.writing !== element.dataset.liveReplies) {
+      live.writing = element.dataset.liveReplies;
+      scheduleLive();
+    } else if (!live.timer && !live.request) scheduleLive();
+  };
+  // Captured, so scrolling Discover's event panel counts as well as the page.
+  for (const type of ['pointerdown', 'keydown', 'input', 'scroll']) document.addEventListener(type, liveActivity, {capture: true, passive: true});
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopLive();
+    else { live.active = Date.now(); scheduleLive(500); }
+  });
+  window.addEventListener('pagehide', stopLive);
   document.addEventListener('input', event => {
     const form = event.target.closest('[data-discussion-draft]');
     if (form) { confirmedForms.delete(form); saveDraft(form, true); keepComposerVisible(); }
@@ -409,7 +523,11 @@
   // Only added subtrees that contain a draft form trigger the document scan.
   const addsDraft = record => [...record.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE
     && (node.matches('[data-discussion-draft]') || node.querySelector('[data-discussion-draft]')));
-  new MutationObserver(records => { if (records.some(addsDraft)) restore(); }).observe(document.documentElement, {childList: true, subtree: true});
+  new MutationObserver(records => {
+    if (records.some(addsDraft)) restore();
+    // A closed or replaced panel stops its conversation's check at once.
+    else if (live.element && !live.element.isConnected) scheduleLive();
+  }).observe(document.documentElement, {childList: true, subtree: true});
   window.addEventListener('pageshow', event => {
     if (event.persisted && page) readConversation(new URL(location.href), {saved: history.state?.ticketopiaConversation});
     else restore();

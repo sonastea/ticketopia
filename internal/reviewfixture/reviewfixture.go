@@ -213,12 +213,19 @@ func Start(ctx context.Context, o Options) (_ *Server, err error) {
 	s.onClose(func() error { live.Close(); return nil })
 	recommendations := p.Recommendations()
 	recommendations.EnableLiveActivity(true)
+	// The live reply benchmark raises the per-account limit through the
+	// same setting as production (docs/load-testing.md).
+	liveReplyChecks, err := api.LiveReplyChecksFromEnv()
+	if err != nil {
+		listener.Close()
+		return nil, err
+	}
 	app, err := api.NewAPI(runCtx, zerolog.Nop(), cache, append([]api.Option{
 		api.WithDiscovery(f.discovery),
 		api.WithLocation(location.New(runCtx, cache, zerolog.Nop(), location.Config{Disabled: true})),
 		api.WithSavedEvents(p.Saved()), api.WithReminders(p.Reminders()), api.WithRadar(p.Radar(), time.Hour),
 		api.WithFollows(p.Follows()), api.WithEventInterests(p.Interests()), api.WithEventRecommendations(recommendations), api.WithAgentDrafts(p.Drafts()),
-		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithEventActivity(p.EventActivity()), api.WithUserActivity(p.UserActivity()),
+		api.WithLiveActivity(live, 60), api.WithEventDiscussions(p.Discussions()), api.WithLiveReplyChecks(liveReplyChecks), api.WithEventActivity(p.EventActivity()), api.WithUserActivity(p.UserActivity()),
 		api.WithDiscussionFollows(p.DiscussionFollows()), api.WithModeration(p.Moderation()), api.WithAccounts(authConfig, auth),
 		// The app's agent tools, so reviews and load scripts can call /mcp too.
 		// Sign-in stays optional so load scripts can call public tools anonymously.

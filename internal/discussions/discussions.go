@@ -74,7 +74,44 @@ type List struct {
 	Items      []Post  `json:"items"`
 	NextCursor *string `json:"next_cursor"`
 	Count      int     `json:"count"`
+	// AsOf is the database creation boundary this page was read at; live
+	// reply checks count replies created after it.
+	AsOf time.Time `json:"-"`
 }
+
+// NewReplies is what a participant's open conversation may not show yet:
+// other people's visible replies, oldest first. Replies lists those created
+// after since, which the page can't hold. Recent lists those created in the
+// overlap just before since: a reply stamped before the page's read whose
+// transaction committed after it. The page may hold those, so the browser
+// drops the ones it shows by ID.
+type NewReplies struct {
+	Replies []NewReply `json:"replies"`
+	// More is true when more than MaxNewReplies were created after since.
+	More   bool       `json:"more"`
+	Recent []NewReply `json:"recent"`
+	// AsOf is the database time of this check.
+	AsOf time.Time `json:"as_of"`
+}
+
+// NewReply identifies one reply; the conversation refresh shows its text.
+type NewReply struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+const (
+	// LiveReplyWindow bounds how far back a live check may look; an older
+	// page should reload instead.
+	LiveReplyWindow = 24 * time.Hour
+	// LiveReplyOverlap is the least a check looks before since. The
+	// repository widens it to its query timeout, which bounds every reply's
+	// write transaction, so a reply can't commit too late to be found.
+	LiveReplyOverlap = 5 * time.Second
+	// MaxNewReplies bounds one check's answer.
+	MaxNewReplies = 50
+)
+
 type Cursor struct {
 	Scope    string    `json:"scope"`
 	At       time.Time `json:"at"`
@@ -119,6 +156,7 @@ type Repository interface {
 	Remove(context.Context, string, string) error
 	React(context.Context, string, string, bool) (Post, error)
 	SameQuestion(context.Context, string, string, bool) (Post, error)
+	NewReplies(ctx context.Context, viewer, event, thread string, since time.Time) (NewReplies, error)
 }
 type Details interface {
 	Detail(context.Context, string) (models.EventDetail, error)
@@ -303,6 +341,25 @@ func (s *Service) SameQuestion(ctx context.Context, who, id string, set bool) (P
 	return s.repo.SameQuestion(ctx, who, id, set)
 }
 
+// NewReplies counts other people's visible replies in a thread created after
+// since, the AsOf of the page or previous check. It is the live conversation
+// check, so it stays one indexed read in the common case of nothing new.
+func (s *Service) NewReplies(ctx context.Context, viewer, event, thread string, since time.Time) (NewReplies, error) {
+	if err := owner(viewer); err != nil {
+		return NewReplies{}, err
+	}
+	if err := saved.ValidateID(event); err != nil {
+		return NewReplies{}, err
+	}
+	if err := PostID(thread); err != nil {
+		return NewReplies{}, err
+	}
+	if since.IsZero() || since.Year() < 2000 {
+		return NewReplies{}, invalid("since", "use the as_of time from the conversation or the previous check")
+	}
+	return s.repo.NewReplies(ctx, viewer, event, thread, since.UTC())
+}
+
 // ConnectionsMine is the connections value that limits open questions to the
 // signed-in person's own events.
 const ConnectionsMine = "mine"
@@ -398,8 +455,30 @@ func (s *Service) List(ctx context.Context, viewer, event, thread string, values
 	return s.list(ctx, viewer, event, thread, values, nil)
 }
 
-// list reads one collection; open, when set, selects open questions and
-// their own cursor scope.
+// RepliesFrom is a thread's reply page starting at one of its replies, so the
+// first of several new replies opens a page holding it and those after it.
+// It takes the same values as List, without a cursor.
+func (s *Service) RepliesFrom(ctx context.Context, viewer, event, thread, from string, values url.Values) (List, error) {
+	if err := PostID(from); err != nil {
+		return List{}, invalid("from", "start from a reply in this conversation")
+	}
+	if _, ok := values["cursor"]; ok {
+		return List{}, invalid("from", "use from or cursor, not both")
+	}
+	start, err := s.Parent(ctx, viewer, event, thread, from)
+	if err != nil {
+		return List{}, err
+	}
+	if start.ID == thread {
+		return List{}, invalid("from", "start from a reply in this conversation")
+	}
+	// Just before the reply in reply order: same time, the lowest ID.
+	return s.list(ctx, viewer, event, thread, values, &Query{Cursor: &Cursor{At: start.CreatedAt, ID: ""}})
+}
+
+// list reads one collection. open, when set, selects open questions and
+// their own cursor scope, or (with only Cursor) starts a thread's replies at
+// a reply.
 func (s *Service) list(ctx context.Context, viewer, event, thread string, values url.Values, open *Query) (List, error) {
 	if event != "" {
 		if err := saved.ValidateID(event); err != nil {
@@ -418,7 +497,7 @@ func (s *Service) list(ctx context.Context, viewer, event, thread string, values
 	if thread != "" {
 		scope += "/thread:" + thread
 	}
-	if open != nil {
+	if open != nil && open.Open {
 		scope = openScope(viewer, open.Connected)
 	}
 	q, err := ParseQuery(values, scope, event == "")
@@ -427,6 +506,9 @@ func (s *Service) list(ctx context.Context, viewer, event, thread string, values
 	}
 	if open != nil {
 		q.Open, q.Connected = open.Open, open.Connected
+		if open.Cursor != nil {
+			q.Cursor = open.Cursor
+		}
 	}
 	// MariaDB owns creation timestamps. Use the same clock for pagination rather
 	// than temporarily hiding read-after-write results when app/DB clocks differ.
@@ -434,7 +516,8 @@ func (s *Service) list(ctx context.Context, viewer, event, thread string, values
 	if err != nil {
 		return List{}, err
 	}
-	if q.Cursor == nil {
+	if q.Cursor == nil || (open != nil && open.Cursor != nil) {
+		// A first page, or one starting at a reply: read as of now.
 		q.Snapshot = boundary.UTC()
 	} else if q.Snapshot.After(boundary) {
 		return List{}, invalid("cursor", "use the next cursor from this discussion collection")
@@ -443,7 +526,9 @@ func (s *Service) list(ctx context.Context, viewer, event, thread string, values
 	if err != nil {
 		return List{}, err
 	}
-	result := List{Items: items, Count: count}
+	// AsOf is this read's own boundary, never an older cursor's, so a live
+	// check from a later page doesn't re-offer replies created since then.
+	result := List{Items: items, Count: count, AsOf: boundary.UTC()}
 	if items == nil {
 		result.Items = []Post{}
 	}

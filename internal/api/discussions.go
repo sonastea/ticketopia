@@ -31,6 +31,7 @@ func (a *api) discussionRoutes(e *echo.Echo) {
 	e.GET("/api/v1/community/questions", a.openQuestionsHandler)
 	e.GET("/events/:event_id/discussions", a.discussionCollectionPage)
 	e.GET("/events/:event_id/discussions/:discussion_id", a.discussionCollectionPage)
+	e.GET("/events/:event_id/discussions/:discussion_id/new-replies", a.newRepliesHandler)
 	e.GET("/community/discussions", a.discussionCommunityPage)
 	e.GET("/community/questions", a.openQuestionsPage)
 	e.POST("/discussion-actions", a.discussionActionPage)
@@ -252,7 +253,8 @@ func (a *api) loadDiscussionPage(c echo.Context, id, thread string, query url.Va
 	origin := safeReturnURL(values.Get("return_to"))
 	parent := values.Get("reply_to")
 	selected := values.Get("post_id")
-	for _, key := range []string{"return_to", "reply_to", "post_id"} {
+	from := values.Get("from")
+	for _, key := range []string{"return_to", "reply_to", "post_id", "from"} {
 		if len(values[key]) > 1 {
 			return home.DiscussionPage{}, 0, &accounts.ValidationError{Field: key, Message: "use one value"}
 		}
@@ -305,10 +307,30 @@ func (a *api) loadDiscussionPage(c echo.Context, id, thread string, query url.Va
 		p.Event = d.Item
 		p.Meta = d.Meta
 	}
-	p.View.List, err = a.discussions.List(c.Request().Context(), principal.Account.ID, id, thread, values)
+	if from != "" && thread != "" {
+		p.View.List, err = a.discussions.RepliesFrom(c.Request().Context(), principal.Account.ID, id, thread, from, values)
+	} else if from != "" {
+		return p, 0, &accounts.ValidationError{Field: "from", Message: "open a thread to start from a reply"}
+	} else {
+		p.View.List, err = a.discussions.List(c.Request().Context(), principal.Account.ID, id, thread, values)
+	}
 	status := 200
 	if err != nil {
 		status, _, p.View.Error, _ = accountError(err)
+	}
+	if p.Root != nil && err == nil && principal.Account.ID != "" && a.liveRepliesEnabled() {
+		// Engagement read from what the page already holds: no extra query.
+		p.LiveReplies = true
+		p.Engaged = p.Follow != nil || (p.Root.Profile != nil && p.Root.Profile.ID == principal.Account.ID)
+		shown := p.View.List.Items
+		if p.Selected != nil {
+			shown = append(shown[:len(shown):len(shown)], *p.Selected)
+		}
+		for _, reply := range shown {
+			if reply.Profile != nil && reply.Profile.ID == principal.Account.ID {
+				p.Engaged = true
+			}
+		}
 	}
 	return p, status, nil
 }
@@ -488,7 +510,7 @@ func safeDiscussionReturn(raw string) string {
 			return "/"
 		}
 		for k, v := range values {
-			if len(v) != 1 || (k != "return_to" && k != "reply_to" && k != "post_id" && k != "cursor" && k != "limit") {
+			if len(v) != 1 || (k != "return_to" && k != "reply_to" && k != "post_id" && k != "from" && k != "cursor" && k != "limit") {
 				return "/"
 			}
 		}
@@ -496,6 +518,9 @@ func safeDiscussionReturn(raw string) string {
 			return "/"
 		}
 		if values.Get("post_id") != "" && (len(parts) != 4 || discussions.PostID(values.Get("post_id")) != nil) {
+			return "/"
+		}
+		if values.Get("from") != "" && (len(parts) != 4 || discussions.PostID(values.Get("from")) != nil || values.Has("cursor")) {
 			return "/"
 		}
 		if len(values.Get("cursor")) > 1024 {

@@ -112,6 +112,12 @@ func (r *discussionStub) SameQuestion(_ context.Context, who, id string, set boo
 	}
 	return r.post, nil
 }
+func (r *discussionStub) NewReplies(_ context.Context, viewer, event, thread string, since time.Time) (discussions.NewReplies, error) {
+	if thread != r.post.ID || event != r.post.EventID {
+		return discussions.NewReplies{}, discussions.ErrNotFound
+	}
+	return discussions.NewReplies{Replies: []discussions.NewReply{{ID: r.post.ID, CreatedAt: since}}, AsOf: since.Add(time.Second)}, nil
+}
 func discussionAPI(t *testing.T) (*api, *discussionStub, string, string, string, string) {
 	a, _, _, browser, bearer, csrf, id := recommendationAPI(t)
 	r := &discussionStub{}
@@ -455,5 +461,44 @@ func TestOpenQuestionsRoutesAndSameQuestion(t *testing.T) {
 		if got := safeDiscussionReturn(raw); got != want {
 			t.Fatal("open questions return", raw, got)
 		}
+	}
+}
+
+// The live check is a signed-in browser read with a strict since, limited
+// per account, and conversations offer it only when it is on.
+func TestLiveReplyChecks(t *testing.T) {
+	a, repo, browser, bearer, _, event := discussionAPI(t)
+	WithLiveReplyChecks(1)(a)
+	if w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Doors?"}`, bearer, accounts.ID()); w.Code != 201 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	thread := "/events/" + event + "/discussions/" + repo.post.ID
+	since := url.QueryEscape(time.Now().UTC().Format(time.RFC3339Nano))
+	if w := accountRequest(a, "GET", thread+"/new-replies?since="+since, "", "", "", "", "", ""); w.Code != 401 {
+		t.Fatal("anonymous live check", w.Code)
+	}
+	for _, bad := range []string{"", "?since=yesterday", "?since=" + since + "&since=" + since, "?since=" + since + "&extra=1"} {
+		if w := accountRequest(a, "GET", thread+"/new-replies"+bad, "", browser, "", "", "", ""); w.Code != 400 {
+			t.Fatal("malformed live check", bad, w.Code)
+		}
+	}
+	w := accountRequest(a, "GET", thread+"/new-replies?since="+since, "", browser, "", "", "", "")
+	var out discussions.NewReplies
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil || len(out.Replies) != 1 || out.Replies[0].ID != repo.post.ID || w.Header().Get("Cache-Control") == "" {
+		t.Fatal("live check", w.Code, w.Body.String())
+	}
+	if w = accountRequest(a, "GET", thread+"/new-replies?since="+since, "", browser, "", "", "", ""); w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
+		t.Fatal("over the per-account limit", w.Code)
+	}
+	page := accountRequest(a, "GET", thread, "", browser, "", "", "", "").Body.String()
+	if !strings.Contains(page, `data-live-replies="`+thread+`/new-replies"`) || !strings.Contains(page, "data-live-engaged") {
+		t.Fatal("the thread's author should get live checks from the start")
+	}
+	WithLiveReplyChecks(0)(a)
+	if page = accountRequest(a, "GET", thread, "", browser, "", "", "", "").Body.String(); strings.Contains(page, "data-live-replies") {
+		t.Fatal("live checks offered while off")
+	}
+	if w = accountRequest(a, "GET", thread+"/new-replies?since="+since, "", browser, "", "", "", ""); w.Code != http.StatusServiceUnavailable {
+		t.Fatal("live check while off", w.Code)
 	}
 }

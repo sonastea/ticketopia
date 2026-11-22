@@ -222,7 +222,7 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		var selectionErr error
 		if thread := c.QueryParam("selected_thread"); thread != "" || c.QueryParam("discussion_cursor") != "" {
 			values := url.Values{"return_to": {page.ReturnURL}}
-			for source, target := range map[string]string{"reply_to": "reply_to", "discussion_cursor": "cursor"} {
+			for source, target := range map[string]string{"reply_to": "reply_to", "discussion_cursor": "cursor", "discussion_post": "post_id", "discussion_from": "from"} {
 				if value := c.QueryParam(source); value != "" {
 					values.Set(target, value)
 				}

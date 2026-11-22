@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/sonastea/ticketopia/internal/discussionfollows"
 	"github.com/sonastea/ticketopia/internal/discussions"
@@ -27,7 +28,24 @@ type DiscussionPage struct {
 	FollowError                        string
 	View                               DiscussionView
 	ReturnURL, URL, ParentID           string
+	// LiveReplies offers this signed-in viewer live reply checks; Engaged
+	// starts them at once (they follow the thread, wrote it or replied on
+	// this page), otherwise they start when the viewer writes a reply.
+	LiveReplies, Engaged bool
 }
+
+// liveRepliesURL is the conversation's live check, or "" when it has none.
+func (p DiscussionPage) liveRepliesURL() string {
+	if !p.LiveReplies || p.Root == nil || p.View.List.AsOf.IsZero() {
+		return ""
+	}
+	return "/events/" + url.PathEscape(p.Event.ID) + "/discussions/" + url.PathEscape(p.Root.ID) + "/new-replies"
+}
+
+func (p DiscussionPage) liveSince() string {
+	return p.View.List.AsOf.UTC().Format(time.RFC3339Nano)
+}
+
 type DiscussionCommunityPage struct {
 	Enabled               bool
 	Filters               discussions.Query
@@ -36,6 +54,7 @@ type DiscussionCommunityPage struct {
 	CategoriesUnavailable bool
 	URL, Error            string
 }
+
 // OpenQuestionsPage is the "Can you help?" collection: questions and tips on
 // upcoming events that nobody has answered yet.
 type OpenQuestionsPage struct {
@@ -47,6 +66,20 @@ type OpenQuestionsPage struct {
 	CategoriesUnavailable bool
 	ViewerID, CSRF        string
 	URL, Error            string
+}
+
+// earlierReplies is the first reply page of a conversation opened from a
+// reply (from), without that selection, or "" for any other page.
+func earlierReplies(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Query().Get("from") == "" {
+		return ""
+	}
+	values := u.Query()
+	values.Del("from")
+	values.Del("post_id")
+	u.RawQuery, u.Fragment = values.Encode(), ""
+	return u.String()
 }
 
 // answerURL opens a question's conversation at its reply composer.
@@ -172,6 +205,7 @@ func (p DiscussionPage) threadID() string {
 func discussionForm(post discussions.Post, v DiscussionView, action, returnURL string) DiscussionForm {
 	return DiscussionForm{EventID: post.EventID, ThreadID: post.ThreadID, PostID: post.ID, Body: post.Body, Action: action, ReturnURL: returnURL, CSRF: v.CSRF, ViewerID: v.ViewerID}
 }
+
 // startsThread is a new question or tip, not a reply or an edit.
 func (f DiscussionForm) startsThread() bool {
 	return f.Action == "create" && f.ThreadID == "" && f.PostID == ""

@@ -1,4 +1,4 @@
-.PHONY: help check migrate db-setup ses-setup local-setup local-test-accounts local-test-accounts-clean review-server review-mcp review-mcp-config review-clean load-test simulate-users benchmark backup-verify
+.PHONY: help check migrate db-setup ses-setup local-setup local-test-accounts local-test-accounts-clean review-server review-mcp review-mcp-config review-clean load-test simulate-users live-replies live-replies-benchmark benchmark backup-verify
 
 REVIEW_SERVER_ADDR ?= 127.0.0.1:8090
 scenario ?= baseline
@@ -30,7 +30,10 @@ help:
 		'make benchmark     Step each scenario (web, api, mcp_public) to its limit and write an HTML report;' \
 		'                   a running review server by default, or target=<https://host>.' \
 		'make simulate-users Simulate signed-in users browsing, saving, following and discussing against a running' \
-		'                   review server (scenario=populated). Add users=<20> duration=<2m> think=<3>.'
+		'                   review server (scenario=populated). Add users=<20> duration=<2m> think=<3>.' \
+		'make live-replies  Hold participants checking open conversations for new replies against a running review' \
+		'                   server (scenario=populated, DISCUSSION_LIVE_CHECKS_PER_MINUTE=6000). Add participants=<50>.' \
+		'make live-replies-benchmark Step live replies participants to their limit and write an HTML report.'
 
 # Validate the current working tree before committing, using the publishing checks.
 check:
@@ -115,3 +118,16 @@ simulate-users:
 	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
 		-e USERS=$(users) -e THINK=$(think) $(if $(filter command line,$(origin duration)),-e DURATION=$(duration)) \
 		--summary-export ".local/load/user-sessions-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/user-sessions.js
+
+# Local only: participants share the populated review server's member sessions
+# and write replies to its disposable schema (docs/load-testing.md#live-replies).
+participants ?= 50
+live-replies:
+	@mkdir -p .local/load
+	@$(K6) run -e MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
+		-e PARTICIPANTS=$(participants) $(if $(filter command line,$(origin duration)),-e DURATION=$(duration)) \
+		--summary-export ".local/load/live-replies-$$(date -u +%Y%m%dT%H%M%SZ).json" scripts/load/live-replies.js
+
+live-replies-benchmark:
+	@MANIFEST="$${REVIEW_SERVER_STATE_DIR:-$${TMPDIR:-/tmp}/ticketopia-review}/manifest.json" \
+		node scripts/load/live-replies-benchmark.mjs

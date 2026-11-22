@@ -322,6 +322,22 @@ templ DiscussionComposer(f DiscussionForm,fieldLabel,submitLabel string) {
 	</form>
 }
 
+// LiveReplies checks for other people's new replies while the viewer takes
+// part in the conversation (see discussions.js). New replies are announced
+// and shown only when the viewer asks: the control refreshes the
+// conversation in place at the first new reply, keeping drafts. It sticks to
+// the bottom of the view while the conversation scrolls. Without script it never shows;
+// reloading still brings new replies.
+templ LiveReplies(p DiscussionPage, live string) {
+	<div class="live-replies" data-live-replies={ live } data-live-since={ p.liveSince() } data-live-thread={ p.URL } data-live-engaged?={ p.Engaged }>
+		<p class="sr-only" role="status" aria-atomic="true" data-live-replies-status></p>
+		<a href={ templ.URL(p.URL) } class="live-replies-show" data-thread-link data-live-replies-show hidden>
+			@layouts.Icon("arrow-down")
+			<span data-live-replies-label>Show new replies</span>
+		</a>
+	</div>
+}
+
 // ComposerStarters offers a few ways into an empty question or tip. Script
 // reveals them as buttons that fill the field with editable text; they never
 // publish. Without script they are plain examples.
@@ -373,6 +389,9 @@ templ DiscussionContent(p DiscussionPage) {
 					@DiscussionPost(*p.Selected,p.View,p.URL)
 				}
 				<h2>{ fmt.Sprint(p.Root.ReplyCount) } replies</h2>
+				if earlier:=earlierReplies(p.URL); earlier!="" {
+					<a href={ templ.URL(earlier) } class="text-link" data-thread-link>Earlier replies</a>
+				}
 				if p.View.Error!="" {
 					<p role="alert">{ p.View.Error }</p>
 					<a href={ templ.URL(p.URL) } class="text-link" data-thread-link>Retry replies</a>
@@ -412,6 +431,11 @@ templ DiscussionContent(p DiscussionPage) {
 						<a href={ templ.URL(signInURL(p.URL)) } class="text-link">Sign in to reply or mark a contribution Helpful</a>
 					}
 				</section>
+				// Last in the conversation, so it can stick above the navigation
+				// anywhere in it (a sticky control can't leave its container).
+				if live:=p.liveRepliesURL(); live!="" {
+					@LiveReplies(p, live)
+				}
 			} else {
 				<h2>Questions & tips</h2>
 				@DiscussionPanel(p.Event.ID,p.View,p.URL)

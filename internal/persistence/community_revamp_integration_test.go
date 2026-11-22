@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"database/sql"
 	"errors"
 	"net/url"
 	"slices"
@@ -264,5 +265,153 @@ func TestMariaDBOpenQuestionsConnectionsAndEligibility(t *testing.T) {
 	}
 	if !ids[roots[unrelated.Item.ID]] || ids[roots[venue.Item.ID]] {
 		t.Fatalf("date-only eligibility: today's local event listed=%v, a past date listed=%v", ids[roots[unrelated.Item.ID]], ids[roots[venue.Item.ID]])
+	}
+}
+
+// A live check lists other people's visible replies from shortly before the
+// page's as_of, oldest first, including one created before the read but
+// committed after it, and refuses a stale or foreign window.
+func TestMariaDBNewRepliesSinceAsOf(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	pool := f.open(t)
+	auth := accounts.New(pool.Accounts(), accountProviderFixture{})
+	reader, _ := loginAccount(t, auth, "live-reader")
+	writer, _ := loginAccount(t, auth, "live-writer")
+	svc := discussions.New(pool.Discussions(), saved.New(pool.Saved(), nil))
+	event := futureDetail("LiveReplies", 72*time.Hour)
+	if _, _, err := pool.Saved().Save(t.Context(), reader.ID, event); err != nil {
+		t.Fatal(err)
+	}
+	root, _, err := svc.Create(t.Context(), reader.ID, event.Item.ID, "", "", "Doors at seven?", accounts.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Created long enough before the page that the overlap doesn't reach it.
+	execSQL(t, pool.db, `UPDATE discussion_posts SET created_at=created_at-INTERVAL 1 MINUTE,updated_at=updated_at-INTERVAL 1 MINUTE WHERE post_id=?`, root.ID)
+	page, err := svc.List(t.Context(), reader.ID, event.Item.ID, root.ID, nil)
+	if err != nil || page.AsOf.IsZero() {
+		t.Fatal("thread page has no as_of", err)
+	}
+	ids := func(since time.Time) []string {
+		t.Helper()
+		out, err := svc.NewReplies(t.Context(), reader.ID, event.Item.ID, root.ID, since)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// What the browser offers: the overlap, then later replies.
+		got := []string{}
+		for _, r := range append(out.Recent, out.Replies...) {
+			got = append(got, r.ID)
+		}
+		return got
+	}
+	if got := ids(page.AsOf); len(got) != 0 {
+		t.Fatalf("nothing new yet: %v", got)
+	}
+	reply := func(s *discussions.Service, who, body string) discussions.Post {
+		p, _, err := s.Create(t.Context(), who, event.Item.ID, root.ID, "", body, accounts.ID())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	first := reply(svc, writer.ID, "Yes, seven sharp.")
+	reply(svc, reader.ID, "Thanks!") // the reader's own reply is never "new" to them
+	// The writer is served by another replica: checks read MariaDB, so the
+	// reader's replica sees it without any cross-replica messaging.
+	second := reply(discussions.New(f.open(t).Discussions(), saved.New(pool.Saved(), nil)), writer.ID, "Bring ID.")
+	if got := ids(page.AsOf); !slices.Equal(got, []string{first.ID, second.ID}) {
+		t.Fatalf("two new replies from the writer, oldest first: %v", got)
+	}
+	// A reply whose transaction is open while the page is read: stamped
+	// before the page's as_of, committed after it, and still offered (as
+	// recent; the browser skips any reply it already shows).
+	tx, err := pool.db.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	late := accounts.ID()
+	if _, err = tx.ExecContext(t.Context(), `INSERT INTO discussion_posts (post_id,account_id,event_id,root_id,parent_id,body,idempotency_key,request_hash) VALUES (?,?,?,?,?,?,?,?)`,
+		late, writer.ID, event.Item.ID, root.ID, root.ID, "Committed late.", accounts.ID(), make([]byte, 32)); err != nil {
+		t.Fatal(err)
+	}
+	during, err := svc.List(t.Context(), reader.ID, event.Item.ID, root.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range during.Items {
+		if p.ID == late {
+			t.Fatal("an uncommitted reply was on the page")
+		}
+	}
+	out, err := svc.NewReplies(t.Context(), reader.ID, event.Item.ID, root.ID, during.AsOf)
+	if err != nil || !slices.ContainsFunc(out.Recent, func(r discussions.NewReply) bool { return r.ID == late }) {
+		t.Fatalf("a reply committed after the page read was missed: %+v %v", out, err)
+	}
+	// A later page's as_of is its own read, not its cursor's older snapshot,
+	// so a check from it never re-offers replies created since page one.
+	one, err := svc.List(t.Context(), reader.ID, event.Item.ID, root.ID, url.Values{"limit": {"1"}})
+	if err != nil || one.NextCursor == nil {
+		t.Fatal("first reply page", err)
+	}
+	two, err := svc.List(t.Context(), reader.ID, event.Item.ID, root.ID, url.Values{"limit": {"1"}, "cursor": {*one.NextCursor}})
+	if err != nil || two.AsOf.Before(one.AsOf) || !two.AsOf.After(page.AsOf) {
+		t.Fatal("a cursor page reported an older as_of", one.AsOf, two.AsOf, err)
+	}
+	// Starting from a reply opens a page holding it and those after it.
+	from, err := svc.RepliesFrom(t.Context(), reader.ID, event.Item.ID, root.ID, first.ID, url.Values{"limit": {"2"}})
+	if err != nil || len(from.Items) != 2 || from.Items[0].ID != first.ID || from.NextCursor == nil {
+		t.Fatal("a page from the first new reply", len(from.Items), err)
+	}
+	if _, err := svc.RepliesFrom(t.Context(), reader.ID, event.Item.ID, root.ID, root.ID, nil); err == nil {
+		t.Fatal("a page started from the question itself")
+	}
+	execSQL(t, pool.db, `UPDATE discussion_posts SET hidden_at=UTC_TIMESTAMP(6) WHERE post_id=?`, first.ID)
+	if got := ids(page.AsOf); slices.Contains(got, first.ID) || !slices.Contains(got, second.ID) {
+		t.Fatalf("a hidden reply was still offered: %v", got)
+	}
+	for _, since := range []time.Time{page.AsOf.Add(-25 * time.Hour), page.AsOf.Add(time.Hour)} {
+		if _, err := svc.NewReplies(t.Context(), reader.ID, event.Item.ID, root.ID, since); err == nil {
+			t.Fatal("a stale or future since was accepted", since)
+		}
+	}
+	if _, err := svc.NewReplies(t.Context(), reader.ID, "ticketmaster:Elsewhere", root.ID, page.AsOf); !errors.Is(err, discussions.ErrNotFound) {
+		t.Fatal("a thread was checked under another event", err)
+	}
+	if _, err := svc.NewReplies(t.Context(), reader.ID, event.Item.ID, second.ID, page.AsOf); !errors.Is(err, discussions.ErrNotFound) {
+		t.Fatal("a reply was checked as a thread", err)
+	}
+	// Bounded: more than MaxNewReplies reports More.
+	for range discussions.MaxNewReplies {
+		execSQL(t, pool.db, `INSERT INTO discussion_posts (post_id,account_id,event_id,root_id,parent_id,body,idempotency_key,request_hash) VALUES (?,?,?,?,?,?,?,?)`,
+			accounts.ID(), writer.ID, event.Item.ID, root.ID, root.ID, "Burst", accounts.ID(), make([]byte, 32))
+	}
+	out, err = svc.NewReplies(t.Context(), reader.ID, event.Item.ID, root.ID, page.AsOf)
+	if err != nil || len(out.Replies) != discussions.MaxNewReplies || !out.More {
+		t.Fatal("a burst should be bounded and flagged", len(out.Replies), out.More, err)
+	}
+	// The check is a range read on the reply index, not a table scan, once
+	// other threads make the table realistic (a lone thread scans cheaper).
+	other, _, err := svc.Create(t.Context(), writer.ID, event.Item.ID, "", "", "Another thread", accounts.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	execSQL(t, pool.db, `INSERT INTO discussion_posts (post_id,account_id,event_id,root_id,parent_id,body,idempotency_key,request_hash)
+ SELECT MD5(CONCAT(?,seq)),?,?,?,?,'Elsewhere',MD5(CONCAT('k',?,seq)),UNHEX(SHA2(seq,256)) FROM seq_1_to_3000`, other.ID, writer.ID, event.Item.ID, other.ID, other.ID, other.ID)
+	var cols [10]sql.NullString
+	dest := make([]any, len(cols))
+	for i := range cols {
+		dest[i] = &cols[i]
+	}
+	if err := pool.db.QueryRowContext(t.Context(), `EXPLAIN SELECT post_id,created_at FROM discussion_posts WHERE root_id=? AND created_at>? AND removed_at IS NULL AND hidden_at IS NULL AND account_id<>? ORDER BY created_at,post_id LIMIT 51`,
+		root.ID, page.AsOf, reader.ID).Scan(dest...); err != nil {
+		t.Fatal(err)
+	}
+	if key := cols[5].String; key != "discussion_replies" && key != "discussion_recent" {
+		t.Fatalf("live check plan uses %q (type %s, possible %s, rows %s), not the reply index", key, cols[3].String, cols[4].String, cols[8].String)
 	}
 }

@@ -65,6 +65,7 @@ type api struct {
 	recommendations   *recommendations.Service
 	drafts            *drafts.Service
 	discussions       *discussions.Service
+	liveReplies       *replyChecks
 	eventActivity     *eventactivity.Service
 	userActivity      *useractivity.Service
 	discussionFollows *discussionfollows.Service

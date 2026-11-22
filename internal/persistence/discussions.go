@@ -1,11 +1,14 @@
 package persistence
 
 import (
+	"cmp"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/accounts"
@@ -354,6 +357,7 @@ func (r *DiscussionRepository) React(ctx context.Context, owner, id string, set 
 	}
 	return p, nil
 }
+
 // SameQuestion sets or clears the owner's mark on someone else's visible
 // question or tip. Marks only annotate; they never change any list order.
 func (r *DiscussionRepository) SameQuestion(ctx context.Context, owner, id string, set bool) (discussions.Post, error) {
@@ -478,4 +482,59 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 		items[i].Event = events[items[i].EventID]
 	}
 	return items, count, nil
+}
+
+// NewReplies lists other people's visible replies in a root thread: up to
+// MaxNewReplies created after since, and up to MaxNewReplies in the overlap
+// before it. The overlap is the longer of LiveReplyOverlap and this
+// repository's query timeout plus a second; every reply is written within
+// that timeout, so none can commit too late for both the page and the check.
+// The first statement checks the thread and window without touching replies;
+// the second is two range reads on discussion_replies (root_id, created_at,
+// post_id) in one statement, so the lists are one consistent set.
+func (r *DiscussionRepository) NewReplies(ctx context.Context, viewer, event, thread string, since time.Time) (discussions.NewReplies, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	out := discussions.NewReplies{Replies: []discussions.NewReply{}, Recent: []discussions.NewReply{}}
+	var root bool
+	err := r.db.QueryRowContext(ctx, `SELECT UTC_TIMESTAMP(6),EXISTS(SELECT 1 FROM discussion_posts t WHERE t.post_id=? AND t.event_id=? AND t.root_id IS NULL)`, thread, event).Scan(&out.AsOf, &root)
+	if err != nil {
+		return out, safeError("live reply check", err)
+	}
+	if !root {
+		return discussions.NewReplies{}, discussions.ErrNotFound
+	}
+	if since.After(out.AsOf.Add(time.Minute)) || since.Before(out.AsOf.Add(-discussions.LiveReplyWindow)) {
+		return discussions.NewReplies{}, &accounts.ValidationError{Field: "since", Message: "reload the conversation to check for new replies"}
+	}
+	overlap := max(discussions.LiveReplyOverlap, r.timeout+time.Second)
+	const visible = `FROM discussion_posts WHERE root_id=? AND removed_at IS NULL AND hidden_at IS NULL AND account_id<>?`
+	err = queryRowsTx(ctx, r.db, `(SELECT 1 AS after_since,post_id,created_at `+visible+` AND created_at>? ORDER BY created_at,post_id LIMIT ?)
+ UNION ALL (SELECT 0,post_id,created_at `+visible+` AND created_at>? AND created_at<=? ORDER BY created_at,post_id LIMIT ?)`,
+		[]any{thread, viewer, since, discussions.MaxNewReplies + 1, thread, viewer, since.Add(-overlap), since, discussions.MaxNewReplies}, func(rows *sql.Rows) error {
+			var after bool
+			var reply discussions.NewReply
+			if err := rows.Scan(&after, &reply.ID, &reply.CreatedAt); err != nil {
+				return err
+			}
+			reply.CreatedAt = reply.CreatedAt.UTC()
+			if after {
+				out.Replies = append(out.Replies, reply)
+			} else {
+				out.Recent = append(out.Recent, reply)
+			}
+			return nil
+		})
+	if err != nil {
+		return discussions.NewReplies{}, safeError("live reply check", err)
+	}
+	byCreation := func(a, b discussions.NewReply) int {
+		return cmp.Or(a.CreatedAt.Compare(b.CreatedAt), strings.Compare(a.ID, b.ID))
+	}
+	slices.SortFunc(out.Replies, byCreation)
+	slices.SortFunc(out.Recent, byCreation)
+	if len(out.Replies) > discussions.MaxNewReplies {
+		out.Replies, out.More = out.Replies[:discussions.MaxNewReplies], true
+	}
+	return out, nil
 }
