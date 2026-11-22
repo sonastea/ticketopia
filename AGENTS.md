@@ -120,6 +120,10 @@
   that read repository files, run `make check` after the final relevant edits.
   It validates the working tree with the publishing Docker target, including
   `.dockerignore` filtering; host-only tests cannot catch omitted context files.
+- `make review-server` runs until interrupted: start it in the background, use
+  it once its log prints `review server listening`, and stop it with Ctrl-C.
+  The `ticketopia-review` MCP server serves its startup build, not working-tree
+  edits. See `docs/testing.md#signed-in-manual-review-server`.
 - Add tests for meaningful behavioral risks, not to mirror implementation or
   validate prose-only/trivial edits. Do not rerun successful checks unless relevant
   changes, failures, or unresolved concerns justify it.

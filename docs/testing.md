@@ -90,6 +90,21 @@ post in the moderator queue. Ticketmaster and IP lookup stay off; events come
 from cache fixtures (`discover-last-known` uses a loopback provider stand-in). `MARIADB_TEST_ADDR` must be a loopback address because the
 server creates a schema and users.
 
+The server runs until it is interrupted; it never finishes on its own. Agents
+should start it in the background with its output in a log file. It is ready
+once the log prints `review server listening on http://…`, which takes about a
+minute while the test compiles. Don't wait for the command to complete. Stop it
+with Ctrl-C (SIGINT) when done, which drops the fixture schema. `make` then
+reports `Error 1` (exit code 2), which is expected when the log ends with
+`--- PASS: TestMariaDBReviewServer`. To run it beside the `ticketopia-review` MCP
+server (which holds `127.0.0.1:8090`), pass another port, such as
+`REVIEW_SERVER_ADDR=127.0.0.1:8091`.
+
+The MCP server serves the binary built when it started, so after changing
+embedded assets, templates or handlers, review through `make review-server`
+(built from the working tree) or restart the MCP server. Its old build keeps
+serving the previous CSS, fonts and markup.
+
 Add a named scenario to seed extra states on top of that baseline:
 
 ```sh
