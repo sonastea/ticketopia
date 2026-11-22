@@ -53,10 +53,19 @@
   const motionOK = () => matchMedia('(prefers-reduced-motion: no-preference)').matches;
   // Reads a shared easing token (--ease-out, --ease-standard) from app.css.
   const easing = name => getComputedStyle(document.documentElement).getPropertyValue(`--ease-${name}`).trim() || 'ease-out';
-  // Plays a one-off entrance on content that just arrived.
-  const enter = (node, keyframes = { opacity: [0, 1] }, duration = 160) => {
-    if (node && motionOK()) node.animate?.(keyframes, { duration, easing: easing('out') });
+  // Plays a one-off entrance on content that just arrived. A delayed entrance
+  // holds its first frame until it starts, so nothing shows early.
+  const enter = (node, keyframes = { opacity: [0, 1] }, duration = 160, delay = 0, curve = easing('out')) => {
+    if (node && motionOK()) node.animate?.(keyframes, { duration, delay, fill: 'backwards', easing: curve });
   };
+  // A brief overshoot as a saved/interested icon fills in. The easing sits on
+  // each segment with linear overall timing, so the peak lands at 40% of the
+  // time rather than in the first frames.
+  const pop = icon => enter(icon, [
+    { scale: .85, easing: easing('out') },
+    { scale: 1.12, offset: .4, easing: easing('standard') },
+    { scale: 1 },
+  ], 280, 0, 'linear');
   // Briefly highlights a post the reader was just taken to (CSS animates it).
   const arrive = post => {
     if (!post || !motionOK()) return;
@@ -99,17 +108,23 @@
   };
   // Slides a section nav's current-tab mark from the tab it marked before
   // `update` to the tab it marks after. Only the absolutely positioned mark's
-  // left/right insets animate, so the tabs never lay out again; the
-  // server-rendered mark is already in place without this.
+  // left/right insets animate, so the tabs never lay out again and the rounded
+  // segment keeps its corners (a scale would stretch them); the
+  // server-rendered mark is already in place without this. A slide still in
+  // flight starts the next one from where it visibly is, and is cancelled
+  // before the destination is measured at rest.
   const slideTab = (nav, update) => {
-    const was = motionOK() && nav?.querySelector('.tab-mark')?.getBoundingClientRect();
+    const before = motionOK() && nav?.querySelector('.tab-mark');
+    const was = before?.getBoundingClientRect();
+    before?.slide?.cancel();
     update();
     const mark = nav?.querySelector('.tab-mark');
     if (!was || !mark?.animate) return;
+    mark.slide?.cancel();
     const now = mark.getBoundingClientRect();
     if (Math.abs(was.left - now.left) < 1 && Math.abs(was.right - now.right) < 1) return;
     const { left, right } = getComputedStyle(mark);
-    mark.animate({
+    mark.slide = mark.animate({
       left: [`${parseFloat(left) + was.left - now.left}px`, left],
       right: [`${parseFloat(right) + now.right - was.right}px`, right],
     }, { duration: 240, easing: easing('standard') });
@@ -121,7 +136,7 @@
   // latest transition runs. Resolves once the DOM is updated; without support or
   // with reduced motion it updates now.
   let shellTurn = 0;
-  const shellTransition = (kind, update) => {
+  const shellTransition = (kind, update, closing = false) => {
     if (!document.startViewTransition || !motionOK()) {
       update();
       return Promise.resolve();
@@ -129,8 +144,14 @@
     const root = document.documentElement;
     const turn = ++shellTurn;
     root.dataset.shellTransition = kind;
+    // Collapsing and closing run shorter (app.css).
+    root.toggleAttribute('data-shell-closing', closing);
     const transition = document.startViewTransition(update);
-    const done = () => { if (turn === shellTurn) delete root.dataset.shellTransition; };
+    const done = () => {
+      if (turn !== shellTurn) return;
+      delete root.dataset.shellTransition;
+      root.removeAttribute('data-shell-closing');
+    };
     transition.ready.catch(() => {});
     transition.finished.then(done, done);
     return transition.updateCallbackDone;
@@ -483,7 +504,7 @@
       // contains it, says what pressing does.
       const label = saved ? 'Remove from Saved' : 'Save';
       // A brief overshoot as the bookmark fills in.
-      if (saved && button.dataset.saved !== 'true') enter(button.querySelector('.icon'), { scale: [.6, 1.2, 1] }, 320);
+      if (saved && button.dataset.saved !== 'true') pop(button.querySelector('.icon'));
       button.dataset.saved = String(saved);
       button.setAttribute('aria-label', label + ' — ' + form.dataset.eventName);
       // In Saved itself the button names the action; elsewhere, the state.
@@ -751,7 +772,7 @@
       applyCollapse(collapsed);
       toggle.addEventListener('click', () => {
         collapsed = !collapsed;
-        shellTransition('sidebar', () => applyCollapse(collapsed));
+        shellTransition('sidebar', () => applyCollapse(collapsed), collapsed);
         try {
           localStorage.setItem(collapseKey, String(collapsed));
         } catch { /* The toggle still works for this page view. */ }
@@ -1585,17 +1606,32 @@
   // settle in as one batch; rows already read don't move.
   let rowsBeforePage = null;
   let pageHadFocus = false;
+  // Whether that focus showed a ring (keyboard), which the next row inherits.
+  let pageFocusVisible = false;
   // A page that continues the last calendar stretch repeats its agenda
   // heading; keep the one already shown. Results are date-sorted whenever
   // headings exist, so a key seen again is a continuation. Rows arrive by an
   // out-of-band swap, so this runs on the mutation itself, before paint.
   const agenda = document.getElementById('event-list');
+  // The same pre-paint pass starts the new page's entrance, so rows never show
+  // at rest first. The first few cascade so the page's start reads; the rest
+  // arrive with the last of them rather than lengthening a long page. When a
+  // visible focus ring will move into the new rows, they all enter at once, so
+  // the focused row is never held transparent.
+  const cascade = [0, 40, 70, 90];
+  let pageEntered = 0;
   if (agenda && window.MutationObserver) {
-    new MutationObserver(() => {
+    new MutationObserver(records => {
       let shown = null;
       for (const item of agenda.querySelectorAll(':scope > .event-group')) {
         if (item.dataset.eventGroup === shown) item.remove();
         else shown = item.dataset.eventGroup;
+      }
+      if (rowsBeforePage === null) return;
+      for (const record of records) for (const node of record.addedNodes) {
+        if (node.nodeType !== 1 || !node.isConnected) continue;
+        const delay = pageFocusVisible ? 0 : cascade[Math.min(pageEntered++, cascade.length - 1)];
+        enter(node, { opacity: [0, 1], translate: ['0 .375rem', '0 0'] }, 200, delay);
       }
     }).observe(agenda, { childList: true });
   }
@@ -1603,6 +1639,8 @@
     if (!event.target.closest?.('#pagination')) return;
     rowsBeforePage = document.getElementById('event-list')?.children.length ?? null;
     pageHadFocus = Boolean(document.activeElement?.closest('#pagination'));
+    pageFocusVisible = pageHadFocus && document.activeElement.matches(':focus-visible');
+    pageEntered = 0;
   });
   document.addEventListener('htmx:load', event => {
     if (event.target.id !== 'pagination') return;
@@ -1610,13 +1648,13 @@
     const list = document.getElementById('event-list');
     const rows = rowsBeforePage === null ? [] : [...list?.children || []].slice(rowsBeforePage);
     rowsBeforePage = null;
-    for (const row of rows) enter(row, { opacity: [0, 1], translate: ['0 .375rem', '0 0'] }, 200);
     // The swap removed the pressed Load more; continue from the first new
     // event rather than dropping keyboard focus to the page.
     if (pageHadFocus && (!document.activeElement || document.activeElement === document.body)) {
       (rows.find(item => item.matches('.event-row'))?.querySelector('.event-link') || event.target.querySelector('a[href], button:not([hidden])'))?.focus();
     }
     pageHadFocus = false;
+    pageFocusVisible = false;
   });
   // Same-document Back/Forward keeps the loaded rows, so the entry it lands
   // on must name them too. Registered before restoreSelection reads the URL.
@@ -1818,7 +1856,7 @@
         }
       } else if (push) revealRow(viewed, false);
     };
-    if (push && desktop.matches) shellTransition('preview', close);
+    if (push && desktop.matches) shellTransition('preview', close, true);
     else close();
   };
   document.addEventListener('click', event => {

@@ -369,6 +369,9 @@
   /* Gentler deceleration for large shell moves, which --ease-out finishes too
      early to read. */
   --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  /* Drawer-like panels (the sidebar rail and the preview): quick to start, long
+     soft settle. */
+  --ease-drawer: cubic-bezier(.32, .72, 0, 1);
   /* The phone navigation floats this far above the bottom edge/home indicator. */
   --nav-float-gap: max(.75rem, calc(.25rem + env(safe-area-inset-bottom, 0px)));
   color-scheme: light;
@@ -1947,7 +1950,7 @@ html:has(.filter-sheet:modal) {
 /* Opening a card's artwork or title eases its photo in a little, inside the
    frame's clip; only with motion allowed and a fine hover pointer. */
 @media (prefers-reduced-motion: no-preference) {
-  .event-image img { transition: scale 450ms var(--ease-out); }
+  .event-image img { transition: scale 300ms var(--ease-out); }
   @media (hover: hover) and (pointer: fine) {
     :is(.event-row, .community-cards > li):has(:is(.event-link, .event-art > a, .event-image-link):hover) .event-image img { scale: 1.04; }
   }
@@ -2328,7 +2331,7 @@ html:has(.filter-sheet:modal) {
     inset: 0;
     background-image: linear-gradient(90deg, transparent, color-mix(in oklch, var(--surface) 70%, transparent), transparent);
     translate: -100% 0;
-    animation: skeleton-shimmer 1.4s var(--ease-out) infinite;
+    animation: skeleton-shimmer 1.4s linear infinite;
   }
   .pagination-skeleton [data-slot="skeleton"]:dir(rtl)::after { animation-direction: reverse; }
 }
@@ -3690,6 +3693,8 @@ html:has(.filter-sheet:modal) {
     transition-behavior: allow-discrete;
   }
   details[open]::details-content { block-size: auto; }
+  /* Shutting is quicker than opening; the reader is done with the content. */
+  details:not([open])::details-content { transition-duration: 140ms; }
   /* The filter sheet rises from the bottom edge as its backdrop dims in;
      closing is immediate. */
   /* Its disclosure opens with it but stays empty in flow; growing it would only
@@ -3734,8 +3739,14 @@ html:has(.filter-sheet:modal) {
   [data-shell-transition]::view-transition-group(*),
   [data-shell-transition]::view-transition-old(*),
   [data-shell-transition]::view-transition-new(*) {
-    animation-duration: 380ms;
-    animation-timing-function: var(--ease-standard);
+    animation-duration: 280ms;
+    animation-timing-function: var(--ease-drawer);
+  }
+  /* Collapsing the rail and closing the preview are quicker than opening. */
+  [data-shell-transition][data-shell-closing]::view-transition-group(*),
+  [data-shell-transition][data-shell-closing]::view-transition-old(*),
+  [data-shell-transition][data-shell-closing]::view-transition-new(*) {
+    animation-duration: 200ms;
   }
   ::view-transition-group(sidebar), ::view-transition-group(shell-context) { overflow: clip; }
   ::view-transition-group(sidebar) { z-index: 1; }
@@ -5085,6 +5096,28 @@ details.composer-card > .composer-form { padding: 1.125rem; }
     .live-card:has(.live-card-link:hover) { translate: 0 -2px; }
   }
 }
+/* Press colours land at once; only the release eases back, using each
+   control's own transition. */
+:is(a[href], button, summary, [role="button"], label):active,
+.notification-option > label:active .notification-title,
+.command-location:active strong,
+:is(.event-row, .live-card, .community-cards > li):has(:is(a[href], button):active) {
+  transition-duration: 0ms;
+}
+/* The primary calls to action also settle a little under the press. Listing
+   only scale keeps their press colours instant. */
+@media (prefers-reduced-motion: no-preference) {
+  /* The compound save selector lifts the whole list above the event-actions
+     quiet-button transition list. */
+  :is(.action, .event-primary-actions .ticket-link, .ticket-row-link, .event-actions .button-quiet.save-button, .save-button) {
+    transition-property: background-color, color, border-color, box-shadow, scale;
+  }
+  :is(.action, .event-primary-actions .ticket-link, .ticket-row-link, .event-actions .button-quiet.save-button, .save-button):active:not(:disabled) {
+    scale: .97;
+    transition: scale 160ms var(--ease-out);
+  }
+}
+
 /* Restated after the depth rules, which would otherwise mask these. */
 @media (forced-colors: active) {
   .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }

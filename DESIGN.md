@@ -509,15 +509,17 @@ the Save it names. Expired participation writes expose a
 contextual sign-in link. See [task continuity](docs/accounts.md#sign-in-task-continuity).
 
 Action background changes and disclosure-chevron rotation
-use 160ms; result selection uses 180ms. Disclosures grow open and shut over 200ms
-where `::details-content` and intrinsic-size interpolation are supported, and a
+use 160ms; result selection uses 180ms. Disclosures grow open over 200ms and
+shut over 140ms where `::details-content` and intrinsic-size interpolation are
+supported, and a
 loaded preview settles in (fade and .375rem rise, 200ms). Sidebar collapse and
-desktop preview open/close run as 380ms same-document view transitions on the
-gentler `--ease-standard` curve (`cubic-bezier(.2, 0, 0, 1)`): the page switches to
+desktop preview open/close run as same-document view transitions on the drawer
+curve `--ease-drawer` (`cubic-bezier(.32, .72, 0, 1)`), 280ms to expand or open
+and 200ms to collapse or close: the page switches to
 its new layout at once while the rail or preview slides over it like a drawer,
 revealed under a clip. Collapsed-rail labels fade in over 120ms. Saved
 bookmarks and interested stars fill in over 160ms and, when turned on in place,
-pop with a 320ms overshoot. Cross-document view transitions run 250ms with the shared ease-out curve, moving per-event artwork/titles between rows, preview and event page; they are enabled only under `prefers-reduced-motion: no-preference`. Buttons and badges share the source's
+pop with a 280ms overshoot (from .85× to a 1.12× peak at 40% of the time). Cross-document view transitions run 250ms with the shared ease-out curve, moving per-event artwork/titles between rows, preview and event page; they are enabled only under `prefers-reduced-motion: no-preference`. Buttons and badges share the source's
 `cubic-bezier(.16, 1, .3, 1)`; other library buttons retain 150ms for color/fill
 changes only. Script animations read `--ease-out` and `--ease-standard` from the
 root instead of copying the curves, and htmx's injected ease-in indicator style is
@@ -525,7 +527,10 @@ turned off (`includeIndicatorStyles: false`). Geometry transitions opt into moti
 requested; there is no global safeguard, so each animation carries its own guard
 (the vendored shimmer utility has its own). Native links, buttons, summaries and
 selects share a 160ms ease-out colour baseline (background, text, border and
-underline colour), which reduced motion keeps. Under no reduction, action feedback,
+underline colour), which reduced motion keeps. Pressed colours apply at once
+(`:active` transitions take 0ms) and only the release eases back; under no
+reduction, primary actions (`.action`, Tickets, Save) also settle to .97× over
+160ms while pressed. Under no reduction, action feedback,
 inline errors, revealed controls (reminder, visibility, custom timing)
 fade in over 160ms, live-activity toasts drop in over 200ms, pending forms dim
 gradually, a Save/Interested/recommendation/discussion write still pending after 300ms
@@ -544,12 +549,14 @@ the newly current tab (240ms, `--ease-standard`): in place for event sections,
 by cross-document view transition for page tabs; reduced motion and no-script
 navigation show it in place at once.
 A reader-chosen event section or conversation fades in (160ms); Load more rows
-settle in as one batch and late-loading result artwork fades over its placeholder
+settle in before first paint, the first few cascading 0/40/70/90ms apart (all at
+once when a visible keyboard focus moves into them), and late-loading result artwork fades over its placeholder
 (200ms). A post reached by link, or just published or edited, flashes the
 pale-plum tint once over 1.6s (static under reduced motion, outlined in forced
 colours). Rows that survive a Saved/Interests removal, and reordered sidebar
 items and sections, slide to their new places (240ms, `--ease-standard`). Hover requires a fine, hover-capable pointer; touch press
-feedback changes fill/color without movement.
+feedback changes fill/color, with only the primary actions' small press scale.
+The Load more placeholder shimmer is constant motion and runs linear.
 
 Two motion enhancements are scroll- or load-bound and gated on
 `prefers-reduced-motion: no-preference`; otherwise they are static. Below 62rem
@@ -654,7 +661,7 @@ sale status; an unknown price keeps "Price not listed". Under an agenda heading 
 row's visible date drops what the heading and stub already say (**Sunday · 7:30
 PM** within a week, **Sun, Dec 6 · 7:30 PM** within a month) while screen readers
 keep the full date. With motion allowed and a fine pointer, hovering a card's
-title or artwork eases its photo to 1.04× inside the frame (450ms, `--ease-out`);
+title or artwork eases its photo to 1.04× inside the frame (300ms, `--ease-out`);
 Community cards share it. Excerpts and author links belong in event sections, with one exception: the Up next lead quotes its newest public recommendation's reason as a pull quote (at most three lines, the plum opening mark, then a muted "{name} recommends this event", no profile link); a reason-less recommendation shows nothing. Saved, Interests, and
 Radar share the Overview title/image links and direct ticket action, preserving
 collection context and Radar reasons. Only Interests retains interest management

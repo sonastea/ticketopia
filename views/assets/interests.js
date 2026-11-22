@@ -50,7 +50,12 @@
         form.elements.action.value = state.interested ? 'remove' : 'set';
         const button = form.querySelector('button');
         if (state.interested && button.getAttribute('aria-pressed') !== 'true' && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
-          button.querySelector('.icon')?.animate?.({ scale: [.6, 1.2, 1] }, { duration: 320, easing: easing('out') });
+          button.querySelector('.icon')?.animate?.([
+            // Mirrors app.js's pop: per-segment easing, linear overall.
+            { scale: .85, easing: easing('out') },
+            { scale: 1.12, offset: .4, easing: easing('standard') },
+            { scale: 1 },
+          ], { duration: 280, easing: 'linear' });
         }
         button.setAttribute('aria-pressed', String(state.interested));
         const text = form.dataset.interestCollection === 'true' && state.interested ? `Remove interest · ${label(visibility)}` : `Interested · ${label(visibility)}`;
