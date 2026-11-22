@@ -172,7 +172,8 @@ A new form submission starts at the first page.
   week, Later in {month}, then each month), and the soonest event on the first
   page leads as a wide **Up next** card when its date is known and not past (with
   its own wide image sizes). Every page groups against the city's remembered
-  calendar day, so loaded pages agree. Headings are `aria-hidden` because every
+  calendar day, so loaded pages agree. The lead also quotes its newest public
+  recommendation's reason (three lines at most, with the author's display name). Headings are `aria-hidden` because every
   row already states its full date; Load more drops a heading that continues the
   previous page's stretch and focuses the first new event. Name-sorted results
   are one list. Cards end in an action bar: the gradient **Tickets** shared with

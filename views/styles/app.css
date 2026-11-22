@@ -4772,6 +4772,18 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .live-filter-bar > .account-actions { gap: 0 .25rem; }
 .pull-quote { display: grid; gap: .75rem; margin-block: 1rem; margin-inline: 0; }
 .community-recommenders .pull-quote { margin: 0; }
+/* The Up next card's quote: the newest public reason, three lines at most
+   (the full text is one tap away in Recommendations), then who said it. */
+.lead-quote { gap: .5rem; margin-block: 0 1rem; }
+.lead-quote blockquote {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: clip;
+  margin: 0;
+}
+.lead-quote figcaption { padding-inline-start: 1.75rem; color: var(--muted-warm); font-size: .8125rem; }
 .pull-quote blockquote {
   position: relative;
   margin: 0;

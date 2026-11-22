@@ -27,7 +27,8 @@
   of three columns beside the next event; desktop agenda headings stick while
   their stretch scrolls; count chips read "2 questions" / "2 recommend". The
   routine "Updated …" line moves below the results (warnings stay above), and
-  Happening Now shows a Live / Reconnecting signal that follows the stream.
+  Happening Now shows a Live / Reconnecting signal that follows the stream. The
+  lead quotes its newest public recommendation's reason.
   See [indexed event rows](../../DESIGN.md#indexed-event-rows).
 
 ### 2026-11-20 — Depth layer across Discover and the event page

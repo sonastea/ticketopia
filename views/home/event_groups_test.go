@@ -1,11 +1,14 @@
 package home
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/models"
 )
 
@@ -175,5 +178,25 @@ func TestTheLeadSkipsAnEventThatHasStarted(t *testing.T) {
 	rows := discoverRows(page, now)
 	if rows[0].Lead || !rows[1].Lead || rows[1].Countdown != "Up next · Tomorrow" {
 		t.Fatalf("an event already under way stayed up next: %+v", rows)
+	}
+}
+
+func TestOnlyTheLeadQuotesItsNewestRecommendation(t *testing.T) {
+	events := []models.Event{{ID: "a", Start: dated("2026-12-01")}, {ID: "b", Start: dated("2026-12-02")}}
+	reason := &eventactivity.Contribution{Body: "<b>Go early</b>", AuthorName: "Riley"}
+	page := SearchPage{Today: "2026-11-21", Filters: discovery.Query{Sort: "date_asc"}, Events: models.EventList{Items: events},
+		Activity: map[string]eventactivity.Preview{"a": {Recommendations: 1, Recommendation: reason}, "b": {Recommendations: 1, Recommendation: &eventactivity.Contribution{Body: "Second row", AuthorName: "Sam"}}}}
+	var out bytes.Buffer
+	if err := DiscoverRows(page).Render(t.Context(), &out); err != nil {
+		t.Fatal(err)
+	}
+	body := out.String()
+	if strings.Count(body, "lead-quote") != 1 || !strings.Contains(body, "&lt;b&gt;Go early&lt;/b&gt;") || !strings.Contains(body, "Riley recommends this event") || strings.Contains(body, "Second row") {
+		t.Fatalf("the lead should quote its own escaped reason, and no other row any: %s", body)
+	}
+	page.Activity["a"] = eventactivity.Preview{Recommendations: 1, Recommendation: &eventactivity.Contribution{AuthorName: "Riley"}}
+	out.Reset()
+	if err := DiscoverRows(page).Render(t.Context(), &out); err != nil || strings.Contains(out.String(), "lead-quote") {
+		t.Fatal("a reason-less recommendation produced an empty quote")
 	}
 }

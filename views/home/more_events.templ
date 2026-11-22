@@ -1,6 +1,7 @@
 package home
 
 import "fmt"
+import "strings"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/internal/eventactivity"
 import "github.com/sonastea/ticketopia/internal/radar"
@@ -124,6 +125,9 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 						<p class="sale-date">{ sale }</p>
 					}
 				</div>
+				if mode.Lead {
+					@LeadQuote(activity[event.ID])
+				}
 				@EventRowActivity(event.ID, activity[event.ID], returnURL)
 				@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
 			</div>
@@ -151,6 +155,20 @@ templ EventRowTools(event models.Event, returnURL string, saves SaveView, action
 		} else {
 			<p class="field-note">Ticket link unavailable.</p>
 		}
+	}
+}
+
+// LeadQuote gives the Up next card the newest public recommendation's words,
+// so the first thing on Discover carries a person's reason to go. Only the
+// lead shows one; other rows keep counts, and the full text and author link
+// live in the event's Recommendations section. A reason-less recommendation
+// shows nothing here.
+templ LeadQuote(preview eventactivity.Preview) {
+	if r := preview.Recommendation; r != nil && strings.TrimSpace(r.Body) != "" {
+		<figure class="pull-quote lead-quote">
+			<blockquote class="recommendation-reason">{ r.Body }</blockquote>
+			<figcaption>{ r.AuthorName } recommends this event</figcaption>
+		</figure>
 	}
 }
 
