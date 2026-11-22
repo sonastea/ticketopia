@@ -278,18 +278,33 @@
 .account-token-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-block-start: 1px solid var(--line); }
 .account-token-list li > div { min-inline-size: 0; overflow-wrap: break-word; }
 
+/* The body face is split like Google Fonts: the preloaded Latin file covers
+   almost every page, and the rest of Manrope's coverage (Latin Extended,
+   Cyrillic, Greek, Vietnamese, symbols) downloads only when text uses it.
+   Font URLs carry assets.Version's content hash (first 12 hex digits of the
+   file's SHA-256) so browsers keep them immutably; a test fails when a font
+   changes without its hash. */
 @font-face {
   font-family: Manrope;
-  src: url('/assets/fonts/manrope.ttf') format('truetype');
+  src: url('/assets/fonts/manrope-extended.woff2?v=1fe54c911922') format('woff2');
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0100-0113, U+0116-012B, U+012E-0130, U+0134-0137, U+0139-013E, U+0141-0148, U+014A-014D, U+0150-0151, U+0154-017E, U+0192, U+01A0-01A1, U+01AF-01B0, U+0218-021B, U+0259, U+02C7, U+02D8-02D9, U+02DB, U+02DD, U+0374-0375, U+037E, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03CE, U+0400-045F, U+0490-0491, U+04AE-04AF, U+04BA-04BB, U+04E8-04E9, U+1E80-1E85, U+1E9E, U+1EA0-1EF9, U+2070, U+2074-2079, U+2080-2089, U+20A3, U+20A9-20AB, U+20AE, U+20B1, U+20B4, U+20B9-20BA, U+20BD, U+20BF, U+2116, U+2190, U+2192, U+21B5, U+2202, U+2205, U+220F, U+2211, U+221A, U+221E, U+222B, U+2248, U+2260, U+2264-2265, U+25CA, U+E001-E003, U+E007-E009, U+FB01-FB02;
+}
+@font-face {
+  font-family: Manrope;
+  src: url('/assets/fonts/manrope-latin.woff2?v=e661d521351a') format('woff2');
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 /* The one display face: page titles, the event title and date numbers only. */
 @font-face {
   font-family: 'Bricolage Grotesque';
-  src: url('/assets/fonts/bricolage-grotesque-latin.woff2') format('woff2');
+  src: url('/assets/fonts/bricolage-grotesque-latin.woff2?v=374a80ae89a3') format('woff2');
   font-weight: 600 800;
   font-style: normal;
   font-display: swap;
@@ -298,7 +313,7 @@
 /* Provider branding is intentionally scoped to the Google sign-in CTA. */
 @font-face {
   font-family: 'Google Sans';
-  src: url('/assets/fonts/google-sans-medium-latin.woff2') format('woff2');
+  src: url('/assets/fonts/google-sans-medium-latin.woff2?v=7ee2b232de66') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;

@@ -53,8 +53,11 @@ across deploys while any edit gets a new URL past Cloudflare and browsers.
 | Unversioned or older-version `/assets/<file>` | `no-cache` |
 
 Every embedded file carries `ETag: "<version>"`, so revalidation returns 304.
-Fonts, icons and the manifest stay unversioned: the stylesheet references fonts by
-plain URL, and preloads must match it. The query string must remain part of the
+Fonts are versioned too: `views/styles/app.css` writes each font's `?v=` by hand
+(the first 12 hex digits of its SHA-256, e.g. `shasum -a 256 file | cut -c1-12`),
+the layout preloads the same URLs through `assets.Path`, and
+`TestAssetsAreVersionedByContent` fails when a font changes without its hash.
+Icons and the manifest stay unversioned. The query string must remain part of the
 CDN cache key; do not enable Cloudflare's "Ignore Query String" for `/assets/`.
 
 ## Source cache

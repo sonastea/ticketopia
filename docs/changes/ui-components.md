@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 2026-11-21 — Lighter body font
+
+- Manrope ships as WOFF2 split by `unicode-range` instead of one 165 KB TTF:
+  every page preloads a 24 KB Latin file, and a 37 KB file with the rest of its
+  coverage (Latin Extended, Cyrillic, Greek, Vietnamese) loads only when text
+  uses it. Same glyphs, weights and OpenType features. See
+  [fonts](../../views/assets/fonts/README.md).
+- Font URLs are content-versioned like the stylesheet, so browsers keep them
+  immutably instead of revalidating each visit. See
+  [browser assets](../cache.md#browser-assets).
+
 ### 2026-11-12 — Safari/iOS form fields, Helpful icon, announced status messages
 
 - Selects no longer collapse on Safari/iOS: WebKit ignored their padding and
@@ -75,17 +86,5 @@
   action keeps scaling. Default-text layout is unchanged.
 - The cached offline page drops its always-empty nonce attributes; a future CSP
   must allow its inline style and script by hash.
-
-### 2026-10-26 — Search shortcut, filter sheet, calendar and offline page
-
-- The sticky phone header ends with a search icon: on Discover it focuses the
-  keyword field in place (keeping filters); elsewhere it opens `/#keyword`.
-- Below 62rem, Filters opens as a native modal `<dialog>` bottom sheet inside
-  the same GET form (Escape, close or backdrop; focus returns to its opener).
-  Without JavaScript, or from 62rem, the fields stay inline.
-- Overview adds **When** with an **Add to calendar** `.ics` download
-  ([OpenAPI](openapi.md)) once the provider announces a date.
-- A service worker shows a self-contained offline page when a navigation fails,
-  and caches nothing else ([discovery guide](../discovery.md#ui-source-and-assets)).
 
 Older entries: [UI component archive](archive/ui-components/).

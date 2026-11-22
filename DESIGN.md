@@ -352,7 +352,7 @@ text rather than white.
 
 ## Typography
 
-**Body font:** Manrope, with a sans-serif fallback. The variable font is self-hosted at `views/assets/fonts/manrope.ttf`, supports the shipped weights (400–800), uses `font-display: swap`, and is distributed with its SIL OFL license.
+**Body font:** Manrope, with a sans-serif fallback. The variable font is self-hosted as two WOFF2 `unicode-range` subsets (`views/assets/fonts/manrope-latin.woff2`, preloaded, and `manrope-extended.woff2`), supports the shipped weights (400–800), uses `font-display: swap`, and is distributed with its SIL OFL license.
 
 **Display font:** Bricolage Grotesque (SIL OFL), exposed as `--font-display` with a Manrope fallback. It is self-hosted and preloaded as a 65 KB Latin subset (`views/assets/fonts/bricolage-grotesque-latin.woff2`): width pinned to 100, weights 600–800, the optical-size axis kept, and tabular/lining figures retained. Its ink-trap grotesque shapes give titles a record-sleeve voice next to Manrope's rounded text. Use it **only** for page titles (`h1`), the event title (the event page heading and the preview heading), date numbers on ticket-stub markers, Discover's calendar agenda headings (Today, This week, December…), and the community section titles described below. Row titles, empty-state lines, navigation, controls and prose stay Manrope. Display sizes keep the existing fluid tokens; `--text-display` spans 1.75–2rem (1.14×), within the 2.5× maximum. Display headings use −.02em tracking, which suits the face's tighter display optical size. Sourcing and subsetting commands are in [`views/assets/fonts/README.md`](views/assets/fonts/README.md). There is no mono family.
 

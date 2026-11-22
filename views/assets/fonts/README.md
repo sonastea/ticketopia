@@ -2,8 +2,28 @@
 
 ## Manrope
 
-Variable Manrope font, weights 400–800, sourced from the Google Fonts repository:
+Variable Manrope font (Version 4.505, weight axis 200–800; CSS uses 400–800),
+sourced from the Google Fonts repository:
 https://github.com/google/fonts/tree/main/ofl/manrope
+
+`Manrope[wght].ttf` (165 KB) is split into two lossless fontTools WOFF2 subsets
+that keep every axis, glyph, kerning pair and layout feature. `app.css` gives
+each the matching `unicode-range`, so only the preloaded Latin file loads unless
+text needs the other:
+
+- `manrope-latin.woff2` (24 KB): Google Fonts' Latin range, as for Bricolage below.
+- `manrope-extended.woff2` (37 KB): every other codepoint in the font (Latin
+  Extended, Cyrillic, Greek, Vietnamese, symbols). `EXTENDED` below is that
+  face's `unicode-range` in `app.css`: the font's cmap minus `LATIN`.
+
+After replacing any font, update its `?v=` hash in `views/styles/app.css`
+([browser assets](../../../docs/cache.md#browser-assets)).
+
+```sh
+LATIN="U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD"
+pyftsubset "Manrope[wght].ttf" --unicodes="$LATIN" --layout-features='*' --notdef-outline --name-IDs='*' --flavor=woff2 --output-file=manrope-latin.woff2
+pyftsubset "Manrope[wght].ttf" --unicodes="$EXTENDED" --layout-features='*' --notdef-outline --name-IDs='*' --flavor=woff2 --output-file=manrope-extended.woff2
+```
 
 Redistributed under the SIL Open Font License in `OFL.txt`.
 

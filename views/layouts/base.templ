@@ -16,8 +16,9 @@ templ Base(title string) {
 			<link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml"/>
 			<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png"/>
 			<link rel="manifest" href="/assets/manifest.json"/>
-			<link rel="preload" href="/assets/fonts/manrope.ttf" as="font" type="font/ttf" crossorigin/>
-			<link rel="preload" href="/assets/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin/>
+			// Preload URLs match app.css's versioned font URLs exactly.
+			<link rel="preload" href={ assets.Path("fonts/manrope-latin.woff2") } as="font" type="font/woff2" crossorigin/>
+			<link rel="preload" href={ assets.Path("fonts/bricolage-grotesque-latin.woff2") } as="font" type="font/woff2" crossorigin/>
 			// Content-versioned URLs let a deploy reach browsers past shared caches.
 			<link rel="stylesheet" href={ assets.Path("app.css") }/>
 			// htmx's injected indicator style fades with ease-in; app.css styles
