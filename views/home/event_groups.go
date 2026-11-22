@@ -1,6 +1,7 @@
 package home
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -27,12 +28,15 @@ type discoverRow struct {
 	// tba), empty when results aren't grouped.
 	Kind string
 	Lead bool
+	// Countdown is the lead's marker: Today/Tonight, Tomorrow, In N days.
+	Countdown string
 }
 
 // rowMode is how a result row sits in Discover's agenda.
 type rowMode struct {
-	Lead bool
-	Kind string
+	Lead      bool
+	Kind      string
+	Countdown string
 }
 
 // discoverRows groups date-sorted results under calendar headings and marks
@@ -59,6 +63,9 @@ func discoverRows(page SearchPage, now time.Time) []discoverRow {
 		// (a restored Back render starts there too), and only for an event
 		// with a known date that hasn't passed.
 		row.Lead = i == 0 && ascending && page.Filters.Page == 0 && upcoming(event.Start, today)
+		if row.Lead {
+			row.Countdown = countdown(event.Start, today)
+		}
 		rows = append(rows, row)
 	}
 	return rows
@@ -130,4 +137,31 @@ func weekRange(from, through time.Time) string {
 		return from.Format("Jan 2") + "–" + through.Format("2")
 	}
 	return from.Format("Jan 2") + " – " + through.Format("Jan 2")
+}
+
+// countdown says how soon the lead is, relative to the browsed city's day.
+func countdown(start models.EventStart, today time.Time) string {
+	date, ok := eventDay(start)
+	if !ok {
+		return "Up next"
+	}
+	switch days := int(date.Sub(calendarDay(today)).Hours() / 24); {
+	case days == 0:
+		if clock, err := time.Parse(time.TimeOnly, deref(start.LocalTime)); err == nil && clock.Hour() >= 17 {
+			return "Up next · Tonight"
+		}
+		return "Up next · Today"
+	case days == 1:
+		return "Up next · Tomorrow"
+	case days < 14:
+		return fmt.Sprintf("Up next · In %d days", days)
+	}
+	return "Up next"
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

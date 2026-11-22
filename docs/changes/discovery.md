@@ -23,7 +23,10 @@
   ease the photo in on hover with motion allowed. The event's Tickets shows the
   price where the bar has room. Events without artwork get a tinted placeholder
   (stored tint, or one of seven hues chosen from the ID) with a perforation dot
-  grid. See [indexed event rows](../../DESIGN.md#indexed-event-rows).
+  grid. The lead says how soon it is (Tonight, Tomorrow, In 4 days) and takes two
+  of three columns beside the next event; desktop agenda headings stick while
+  their stretch scrolls; count chips read "2 questions" / "2 recommend".
+  See [indexed event rows](../../DESIGN.md#indexed-event-rows).
 
 ### 2026-11-20 — Depth layer across Discover and the event page
 

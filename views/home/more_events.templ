@@ -30,7 +30,7 @@ templ DiscoverRows(page SearchPage) {
 				}
 			</li>
 		}
-		@EventRow(row.Event, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, nil, page.Activity, true, rowMode{Lead: row.Lead, Kind: row.Kind})
+		@EventRow(row.Event, page.ReturnURL, page.SelectedID, page.Saves, page.ActionReturnURL, page.Interests, nil, page.Activity, true, rowMode{Lead: row.Lead, Kind: row.Kind, Countdown: row.Countdown})
 	}
 }
 
@@ -63,7 +63,7 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 				}
 			</a>
 			if mode.Lead {
-				<span class="lead-badge" aria-hidden="true">@layouts.Icon("sparkles")<span>Up next</span></span>
+				<span class="lead-badge" aria-hidden="true">@layouts.Icon("sparkles")<span>{ mode.Countdown }</span></span>
 			}
 			<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
 		</div>
@@ -163,14 +163,18 @@ templ EventRowActivity(id string, preview eventactivity.Preview, returnURL strin
 				<div>
 					<a href={ templ.URL(eventURL(id, "discussion", returnURL)) } class="activity-chip" data-event-link data-id={ id }>
 						@layouts.Icon("message-circle")
-						<span>{ activityCount(preview.Questions, "question or tip", "questions & tips") }</span>
+						<span class="chip-short" aria-hidden="true"><strong>{ fmt.Sprint(preview.Questions) }</strong>{ ternary(preview.Questions == 1, " question", " questions") }</span>
+						<span class="sr-only">{ activityCount(preview.Questions, "question or tip", "questions & tips") }</span>
 					</a>
 				</div>
 			}
 			<div data-live-recommendation-wrap hidden?={ preview.Recommendations == 0 }>
 				<a href={ templ.URL(eventURL(id, "community", returnURL)) } class="activity-chip" data-event-link data-id={ id }>
 					@layouts.Icon("quote")
-					<span data-live-recommendation-count={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</span>
+					// A short visible form ("2 recommend"); the full count is the
+					// accessible name, which live updates rewrite with the short form.
+					<span class="chip-short" aria-hidden="true" data-live-short><strong>{ fmt.Sprint(preview.Recommendations) }</strong>{ ternary(preview.Recommendations == 1, " recommends", " recommend") }</span>
+					<span class="sr-only" data-live-recommendation-count={ id }>{ activityCount(preview.Recommendations, "public recommendation", "public recommendations") }</span>
 				</a>
 			</div>
 		</div>

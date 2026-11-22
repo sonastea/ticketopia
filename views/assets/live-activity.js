@@ -261,6 +261,12 @@
       for (const element of recommendations.get(item.event_id) || []) {
         const label = `${item.recommendation_count} public ${item.recommendation_count === 1 ? 'recommendation' : 'recommendations'}`;
         if (element.textContent !== label) element.textContent = label;
+        // A count chip also shows a short visible form ("2 recommend").
+        const short = element.parentElement?.querySelector('[data-live-short]');
+        if (short && short.firstChild?.textContent !== String(item.recommendation_count)) {
+          const count = document.createElement('strong'); count.textContent = item.recommendation_count;
+          short.replaceChildren(count, document.createTextNode(item.recommendation_count === 1 ? ' recommends' : ' recommend'));
+        }
         setHidden(element.closest('[data-live-recommendation-wrap]'), item.recommendation_count === 0);
         const group = element.closest('[data-live-count-group]'); setHidden(group, ![...group.children].some(child => !child.hidden));
         delete element.dataset.countsStale;

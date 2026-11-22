@@ -139,3 +139,23 @@ func TestFallbackTintPrefersArtworkAndSpreadsDerivedHues(t *testing.T) {
 		t.Fatalf("sequential IDs share too few placeholder hues: %v", seen)
 	}
 }
+
+func TestCountdownSaysHowSoonTheLeadIs(t *testing.T) {
+	today := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	evening, afternoon := "19:30:00", "13:00:00"
+	at := func(day string, clock *string) models.EventStart { s := dated(day); s.LocalTime = clock; return s }
+	for _, tc := range []struct {
+		start models.EventStart
+		want  string
+	}{
+		{at("2026-11-21", &evening), "Up next · Tonight"},
+		{at("2026-11-21", &afternoon), "Up next · Today"},
+		{at("2026-11-22", nil), "Up next · Tomorrow"},
+		{at("2026-11-25", nil), "Up next · In 4 days"},
+		{at("2026-12-20", nil), "Up next"},
+	} {
+		if got := countdown(tc.start, today); got != tc.want {
+			t.Errorf("%s: got %q, want %q", *tc.start.LocalDate, got, tc.want)
+		}
+	}
+}

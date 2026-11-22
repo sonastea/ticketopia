@@ -631,7 +631,16 @@ not past: across the whole card grid with
 artwork at the start and a 1.5rem title beside it, and with full-width 16:9
 artwork above its facts in narrower lists (an ordinary row while a preview is
 open, so selection never reflows the list). A white
-"Up next" pill marks its artwork's top start corner.
+pill marks its artwork's top start corner with how soon it is (**Up next ·
+Tonight**, Today, Tomorrow, In N days within two weeks, otherwise **Up next**).
+With three card columns (a results column of at least 51rem) the lead takes two
+and the next event sits beside it. From 62rem, where the compact header doesn't
+stick, each agenda heading is sticky at the top of the viewport over a paper
+background that fades out along its lower 1rem, and the root's block-start scroll
+padding grows to 4.5rem so revealed and focused rows clear it. Count chips show a
+short visible form (**2 questions**, **2 recommend**) with a bold count; the full
+count (2 public recommendations) is their accessible name, and live updates
+rewrite both.
 
 **Event cards.** Wide result lists in Discover, Saved, Interests and Radar use the
 Community cards' anatomy: full-bleed 16:9 artwork with the date stub, 1.25rem

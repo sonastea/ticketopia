@@ -1767,6 +1767,8 @@ html:has(.filter-sheet:modal) {
   transition-timing-function: var(--ease-out);
 }
 .activity-chip .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
+.chip-short { white-space: nowrap; }
+.chip-short strong { font-weight: 800; margin-inline-end: .2em; }
 @media (hover: hover) and (pointer: fine) {
   .activity-chip:hover { background: var(--brand-soft); color: var(--brand-dark); box-shadow: var(--ring-hairline); }
 }
@@ -1814,6 +1816,26 @@ html:has(.filter-sheet:modal) {
 @container results (min-width: 48rem) {
   .event-group { padding-block: 1rem 0; padding-inline: 0; }
   .event-group:first-child { padding-block-start: 0; }
+}
+/* With three columns the lead takes two, and the next event sits beside it. */
+@container results (min-width: 51rem) {
+  .event-list > .event-row-lead { grid-column: span 2; }
+}
+/* On desktop (no sticky compact header) each heading holds the top of the
+   viewport while its stretch scrolls beneath it, like a calendar's day
+   headers; scroll padding keeps revealed and focused rows clear of it. */
+@media (min-width: 62rem) {
+  .event-group {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    /* Cards slide under a soft lower edge rather than a hard cut. */
+    background: linear-gradient(var(--paper) calc(100% - 1rem), color-mix(in oklch, var(--paper) 0%, transparent));
+  }
+  @container results (min-width: 48rem) {
+    .event-group { padding-block: 1rem 1.25rem; margin-block: -.25rem -1.25rem; }
+  }
+  html:has(.event-group) { scroll-padding-block-start: 4.5rem; }
 }
 
 /* The lead's marker sits in the artwork's top start corner, clear of the date stub. */
