@@ -59,6 +59,12 @@ func invalidateDiscoverCounts() {
 	discoverCatalogGen.Add(1)
 }
 
+// Generation counts this process's catalog writes, so the discovery service
+// stops sharing a read taken before one (discovery.CatalogGeneration).
+func (r *DiscoveryRepository) Generation() uint64 { return discoverCatalogGen.Load() }
+
+var _ discovery.CatalogGeneration = (*DiscoveryRepository)(nil)
+
 func (r *DiscoveryRepository) countCacheKey(q discovery.Query) string {
 	dbKey := r.database
 	if dbKey == "" {
@@ -139,9 +145,22 @@ func searchFacets(e models.Event) []searchFacet {
 	return facets
 }
 
-func searchWhere(q discovery.Query) (string, []any) {
+// searchFrom returns the FROM and WHERE of a stored search over events e and
+// event_snapshots s. A city and country search starts from that place's rows:
+// otherwise MariaDB may read every snapshot in every city, then discard all
+// but this one. The place key (event_id, city, country) keeps one row per event.
+func searchFrom(q discovery.Query) (string, []any) {
+	if q.City != "" && q.Country != "" {
+		where, args := searchWhere(q, false)
+		return ` FROM event_search_places p STRAIGHT_JOIN events e ON e.event_id=p.event_id STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id WHERE p.city=? AND p.country=? AND ` + where, append([]any{q.City, q.Country}, args...)
+	}
+	where, args := searchWhere(q, true)
+	return ` FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where, args
+}
+
+func searchWhere(q discovery.Query, place bool) (string, []any) {
 	where, args := `e.local_date BETWEEN ? AND ? AND e.date_tba=0 AND e.date_tbd=0`, []any{q.StartDate, q.EndDate}
-	if q.City != "" || q.Country != "" {
+	if place && (q.City != "" || q.Country != "") {
 		where += ` AND EXISTS (SELECT 1 FROM event_search_places p WHERE p.event_id=e.event_id`
 		if q.City != "" {
 			where += ` AND p.city=?`
@@ -170,13 +189,12 @@ func searchWhere(q discovery.Query) (string, []any) {
 }
 
 func discoverCountQuery(q discovery.Query) (string, []any) {
-	where, args := searchWhere(q)
-	return `SELECT COUNT(*) FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where, args
+	from, args := searchFrom(q)
+	return `SELECT COUNT(*)` + from, args
 }
 
 func discoverPageQuery(q discovery.Query, cursor *discovery.Cursor) (string, []any) {
-	where, args := searchWhere(q)
-	from := ` FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where
+	from, args := searchFrom(q)
 	order := `e.local_date,e.local_time,e.name,e.event_id`
 	if q.Sort == "date_desc" {
 		order = `e.local_date DESC,e.local_time DESC,e.name,e.event_id`
@@ -598,7 +616,7 @@ func (r *DiscoveryRepository) FinishSearch(ctx context.Context, q discovery.Quer
 			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id) SELECT event_id FROM discovery_scope_events WHERE scope_id=? AND token<>?`, q.ScopeID(), token); err != nil {
 				return err
 			}
-			where, args := searchWhere(q.CollectionScope())
+			where, args := searchWhere(q.CollectionScope(), true)
 			args = append(args, q.ScopeID(), token)
 			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id) SELECT e.event_id FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE `+where+` AND NOT EXISTS (SELECT 1 FROM discovery_scope_events current WHERE current.scope_id=? AND current.token=? AND current.event_id=e.event_id)`, args...); err != nil {
 				return err

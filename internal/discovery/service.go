@@ -31,6 +31,9 @@ type Config struct {
 	// Tints derives header colours from artwork before caching or storing
 	// events. Nil disables artwork requests.
 	Tints *Tints
+	// SharedReads is how long identical stored catalog reads are shared;
+	// zero reads the catalog every time. ConfigFromEnv uses DefaultSharedReads.
+	SharedReads time.Duration
 }
 
 type Service struct {
@@ -43,6 +46,7 @@ type Service struct {
 	gate        requestGate
 	flights     singleflight.Group
 	decoded     decodedCache
+	stored      storedReads
 	refreshes   sync.WaitGroup
 	refreshMu   sync.Mutex
 	refreshing  map[string]chan struct{}
@@ -78,6 +82,7 @@ func New(ctx context.Context, cache kv.Store, logger zerolog.Logger, config Conf
 		baseURL: strings.TrimRight(config.BaseURL, "/"), client: config.HTTPClient,
 		gate: requestGate{budget: config.DailyBudget, interval: config.RequestInterval}, now: time.Now, coordinator: config.Coordinator,
 		catalog: config.Catalog, freshFor: config.FreshFor, tints: config.Tints,
+		stored: storedReads{ttl: max(config.SharedReads, 0)},
 	}
 }
 

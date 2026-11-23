@@ -68,7 +68,7 @@ func (r *RadarRepository) readAt(ctx context.Context, owner string, at time.Time
 	if err != nil {
 		return d, safeError("radar coverage", err)
 	}
-	where, args := searchWhere(q)
+	where, args := searchWhere(q, true)
 	where += ` AND BINARY e.status NOT IN ('cancelled','canceled','postponed') AND (e.start_utc IS NULL OR e.start_utc>=?)`
 	args = append(args, at)
 	// EXISTS scores signal types once, regardless of lineup/classification size.

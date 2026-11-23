@@ -156,6 +156,10 @@ func captureQueryPlans(t *testing.T, f queryFixture) {
 			query, args = discoverCountQuery(tc.query)
 			capture("discover/count", query, args)
 		}
+		if tc.name == "minority_city_count_miss" {
+			query, args = discoverCountQuery(tc.query)
+			capture("discover/minority-city-count", query, args)
+		}
 	}
 	q := benchmarkDiscoverQuery()
 	query, args := scheduledCoverageQuery(q, 6*time.Hour, benchmarkAt)

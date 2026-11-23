@@ -32,7 +32,7 @@ func (s *Service) storedEvents(ctx context.Context, q Query) (models.EventList, 
 	if err := ctx.Err(); err != nil {
 		return models.EventList{}, err
 	}
-	read, err := s.catalog.Search(ctx, q, s.freshFor)
+	read, err := s.searchCatalog(ctx, q)
 	if err != nil {
 		return models.EventList{}, err
 	}
@@ -53,9 +53,10 @@ func (s *Service) storedEvents(ctx context.Context, q Query) (models.EventList, 
 		case <-done:
 		case <-timer.C:
 		}
-		updated, readErr := s.catalog.Search(ctx, q, s.freshFor)
+		// Read past the shared window: collection may have just stored results.
+		updated, readErr := s.readCatalog(ctx, storedReadKey(q), q)
 		if readErr == nil {
-			read = updated
+			read = shareRead(updated)
 		} else if len(read.List.Items) == 0 {
 			return models.EventList{}, readErr
 		}
@@ -82,6 +83,8 @@ func (s *Service) startRefresh(q Query) <-chan struct{} {
 	// the work so shutdown drains it before closing persistence/cache.
 	s.refreshes.Go(func() {
 		defer func() {
+			// Shared reads may predate this collection; serve its results next.
+			s.stored.clear()
 			s.refreshMu.Lock()
 			delete(s.refreshing, key)
 			s.refreshMu.Unlock()

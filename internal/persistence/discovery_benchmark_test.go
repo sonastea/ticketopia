@@ -21,9 +21,13 @@ func discoverBenchmarkCases(t testing.TB, f queryFixture) []discoverBenchmarkCas
 		q.Sort = sort
 		cases = append(cases, discoverBenchmarkCase{sort + "/first", q, false}, discoverBenchmarkCase{sort + "/later", benchmarkLater(t, f.p.Discovery(), q, f.volume/80), false})
 	}
-	for _, name := range []string{"venue", "category", "city_category", "count_hit", "count_miss"} {
+	// Paris holds a tenth of the catalog, like one city among many in
+	// production: a plan that reads every city's events shows up here.
+	for _, name := range []string{"venue", "category", "city_category", "count_hit", "count_miss", "minority_city", "minority_city_count_miss"} {
 		q := benchmarkDiscoverQuery()
 		switch name {
+		case "minority_city", "minority_city_count_miss":
+			q.City, q.Country = "Paris", "FR"
 		case "venue":
 			q.City, q.Country, q.VenueID = "", "", "ticketmaster:venue-rare"
 		case "category":
@@ -31,7 +35,7 @@ func discoverBenchmarkCases(t testing.TB, f queryFixture) []discoverBenchmarkCas
 		case "city_category":
 			q.CategoryID = "theatre"
 		}
-		cases = append(cases, discoverBenchmarkCase{name, q, name == "count_miss"})
+		cases = append(cases, discoverBenchmarkCase{name, q, name == "count_miss" || name == "minority_city_count_miss"})
 	}
 	return cases
 }

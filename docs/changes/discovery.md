@@ -4,6 +4,20 @@
 
 ## Unreleased
 
+### 2026-11-23 — Discover holds up under load as the catalog grows
+
+- Production overloaded between 100 and 150 Discover pages a second (480 on
+  2026-11-10): each city search read every stored snapshot, in every city,
+  twice per page (page and count), so MariaDB hit its two CPUs as the catalog
+  grew to about 10,000 events. City and country searches now start from that
+  place's rows, reading about a quarter as many in production, with identical
+  results ([stored Discover](../event-history.md#stored-discover-and-coverage-aware-reads)).
+- Identical stored reads are shared for 10 seconds per replica, with
+  concurrent ones coalesced; a catalog write in the same replica ends sharing
+  at once.
+- The query benchmark gains a minority-city case
+  ([query performance](../query-performance.md#timing-boundaries-and-interpretation)).
+
 ### 2026-11-22 — Every card quotes a recommendation reason
 
 - Discover and Radar cards quote their event's newest public recommendation
@@ -77,13 +91,3 @@
 - Calendar downloads preserve announced local times when the provider omits the
   UTC instant but supplies a valid local date, time and zone; invalid time/zone
   values keep the all-day fallback. See [discovery](../discovery.md#responsive-navigation-and-event-details).
-
-### 2026-10-26 — Right-sized artwork, pressed prefetch and lighter long lists
-
-- Artwork lists one crop's renditions in `srcset` with layout-derived `sizes`,
-  so 2x phones take 305px thumbnails instead of 640px.
-- Pressing a result prefetches its event page (speculation rules) or, on
-  Discover, starts its preview request.
-- Off-screen rows skip rendering once they have rendered at the current layout,
-  keeping scroll restores and the selected-row correction exact.
-  See [discovery](../discovery.md#loading-performance).

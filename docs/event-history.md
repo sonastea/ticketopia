@@ -36,6 +36,17 @@ whenever stored events or collection receipts change. Cursors are not
 snapshot cursors: changes between requests may shift pages; cursors issued by
 the previous offset encoding are rejected and require starting a new search.
 
+A city and country search starts from that place's `event_search_places` rows,
+so its cost follows the city's events rather than the whole catalog; other
+searches keep the place/facet filters. Each replica shares identical stored
+reads (same filters, sort, limit and cursor) for 10 seconds and coalesces
+concurrent ones into a single query, so a busy search costs one query per
+window, not one per visitor. Any catalog write in the same process (collection,
+event refreshes) or a finished on-demand collection ends sharing at once; other
+replicas' writes appear within the window. Shared reads are read-only, and
+failures are never remembered. The server enables this through
+`discovery.ConfigFromEnv`; a service built without `SharedReads` reads every time.
+
 Fresh complete city/day receipts covering every requested date, or an enclosing
 complete on-demand city/date receipt, avoid event-provider calls. Freshness is six
 hours by default or the configured scheduler interval when enabled. Last-good

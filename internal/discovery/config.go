@@ -7,7 +7,7 @@ import (
 )
 
 func ConfigFromEnv() (Config, error) {
-	c := Config{APIKey: os.Getenv("TICKETMASTER_KEY"), DailyBudget: 4500}
+	c := Config{APIKey: os.Getenv("TICKETMASTER_KEY"), DailyBudget: 4500, SharedReads: DefaultSharedReads}
 	if value := os.Getenv("TICKETMASTER_DAILY_BUDGET"); value != "" {
 		parsed, err := strconv.Atoi(value)
 		if err != nil || parsed < 1 || parsed > 2147483647 {

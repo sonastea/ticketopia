@@ -375,3 +375,18 @@ No check or write failed at any step; MariaDB reached about one core first. In
 a browser, a reply was offered 5.8 s after creation at p50 (about one interval
 at p95) and shown 62 ms after the click. See the
 [revamp plan](design/community-list-revamp.md#phase-3--threads-that-update-while-you-read).
+
+### 2026-11-23 — Production Discover ceiling falls to 100–150 pages a second
+
+Same host and profile, remote `make benchmark` (`SCENARIOS=web,api`) and single
+web steps. Web and API each held 100/s (p95 91 / 82 ms) and failed at 200/s
+(about 46% `temporarily_unavailable` 503s, p95 about 10 s); 150/s failed with 24%.
+Recovery took seconds. Neither the MariaDB config (restarted with its documented
+settings), 2 app CPUs, nor Redis changed it. The same build on a local stack
+with production's limits passed 400/s at p95 4 ms. On production MariaDB reached
+195% of its 2 CPUs; its slow log showed the Discover page and count queries
+reading about 22,000 rows each to return 20 and 1, because the plan scanned
+every snapshot in every city (about 10,000 events; the 2026-11-10 run had a
+smaller catalog). Starting city searches from their place rows reads 2,567
+instead of 10,248 rows in production (`ANALYZE`); see the
+[discovery change](changes/discovery.md). Remeasure after deploying it.
