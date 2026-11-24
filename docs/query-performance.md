@@ -81,7 +81,13 @@ use the same query builders and bound values as the fixed-clock benchmark reads.
   before each operation. Both include the normal page and coverage work.
   `minority_city` and `minority_city_count_miss` search Paris (a tenth of the
   catalog), like one city among many in production: a plan that reads every
-  city's events, as Berlin-only cases cannot show, is slow here.
+  city's events, as Berlin-only cases cannot show, is slow here. Radar's
+  `minority_city` case reads for a Paris owner; `BenchmarkMariaDBCommunity`'s
+  `previews` batches one page of event-card previews (four hot events).
+- Both fixtures load in bulk; production plans can differ when statistics are
+  stale. After large ingestion, `ANALYZE TABLE` the catalog tables (events,
+  event_snapshots, event_search_places, event_search_facets) and community
+  tables before comparing plans.
 - Discussion reads include their count; grouped recommendations include batched
   author previews. The matrix samples distinct plans, not every filter product.
 - Writes are separate: committed 100-event collection pages with newer observation

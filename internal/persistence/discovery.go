@@ -616,9 +616,9 @@ func (r *DiscoveryRepository) FinishSearch(ctx context.Context, q discovery.Quer
 			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id) SELECT event_id FROM discovery_scope_events WHERE scope_id=? AND token<>?`, q.ScopeID(), token); err != nil {
 				return err
 			}
-			where, args := searchWhere(q.CollectionScope(), true)
+			from, args := searchFrom(q.CollectionScope())
 			args = append(args, q.ScopeID(), token)
-			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id) SELECT e.event_id FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE `+where+` AND NOT EXISTS (SELECT 1 FROM discovery_scope_events current WHERE current.scope_id=? AND current.token=? AND current.event_id=e.event_id)`, args...); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id) SELECT e.event_id`+from+` AND NOT EXISTS (SELECT 1 FROM discovery_scope_events current WHERE current.scope_id=? AND current.token=? AND current.event_id=e.event_id)`, args...); err != nil {
 				return err
 			}
 		}

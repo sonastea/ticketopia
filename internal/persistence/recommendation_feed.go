@@ -27,10 +27,13 @@ func recommendationCommunityQuery(q recommendations.Query) (string, []any) {
 
 func recommendationPreviewQuery(ids []any) (string, []any) {
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	// Rank keys from the covering recommendations_active_event index, then read
+	// reasons and authors only for each event's top PreviewLimit.
 	query := `SELECT r.event_id,a.account_id,a.display_name,a.bio,r.reason,r.recommended_at,r.updated_at,COALESCE(r.via_client_name,''),COALESCE(r.via_client_host,'') FROM
- (SELECT source.*,ROW_NUMBER() OVER(PARTITION BY source.event_id ORDER BY source.recommended_at DESC,source.account_id DESC) AS position
- FROM event_recommendations source WHERE source.withdrawn_at IS NULL AND source.event_id IN (` + placeholders + `)) r
-	 JOIN accounts a ON a.account_id=r.account_id WHERE r.position<=? ORDER BY r.event_id,r.position`
+ (SELECT source.event_id,source.account_id,ROW_NUMBER() OVER(PARTITION BY source.event_id ORDER BY source.recommended_at DESC,source.account_id DESC) AS position
+ FROM event_recommendations source WHERE source.withdrawn_at IS NULL AND source.event_id IN (` + placeholders + `)) k
+	 JOIN event_recommendations r ON r.account_id=k.account_id AND r.event_id=k.event_id
+	 JOIN accounts a ON a.account_id=r.account_id WHERE k.position<=? ORDER BY r.event_id,k.position`
 	return query, append(ids, recommendations.PreviewLimit)
 }
 

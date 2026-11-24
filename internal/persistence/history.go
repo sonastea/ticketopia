@@ -28,6 +28,17 @@ func (p *Pool) History() *HistoryRepository { return &HistoryRepository{p.db, p.
 // historyTransaction retries only known pre-commit deadlocks. A transport error
 // during commit remains uncertain; durable keys/fences resolve explicit retries.
 func historyTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, operation string, fn func(context.Context, *sql.Tx) error) error {
+	return retryTransaction(ctx, db, timeout, operation, true, fn)
+}
+
+// accountingTransaction is historyTransaction for writes that never change
+// what Discover reads (provider request accounting): committing one must not
+// expire Discover's cached counts and shared reads on every provider request.
+func accountingTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, operation string, fn func(context.Context, *sql.Tx) error) error {
+	return retryTransaction(ctx, db, timeout, operation, false, fn)
+}
+
+func retryTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, operation string, invalidate bool, fn func(context.Context, *sql.Tx) error) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for attempt := range 3 {
@@ -43,7 +54,9 @@ func historyTransaction(ctx context.Context, db *sql.DB, timeout time.Duration, 
 				if err != nil {
 					return safeError(operation, err)
 				}
-				invalidateDiscoverCounts()
+				if invalidate {
+					invalidateDiscoverCounts()
+				}
 				return nil
 			}
 			_ = tx.Rollback()

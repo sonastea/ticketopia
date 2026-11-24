@@ -111,6 +111,22 @@ func BenchmarkMariaDBCommunity(b *testing.B) {
 					}
 				})
 			}
+			// One Discover page's cards: four hot events (32 recommendations) and
+			// sixteen ordinary ones, as event-card previews batch them.
+			b.Run("previews", func(b *testing.B) {
+				var ids []string
+				for i := 0; len(ids) < 20; i += 10 {
+					if (i/10)%2 == 0 {
+						ids = append(ids, benchmarkEvent(i).ID)
+					}
+				}
+				b.ReportAllocs()
+				for b.Loop() {
+					if _, err := f.p.EventActivity().Previews(b.Context(), ids); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
 			for _, thread := range []bool{false, true} {
 				name, root := "event", ""
 				if thread {

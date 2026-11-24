@@ -17,6 +17,12 @@
   at once.
 - The query benchmark gains a minority-city case
   ([query performance](../query-performance.md#timing-boundaries-and-interpretation)).
+- Radar and on-demand collection's omission check use the same city-first
+  search. Provider request accounting no longer expires Discover's cached
+  counts and shared reads, and waits for the budget row one at a time per
+  replica instead of each holding a database connection.
+- Event-card and recommendation previews rank keys only and read text and
+  authors for the winners (previews 21% faster in the benchmark).
 
 ### 2026-11-22 — Every card quotes a recommendation reason
 

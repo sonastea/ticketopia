@@ -68,8 +68,10 @@ func (r *RadarRepository) readAt(ctx context.Context, owner string, at time.Time
 	if err != nil {
 		return d, safeError("radar coverage", err)
 	}
-	where, args := searchWhere(q, true)
-	where += ` AND BINARY e.status NOT IN ('cancelled','canceled','postponed') AND (e.start_utc IS NULL OR e.start_utc>=?)`
+	// Start from the city's place rows, as Discover does: the place filter as an
+	// EXISTS lets MariaDB scan every snapshot in every city (searchFrom).
+	from, args := searchFrom(q)
+	from += ` AND BINARY e.status NOT IN ('cancelled','canceled','postponed') AND (e.start_utc IS NULL OR e.start_utc>=?)`
 	args = append(args, at)
 	// EXISTS scores signal types once, regardless of lineup/classification size.
 	score := `0`
@@ -106,7 +108,7 @@ func (r *RadarRepository) readAt(ctx context.Context, owner string, at time.Time
 CASE WHEN e.local_time IS NOT NULL AND e.local_time<>'' AND e.time_tba=0 AND e.no_specific_time=0 THEN e.local_time ELSE '24:00:00' END AS clock,
 (` + score + `) AS score,s.data_as_of,
 EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) AS unconfirmed
-FROM events e JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where + ` LIMIT 18446744073709551615), eligible AS (SELECT * FROM ranked`
+` + from + ` LIMIT 18446744073709551615), eligible AS (SELECT * FROM ranked`
 	if personalized {
 		cte += ` WHERE score>0`
 	}

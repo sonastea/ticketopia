@@ -22,14 +22,18 @@ func BenchmarkMariaDBRadar(b *testing.B) {
 				}
 				q.Cursor = &radar.Cursor{At: benchmarkAt, After: d.Candidates[19].Event.ID, Digest: d.Revision}
 			}
+			// A Paris owner sees a tenth of the catalog, like one city among many
+			// in production; Berlin holds most of the fixture.
+			paris := benchmarkOwner(1000)
+			execSQL(b, f.db, `INSERT INTO accounts (account_id,email,city,country,category_ids,created_at,updated_at) VALUES (?,'paris@example.test','Paris','FR','["music"]',?,?)`, paris, benchmarkAt, benchmarkAt)
 			for _, tc := range []struct {
-				name string
-				q    radar.Query
-			}{{"first", radar.Query{Limit: 20}}, {"later", q}} {
+				name, owner string
+				q           radar.Query
+			}{{"first", benchmarkOwner(0), radar.Query{Limit: 20}}, {"later", benchmarkOwner(0), q}, {"minority_city", paris, radar.Query{Limit: 20}}} {
 				b.Run(tc.name, func(b *testing.B) {
 					b.ReportAllocs()
 					for b.Loop() {
-						d, err := r.readAt(b.Context(), benchmarkOwner(0), benchmarkAt, 6*time.Hour, tc.q, benchmarkAt)
+						d, err := r.readAt(b.Context(), tc.owner, benchmarkAt, 6*time.Hour, tc.q, benchmarkAt)
 						if err != nil || len(d.Candidates) < 20 {
 							b.Fatal("radar", err)
 						}

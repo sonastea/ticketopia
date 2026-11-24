@@ -35,21 +35,25 @@ func (r *EventActivityRepository) Previews(ctx context.Context, ids []string) (m
 		args[i] = id
 	}
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	// Rank keys only, then look up text and authors for each event's winner:
+	// joining every matching row's body and account before ranking widened the
+	// sort and probed accounts for rows the preview discards. The recommendation
+	// ranking reads only recommendations_active_event (a covering index).
 	queries := []string{
-		`SELECT event_id,post_id,body,account_id,display_name,total FROM (
-		 SELECT p.event_id,p.post_id,p.body,a.account_id,a.display_name,
+		`SELECT k.event_id,p.post_id,p.body,a.account_id,a.display_name,k.total FROM (
+		 SELECT p.event_id,p.post_id,
 		 COUNT(*) OVER (PARTITION BY p.event_id) AS total,
 		 ROW_NUMBER() OVER (PARTITION BY p.event_id ORDER BY p.created_at DESC,p.post_id DESC) AS row_position
-		 FROM discussion_posts p JOIN accounts a ON a.account_id=p.account_id
+		 FROM discussion_posts p
 		 WHERE p.event_id IN (` + placeholders + `) AND p.root_id IS NULL AND p.removed_at IS NULL AND p.hidden_at IS NULL
-		) visible WHERE row_position=1`,
-		`SELECT event_id,'',reason,account_id,display_name,total FROM (
-		 SELECT r.event_id,r.reason,a.account_id,a.display_name,
+		) k JOIN discussion_posts p ON p.post_id=k.post_id JOIN accounts a ON a.account_id=p.account_id WHERE k.row_position=1`,
+		`SELECT k.event_id,'',r.reason,a.account_id,a.display_name,k.total FROM (
+		 SELECT r.event_id,r.account_id,
 		 COUNT(*) OVER (PARTITION BY r.event_id) AS total,
 		 ROW_NUMBER() OVER (PARTITION BY r.event_id ORDER BY r.recommended_at DESC,r.account_id DESC) AS row_position
-		 FROM event_recommendations r JOIN accounts a ON a.account_id=r.account_id
+		 FROM event_recommendations r
 		 WHERE r.event_id IN (` + placeholders + `) AND r.withdrawn_at IS NULL
-		) active WHERE row_position=1`,
+		) k JOIN event_recommendations r ON r.event_id=k.event_id AND r.account_id=k.account_id JOIN accounts a ON a.account_id=r.account_id WHERE k.row_position=1`,
 	}
 	for kind, query := range queries {
 		rows, err := r.db.QueryContext(ctx, query, args...)

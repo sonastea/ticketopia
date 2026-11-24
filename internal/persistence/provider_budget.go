@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/discovery"
@@ -23,11 +24,31 @@ func (p *Pool) ProviderBudget(key string, budget int) *ProviderBudget {
 	return &ProviderBudget{p.db, p.config.QueryTimeout, sha256.Sum256([]byte(strings.TrimSpace(key))), budget}
 }
 
+// budgetTurns admits one waiter per key and process to the budget row at a
+// time. All provider requests lock that one row; without this, concurrent
+// waiters each hold a pool connection while queued on its lock.
+var budgetTurns sync.Map // [32]byte -> chan struct{}
+
+func (g *ProviderBudget) turn(ctx context.Context) (func(), error) {
+	v, _ := budgetTurns.LoadOrStore(g.key, make(chan struct{}, 1))
+	turn := v.(chan struct{})
+	select {
+	case turn <- struct{}{}:
+		return func() { <-turn }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 func (g *ProviderBudget) Wait(ctx context.Context) error {
 	for {
 		var delay time.Duration
 		var blocked bool
-		err := historyTransaction(ctx, g.db, g.timeout, "provider budget", func(ctx context.Context, tx *sql.Tx) error {
+		release, err := g.turn(ctx)
+		if err != nil {
+			return err
+		}
+		err = accountingTransaction(ctx, g.db, g.timeout, "provider budget", func(ctx context.Context, tx *sql.Tx) error {
 			delay, blocked = 0, false
 			if _, err := tx.ExecContext(ctx, `INSERT INTO provider_budgets (key_hash,window_start,used,budget,next_request,blocked_until) VALUES (?,UTC_TIMESTAMP(6),0,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)) ON DUPLICATE KEY UPDATE key_hash=key_hash`, g.key[:], g.budget); err != nil {
 				return err
@@ -60,6 +81,7 @@ func (g *ProviderBudget) Wait(ctx context.Context) error {
 			_, err := tx.ExecContext(ctx, `UPDATE provider_budgets SET used=used+1,next_request=TIMESTAMPADD(MICROSECOND,250000,UTC_TIMESTAMP(6)) WHERE key_hash=?`, g.key[:])
 			return err
 		})
+		release()
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
