@@ -7,6 +7,19 @@ lists, visibility switches, or follow activity on public profiles. Following is
 independent of Saved, Interested and recommendations; it helps explain and rank
 [private Radar matches](radar.md), but does not reserve tickets or schedule notifications.
 
+## Query verification
+
+The private merged list limits indexed keys per kind before joining snapshots.
+The final order is still followed time, kind, then target ID. On local MariaDB
+with 5,000 follows of each kind, median SQL time dropped from 32.39 to 0.29 ms
+on the first page and from about 32.6 to 0.30 ms on continuation pages. The
+before/after test checks both cursor kinds with tied timestamps. To repeat:
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 MARIADB_FOLLOW_PLANS=1 \
+  go test ./internal/persistence -count=1 -v -run '^TestMariaDBFollowListBoundedBranches$'
+```
+
 ## Setup and upgrade
 
 Requires opt-in [accounts](accounts.md) and clean MariaDB schema **10**. There is no

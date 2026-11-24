@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2026-11-24 — Page notification envelopes before reading details
+
+- Keep visibility filtering ahead of pagination; fetch the event name, reply
+  count and latest visible reply only for the selected envelopes. Inbox order,
+  cursor and read-time privacy stay the same. See [query verification](../query-performance.md#query-optimization-batch-closeout).
+
 ### 2026-11-15 — Notification errors name the notification
 
 - Marking a notification read with a malformed ID answers 400 with

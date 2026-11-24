@@ -52,6 +52,9 @@ are excluded from summaries and direct link selection. An empty summary is withh
 Restored, currently public content can become eligible again. Following a hidden
 root retains it privately but does not queue replies while the root is hidden.
 Direct thread reads recheck visibility if moderation occurs after inbox delivery.
+The inbox selects a page of currently visible envelopes before reading event
+names and aggregating reply details. Hidden envelopes do not consume page slots;
+counts and latest-reply links reflect current visibility in that same read.
 
 Notification storage contains only owner/thread/reply IDs, delivery window, and
 read state. It copies no contribution body, author attribution, report reason,

@@ -131,6 +131,36 @@ placeholder predicates reduced the median exact global discussion count from
 showed the extra 2,120-row child-post pass in the count. The page still uses
 that predicate to retain withheld threads with visible replies.
 
+### Query optimization batch closeout
+
+The artist/venue follow list limits each indexed branch before merging; see
+[follow timings and cursor verification](follows.md#query-verification).
+The notification inbox filters visible envelope keys before loading event and
+reply details. In the local 10,000-envelope fixture, median SQL time went from
+198.68 to 2.99 ms with all visible, 177.95 to 3.02 ms with 100 hidden at the
+front, and 37.31 to 7.18 ms when all were hidden. Both query variants returned
+identical rows; a continuation started at the previous page's lookahead.
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 MARIADB_INBOX_PLANS=1 MARIADB_ACTIVITY_PLANS=1 \
+  go test ./internal/persistence -count=1 -v \
+  -run '^TestMariaDB(InboxQueryCosts|ActivityQueryCosts|LiveActivityResilienceStress|ModerationQueueStatementsAreBounded)$'
+MARIADB_TEST_ADDR=127.0.0.1:3307 go test ./internal/persistence -run '^$' \
+  -bench '^BenchmarkMariaDBDiscussionReplyFanout$' -benchtime=12x
+```
+
+The following were checked but are not part of the shipped changes:
+
+| Item | Local evidence and disposition |
+| --- | --- |
+| Per-event counters | An uncached 101-event exact-total batch over 32 recommendations and 32 interests per event took 5.74 ms p95. Keep short-lived sharing; add transactional counters only if production profiles show repeated count misses matter. |
+| Incremental live projection | Refreshing 1,000 event groups from 32,000 live contributions with reusable facets took 73.57 ms p95. The two-replica resilience test passed. Revisit if normal refresh timings or candidate-window growth warrant maintaining a second projection. |
+| Sparse recommendation filters | On the 1,000-event fixture, city/country used indexed event matches and category/combined used the facet index; medians were 0.31–0.51 ms. Keep current queries until a slower production filter is identified. |
+| Moderation | The MariaDB test verifies at most two statements for 0–101 rows, including a tied cursor, with the same redacted results. It is a statement budget, not a production latency claim. |
+| Reply fan-out | Mean transaction time was 6.7, 9.6 and 46.8 ms at 1, 100 and 1,000 followers. Moving delivery out of the write needs a durable handoff and failure semantics; defer until lock or delivery telemetry demonstrates a need. |
+
+These fixtures do not set production capacity or latency targets.
+
 - Fixture creation, statistics refresh, cursor traversal and count-cache eviction
   are outside timing. Later Discover pages are reached through real cursors.
 - Discover and Radar measure repository reads, including decoding and transaction

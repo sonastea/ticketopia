@@ -90,9 +90,6 @@ func scanFollow(row interface{ Scan(...any) error }) (follows.Item, error) {
 	item.Meta.Stale = true
 	return item, err
 }
-func followSelect(kind, catalog, column, collection string) string {
-	return `SELECT '` + kind + `' AS kind,c.snapshot,c.last_seen AS data_as_of,f.followed_at,f.` + column + ` AS target_id FROM ` + collection + ` f JOIN ` + catalog + ` c ON c.` + column + `=f.` + column + ` WHERE f.account_id=?`
-}
 func (r *FollowRepository) Get(ctx context.Context, owner, kind, id string) (follows.Item, error) {
 	catalog, _, column, collection, err := followTables(kind)
 	if err != nil {
@@ -196,7 +193,7 @@ func (r *FollowRepository) Remove(ctx context.Context, owner, kind, id string) e
 	}
 	return err
 }
-func (r *FollowRepository) List(ctx context.Context, owner string, q follows.Query) ([]follows.Item, error) {
+func followListQuery(owner string, q follows.Query) (string, []any, error) {
 	kinds := []string{"artist", "venue"}
 	if q.Kind != "" {
 		kinds = []string{q.Kind}
@@ -206,18 +203,41 @@ func (r *FollowRepository) List(ctx context.Context, owner string, q follows.Que
 	for _, kind := range kinds {
 		catalog, _, column, collection, err := followTables(kind)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
-		parts = append(parts, followSelect(kind, catalog, column, collection))
+		keys := `SELECT followed_at,` + column + ` FROM ` + collection + ` WHERE account_id=?`
 		args = append(args, owner)
+		if c := q.Cursor; c != nil {
+			before := c.Before.UTC()
+			switch strings.Compare(kind, c.Kind) {
+			case -1:
+				keys += ` AND followed_at<=?`
+				args = append(args, before)
+			case 1:
+				keys += ` AND followed_at<?`
+				args = append(args, before)
+			default:
+				keys += ` AND (followed_at<? OR (followed_at=? AND ` + column + `<?))`
+				args = append(args, before, before, c.ID)
+			}
+		}
+		// Within one kind, the global ordering is exactly the collection index
+		// ordering. Keep only its possible page keys before loading snapshots.
+		keys += ` ORDER BY followed_at DESC,` + column + ` DESC LIMIT ?`
+		args = append(args, q.Limit+1)
+		parts = append(parts, `SELECT '`+kind+`' AS kind,c.snapshot,c.last_seen AS data_as_of,f.followed_at,f.`+column+` AS target_id FROM (`+keys+`) f JOIN `+catalog+` c ON c.`+column+`=f.`+column)
 	}
 	query := `SELECT kind,snapshot,data_as_of,followed_at FROM (` + strings.Join(parts, ` UNION ALL `) + `) entries`
-	if q.Cursor != nil {
-		query += ` WHERE followed_at<? OR (followed_at=? AND (kind<? OR (kind=? AND target_id<?)))`
-		args = append(args, q.Cursor.Before.UTC(), q.Cursor.Before.UTC(), q.Cursor.Kind, q.Cursor.Kind, q.Cursor.ID)
-	}
 	query += ` ORDER BY followed_at DESC,kind DESC,target_id DESC LIMIT ?`
 	args = append(args, q.Limit+1)
+	return query, args, nil
+}
+
+func (r *FollowRepository) List(ctx context.Context, owner string, q follows.Query) ([]follows.Item, error) {
+	query, args, err := followListQuery(owner, q)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	rows, err := r.db.QueryContext(ctx, query, args...)

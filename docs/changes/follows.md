@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2026-11-24 — Bound the merged collection read
+
+- Select at most one page of indexed keys per kind before fetching snapshots
+  and merging. Keep the same cursor order and privacy. See
+  [query verification](../follows.md#query-verification).
+
 ### 2026-10-12 — Separate finding and managing follows
 
 - Use shared Your events navigation and native search disclosure, open for first

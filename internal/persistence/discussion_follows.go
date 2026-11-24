@@ -198,21 +198,36 @@ func enqueueDiscussionReply(ctx context.Context, tx *sql.Tx, post discussions.Po
 
 // Visibility is checked at delivery/read time, not just enqueue time. Only
 // currently visible replies count; links select the latest visible reply.
-const notificationJoin = ` FROM discussion_notifications n JOIN discussion_follows f ON f.account_id=n.account_id AND f.thread_id=n.thread_id JOIN accounts a ON a.account_id=n.account_id JOIN discussion_posts root ON root.post_id=n.thread_id JOIN event_snapshots e ON e.event_id=root.event_id`
+const notificationScopeJoin = ` FROM discussion_notifications n JOIN discussion_follows f ON f.account_id=n.account_id AND f.thread_id=n.thread_id JOIN accounts a ON a.account_id=n.account_id JOIN discussion_posts root ON root.post_id=n.thread_id`
+const notificationJoin = notificationScopeJoin + ` JOIN event_snapshots e ON e.event_id=root.event_id`
 const notificationVisible = ` AND n.available_at<=UTC_TIMESTAMP(6) AND a.notifications_paused=FALSE AND f.frequency<>'muted' AND root.hidden_at IS NULL AND root.removed_at IS NULL AND EXISTS(SELECT 1 FROM discussion_notification_posts np JOIN discussion_posts p ON p.post_id=np.post_id WHERE np.notification_id=n.notification_id AND p.hidden_at IS NULL AND p.removed_at IS NULL)`
 
-func (r *DiscussionFollowRepository) Notifications(ctx context.Context, who string, q discussionfollows.Query) ([]discussionfollows.Notification, error) {
-	ctx, cancel := context.WithTimeout(ctx, r.timeout)
-	defer cancel()
+func notificationListScope(who string, q discussionfollows.Query) (string, []any) {
 	where := ` WHERE n.account_id=?` + notificationVisible
 	args := []any{who}
 	if q.Cursor != nil {
 		where += ` AND (n.available_at<? OR (n.available_at=? AND n.notification_id<?))`
 		args = append(args, q.Cursor.At, q.Cursor.At, q.Cursor.ID)
 	}
-	args = append(args, q.Limit+1)
-	visible := ` FROM discussion_notification_posts np JOIN discussion_posts p ON p.post_id=np.post_id WHERE np.notification_id=n.notification_id AND p.hidden_at IS NULL AND p.removed_at IS NULL`
-	rows, err := r.db.QueryContext(ctx, `SELECT n.notification_id,root.event_id,n.thread_id,COALESCE(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,'$.name')),''),n.available_at,n.read_at IS NOT NULL,(SELECT COUNT(*)`+visible+`),(SELECT p.post_id`+visible+` ORDER BY p.created_at DESC,p.post_id DESC LIMIT 1)`+notificationJoin+where+` ORDER BY n.available_at DESC,n.notification_id DESC LIMIT ?`, args...)
+	return where, append(args, q.Limit+1)
+}
+
+func notificationListQuery(who string, q discussionfollows.Query) (string, []any) {
+	where, args := notificationListScope(who, q)
+	// Apply visibility before LIMIT, but defer the event snapshot and reply
+	// projections until after paging. Posts have a snapshot foreign key.
+	keys := `SELECT STRAIGHT_JOIN n.notification_id,root.event_id,n.thread_id,n.available_at,n.read_at` + notificationScopeJoin + where +
+		` ORDER BY n.available_at DESC,n.notification_id DESC LIMIT ?`
+	visible := ` FROM discussion_notification_posts np JOIN discussion_posts p ON p.post_id=np.post_id WHERE np.notification_id=page.notification_id AND p.hidden_at IS NULL AND p.removed_at IS NULL`
+	return `SELECT page.notification_id,page.event_id,page.thread_id,COALESCE(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,'$.name')),''),page.available_at,page.read_at IS NOT NULL,(SELECT COUNT(*)` + visible + `),(SELECT p.post_id` + visible + ` ORDER BY p.created_at DESC,p.post_id DESC LIMIT 1)
+ FROM (` + keys + `) page STRAIGHT_JOIN event_snapshots e ON e.event_id=page.event_id ORDER BY page.available_at DESC,page.notification_id DESC`, args
+}
+
+func (r *DiscussionFollowRepository) Notifications(ctx context.Context, who string, q discussionfollows.Query) ([]discussionfollows.Notification, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	query, args := notificationListQuery(who, q)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, safeError("discussion notifications", err)
 	}
