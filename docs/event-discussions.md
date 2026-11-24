@@ -54,6 +54,8 @@ there is at most one visual nesting level. Reply targets can be read independent
 of the current reply page. Authors can edit or remove their own posts. Removal
 withholds the body and author attribution, clears reactions, and leaves a
 content-free placeholder. Replies remain readable; removal cannot be undone.
+The placeholder may appear in the list to keep those replies reachable, but it
+does not contribute to the exact visible discussion count.
 
 Helpful can be set or removed independently per user/post. It is a positive
 acknowledgment, not an event endorsement or negative vote. Counts never imply

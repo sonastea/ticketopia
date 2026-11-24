@@ -4,11 +4,11 @@
 
 ## Unreleased
 
-### 2026-11-24 — Scheduled collection claim parameters
+### 2026-11-24 — Scheduled collection claims and exact discussion counts
 
 - Bind active task IDs as one JSON array instead of expanding the claim SQL.
-  Preserve claim priority and locking without a schema change. See
-  [queue claim plans](../query-performance.md#queue-claim-plans).
+  Preserve claim priority and locking. See [queue claim plans](../query-performance.md#queue-claim-plans).
+- Exact [discussion totals](../event-discussions.md) skip placeholder-root reply lookups; pages are unchanged. Neither fix needs a migration.
 
 ### 2026-11-23 — Scheduled collection evidence, schema v27
 

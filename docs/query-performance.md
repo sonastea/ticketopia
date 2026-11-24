@@ -101,6 +101,12 @@ The reminder queries and recovery cadence are unchanged.
 
 ### Existing query benchmarks
 
+On the 1,000-event fixture, separating visible-count predicates from page-only
+placeholder predicates reduced the median exact global discussion count from
+1.31 to 0.59 ms over five warm SQL samples. `ANALYZE FORMAT=JSON` no longer
+showed the extra 2,120-row child-post pass in the count. The page still uses
+that predicate to retain withheld threads with visible replies.
+
 - Fixture creation, statistics refresh, cursor traversal and count-cache eviction
   are outside timing. Later Discover pages are reached through real cursors.
 - Discover and Radar measure repository reads, including decoding and transaction

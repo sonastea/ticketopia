@@ -404,7 +404,7 @@ func discussionQueries(viewer, event, thread string, q discussions.Query) (strin
 		where += ` AND p.root_id=?`
 		args = append(args, thread)
 	} else {
-		where += ` AND p.root_id IS NULL AND ((p.removed_at IS NULL AND p.hidden_at IS NULL) OR EXISTS(SELECT 1 FROM discussion_posts child WHERE child.root_id=p.post_id AND child.removed_at IS NULL AND child.hidden_at IS NULL))`
+		where += ` AND p.root_id IS NULL`
 	}
 	if event != "" {
 		where += ` AND p.event_id=?`
@@ -436,6 +436,11 @@ func discussionQueries(viewer, event, thread string, q discussions.Query) (strin
 	args = append(args, filterArgs...)
 	countSQL := `SELECT COUNT(*)` + postJoin + where + ` AND p.removed_at IS NULL AND p.hidden_at IS NULL`
 	countArgs := append([]any(nil), args...)
+	if thread == "" && !q.Open {
+		// Only the page needs tombstone roots to keep visible replies reachable.
+		// The exact total counts visible posts, never those placeholders.
+		where += ` AND ((p.removed_at IS NULL AND p.hidden_at IS NULL) OR EXISTS(SELECT 1 FROM discussion_posts child WHERE child.root_id=p.post_id AND child.removed_at IS NULL AND child.hidden_at IS NULL))`
+	}
 	op, order := "<", "DESC"
 	if thread != "" {
 		op, order = ">", "ASC"
