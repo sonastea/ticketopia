@@ -385,8 +385,11 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 24 only**. Versions 0–23 and 25+ are rejected;
-Partial schemas/missing columns or non-InnoDB tables fail startup. The v23-to-v24
+This binary supports **clean schema version 26 only**. Versions 0–25 and 27+ are rejected;
+Partial schemas/missing columns or non-InnoDB tables fail startup. The v25-to-v26
+upgrade only adds indexes and a virtual column: drain v25 replicas, migrate, then
+start v26; existing runtime grants suffice. The v24-to-v25 upgrade adds a table
+and its INSERT/DELETE grant (see [deployment](deployment.md)). The v23-to-v24
 upgrade only adds nullable columns: drain v23 replicas, migrate, then start v24;
 existing runtime grants suffice. The v22-to-v23
 upgrade only adds an index: drain v22 replicas, migrate, then start v23; existing

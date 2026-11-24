@@ -717,7 +717,7 @@ func (r *DiscoveryRepository) History(ctx context.Context, id string, before tim
 	if changed.Valid {
 		h.LastChanged = &changed.Time
 	}
-	query, args := `SELECT observed_at,changes FROM event_observations WHERE event_id=? AND JSON_LENGTH(changes)>0`, []any{id}
+	query, args := `SELECT observed_at,changes FROM event_observations WHERE event_id=? AND has_changes=1`, []any{id}
 	if !before.IsZero() {
 		query += ` AND observed_at<?`
 		args = append(args, before.UTC())

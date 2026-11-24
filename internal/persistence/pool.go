@@ -11,7 +11,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 )
 
-const SupportedSchemaVersion = 25
+const SupportedSchemaVersion = 26
 
 // ErrUnavailable is dberr.ErrUnavailable, so callers that cannot import this
 // package (the API, whose tests this package imports) recognize it too.
@@ -180,7 +180,7 @@ func (p *Pool) validateSchema(ctx context.Context) error {
 		`SELECT account_id,venue_id,followed_at FROM venue_follows LIMIT 0`,
 		`SELECT provider,source_id,venue_id FROM venue_providers LIMIT 0`,
 		`SELECT event_id,first_seen,last_seen,last_changed,snapshot FROM event_history_state LIMIT 0`,
-		`SELECT event_id,observed_at,snapshot,changes FROM event_observations LIMIT 0`,
+		`SELECT event_id,observed_at,snapshot,changes,has_changes FROM event_observations LIMIT 0`,
 		`SELECT task_id,city,country,local_date,next_refresh,lease_until,run_id,last_attempt,last_success,last_failure FROM collection_tasks LIMIT 0`,
 		`SELECT run_id,task_id,started_at,finished_at,status,failure FROM collection_runs LIMIT 0`,
 		`SELECT run_id,page_number,collected_at,event_count,reported_total,limited FROM collection_pages LIMIT 0`,

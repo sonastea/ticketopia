@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### 2026-11-23 — Read indexes, schema v26
+
+- Schema 26 adds `discussion_visible_roots` (previews and community lists rank
+  visible roots from the index), a virtual `event_observations.has_changes` with
+  `observation_changes` (history reads 5 changed rows instead of all 2,001 in a
+  test), and rebuilds `detail_due` to match the claim's order (one entry read,
+  no backlog sort). No grant changes. See [persistence](../persistence.md#rolling-update-compatibility).
+
 ### 2026-11-22 — Same question marks, schema v25
 
 - Schema 25 adds `discussion_same_question` (one mark per account and root
@@ -76,14 +84,3 @@
   unchanged. See [recommendations](../event-recommendations.md) and [persistence](../persistence.md).
 - Verify schema-6 backfill, original positions across restart/reactivation, bounded
   counters/reset, concurrent cross-pool increments and atomic rollback in real MariaDB.
-
-### 2026-10-07 — Discussion schema v6
-
-- Add posts with immutable ancestry, durable creation keys/fingerprints, soft
-  removal, and unique Helpful reactions, plus least-privilege grants/probes.
-- Require clean schema 6 and drained schema-5 traffic before migration. Preserve
-  prior accounts/activity/snapshots; leave the running development schema unchanged.
-  See [discussions](../event-discussions.md) and [persistence](../persistence.md).
-- Verify concurrent retries/Helpful across pools, ancestry, removed reply context,
-  restart/provider loss, filtered keysets, schema-5 preservation, atomic rollback,
-  and DB-clock read-after-write boundaries with the full real-MariaDB race suite.

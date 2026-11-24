@@ -33,6 +33,11 @@ schema 24 and start, with no grant changes. See
 `discussion_same_question` table: drain, migrate through schema 25, reconcile
 the runtime grants (INSERT/DELETE on `discussion_same_question`), then start.
 See [open questions](event-discussions.md#open-questions-same-question-and-first-post).
+Schema 26 adds read indexes only (a discussion preview index, a virtual
+`has_changes` column with an index on `event_observations`, and a rebuilt
+`detail_due`): drain, migrate through schema 26 and start, with no grant changes.
+Index builds read each table once; run the migration at a quiet time. See
+[query performance](query-performance.md).
 
 Live replies need no migration or grant. `DISCUSSION_LIVE_CHECKS_PER_MINUTE`
 (unset or empty uses the default, 30; 0 turns them off) bounds each account's
