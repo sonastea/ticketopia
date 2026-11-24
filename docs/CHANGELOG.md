@@ -5,7 +5,7 @@ one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
 - 2026-11-24 — [Personal radar and reminders](changes/personal-radar.md)
-- 2026-11-23 — [Database and persistence](changes/database.md)
+- 2026-11-24 — [Database and persistence](changes/database.md)
 - 2026-11-23 — [Live community activity](changes/live-community-activity.md)
 - 2026-11-23 — [Event discovery](changes/discovery.md)
 - 2026-11-22 — [Positive event communities](changes/event-communities.md)

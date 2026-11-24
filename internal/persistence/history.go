@@ -102,6 +102,8 @@ func (r *HistoryRepository) Schedule(ctx context.Context, tasks []history.Task) 
 	return nil
 }
 
+const collectionClaimIDs = `SELECT id FROM JSON_TABLE(?, '$[*]' COLUMNS(id VARBINARY(65) PATH '$')) AS active_ids`
+
 func (r *HistoryRepository) Claim(ctx context.Context, ids []string) (history.Claim, error) {
 	var claim history.Claim
 	// Recover abandoned attempts even when their date/city has left the active
@@ -117,15 +119,19 @@ func (r *HistoryRepository) Claim(ctx context.Context, ids []string) (history.Cl
 		return claim, fmt.Errorf("collection ownership unavailable")
 	}
 	claim.RunID = hex.EncodeToString(entropy[:])
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		args[i] = id
+	// The active scope can contain up to 7,320 IDs. One bound parameter keeps
+	// the statement shape fixed instead of preparing thousands of placeholders.
+	// Allow one extra byte in JSON_TABLE so an overlong ID cannot match by
+	// truncation to the 64-byte primary key.
+	activeIDs, err := json.Marshal(ids)
+	if err != nil {
+		return claim, err
 	}
-	err := historyTransaction(ctx, r.db, r.timeout, "collection claim", func(ctx context.Context, tx *sql.Tx) error {
+	err = historyTransaction(ctx, r.db, r.timeout, "collection claim", func(ctx context.Context, tx *sql.Tx) error {
 		var old sql.NullString
 		err := tx.QueryRowContext(ctx, `SELECT task_id,city,country,local_date,run_id FROM collection_tasks
-WHERE task_id IN (`+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+`) AND next_refresh<=UTC_TIMESTAMP(6) AND (lease_until IS NULL OR lease_until<=UTC_TIMESTAMP(6))
-ORDER BY next_refresh,local_date,task_id LIMIT 1 FOR UPDATE SKIP LOCKED`, args...).Scan(&claim.ID, &claim.City, &claim.Country, &claim.Date, &old)
+ WHERE task_id IN (`+collectionClaimIDs+`) AND next_refresh<=UTC_TIMESTAMP(6) AND (lease_until IS NULL OR lease_until<=UTC_TIMESTAMP(6))
+ ORDER BY next_refresh,local_date,task_id LIMIT 1 FOR UPDATE SKIP LOCKED`, string(activeIDs)).Scan(&claim.ID, &claim.City, &claim.Country, &claim.Date, &old)
 		if errors.Is(err, sql.ErrNoRows) {
 			return history.ErrNoTask
 		}

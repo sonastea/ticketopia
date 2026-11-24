@@ -78,6 +78,29 @@ use the same query builders and bound values as the fixed-clock benchmark reads.
 schema with 100,000 repeated receipts. This measures SQL selection only, not
 the migration or the full completion transaction.
 
+### Queue claim plans
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 MARIADB_QUEUE_PLANS=1 \
+  go test ./internal/persistence -count=1 -v -run '^TestMariaDB(Reminder|Collection)ClaimPlans$'
+```
+
+The opt-in tests use disposable schemas. They roll back locking reads and
+recovery updates; no mail is sent and no collector runs. The collection
+comparison uses 10,000 stored tasks and reports each query's median and p95.
+On MariaDB 12.3.3, binding the active IDs as one JSON parameter reduced median
+ready-queue reads from 9.4 to 5.7 ms for 1,800 IDs and from 37.0 to 18.0 ms for
+7,320 IDs. At 90 IDs it was about 2 ms either way. The matching-order index
+was not required for the change.
+
+In the 10,000-reminder fixture, a lease-first index helped when nearly all
+reminders were leased, but raised all-ready p95 from about 3 to 31 ms. The
+covering index was not a consistent improvement. The recovery update used
+its inflight index and stayed below 0.6 ms p95 with zero or ten expired sends.
+The reminder queries and recovery cadence are unchanged.
+
+### Existing query benchmarks
+
 - Fixture creation, statistics refresh, cursor traversal and count-cache eviction
   are outside timing. Later Discover pages are reached through real cursors.
 - Discover and Radar measure repository reads, including decoding and transaction

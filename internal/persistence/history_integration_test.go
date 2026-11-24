@@ -32,6 +32,44 @@ func collectionClaim(t *testing.T, r *HistoryRepository, id string) history.Clai
 	return claim
 }
 
+func TestMariaDBCollectionClaimHonorsScopeOrderAndLocks(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	r := p.History()
+	ctx := t.Context()
+	scope := history.Scope{City: "Berlin", Country: "DE"}
+	excluded := history.NewTask(scope, "2026-10-01")
+	head := history.NewTask(scope, "2026-10-02")
+	next := history.NewTask(scope, "2026-10-03")
+	if err := r.Schedule(ctx, []history.Task{excluded, head, next}); err != nil {
+		t.Fatal(err)
+	}
+	execSQL(t, p.db, `UPDATE collection_tasks SET next_refresh=UTC_TIMESTAMP(6)-INTERVAL 1 HOUR`)
+	tx, err := p.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	var id string
+	if err := tx.QueryRowContext(ctx, `SELECT task_id FROM collection_tasks WHERE task_id=? FOR UPDATE`, head.ID).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{next.ID, excluded.ID + "x", head.ID, next.ID}
+	if claim, err := r.Claim(ctx, ids); err != nil || claim.ID != next.ID {
+		t.Fatalf("locked head: %+v, %v", claim, err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if claim, err := r.Claim(ctx, ids); err != nil || claim.ID != head.ID {
+		t.Fatalf("unlocked head: %+v, %v", claim, err)
+	}
+	if claim, err := r.Claim(ctx, ids); !errors.Is(err, history.ErrNoTask) {
+		t.Fatalf("only leased and excluded tasks remain: %+v, %v", claim, err)
+	}
+}
+
 func TestMariaDBEventHistoryRetentionAndChanges(t *testing.T) {
 	f := newMaria(t)
 	f.migrate(t)

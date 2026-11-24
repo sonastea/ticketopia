@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+### 2026-11-24 — Scheduled collection claim parameters
+
+- Bind active task IDs as one JSON array instead of expanding the claim SQL.
+  Preserve claim priority and locking without a schema change. See
+  [queue claim plans](../query-performance.md#queue-claim-plans).
+
 ### 2026-11-23 — Scheduled collection evidence, schema v27
 
 - Complete scheduled runs check one row per known event and task instead of
