@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2026-11-23 — Shared event totals on one replica
+
+- Event activity totals (`/api/v1/events/activity-counts` and stream counts) are
+  shared for 10 seconds per replica; only events without a current total are
+  counted. A recommendation or interest write in the same process ends sharing
+  at once. See the [rollout decision](../live-activity-rollout.md).
+
 ### 2026-10-29 — Reconcile membership once per candidate generation
 
 - Private deliveries skip membership reconciliation when the candidate generation
@@ -71,25 +78,5 @@
   browse 1.030×. Accepted as representative (assuming production is similar or better):
   P1.3 met. Ablation finds no measurable effect from projection or count SQL. See the
   [Linux results](../live-activity-rollout.md#linux-wsl2-gate-and-ablation--2026-10-23).
-
-### 2026-10-21 — Part 5: P1 capacity, soak, latency and ingress gates
-
-- Add opt-in gates for distinct public filters, personalization with large histories,
-  a 40-minute mixed soak, browser-visible latency and actual-ingress verification.
-  Add process growth signals (goroutines, heap, SQL connections) to metrics logs.
-- Batch queued cold/invalidated accounts into shared membership assembly. At 4,000
-  rich groups, cold p95 drops from 6.58 to 1.25 s and mutation bursts from 10.3 to 3.3 s.
-- Send `membership.changed` for same-replica membership changes; browsers reconnect
-  quietly in 250–750 ms rather than with outage backoff (p95 1.07 s, was 5.0–9.2 s).
-- Intern city/facet strings and calibrate memory accounting to retained heap (rich
-  10,000 groups: 35 → 11 MiB charged), so real-lineup 10,000-group windows no longer
-  fail closed above about 4,475 groups; limits are unchanged.
-- Make long membership rebuilds resume and read two batches at once; hold the last
-  complete view (≤10 s) while a remote rebuild progresses; back off only on SQL
-  errors; keep worker reads out of request admission. The production-image
-  10,000-rich-group, 256-account scenario passes (membership p95 2.8 s).
-- Measure the soak's ordinary-traffic gate in an interleaved ABBA×2 phase (live
-  clients stopped/restarted per period, writers unchanged), retain timestamped raw
-  samples, and report a seeded paired-period block-bootstrap interval.
 
 Older entries: [archive](archive/live-community-activity/).

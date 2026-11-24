@@ -293,6 +293,10 @@ invalidate older callbacks and trigger fresh reads.
 - `GET /api/v1/community/activity/stream`: SSE `activity.snapshot`, optional
   `counts.snapshot`, `heartbeat` every 15 seconds, and content-free `unavailable`.
 - `GET /api/v1/events/activity-counts`: repeated `event_id`, at least one.
+  Each event's totals are shared for 10 seconds across requests and streams on
+  the replica; a recommendation or interest write there ends sharing at once.
+  Another replica's write appears within 10 seconds
+  ([rollout decision](live-activity-rollout.md)).
 
 Both count inputs accept at most 101 distinct provider IDs and 32768 query bytes;
 unknown parameters/invalid IDs are 400. Unknown valid IDs have zero totals.

@@ -161,6 +161,7 @@ func Execute(ctx context.Context) int {
 			if liveConfig.Enabled {
 				service := activity.New(ctx, activityRepository(ctx, pool.Activity()), liveConfig.MaxStreams, logger)
 				defer service.Close()
+				service.ShareCounts(activity.DefaultSharedCounts)
 				if err := observeActivity(meter, service); err != nil {
 					logger.Error().Err(err).Msg("Telemetry initialization failed")
 					return 1

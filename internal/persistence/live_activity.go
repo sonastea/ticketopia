@@ -197,6 +197,12 @@ func (r *ActivityRepository) RefreshCandidates(ctx context.Context, previous act
 	}
 	return result, nil
 }
+
+// Generation counts this process's catalog and contribution writes,
+// including every recommendation and interest change, so shared activity
+// totals read before one are never served after it.
+func (r *ActivityRepository) Generation() uint64 { return discoverCatalogGen.Load() }
+
 func (r *ActivityRepository) Counts(ctx context.Context, ids []string) (activity.Counts, error) {
 	result := activity.Counts{Items: []activity.Count{}}
 	if len(ids) > 101 {

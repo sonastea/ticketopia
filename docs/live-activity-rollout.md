@@ -367,6 +367,13 @@ in the profile). `/api/v1/events/activity-counts` therefore reads MariaDB on eve
 request. SSE joining-count reuse, the 15-second cadence, failure behavior and
 membership revision checks are unchanged.
 
+*Superseded 2026-11-23 for the single-machine deployment:* the server shares
+each event's totals for 10 seconds across count requests and streams
+(`activity.DefaultSharedCounts`). Any recommendation or interest write in the
+same process ends sharing at once, so on one replica a count that starts after a
+committed write still reflects it. With several replicas, another replica's
+write can take up to 10 seconds to appear; that is accepted.
+
 **Changes:**
 
 - *Encoding (benchmark-supported).* Every two-second generation re-encoded each

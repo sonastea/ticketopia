@@ -148,6 +148,7 @@ type Service struct {
 	viewBytes  int
 	jobs       chan struct{}
 	pending    chan struct{}
+	counts     sharedCounts
 }
 
 type cachedView struct {
@@ -509,6 +510,16 @@ func (s *Service) Counts(ctx context.Context, ids []string) (_ Counts, err error
 	defer func() { telemetry.EndSpan(span, err) }()
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	// Shared totals (ShareCounts) answer without SQL; only the rest are read.
+	gen := s.countGeneration()
+	hits, misses, sharing := s.counts.lookup(ids, time.Now(), gen)
+	if sharing && len(ids) > 0 && len(misses) == 0 {
+		return assemble(ids, Counts{}, hits), nil
+	}
+	read := ids
+	if sharing && len(ids) > 0 {
+		read = misses
+	}
 	select {
 	case s.pending <- struct{}{}:
 	default:
@@ -521,7 +532,12 @@ func (s *Service) Counts(ctx context.Context, ids []string) (_ Counts, err error
 	}
 	defer func() { <-s.jobs }()
 	defer s.metrics.counts.observe(time.Now())
-	return s.repo.Counts(ctx, ids)
+	counts, err := s.repo.Counts(ctx, read)
+	if err != nil || !sharing {
+		return counts, err
+	}
+	s.counts.store(counts, time.Now(), gen)
+	return assemble(ids, counts, hits), nil
 }
 func (s *Service) acquireJob(ctx context.Context) bool {
 	select {
