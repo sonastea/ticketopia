@@ -78,7 +78,7 @@ review-mcp:
 # Print MCP client setup with this checkout's path filled in; changes nothing.
 review-mcp-config:
 	@printf '%s\n' \
-		'OpenCode: opencode.json in this checkout already registers ticketopia-review.' \
+		'OpenCode: .opencode/opencode.json in this checkout already registers ticketopia-review.' \
 		'' \
 		'Claude Code:' \
 		'  claude mcp add ticketopia-review -- make -s -C "$(CURDIR)" review-mcp' \

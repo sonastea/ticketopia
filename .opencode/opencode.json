@@ -8,7 +8,8 @@
         "oauth": false,
         "headers": { "Authorization": "Bearer {env:COOLIFY_TOKEN_PRIMORDIAL}" },
         "disabled": true
-      }
+      },
+      "ticketopia-review": { "type": "local", "command": ["make", "-s", "review-mcp"] }
     }
   }
 }
