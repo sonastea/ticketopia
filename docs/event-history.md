@@ -204,6 +204,11 @@ last failure. `collection_runs`, immutable `collection_pages`, and distinct
 
 Only `complete` advances a task's `last_success`. Pagination is not an upstream
 atomic snapshot: even matching totals cannot prove no event shifted between pages.
+Each committed page also records its event IDs once per task in
+`collection_known_events`. A complete run checks this set against its own
+receipts to queue missing events for detail verification, without scanning past
+runs. Partial and interrupted runs still contribute evidence from committed
+pages; run receipts remain intact.
 Failures retry after an hour or the provider's longer cooldown/reset. Capped or
 shifted collections retry at the configured interval. Receipt codes are bounded
 (`provider_unavailable`, `provider_result_cap`, `result_set_changed`, `interrupted`),

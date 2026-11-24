@@ -738,6 +738,19 @@ spec:
 ---
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Grant
+metadata: {name: ticketopia-runtime-collection-known-events, namespace: ticketopia}
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT]
+  database: ticketopia
+  table: collection_known_events
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
 metadata: {name: ticketopia-runtime-provider-budgets, namespace: ticketopia}
 spec:
   mariaDbRef: {name: ticketopia-db}

@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### 2026-11-23 — Scheduled collection evidence, schema v27
+
+- Complete scheduled runs check one row per known event and task instead of
+  rereading every historical run. The migration preserves receipts and backfills
+  evidence even from incomplete runs. Runtime needs `INSERT` on the new table.
+  See [event history](../event-history.md#coverage-and-failure-semantics).
+
 ### 2026-11-23 — Read indexes, schema v26
 
 - Schema 26 adds `discussion_visible_roots` (previews and community lists rank

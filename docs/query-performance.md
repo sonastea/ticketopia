@@ -73,6 +73,11 @@ use the same query builders and bound values as the fixed-clock benchmark reads.
 
 ## Timing boundaries and interpretation
 
+`TestMariaDBCollectionKnownEventsUpgrade` reports the median of five warm
+`ANALYZE FORMAT=JSON` runs for the old and new omission queries on a disposable
+schema with 100,000 repeated receipts. This measures SQL selection only, not
+the migration or the full completion transaction.
+
 - Fixture creation, statistics refresh, cursor traversal and count-cache eviction
   are outside timing. Later Discover pages are reached through real cursors.
 - Discover and Radar measure repository reads, including decoding and transaction

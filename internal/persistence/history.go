@@ -203,7 +203,7 @@ func (r *HistoryRepository) Page(ctx context.Context, claim history.Claim, page 
 		if count != 0 {
 			return nil
 		}
-		if err := writePageTx(ctx, tx, claim.RunID, list); err != nil {
+		if err := writePageTx(ctx, tx, claim, list); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO collection_pages (run_id,page_number,collected_at,event_count,reported_total,limited) VALUES (?,?,?,?,?,?)`, claim.RunID, page, list.Meta.DataAsOf.UTC(), len(list.Items), list.Total, list.Limited); err != nil {
@@ -213,6 +213,9 @@ func (r *HistoryRepository) Page(ctx context.Context, claim history.Claim, page 
 		return err
 	})
 }
+
+const collectionOmissions = `SELECT known.event_id FROM collection_known_events known
+ WHERE known.task_id=? AND NOT EXISTS (SELECT 1 FROM collection_run_events current WHERE current.run_id=? AND current.event_id=known.event_id)`
 
 func (r *HistoryRepository) Finish(ctx context.Context, claim history.Claim, status, failure string, delay time.Duration) (history.Outcome, error) {
 	if (status != "complete" && status != "limited" && status != "failed" && status != "partial") || (failure != "" && failure != "provider_unavailable" && failure != "provider_result_cap" && failure != "interrupted") || delay < time.Second || delay > 7*24*time.Hour {
@@ -238,9 +241,7 @@ func (r *HistoryRepository) Finish(ctx context.Context, claim history.Claim, sta
 			return err
 		}
 		if status == "complete" {
-			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id)
-SELECT DISTINCT old.event_id FROM collection_run_events old JOIN collection_runs r ON r.run_id=old.run_id
-WHERE r.task_id=? AND old.run_id<>? AND NOT EXISTS (SELECT 1 FROM collection_run_events current WHERE current.run_id=? AND current.event_id=old.event_id)`, claim.ID, claim.RunID, claim.RunID); err != nil {
+			if _, err := tx.ExecContext(ctx, `INSERT IGNORE INTO event_detail_tasks (event_id) `+collectionOmissions, claim.ID, claim.RunID); err != nil {
 				return err
 			}
 		}

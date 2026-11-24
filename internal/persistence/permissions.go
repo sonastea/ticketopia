@@ -53,6 +53,7 @@ var runtimeTablePermissions = []struct {
 	{"collection_runs", "status", false},
 	{"collection_pages", "", false},
 	{"collection_run_events", "", false},
+	{"collection_known_events", "", false},
 	{"provider_budgets", "used", false},
 	{"artist_follows", "", true},
 	{"venue_follows", "", true},

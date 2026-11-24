@@ -77,7 +77,7 @@ type pageEvent struct {
 
 // writePageTx is the set-based equivalent of applying upsertSnapshotTx and a
 // run receipt to each event in page order.
-func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.EventList) error {
+func writePageTx(ctx context.Context, tx *sql.Tx, claim history.Claim, list models.EventList) error {
 	at := list.Meta.DataAsOf.UTC().Truncate(time.Microsecond)
 	ids, err := upsertPageSnapshotsTx(ctx, tx, list)
 	if err != nil || len(ids) == 0 {
@@ -86,7 +86,7 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 	// Receipts are INSERT-only and keep their first observation; the claim lock
 	// serializes writers of one run, so read-then-insert cannot race.
 	received := map[string]bool{}
-	err = queryRowsTx(ctx, tx, `SELECT event_id FROM collection_run_events WHERE run_id=? AND event_id IN (`+placeholders(len(ids))+`)`, append([]any{runID}, ids...), func(rows *sql.Rows) error {
+	err = queryRowsTx(ctx, tx, `SELECT event_id FROM collection_run_events WHERE run_id=? AND event_id IN (`+placeholders(len(ids))+`)`, append([]any{claim.RunID}, ids...), func(rows *sql.Rows) error {
 		var id string
 		err := rows.Scan(&id)
 		received[id] = true
@@ -95,13 +95,19 @@ func writePageTx(ctx context.Context, tx *sql.Tx, runID string, list models.Even
 	if err != nil {
 		return err
 	}
-	receipts := [][]any{}
+	receipts, known := [][]any{}, [][]any{}
 	for _, id := range ids {
 		if !received[id.(string)] {
-			receipts = append(receipts, []any{runID, id, at})
+			receipts = append(receipts, []any{claim.RunID, id, at})
+			known = append(known, []any{claim.ID, id})
 		}
 	}
-	return insertRowsTx(ctx, tx, `INSERT INTO collection_run_events (run_id,event_id,observed_at) VALUES `, "", receipts)
+	if err := insertRowsTx(ctx, tx, `INSERT INTO collection_run_events (run_id,event_id,observed_at) VALUES `, "", receipts); err != nil {
+		return err
+	}
+	// Record evidence in the same transaction as the receipt, regardless of
+	// how the run ends. Repeated events across runs share one membership row.
+	return insertRowsTx(ctx, tx, `INSERT IGNORE INTO collection_known_events (task_id,event_id) VALUES `, "", known)
 }
 
 // upsertPageSnapshotsTx is the set-based equivalent of writing each event

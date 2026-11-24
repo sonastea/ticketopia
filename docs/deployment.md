@@ -38,6 +38,12 @@ Schema 26 adds read indexes only (a discussion preview index, a virtual
 `detail_due`): drain, migrate through schema 26 and start, with no grant changes.
 Index builds read each table once; run the migration at a quiet time. See
 [query performance](query-performance.md).
+Schema 27 adds `collection_known_events` and backfills it from retained
+scheduled collection receipts. Drain schema-26 replicas, take a backup, and
+run the new image's `migrate` command during a quiet window. Backfill time
+depends on receipt volume. Reconcile runtime grants (`INSERT` on the new
+table, plus the existing database-wide `SELECT`), then start the schema-27 app
+and check `/readyz`.
 
 Live replies need no migration or grant. `DISCUSSION_LIVE_CHECKS_PER_MINUTE`
 (unset or empty uses the default, 30; 0 turns them off) bounds each account's
