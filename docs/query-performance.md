@@ -99,6 +99,30 @@ covering index was not a consistent improvement. The recovery update used
 its inflight index and stayed below 0.6 ms p95 with zero or ten expired sends.
 The reminder queries and recovery cadence are unchanged.
 
+### Country-only and artist Discover filters
+
+```sh
+MARIADB_TEST_ADDR=127.0.0.1:3307 MARIADB_FILTER_PLANS=1 \
+  go test ./internal/persistence -count=1 -v -run '^TestMariaDBDiscoverFilterPlans$'
+```
+
+This comparison uses 10,000 events, including events in two cities in the same
+country. It checks first-page results and exact counts against explicit
+country-first and artist-first alternatives and alternates 11 warm SQL plan
+samples per variant. MariaDB already uses `search_country` and `search_facet`
+for these cases. The forced alternatives did not improve both page and count
+enough to justify changing the existing queries. For the dominant country,
+the current broad-window query still processes 9,000 matches: about 27 ms
+for the page and 17 ms for an uncached count. That workload is the better
+candidate for a date-window or sort-plan comparison.
+
+The date-window follow-up forced `events.search_date` for windows of 1 to 30
+days. Germany's three- and seven-day counts fell from 3.97 to 2.71 ms and from
+10.39 to 7.48 ms, respectively, but its 30-day count rose from 16.56 to
+23.29 ms. France's 30-day first page rose from 4.42 to 34.95 ms. The one-day
+Germany case was already under 1 ms on both plans. The existing optimizer
+choice remains in use; no forced hint or schema change shipped.
+
 ### Existing query benchmarks
 
 On the 1,000-event fixture, separating visible-count predicates from page-only
