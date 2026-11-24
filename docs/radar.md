@@ -81,9 +81,12 @@ preferences/follows and scope. Equal/backdated observations cannot overwrite a
 snapshot and do not advance its revision. Coverage receipts and elapsed freshness
 do not enter the fingerprint. No snapshot JSON is hashed, no process-local cache
 or global write counter is required, and no schema/grant change is needed.
-SQL still scans eligible revision metadata and ranks matching keys; this removes
-full-dataset JSON transfer/allocation, not all work proportional to matching events.
-Cursors issued by the previous fingerprint implementation return `radar_changed`.
+SQL calculates the eligible scores once for both revisions and page keys. A
+continuation looks up its anchor by event ID, but still validates its digest
+and membership against the full eligible set. The revision does not depend on
+the bounded page-key aggregate; servers with a small aggregate length limit
+fall back to the separate page query. Only selected rows load snapshot JSON.
+This query change does not invalidate existing cursors.
 
 See the [OpenAPI contract](openapi.md) for complete schemas and auth/error behavior.
 
@@ -116,6 +119,22 @@ ranked slices and GC work. SQL materialization barriers prevent repeated scoring
 and revision expressions; absent follow types need no per-event probes. These are
 single local benchmark runs (baseline 1s with profiles, final 2s), not statistical
 production latency guarantees. The benchmark is retained for repeatable checks.
+
+On 2026-11-24, a local paired comparison on the 10,000-event catalog fixture
+alternated 20 warm reads per variant and case, skipping unrelated community
+seeding. It compared complete results, including revision digests and a cursor
+issued by the old query:
+
+| Page | Separate queries, median | Shared ranking, median |
+| --- | ---: | ---: |
+| First | 82.7 ms | 63.9 ms |
+| Continuation | 83.2 ms | 62.7 ms |
+| Smaller city, first | 19.3 ms | 15.5 ms |
+
+The old continuation queries each scored 8,000 city candidates.
+`ANALYZE FORMAT=JSON` showed one pass over those candidates plus a primary-key
+anchor lookup in the new query. These are local repository timings, not
+production measurements.
 
 Run `go test -race ./...`, `go vet ./...`, `npm run build`, OpenAPI lint and
 `make check`. Real SQL checks use the isolated local MariaDB fixture with

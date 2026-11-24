@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2026-11-24 — Reuse Radar ranking for revisions and pages
+
+- Compute eligible scores once per [Radar read](../radar.md), preserving cursor
+  digests, full-set freshness and page-bounded snapshot reads. No schema or
+  grant changes.
+
 ### 2026-10-28 — Reminder outcomes and enrollment, schema v20
 
 - Keep a sent occurrence's accepted/uncertain/failed outcome through later refresh
@@ -76,22 +82,7 @@
 - Clarify private saves versus social signals, revise pilot sequencing, and align
   [delivery](../goals/delivery.md) with responsive discovery/community scope.
 
-### 2026-10-02 — Product goal, reusable API, and discovery experiments
-
-- Document the [personal radar and reminder goal](../goals/personal-radar.md),
-  with a small pilot, incremental user-outcome goals, and success signals.
-- Draft a [reusable API](../design/radar-api.md) for web, mobile, and other
-  clients, backed by shared services and durable event/notification state.
-- Record optional [venue analysis and discovery-game experiments](../ideas/venue-insights-and-discovery.md),
-  including the observations needed and how to interpret advertised price data.
-- Explore [discovery games and social motivations](../ideas/discovery-games.md),
-  with a passport and one-to-one pick swap as the first suggested experiment.
-- Connect the implemented [discovery foundation](../discovery.md) to the first
-  radar outcome and map remaining backend/frontend work in the
-  [delivery checklist](../goals/delivery.md).
-- Make the first discovery visit location-aware, with an editable approximate
-  IP city, remembered manual choices, and a city-entry fallback. See the
-  [location guide](../location.md).
+[Older Radar and reminder entries](archive/personal-radar/)
 
 Saves, follows, personalized matches and explicit on-sale reminders are delivered;
 event-change emails, digests and human pilot checkpoints remain planned. Runtime discovery changes are recorded in its

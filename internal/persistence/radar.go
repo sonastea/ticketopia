@@ -104,16 +104,16 @@ func (r *RadarRepository) readAt(ctx context.Context, owner string, at time.Time
 	// signal scores once per event, rather than inlining them into every revision
 	// word, eligibility predicate and ordering expression. The revision subquery
 	// uses the same barrier to compute each SHA-256 only once for its four words.
-	cte := `WITH ranked AS (SELECT e.event_id,e.local_date,
-CASE WHEN e.local_time IS NOT NULL AND e.local_time<>'' AND e.time_tba=0 AND e.no_specific_time=0 THEN e.local_time ELSE '24:00:00' END AS clock,
-(` + score + `) AS score,s.data_as_of,
+	const clock = `CASE WHEN e.local_time IS NOT NULL AND e.local_time<>'' AND e.time_tba=0 AND e.no_specific_time=0 THEN e.local_time ELSE '24:00:00' END`
+	cte := `WITH ranked AS (SELECT e.event_id,e.local_date,` + clock + ` AS clock,
+ (` + score + `) AS score,s.data_as_of,
 EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) AS unconfirmed
 ` + from + ` LIMIT 18446744073709551615), eligible AS (SELECT * FROM ranked`
 	if personalized {
 		cte += ` WHERE score>0`
 	}
 	cte += `) `
-	args = append(scoreArgs, args...)
+	args = append(slices.Clone(scoreArgs), args...)
 	// data_as_of is the snapshot's strictly monotonic revision: equal/backdated
 	// writes cannot replace its JSON. XOR all four SHA-256 words plus count gives
 	// an order-independent fingerprint without transferring the dataset or using
@@ -129,15 +129,32 @@ EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) AS unconf
 	}
 	var anchorScore sql.NullInt64
 	var anchorDate, anchorClock sql.NullString
+	var keys sql.NullString
+	pageMatch, anchorJoin := `1`, ``
+	limit := page.Limit + 1
+	revisionArgs := append(slices.Clone(args), anchor, anchor, anchor)
+	// Event IDs are VARBINARY(300); hexadecimal plus a separator takes at most
+	// 601 bytes per row. Use the ordinary key query if this session's bound
+	// cannot hold the entire page. The revision itself never uses GROUP_CONCAT.
+	revisionArgs = append(revisionArgs, 601*limit, limit)
+	if page.Cursor != nil {
+		pageMatch = `(revisions.score<anchor.score OR (revisions.score=anchor.score AND
+ (revisions.local_date,revisions.clock,revisions.event_id)>(anchor.local_date,anchor.clock,anchor.event_id)))`
+		anchorJoin = ` LEFT JOIN (SELECT e.event_id,e.local_date,` + clock + ` AS clock,(` + score + `) AS score
+ FROM events e WHERE e.event_id=? LIMIT 1) anchor ON TRUE`
+		revisionArgs = append(revisionArgs, scoreArgs...)
+		revisionArgs = append(revisionArgs, anchor)
+	}
 	revisionSQL := cte + `SELECT COUNT(*),MIN(data_as_of),COALESCE(MAX(unconfirmed),0),
 BIT_XOR(CAST(CONV(SUBSTRING(revision,1,16),16,10) AS UNSIGNED)),
 BIT_XOR(CAST(CONV(SUBSTRING(revision,17,16),16,10) AS UNSIGNED)),
 BIT_XOR(CAST(CONV(SUBSTRING(revision,33,16),16,10) AS UNSIGNED)),
 BIT_XOR(CAST(CONV(SUBSTRING(revision,49,16),16,10) AS UNSIGNED)),
-MAX(IF(event_id=?,score,NULL)),MAX(IF(event_id=?,local_date,NULL)),MAX(IF(event_id=?,clock,NULL))
-FROM (SELECT eligible.*,SHA2(CONCAT_WS(CHAR(0),event_id,data_as_of,unconfirmed,score,local_date,clock),256) AS revision FROM eligible LIMIT 18446744073709551615) revisions`
-	revisionArgs := append(slices.Clone(args), anchor, anchor, anchor)
-	if err = tx.QueryRowContext(ctx, revisionSQL, revisionArgs...).Scan(&count, &oldest, &unconfirmed, &words[0], &words[1], &words[2], &words[3], &anchorScore, &anchorDate, &anchorClock); err != nil {
+ MAX(IF(revisions.event_id=?,revisions.score,NULL)),MAX(IF(revisions.event_id=?,revisions.local_date,NULL)),MAX(IF(revisions.event_id=?,revisions.clock,NULL)),
+ IF(@@group_concat_max_len<?, '!', GROUP_CONCAT(IF(` + pageMatch + `,HEX(revisions.event_id),NULL)
+ ORDER BY revisions.score DESC,revisions.local_date,revisions.clock,revisions.event_id SEPARATOR ',' LIMIT ?))
+ FROM (SELECT eligible.*,SHA2(CONCAT_WS(CHAR(0),event_id,data_as_of,unconfirmed,score,local_date,clock),256) AS revision FROM eligible LIMIT 18446744073709551615) revisions` + anchorJoin
+	if err = tx.QueryRowContext(ctx, revisionSQL, revisionArgs...).Scan(&count, &oldest, &unconfirmed, &words[0], &words[1], &words[2], &words[3], &anchorScore, &anchorDate, &anchorClock, &keys); err != nil {
 		return d, safeError("radar revision", err)
 	}
 	categories := slices.Clone(d.Preferences.CategoryIDs)
@@ -166,34 +183,34 @@ FROM (SELECT eligible.*,SHA2(CONCAT_WS(CHAR(0),event_id,data_as_of,unconfirmed,s
 	}
 	d.Oldest = oldest.Time
 	d.Meta.Stale = d.Meta.Stale || unconfirmed != 0
-	// Select only lightweight keys with LIMIT+1. Fetch JSON separately so even
-	// the lookahead record and discarded sort rows never load full snapshots.
-	pageSQL := cte + `SELECT event_id FROM eligible`
-	pageArgs := slices.Clone(args)
-	if page.Cursor != nil {
-		pageSQL += ` WHERE score<? OR (score=? AND (local_date,clock,event_id)>(?,?,?))`
-		pageArgs = append(pageArgs, anchorScore.Int64, anchorScore.Int64, anchorDate.String, anchorClock.String, anchor)
-	}
-	pageSQL += ` ORDER BY score DESC,local_date,clock,event_id LIMIT ?`
-	pageArgs = append(pageArgs, page.Limit+1)
-	rows, err = tx.QueryContext(ctx, pageSQL, pageArgs...)
-	if err != nil {
-		return d, safeError("radar page", err)
-	}
-	ids := make([]string, 0, page.Limit+1)
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			break
+	// Fetch JSON separately so even the lookahead row never loads its snapshot.
+	var ids []string
+	if keys.String == "!" {
+		pageSQL := cte + `SELECT event_id FROM eligible`
+		pageArgs := slices.Clone(args)
+		if page.Cursor != nil {
+			pageSQL += ` WHERE score<? OR (score=? AND (local_date,clock,event_id)>(?,?,?))`
+			pageArgs = append(pageArgs, anchorScore.Int64, anchorScore.Int64, anchorDate.String, anchorClock.String, anchor)
 		}
-		ids = append(ids, id)
-	}
-	if err == nil {
-		err = rows.Err()
-	}
-	rows.Close()
-	if err != nil {
-		return d, safeError("radar page", err)
+		pageSQL += ` ORDER BY score DESC,local_date,clock,event_id LIMIT ?`
+		if err := queryRowsTx(ctx, tx, pageSQL, append(pageArgs, limit), func(rows *sql.Rows) error {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			ids = append(ids, id)
+			return nil
+		}); err != nil {
+			return d, safeError("radar page", err)
+		}
+	} else if keys.Valid {
+		for encoded := range strings.SplitSeq(keys.String, ",") {
+			id, err := hex.DecodeString(encoded)
+			if err != nil {
+				return d, safeError("radar page keys", err)
+			}
+			ids = append(ids, string(id))
+		}
 	}
 	d.HasMore = len(ids) > page.Limit
 	if d.HasMore {

@@ -86,6 +86,29 @@ func TestMariaDBRadarEligibilityOrderingAndRevisions(t *testing.T) {
 	if !slices.Equal(ids, []string{candidates[0].ID, candidates[1].ID, candidates[2].ID, candidates[3].ID}) {
 		t.Fatal(ids)
 	}
+	// A cursor anchored at the last eligible row has no page matches, but
+	// must still validate against the whole dataset's revision.
+	repo := p.Radar()
+	current, err := repo.Read(t.Context(), owner.ID, at, 6*time.Hour, radar.Query{Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	end := &radar.Cursor{At: at, After: ids[len(ids)-1], Digest: current.Revision}
+	empty, err := repo.Read(t.Context(), owner.ID, at, 6*time.Hour, radar.Query{Limit: 1, Cursor: end})
+	if err != nil || empty.Revision != current.Revision || empty.HasMore || len(empty.Candidates) != 0 || !empty.Oldest.Equal(current.Oldest) {
+		t.Fatalf("past last candidate: %+v, %v", empty, err)
+	}
+	// A small session aggregate limit must fall back to the ordinary key query,
+	// not return a truncated page or change the cursor digest.
+	p.db.SetMaxOpenConns(1)
+	execSQL(t, p.db, `SET SESSION group_concat_max_len=4`)
+	next := &radar.Cursor{At: at, After: ids[0], Digest: current.Revision}
+	fallback, err := repo.Read(t.Context(), owner.ID, at, 6*time.Hour, radar.Query{Limit: 1, Cursor: next})
+	if err != nil || fallback.Revision != current.Revision || !fallback.HasMore ||
+		len(fallback.Candidates) != 1 || fallback.Candidates[0].Event.ID != ids[1] {
+		t.Fatalf("small aggregate limit: %+v, %v", fallback, err)
+	}
+	execSQL(t, p.db, `SET SESSION group_concat_max_len=DEFAULT`)
 	check := func(cursor string, changed bool) {
 		t.Helper()
 		_, err := s.List(t.Context(), owner.ID, url.Values{"limit": {"1"}, "cursor": {cursor}})
@@ -130,7 +153,7 @@ func TestMariaDBRadarEligibilityOrderingAndRevisions(t *testing.T) {
 	}
 	cursor.After = "ticketmaster:absent"
 	data, _ = json.Marshal(cursor)
-	_, err := s.List(t.Context(), owner.ID, url.Values{"limit": {"1"}, "cursor": {base64.RawURLEncoding.EncodeToString(data)}})
+	_, err = s.List(t.Context(), owner.ID, url.Values{"limit": {"1"}, "cursor": {base64.RawURLEncoding.EncodeToString(data)}})
 	var validation *accounts.ValidationError
 	if !errors.As(err, &validation) {
 		t.Fatal("forged anchor", err)
