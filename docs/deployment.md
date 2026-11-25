@@ -407,8 +407,9 @@ the deployment platform's responsibility.
 
 ## Resource profile
 
-One profile for every deployment (Coolify, Kubernetes and local Compose), so
-services cannot starve each other and results compare across environments:
+The baseline profile for Coolify and Kubernetes keeps services from starving
+each other. Local Compose matches the smaller MariaDB profile on Primordial,
+described below.
 
 | Service | CPUs | Memory limit | Settings |
 |---|---|---|---|
@@ -458,6 +459,12 @@ can be open at once, including a surge pod and draining pods: the Kubernetes
 example (three replicas, `max_connections=100`, up to about 70 application
 connections during a rollout) needs about 2.7 GiB, so it gives MariaDB 3 GiB. With less memory overall, use 1.5 GiB and a 768 MiB buffer
 pool.
+
+Primordial and local Compose use a **1 GiB** MariaDB limit on **2 CPUs**, with
+`innodb_buffer_pool_size=384M`, `tmp_table_size=8M`, and `max_heap_table_size=8M`.
+The other memory and durability settings above are unchanged. The smaller
+profile leaves less room for cached data and can spill more temporary tables to
+disk; don't use short, mostly cached load tests alone to size a larger deployment.
 
 Redis holds only expiring cache entries (discovery, event details, city hints),
 and the app treats an evicted key as a miss, so it may evict the least recently
