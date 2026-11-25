@@ -8,7 +8,7 @@ import "github.com/sonastea/ticketopia/views/components/empty"
 templ Destination(active string, title string) {
 	@layouts.App(active, title) {
 		<main id="main" class="destination-page">
-			<h1>{ title }</h1>
+			@layouts.PageHeader(title, "")
 			@empty.Empty(empty.Props{Class: "destination-state"}) {
 				@badge.Badge(badge.Props{Class: "availability-label"}) {
 					if active == "profile" || active == "interests" || active == "saved" {

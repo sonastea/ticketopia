@@ -116,7 +116,7 @@ templ EventHeading(page EventPage, panel bool) {
 		</div>
 	} else {
 		<div class="event-heading" data-shell-facts>
-			<div class="date-marker" aria-hidden="true"><span>{ datePart(page.Detail.Item.Start, "Jan") }</span><strong>{ datePart(page.Detail.Item.Start, "2") }</strong></div>
+			@EventDateStub(page.Detail.Item.Start)
 			<div>
 				<h1 style={ transitionStyle("title", page.Detail.Item.ID) }>{ page.Detail.Item.Name }</h1>
 				@EventHeadingFacts(page)
@@ -126,7 +126,7 @@ templ EventHeading(page EventPage, panel bool) {
 }
 
 templ EventHeadingFacts(page EventPage) {
-	<p class="event-date">{ startLabel(page.Detail.Item.Start) }</p>
+	<p class="event-date">@EventDateLabel(page.Detail.Item.Start, "")</p>
 	<p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
 	if sale := upcomingSaleLabel(page.Detail.Item, layouts.Now(ctx)); sale != "" {
 		<p class="sale-date">{ sale }</p>
@@ -189,7 +189,7 @@ templ EventProvenance(page EventPage) {
 }
 
 templ EventFacts(event models.Event) {
-	<div class="event-summary" aria-label="Price and sale status">
+	<div class="event-summary" role="group" aria-label="Price and sale status">
 		<strong>{ priceLabel(event.PriceRanges) }</strong>@EventStatus(event.Status)
 	</div>
 	<p class="genre-label">{ classificationLabel(event) }</p>

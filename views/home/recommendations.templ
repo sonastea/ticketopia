@@ -178,7 +178,7 @@ templ RecommendationVia(item recommendations.Item) {
 // Happening Now lives inside Community rather than in main navigation: during
 // the pilot its 10-minute window is usually empty.
 templ CommunityNav(current string) {
-	<nav class="section-nav" aria-label="Community collections">
+	<nav class="section-nav community-nav" aria-label="Community collections">
 		<a href="/community" aria-current={ layouts.CurrentPage(current == "recommendations") } class="text-link">
 			Recommendations
 			@tabMark(current == "recommendations")
@@ -227,7 +227,7 @@ templ Community(p CommunityPage) {
 					}
 				} else {
 					<section class="community-results" aria-labelledby="community-results-heading">
-						<div class="results-heading"><h2 id="community-results-heading">Recommended events</h2><span class="sort-label">First recommended, newest first</span></div>
+						@layouts.ResultsHeading("community-results-heading", "Recommended events", "", "First recommended, newest first")
 						@CommunityRecommendationList(p.List,p.ReturnURL,communityContext(p.ReturnURL,p.Filters.City,p.Filters.Country,p.Filters.CategoryID))
 						if p.List.NextCursor != nil {
 							@button.Button(button.Props{Href:CollectionNextURL(p.ReturnURL,p.List.NextCursor),Variant:button.VariantOutline,Class:"action action-secondary"}) {
@@ -256,38 +256,38 @@ templ CommunityEmpty(title, body, href, action string) {
 	}
 }
 
-// One compact bar of filters; labels stay available to assistive technology
-// while placeholders and the select's own option name each field visually.
+// Keep labels visible after a filter has a value. These are ordinary GET
+// forms; each collection retains its own action and field IDs.
 templ CommunityFilters(f CommunityFilterBar) {
-	<form action={ templ.SafeURL(f.Action) } method="get" class="filter-bar community-filters" aria-label={ f.Label }>
-		@label.Label(label.Props{For:f.Prefix+"-city",Class:"sr-only"}) {
-			City (optional)
-		}
-		@input.Input(input.Props{ID:f.Prefix+"-city",Name:"city",Value:f.City,Placeholder:"Any city",Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
-		@label.Label(label.Props{For:f.Prefix+"-country",Class:"sr-only"}) {
-			Country (optional, 2-letter code)
-		}
-		@input.Input(input.Props{ID:f.Prefix+"-country",Name:"country",Value:f.Country,Placeholder:"Country",Class:"filter-bar-country",Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","title":"Two-letter country code, such as US","autocomplete":"country","autocapitalize":"characters"}})
-		@label.Label(label.Props{For:f.Prefix+"-category",Class:"sr-only"}) {
-			Category
-		}
-		@selectcomp.Native(selectcomp.NativeProps{ID:f.Prefix+"-category",Name:"category_id"}) {
-			<option value="all">All categories</option>
-			if f.CategoryID!="" && !f.hasCategory() {
-				<option value={ f.CategoryID } selected>{ f.CategoryID }</option>
+	<form action={ templ.SafeURL(f.Action) } method="get" class="community-filters" aria-label={ f.Label }>
+		<div class="field community-filter-field">
+			@label.Label(label.Props{For: f.Prefix+"-city"}) { City }
+			@input.Input(input.Props{ID:f.Prefix+"-city",Name:"city",Value:f.City,Placeholder:"Any city",Attributes:templ.Attributes{"maxlength":"120","autocomplete":"address-level2"}})
+		</div>
+		<div class="field community-filter-field community-filter-country">
+			@label.Label(label.Props{For: f.Prefix+"-country"}) { Country code }
+			@input.Input(input.Props{ID:f.Prefix+"-country",Name:"country",Value:f.Country,Placeholder:"Any",Attributes:templ.Attributes{"maxlength":"2","pattern":"[A-Za-z]{2}","title":"Optional two-letter country code, such as US","autocomplete":"country","autocapitalize":"characters"}})
+		</div>
+		<div class="field community-filter-field">
+			@label.Label(label.Props{For: f.Prefix+"-category"}) { Category }
+			@selectcomp.Native(selectcomp.NativeProps{ID:f.Prefix+"-category",Name:"category_id"}) {
+				<option value="all">All categories</option>
+				if f.CategoryID!="" && !f.hasCategory() {
+					<option value={ f.CategoryID } selected>{ f.CategoryID }</option>
+				}
+				for _,category := range f.Categories {
+					<option value={ category.ID } selected?={ category.ID==f.CategoryID }>{ category.Name }</option>
+				}
 			}
-			for _,category := range f.Categories {
-				<option value={ category.ID } selected?={ category.ID==f.CategoryID }>{ category.Name }</option>
-			}
-		}
+		</div>
 		if f.ShowConnections {
-			@label.Label(label.Props{For:f.Prefix+"-connections",Class:"sr-only"}) {
-				Events
-			}
-			@selectcomp.Native(selectcomp.NativeProps{ID:f.Prefix+"-connections",Name:"connections"}) {
-				<option value="all">All events</option>
-				<option value="mine" selected?={ f.Mine }>Your events</option>
-			}
+			<div class="field community-filter-field">
+				@label.Label(label.Props{For: f.Prefix+"-connections"}) { Events }
+				@selectcomp.Native(selectcomp.NativeProps{ID:f.Prefix+"-connections",Name:"connections"}) {
+					<option value="all">All events</option>
+					<option value="mine" selected?={ f.Mine }>Your events</option>
+				}
+			</div>
 		}
 		@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
 			Apply
@@ -319,7 +319,7 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 				<li class="recommendation-event">
 					@CollectionEventArt(group.Event,returnURL)
 					<div class="recommendation-copy">
-						@CollectionEventHeading(group.Event,returnURL)
+						@CommunityCardIdentity(group.Event, returnURL)
 						<ul class="community-recommenders">
 							for _,item:=range group.Recommendations {
 								<li>

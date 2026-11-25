@@ -1,0 +1,26 @@
+package home
+
+import "github.com/sonastea/ticketopia/internal/models"
+
+// EventDateLabel keeps the full venue-local date available even where the agenda
+// and ticket stub let sighted readers scan a shorter label.
+templ EventDateLabel(start models.EventStart, agendaKind string) {
+	if value := eventDateTime(start); value != "" {
+		<time datetime={ value }>
+			if short := agendaStartLabel(start, agendaKind); short != "" {
+				<span aria-hidden="true">{ short }</span><span class="sr-only">{ startLabel(start) }</span>
+			} else {
+				{ startLabel(start) }
+			}
+		</time>
+	} else {
+		{ startLabel(start) }
+	}
+}
+
+// The stub is decorative: the usable date is always supplied separately.
+templ EventDateStub(start models.EventStart) {
+	<div class="date-marker" aria-hidden="true">
+		<span>{ datePart(start, "Jan") }</span><strong>{ datePart(start, "2") }</strong>
+	</div>
+}

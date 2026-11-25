@@ -7,7 +7,7 @@ import "github.com/sonastea/ticketopia/views/components/empty"
 
 templ Radar(page RadarPage) {
 	@layouts.App("radar", "Your radar") {
-		<main id="main" class="destination-page radar-page">
+		<main id="main" class="destination-page event-collection-page radar-page">
 			@layouts.AccountHeader("Your radar", "Nearby events connected to the artists, venues, and categories you choose. Your radar stays private.", "radar", page.Navigation)
 			if !page.Enabled {
 				<p>Radar requires accounts, which aren't enabled on this server. You can still discover events by city.</p>
@@ -25,11 +25,11 @@ templ Radar(page RadarPage) {
 					@button.Button(button.Props{Href: "/me/preferences", Class: "action"}) { Choose your city }
 				}
 			} else {
-				<p class="radar-scope">{ page.List.Scope.City }, { page.List.Scope.Country } · { scopeDates(page.List.Scope.StartDate, page.List.Scope.EndDate) }</p>
+				@layouts.ResultsMeta(page.List.Scope.City + ", " + page.List.Scope.Country + " · " + scopeDates(page.List.Scope.StartDate, page.List.Scope.EndDate), "")
 				if page.List.Mode == "nearby" {
 					<p class="participation-note">These are nearby suggestions, not personalized matches yet. Follow an artist or venue, or choose categories to make Radar yours.</p>
 				} else {
-					<p class="sort-label">Strongest matches first, then soonest date. Artist follows carry more weight than venue follows, then category choices.</p>
+					<p class="field-note">Strongest matches first, then soonest date. Artist follows carry more weight than venue follows, then category choices.</p>
 				}
 				// Staleness, Radar's coverage and the time zone read as one visible line.
 				@RadarFreshness(page.List.Meta)
@@ -42,8 +42,7 @@ templ Radar(page RadarPage) {
 						@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }
 					}
 				} else {
-					<h2 class="sr-only">Radar matches</h2>
-					<ul id="event-list" class="event-list">
+					<ul id="event-list" class="event-list" aria-label="Radar matches">
 						@EventRowsWithRadar(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests, page.matches(), page.Activity)
 					</ul>
 					<div class="pagination">

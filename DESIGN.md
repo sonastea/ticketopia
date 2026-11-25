@@ -17,8 +17,6 @@ colors:
   control-line: "#938b99"
   date-surface: "#e8d2db"
   brand-tint: "oklch(0.66 0.080387 337.297)"
-  gradient-brand: "linear-gradient(135deg in oklch, var(--brand-dark), var(--brand) 50%, color-mix(in oklch, var(--brand), var(--brand-tint) 40%))"
-  gradient-glow: "radial-gradient(110% 120% at 0% 0%, color-mix(in oklch, var(--brand-soft) 75%, transparent), transparent 60%)"
   event-tint-surface: "color-mix(in oklch, var(--event-tint) 18%, var(--surface))"
   error: "#a22b39"
   error-bg: "color-mix(in oklch, var(--error) 6%, var(--surface))"
@@ -56,6 +54,12 @@ typography:
     fontWeight: 750
     lineHeight: 1.4
     letterSpacing: "-.015em"
+  discover-lead:
+    fontFamily: "Bricolage Grotesque, Manrope, sans-serif"
+    fontSize: "clamp(1.25rem, 1.0625rem + .65cqi, 1.625rem)"
+    fontWeight: 750
+    lineHeight: 1.2
+    letterSpacing: "-.02em"
   body:
     fontFamily: "Manrope, sans-serif"
     fontSize: "1rem"
@@ -280,9 +284,10 @@ gets quieter. A selected preview has one outer boundary and a labeled return
 action, rather than nested cards or an unexplained close icon.
 
 Modernity comes from precise alignment, readable type, and fewer competing
-surfaces. Retain the plum identity, Manrope with its one display face, provider
-photography, and dusty-rose date indexes; avoid ornamental shadows, gradients, or motion as substitutes for
-structure. Apply this hierarchy to future features before adding new controls.
+surfaces. Retain the plum identity, self-hosted Manrope and Bricolage Grotesque,
+provider photography, and dusty-rose date indexes. Avoid ornamental shadows,
+purple gradients, glowing buttons, italic serif accents, and rows of stats for
+their own sake. Keep meaningful counts next to the actions they explain.
 
 Local frequency makes event discovery feel personally assembled: the presence of a record shop, the intimacy of a mixtape, and the clarity of an everyday planning tool. Deep plum actions and pale-plum selection sit within light-stone navigation and near-white reading surfaces; compact dusty-rose date indexes give the collection a warm, human rhythm.
 
@@ -291,9 +296,55 @@ Bold, readable Manrope, a Bricolage Grotesque display voice for titles and dates
 **Key Characteristics:**
 - Deep plum actions and pale-plum selection against light-stone navigation, near-white paper, and white surfaces.
 - Dusty-rose date indexing and neutral, honest availability labels.
-- Readable Manrope for everything except page titles, the event title and date numbers, which use Bricolage Grotesque.
+- Readable Manrope for ordinary rows, prose, and controls; Bricolage Grotesque for page and event headings, the Discover lead, and date indexing.
 - Record-sleeve provider imagery and compact, aligned event facts.
 - Border-only depth, restrained state transitions, and visible keyboard focus.
+
+### Reference sites
+
+Use the first two as the main web benchmarks for Discover and event details.
+Use the others for the specific patterns noted, not as templates.
+
+- **[Southbank Centre — What's on](https://www.southbankcentre.co.uk/whats-on/).**
+  [Substrakt's website redesign](https://substrakt.com/projects/southbank-centre/)
+  pairs date shortcuts and a calendar with category filters, while keeping
+  individual events and curated programmes distinct. For Ticketopia, keep
+  date-led browsing prominent and additional filters easy to find without
+  letting them dominate the agenda.
+- **[Massey Hall and Roy Thomson Hall — What's on](https://masseyhall.mhrth.com/tickets/).**
+  The [four-venue website redesign](https://substrakt.com/projects/massey-hall-roy-thomson-hall/)
+  was [recognized in 2026](https://we-awards.com/winner/massey-hall/).
+  Month headings and recurring event facts make the listings easy to scan
+  without giving every venue the same visual identity. For Ticketopia, keep
+  the venue and date in predictable places and let provider artwork vary.
+- **[Edinburgh Festival Fringe — Plan your visit](https://www.edfringe.com/plan-your-fringe/plan-your-visit/).**
+  The [November 2026 rebuild](https://www.edfringe.com/about/news-and-blogs/welcome-to-the-new-edfringecom/)
+  gives audience planning its own path, separate from artist and industry
+  tasks. Use it as a reference for making practical information easy to find.
+  The redesigned audience booking and show discovery are slated for early
+  2027, so this is not yet a reference for the new event listings.
+- **[Eventbrite — Local events](https://www.eventbrite.com/).**
+  Its [March 2025 brand refresh and consumer app redesign](https://www.eventbrite.com/blog/press/newsroom/eventbrite-refreshes-brand/)
+  is a useful marketplace reference, not evidence of a full website rebuild.
+  Look to the web listings for compact date, venue, and price placement, and
+  to the app's named local curators for how to keep recommendations attributed.
+  Leave out neon gradients, promoted placements, and campaign styling.
+
+**Programme references.** [DICE's London browse page](https://dice.fm/browse/london)
+keeps real artwork beside the date, venue, and price. [Songkick's London calendar](https://www.songkick.com/metro-areas/24426-uk-london)
+groups shows by date and gives readers shortcuts such as Tonight and This
+weekend. [Cafe OTO's programme](https://www.cafeoto.co.uk/events/) gives each
+listing a steady date–artwork–title rhythm and says plainly when an event is
+cancelled or what an advance ticket costs. Borrow those information patterns,
+not their skins: Ticketopia keeps its own palette and type, unfiltered provider
+images, and the same browsing and participation behavior.
+
+**In Ticketopia:** Discover keeps date shortcuts above a compact, ruled
+filter disclosure, with space reserved for the agenda rather than another panel.
+The results heading names the list; count and sort are supporting information.
+Listings, event details, and public collections reuse the same decorative date
+stub and venue-local time markup. In the agenda the visible date can be shorter,
+but assistive technology gets the full date; unknown times never imply midnight.
 
 **Implementation authority:** [`views/styles/app.css`](views/styles/app.css) is the unminified token and style source; [`views/assets/app.css`](views/assets/app.css) is its compiled output. Frontmatter records the shipped values, retaining CSS custom-property names where present. Tailwind v4 `@source` declarations in that stylesheet supply scan paths. Copied shadcn-templ primitives live in `views/components`; the [component guide](docs/ui-components.md) records theme mappings and native-form adaptations. [`PRODUCT.md`](PRODUCT.md) owns product truth; [`docs/design-guidelines.md`](docs/design-guidelines.md) owns UX; the [surface contract](.impeccable/surfaces/views-home-index-templ.md) retains route strategy and the selected direction's seed. The sidecar's synthesized tonal strips are panel previews, not additional shipping colors.
 
@@ -354,7 +405,7 @@ text rather than white.
 
 **Body font:** Manrope, with a sans-serif fallback. The variable font is self-hosted as two WOFF2 `unicode-range` subsets (`views/assets/fonts/manrope-latin.woff2`, preloaded, and `manrope-extended.woff2`), supports the shipped weights (400–800), uses `font-display: swap`, and is distributed with its SIL OFL license.
 
-**Display font:** Bricolage Grotesque (SIL OFL), exposed as `--font-display` with a Manrope fallback. It is self-hosted and preloaded as a 65 KB Latin subset (`views/assets/fonts/bricolage-grotesque-latin.woff2`): width pinned to 100, weights 600–800, the optical-size axis kept, and tabular/lining figures retained. Its ink-trap grotesque shapes give titles a record-sleeve voice next to Manrope's rounded text. Use it **only** for page titles (`h1`), the event title (the event page heading and the preview heading), date numbers on ticket-stub markers, Discover's calendar agenda headings (Today, This week, December…), and the community section titles described below. Row titles, empty-state lines, navigation, controls and prose stay Manrope. Display sizes keep the existing fluid tokens; `--text-display` spans 1.75–2rem (1.14×), within the 2.5× maximum. Display headings use −.02em tracking, which suits the face's tighter display optical size. Sourcing and subsetting commands are in [`views/assets/fonts/README.md`](views/assets/fonts/README.md). There is no mono family.
+**Display font:** Bricolage Grotesque (SIL OFL), exposed as `--font-display` with a Manrope fallback. It is self-hosted and preloaded as a 65 KB Latin subset (`views/assets/fonts/bricolage-grotesque-latin.woff2`): width pinned to 100, weights 600–800, the optical-size axis kept, and tabular/lining figures retained. Its ink-trap grotesque shapes give titles a record-sleeve voice next to Manrope's rounded text. Use it **only** for page titles (`h1`), the event title (the event page heading and the preview heading), Discover's **Up next** lead, date numbers on ticket-stub markers, Discover's calendar agenda headings (Today, This week, December…), and the community section titles described below. Ordinary row titles (including the lead when a preview is open), empty-state lines, navigation, controls and prose stay Manrope. Display sizes keep the existing fluid tokens; `--text-display` spans 1.75–2rem (1.14×), within the 2.5× maximum. Display headings use −.02em tracking, which suits the face's tighter display optical size. Sourcing and subsetting commands are in [`views/assets/fonts/README.md`](views/assets/fonts/README.md). Inter and italic serif are not app type roles.
 
 **Character:** rounded, direct, and substantial. Tight heading tracking gives short titles confidence; ordinary casing and generous body leading keep long event information readable. The hierarchy is role-based, not a manufactured modular scale.
 
@@ -362,6 +413,7 @@ text rather than white.
 - **Display:** `typography.display` (Bricolage Grotesque) for page headings, fluid from 1.75rem to 2rem. Event-page headings use the separate `--text-event-heading` token, fluid from 1.5rem to 1.75rem. Both use rem bounds and rem + viewport interpolation rather than font-size breakpoint overrides.
 - **Headline:** `typography.headline` for section and preview headings, including the lead line of destination empty states. Event-content section headings use 1.125rem.
 - **Title:** `typography.title` for supporting headings; `typography.event-title` for result titles, with the more open leading needed by long names.
+- **Discover lead:** `typography.discover-lead` scales the Up next title from 1.25rem to 1.625rem with the results container. With a preview open, the lead uses ordinary row typography.
 - **Body:** `typography.body` for the base reading size; `typography.body-small` for event descriptions. Observed reading measures are 65ch for introductions, 70ch for event prose, and 75ch for source notes.
 - **Label / action:** `typography.label` for field labels and `typography.action` for primary/secondary controls. Labeled filter inputs remain at the body size with weight 500; search uses ordinary body weight.
 - **Navigation:** `typography.navigation` for full navigation (weight 550), with `typography.navigation-current` for the current destination (weight 700). Group labels use `typography.navigation-group`; rail/bottom-nav labels use .75rem (`typography.navigation-group` size) and the same normal/current weights. Collapsed desktop labels remain accessible and appear as .75rem tooltips (weight 650). Event-section links use quiet-action sizing and weight 650, rising to 750 when current, with body leading.
@@ -426,25 +478,32 @@ The context panel is sticky from 62rem (top 1.5rem), with `max-height: calc(100d
 
 ## Elevation & Depth
 
-Outside the depth layer below, the interface has no cast shadows. Depth comes from white against near-white paper and light stone, one-pixel quiet borders, and stronger control borders. The selected result row is a flat, rounded wash of 35% pale plum in white with a plum "Viewing" label after its date; in the card grid its border also mixes 30% plum, and in lists the separators on both sides turn transparent at full width. Forced colors replace the wash with a 2px `SelectedItem` frame. Hovering a row's title or artwork gives a neutral stone wash in lists (cards rise to `--elevation-2` instead), deepening toward pale plum when the row is selected; pressing gives a deeper flat plum wash. Title and artwork links never paint their own pressed box (iOS Safari would show it on touch-down); the row or card takes the wash, Community cards included, and the title darkens to brand-active. The selected row stays in the list's geometry, and the hidden labels on other rows keep their space. Community and Happening Now cards are raised by the depth layer. Fixed navigation, sticky context, and collapsed-rail tooltips are functional layers, not glass surfaces. The phone navigation floats as an inset pill and the compact event action bar above it as a rounded card, but both are solid and border-defined: a one-pixel border, no cast shadow or blur.
-
-**Depth layer (scoped exception, by hierarchy).** The event page, Discover, the Saved, Interests and Radar event collections, Community and Happening Now are raised; account and navigation surfaces stay flat. They use these tokens: `--ring-hairline` (a 1px 8%-ink ring in place of a border), `--elevation-1` and `--elevation-2` (that ring plus soft, plum-tinted layered shadows with a real downward offset), `--gradient-brand` (dark plum → plum → 40% toward brand-tint, at 135° in oklch), `--gradient-glow` (a pale-plum light from the top-start corner), and `--lift-brand`/`--lift-brand-hover` (the coloured lift under gradient-brand controls). They also add a 1rem surface radius (`--radius` + .25rem) and the `--text-section-display` heading size. Raised surfaces are white, carry the corner glow and `--elevation-1`, and rise to `--elevation-2` when hovered or opened, lifting 2px only when motion is allowed. Transparent borders keep each surface framed in forced colours, where shadows and gradients are dropped.
-
-Full depth (white surface, corner glow, `--elevation-1` rising to `--elevation-2`, a 2px lift with motion allowed) marks the primary things to pick up: result cards in Discover, Saved, Interests and Radar when the list is wide enough for cards, the preview panel (resting at `--elevation-2`), the event's identity card, community composers, quote cards and question/reply panels, and Community and Happening Now cards. Every Tickets action (event page, preview and result rows), community publish actions and the current date chip take `--gradient-brand` over an opaque plum base with a top highlight; the event's own Tickets and publish actions rest on `--lift-brand`, while row Tickets gain the lift only on hover so a grid of cards doesn't glow. Hover deepens the lift and press settles to solid `--brand-active` (no filters). Quieter controls get only the hairline ring and a soft resting shadow: list rows (raised only when hovered, pressed or selected; with a preview open results are always a list, so selection is this raised wash), the command and filter bars (which keep their control-line field boundary, with a pale-plum halo while typing), date chips, Save (on the event and in every row) and the plans controls, and the section tabs' raised current segment over a recessed track. Account pages and navigation are unchanged.
+White, paper, and stone surfaces are separated by spacing, quiet borders, and
+stronger control borders. Discover and collection cards, the event identity and
+preview, Community and Happening Now cards, and event composers, notes and quotes
+use flat surfaces without corner glows, cast shadows, or hover lifts. The selected
+result stays in the list geometry: a pale-plum wash and a plum **Viewing** label,
+with a distinct forced-colors frame. Pointer and press feedback changes the
+surface or text color; the title and artwork links do not paint their own
+pressed box. Fixed navigation, sticky context, and collapsed-rail tooltips are
+functional layers. The phone navigation and compact event action bar can float
+without needing a shadow or blur.
 
 Focus is an outline, not a shadow: a solid plum ring (3px) offset from the target (4px), including navigation and sidebar controls. Themed library focus rings and card shadows are explicitly suppressed.
 
 The source does use `box-shadow` for drag insertion markers: `inset 0 2px 0 var(--brand)` before a target and `inset 0 -2px 0 var(--brand)` after it. These are functional two-pixel rules inside a reorder target, not elevation or cast depth; the dragged item/section also dims to opacity .55.
 
-**The Border-Only Depth Rule.** Separate surfaces with tone, spacing, and borders. Selection is tone plus a label; do not add cast shadows to components outside the documented depth layer (event page, Discover and the event collections, Community, Happening Now), where a selected Discover list row may also rest at `--elevation-1`.
+**The Border-Only Depth Rule.** Separate surfaces with tone, spacing, and borders.
+Selection is tone plus a label, never a lift. Keep functional focus, arrival,
+and reorder markers distinct from decoration.
 
 ## Shapes
 
 Use modest, role-specific corner treatments: the shared `radius` for context/ticket containers, selected rows, and the search surround; `control` and `navigation` for buttons, fields, and links; `image` for photographs; and the smaller `date-marker` and `availability` corners for indexing and state. Sidebar move/drag tools use `sidebar-move`, while collapse, commit controls, and tooltips use `sidebar-utility`. These are rounded rectangles, not a universal pill vocabulary; the phone navigation and its current destination are the one pill-shaped exception. Narrow result rows are separated by a top rule; only the wide results grid encloses events in white, bordered cards.
 
-Some observed component-local corners are intentionally outside the reusable scale: the search input is .2rem, filter summary .3rem, preview artwork .6rem, and the library's inner empty-context Card uses its derived `radius-xl` (1.05rem) within the outer .75rem context boundary. They are real roles, not a mandate to homogenize radii or invent new primitives for every measurement.
+Some component-local corners are intentionally outside the reusable scale: the search input is .2rem, filter summary .3rem, and preview artwork .6rem. The idle Discover preview uses one boundary around the compact ticket mark, heading, and guidance, not a second nested card or placeholder image.
 
-Event imagery fills a clipped frame with `object-fit: cover`. The default frame is 16:9; list images become square in container rows and return to 16:9 in cards. The full-event band is 2:1 capped at 22rem, and a compact selected preview caps artwork at 16rem. Preserve provider color and content; the reviewed monochrome photographs are source material, not a prescribed grayscale filter.
+Event imagery fills a clipped frame with `object-fit: cover`. The default frame is 16:9; regular container rows use square thumbnails beside their facts, while the Discover lead uses a full-width 2:1 frame in narrow lists with no open preview. The full-event band is 2:1 capped at 22rem, and a compact selected preview caps artwork at 16rem. Preserve provider color and content; the reference photographs do not prescribe a grayscale filter.
 
 Icons are outline SVGs with a 24-unit viewBox, rounded caps/joins, and stroke width
 1.7. Label-adjacent icons use font-relative em sizing and cannot shrink; larger
@@ -452,12 +511,11 @@ decorative/fallback icons retain explicit rem sizes. The fallback uses a music
 icon for classified music events and a ticket icon otherwise. It occupies the
 same image frame, so a failed image does not erase the event's place in the list.
 The fallback carries the event's own colour (`--art-tint`): its stored artwork
-tint, or, without artwork, one of seven hues beside plum (plum, rose, amber, sage,
+tint, or, without artwork, one of seven hues (plum, rose, amber, sage,
 teal, indigo, orchid) chosen from its ID at the stored tints' fixed OKLCH
-lightness .66 and chroma .08. It paints a diagonal wash, a pale top-start light and
-a faint .875rem perforation dot grid, with the icon on a frosted disc (smaller and
-raised clear of the date stub in thumbnails). Forced colours drop the paint and keep
-the icon.
+lightness .66 and chroma .08. It uses a flat event tint, a faint .875rem
+perforation dot grid, and a solid white icon tile (smaller and clear of the date
+stub in thumbnails). Forced colours drop the paint and keep the icon.
 
 ## Components
 
@@ -465,7 +523,10 @@ the icon.
 
 Compact, confident, plainly labeled controls. Primary actions pair plum with white text; secondary actions use white, plum text, and a control-line border. Both use the frontmatter's action typography and padding with a minimum height of 2.75rem (44px), not a fixed height that clips wrapping labels. Minimum heights, borders, focus outlines, and transitions live in the sidecar snippets because the frontmatter's component schema cannot express them accurately. Hover darkens primary actions and gives secondary actions a pale-plum fill. Pressed primary actions use `brand-active`; there is no pressed translation or raised effect.
 
-**One Tickets and Save family.** Tickets is the same control on the event page, the preview and every result row: the depth layer's gradient over an opaque plum base, .625rem corners (shared with Save, the plans controls and card action bars), a trailing 1.125rem external-link icon and a 44px minimum. Only its label length changes: **Tickets on Ticketmaster · From USD 25.00** on the event (the price drops from view in a pinned bar under 24rem and the provider under 26rem, both kept in the accessible name) and **Tickets** in rows, whose accessible name keeps the provider and event. A row's Tickets fills its action bar beside Save (up to 22rem) and, in a row's action group narrower than 15rem (enlarged text), drops its icon rather than break the word. Save is the same ringed quiet control everywhere. Ghost companions (`.card-action-secondary`) carry other one-step destinations: the preview's **Open event page** (plum, with the nudging arrow) and Happening Now's **Hide/Show activity toasts** and **Refresh**, each with an icon.
+**One Tickets and Save family.** Tickets is solid plum with white text on the event page and in the preview, and outlined with plum text in result lists, where it remains the prominent action beside quiet Save. Ticket actions share .625rem corners, a trailing 1.125rem external-link icon and a 44px minimum. The label is **Tickets on Ticketmaster · From USD 25.00** on the event (the price drops from view in a pinned bar under 24rem and the provider under 26rem, both kept in the accessible name) and **Tickets** in rows, whose accessible name keeps the provider and event. A row's Tickets fills its action bar beside Save (up to 22rem) and, in a row's action group narrower than 15rem (enlarged text), drops its icon rather than break the word. Ghost companions (`.card-action-secondary`) carry other one-step destinations: the preview's **Open event page** and Happening Now's **Hide/Show activity toasts** and **Refresh**, each with an icon.
+
+From 62rem, the filled Tickets button in event details and previews is capped
+at 28rem so it does not stretch across wide layouts.
 
 Quiet event controls use transparent fills, quiet-action typography, and the same
 minimum target height. Recommend is a secondary link that opens the native
@@ -524,9 +585,9 @@ pop with a 280ms overshoot (from .85× to a 1.12× peak at 40% of the time). Cro
 changes only. Script animations read `--ease-out` and `--ease-standard` from the
 root instead of copying the curves, and htmx's injected ease-in indicator style is
 turned off (`includeIndicatorStyles: false`). Geometry transitions opt into motion only when no reduction is
-requested; there is no global safeguard, so each animation carries its own guard
-(the vendored shimmer utility has its own). Native links, buttons, summaries and
-selects share a 160ms ease-out colour baseline (background, text, border and
+requested; there is no global safeguard, so each animation carries its own guard.
+Native links, buttons, summaries and selects share a 160ms ease-out colour
+baseline (background, text, border and
 underline colour), which reduced motion keeps. Pressed colours apply at once
 (`:active` transitions take 0ms) and only the release eases back; under no
 reduction, primary actions (`.action`, Tickets, Save) also settle to .97× over
@@ -551,15 +612,15 @@ navigation show it in place at once.
 A reader-chosen event section or conversation fades in (160ms); Load more rows
 settle in before first paint, the first few cascading 0/40/70/90ms apart (all at
 once when a visible keyboard focus moves into them), and late-loading result artwork fades over its placeholder
-(200ms). A post reached by link, or just published or edited, flashes the
-pale-plum tint once over 1.6s (static under reduced motion, outlined in forced
-colours). Rows that survive a Saved/Interests removal, and reordered sidebar
-items and sections, slide to their new places (240ms, `--ease-standard`). Hover requires a fine, hover-capable pointer; touch press
-feedback changes fill/color, with only the primary actions' small press scale.
-The Load more placeholder shimmer is constant motion and runs linear.
+(200ms). A post reached by link, or just published or edited, flashes a pale-plum
+fill once over 1.6s without a surrounding shadow (static fill under reduced
+motion, outlined in forced colours). Rows that survive a Saved/Interests
+removal and reordered sidebar items and sections slide to their new places
+(240ms, `--ease-standard`). Hover requires a fine, hover-capable pointer; touch
+press feedback changes fill/color, with only the primary actions' small press scale.
 
-Two motion enhancements are scroll- or load-bound and gated on
-`prefers-reduced-motion: no-preference`; otherwise they are static. Below 62rem
+The compact header's scroll-bound motion is gated on
+`prefers-reduced-motion: no-preference`. Below 62rem
 and on viewports at least 32rem tall, browsers with scroll-state container queries
 (`@supports (container-type: scroll-state)`) stick the compact header. Once 1rem
 has slid off the top it is stuck: in one step its content recentres (a 160ms
@@ -567,14 +628,17 @@ ease-out translate) and the wordmark drops to 1.25rem, reversing when it unstick
 It is a threshold, not a scroll-linked shrink, so layout happens only at the two
 transitions. Root scroll padding grows to clear it, and root scroll anchoring is
 off so the step cannot pull the page back above the threshold. Other browsers keep
-the header static in the page flow. Discover pagination shows
-placeholder rows while the next page loads; a soft white highlight sweeps across
-them in 1.4s loops with the shared ease-out curve. With reduced motion they are
-plain pale-plum blocks.
+the header static in the page flow.
 
 ### Inputs / Fields
 
-White, clearly bounded, ordinary fields. Discover's command bar joins **Events in {city}** (a link that opens the city filter) and the search segment (SVG icon, labeled keyword input, submit action) inside one control-line surround. It is one row once the results container reaches 34rem and stacks below that. The borderless keyword field lends its focus to the surround: the bar's border turns plum while typing and carries the keyboard focus ring (browsers without `:has()` ring the field). Beneath it, **Tonight / This weekend / Next 7 days** chips are plain links that scroll sideways. They set only `start_date`/`end_date` for the browsed city's calendar day, and the current one takes the brand gradient over an opaque plum base, white text and `aria-current="true"` (depth layer); the others rest on the hairline ring. Community filters are a single compact bar: sr-only labels, placeholder/option names, paper-filled fields and one Apply action. The text input can shrink without displacing the action. Labeled filters use a minimum height of 2.875rem, body-sized text, and visible control borders; disabled genre selects use paper and muted ink. Native `details`/`summary` discloses filters and extra event metadata. The shared focus outline remains visible; field errors use explanatory text and the error-state container rather than an invented field-specific color system.
+White, clearly bounded, ordinary fields. Discover's command bar joins **Events in {city}** (a link that opens the city filter) and the search segment (SVG icon, labeled keyword input, submit action) inside one control-line surround. It is one row once the results container reaches 34rem and stacks below that. The borderless keyword field lends its focus to the surround: the bar's border turns plum while typing and carries the keyboard focus ring (browsers without `:has()` ring the field). Beneath it, **Tonight / This weekend / Next 7 days** chips are plain links that scroll sideways. They set only `start_date`/`end_date` for the browsed city's calendar day. The current chip uses pale-plum fill with plum text and border and `aria-current="true"`; the other chips have quiet borders. Discover's labeled fields use a minimum height of 2.875rem, body-sized text, and visible control borders; disabled genre selects use paper and muted ink. Native `details`/`summary` discloses filters and extra event metadata. The shared focus outline remains visible; field errors use explanatory text and the error-state container rather than an invented field-specific color system.
+
+Community keeps the City, Country code, Category and, when available, Events
+labels visible even after the user fills the fields. Its native GET filters
+wrap in reading order on a ruled strip with 44px minimum controls and one
+outlined Apply action. Happening Now uses the same ruled strip for live scope,
+filter disclosure, and actions without changing their reading order.
 
 Category and genre use the same native select treatment. All categories disables genre; changing category clears the previous genre and offers compatible options. The ordinary GET form supports the same workflow without JavaScript by applying category before selecting a genre. Result rows, previews, and event pages show supplied category/genre metadata with an explicit unknown fallback.
 
@@ -635,17 +699,17 @@ previous page's stretch (keys carry each stretch's dates, and every page uses th
 city's remembered calendar day). Name-sorted results stay one list. The soonest
 event on the first page leads as an **Up next** card when its date is known and
 not past: across the whole card grid with
-artwork at the start and a 1.5rem title beside it, and with full-width 16:9
-artwork above its facts in narrower lists (an ordinary row while a preview is
-open, so selection never reflows the list). A white
-pill marks its artwork's top start corner with how soon it is (**Up next ·
+artwork at the start and a fluid Bricolage Grotesque title beside it, and with
+full-width 2:1 artwork above its facts in narrower lists (an ordinary row while
+a preview is open, so selection never reflows the list). A white bordered label
+marks its artwork's top start corner with how soon it is (**Up next ·
 Tonight** for a known evening start, Today, Tomorrow, In N days within two weeks,
 otherwise **Up next**). An event already under way passes the lead to the next.
 With three card columns (a results column of at least 51rem) the lead takes two
 when another event of its stretch follows to sit beside it. From 62rem, where the compact header doesn't
-stick, each agenda heading is sticky at the top of the viewport over a paper
-background that fades out along its lower 1rem (an opaque `Canvas` fill in forced
-colours, so each later heading covers the one stuck before it), and the root's block-start scroll
+stick, each agenda heading is sticky at the top of the viewport over opaque paper
+(`Canvas` in forced colours), so each later heading covers the one stuck before
+it. The root's block-start scroll
 padding grows to 4.5rem so revealed and focused rows clear it. Count chips show a
 short visible form (**2 questions**, **2 recommend**) with a bold count that begins
 its accessible name (2 questions & tips, 2 recommend this event), so voice control
@@ -662,8 +726,9 @@ row's visible date drops what the heading and stub already say (**Sunday · 7:30
 PM** within a week, **Sun, Dec 6 · 7:30 PM** within a month) while screen readers
 keep the full date. With motion allowed and a fine pointer, hovering a card's
 title or artwork eases its photo to 1.04× inside the frame (300ms, `--ease-out`);
-Community cards share it. Discover and Radar cards quote their event's newest
-public recommendation reason as a pull quote: two lines at most (three on the Up
+Community cards share it. The frame and card do not lift. Discover and Radar
+cards quote their event's newest public recommendation reason as a pull quote:
+two lines at most (three on the Up
 next lead), body size (the lead's larger), the plum opening mark, then a muted
 "{name} recommends this event" with no profile link; a reason-less recommendation
 shows nothing. Question text and author links stay in event sections, and the
@@ -681,13 +746,35 @@ Photos are live external Ticketmaster assets retained in normalized `Event.Image
 
 ### Public Recommendations
 
-The event's composer is a **composer card**: a raised native disclosure (community depth, below) whose summary reads as an invitation: a 2.75rem gradient-brand icon tile with a top highlight, an ink title such as **Recommend this event** or **Edit your recommendation** (its accessible name), a short muted line (its description), and a plum chevron that turns when open. The card rises to `--elevation-2` when hovered or open. Open, it holds a paper-filled textarea that turns white with a pale-plum focus halo, the public-audience line beside the action, and a gradient-brand **Publish/Save recommendation** with a top highlight and coloured lift, spanning the card when it is narrower than 30rem (a container query); withdrawal is an underlined utility action. Below 20rem the decorative tile gives its column to the words. Signed-out visitors see the same card with a secondary **Sign in to recommend** action. Ordinary POST forms remain usable without JavaScript. Enhancement dims pending forms, preserves drafts and confirmed content on failure, and closes the editor with focus restored to its summary after confirmation.
+The event's composer is a **composer card**: a bordered native disclosure whose summary reads as an invitation: a 2.75rem icon tile, an ink title such as **Recommend this event** or **Edit your recommendation** (its accessible name), a short muted line (its description), and a plum chevron that turns when open. Open, it holds a paper-filled textarea with a visible focus outline, the public-audience line beside the action, and a solid-plum **Publish/Save recommendation**, spanning the card when it is narrower than 30rem (a container query); withdrawal is an underlined utility action. Below 20rem the decorative tile gives its column to the words. Signed-out visitors see the same card with a secondary **Sign in to recommend** action. Ordinary POST forms remain usable without JavaScript. Enhancement dims pending forms, preserves drafts and confirmed content on failure, and closes the editor with focus restored to its summary after confirmation.
 
 Section titles in these community sections, and thread headings, use the display face at `--text-section-display` (-.03em). List headers pair an h3 with a pale-plum count pill.
 
-On the event, recommendations are **quote cards** in an intrinsic grid (18rem minimum, auto-fit): raised white cards whose reason is the headline (1.0625–1.1875rem, weight 550) opened by a display-face brand-tint quotation mark, with a hairline-divided byline at the foot (gradient initials avatar, linked name, **You** gradient pill, date). The viewer's own card is framed by a 1.5px gradient-brand border. A reason-less card reads "Recommends this event" in muted text. Cards rise into place as they scroll in (position only, never fading or resizing, and only with motion allowed and `animation-timeline` support).
+On the event, recommendations are **quote cards** in an intrinsic grid (18rem minimum, auto-fit): flat white cards whose reason is the headline (1.0625–1.1875rem, weight 550), with a quotation mark and a rule-separated byline (initials avatar, linked name, **You** when applicable, date). A plum border distinguishes the viewer's own card. A reason-less card reads "Recommends this event" in muted text.
 
-Questions and replies share one **note** shape: a 2.25rem initials avatar (2rem for replies, a dashed empty circle when no author is shown) beside a 44px line holding the linked name in ink (weight 750, a 30% ink underline), any "via" app and the muted tabular date or time, then the person's words at body size in ink (not the section's muted note colour), wrapped at 70ch with line breaks kept. Notes are hairline-separated on one raised panel; avatars carry a soft brand-soft→date-surface gradient. When enlarged text leaves less than 14rem beside the avatar, the words wrap below it. Explicitly public interest renders as raised, rounded name chips with small avatars. Profile lists keep flat, rule-separated attribution and reasons beside event identity. Community recommendations and conversations are raised cards (depth layer), each ending in a hairline-divided action bar: the main destination as a soft-plum button that fills the row (icon, label sized from its whole text, an arrow that nudges forward on hover) and a compact ghost companion (**See all** for the full list, or **Questions & tips**), both 44px with complete accessible names; on very narrow cards the icons drop and labels wrap. The cards sit in an intrinsic grid (18rem minimum). Each has 16:9 artwork with the ticket-stub date chip, then event identity (an ink title link, as in Discover), then each person's words as a pull quote: a plum opening mark and 1.0625rem text, with the quote cards' byline: a pale-plum initials circle (first and last word), the ink name link, and a muted "recommends this event" line with any app. Event facts follow. Event-local lists omit duplicate event artwork. Reasons preserve line breaks, wrap long text, and use the existing event-prose measure (70ch); publication and edit metadata stay secondary. See [public recommendations](docs/event-recommendations.md) and the [recommendation surface contract](.impeccable/surfaces/views-home-recommendations-templ.md) for audience, ordering, and browsing behavior.
+Questions and replies share one **note** shape: a pale-plum 2.25rem initials
+avatar (2rem for replies, a dashed empty circle when no author is shown) beside
+a 44px line holding the linked name, any "via" app, and a muted tabular date or
+time. The person's words follow at body size in ink, wrapped at 70ch with line
+breaks kept. Notes share a bordered panel with quiet dividers. When enlarged
+text leaves less than 14rem beside the avatar, the words wrap below it. Explicitly
+public interest renders as bordered name chips with small avatars. Profile lists
+keep flat, rule-separated attribution and reasons beside event identity.
+
+Community recommendations, conversations, and open questions use bordered
+cards in an intrinsic grid (18rem minimum). Wide grids and the narrowest
+containers stack 16:9 artwork above identity. A single-column list with room
+for both uses a square thumbnail with the date chip beside the title, full
+date, and venue. The quote, event facts, and actions keep the full card width.
+The recommendation byline
+keeps the pale-plum initials circle, linked name, and muted attribution with any
+app. The action bar is separated by a rule and keeps a soft-plum main destination
+and a quiet companion (**See all** or **Questions & tips**), both 44px with
+complete accessible names; on very narrow cards the icons drop and labels wrap.
+Event-local lists omit duplicate artwork. Publication and edit metadata stay
+secondary. See [public recommendations](docs/event-recommendations.md) and
+the [recommendation surface contract](.impeccable/surfaces/views-home-recommendations-templ.md)
+for audience, ordering, and browsing behavior.
 
 ### Live Activity
 
@@ -702,25 +789,25 @@ Happening Now puts its scope summary, the filter disclosure and the toast and Re
 
 ### Event Discussions
 
-Questions and replies use the event **note** shape (see Public Recommendations) on
-flat rule-separated reading surfaces. The event's question composer and a thread's
-reply section are composer cards; signed-out visitors get a card with a sign-in
-action. Each question in the event list ends in one **Open conversation · N replies**
-action. Dedicated threads keep event/date/venue context above the conversation; the
-opening post sits on its own raised card with the corner glow and 1.0625rem text,
-and replies share one raised panel.
-One reply level, on the raised replies panel, names same-thread targets with a plum **In reply to**
+Questions and replies use the event **note** shape (see Public Recommendations).
+On phones, borrow YouTube's avatar, author, message, and action rhythm and
+Reddit’s flat, divided discussion rows, not either app’s visual branding.
+The list, opening post, and replies use the full content width with no enclosing
+cards. Each question has one **Open conversation · N replies** link with a
+trailing arrow on compact layouts. The composer starts as a ruled prompt; its
+open form keeps a clear editing boundary. Wider layouts retain the bordered
+reading groups. Dedicated threads keep event/date/venue context above the root.
+One reply level names same-thread targets with a plum **In reply to**
 link on the name line; public text preserves line breaks and the 70ch prose measure.
-Each post has one action row (capped at 46rem) of 44px ghost actions, muted .8125rem
-text with 1.125rem icons, aligned with the words above: **Reply**, Helpful, the
-author's **Edit**/**Remove** disclosures, and **Report** pushed to the row's end.
-Their accessible names stay complete (Edit your contribution, Report privately).
-An open Edit/Remove disclosure takes the row's full width beneath it. Helpful
-stays a bordered 44px toggle with a thumbs-up icon that fills when selected (like
-Save's bookmark and Interested's star), a pale-plum selected state and an inline
-post-level count. Removed contributions leave content-free placeholders. The
+Each post keeps **Reply**, **Helpful**, and the root's **Same question** at hand.
+A trailing native **More contribution actions** disclosure reveals the owner's
+**Edit**/**Remove** or the **Report privately** link. An opened editor takes the
+row's full width; closing More returns the reply composer without losing the edit
+draft. Helpful keeps its full accessible name and 44px target; on phones it shows
+the thumbs-up and count without a default outline. Selected toggles keep their
+pale-plum state and pressed semantics. Removed contributions leave content-free placeholders. The
 labeled composer discloses its public audience before the field, with a
-gradient-brand publish action and discard directly below; a reply target is quoted on a paper panel.
+solid-plum publish action and discard directly below; a reply target is quoted on a paper panel.
 Long fields adapt to the visual viewport; pending fields remain selectable.
 Explicit discard changes only the draft. Uncertain creation retries keep their
 body/target/key immutable; confirmation selects the exact contribution. Standalone
@@ -729,7 +816,7 @@ matching contextual discussions. Errors distinguish a failed refresh from a save
 post. See
 [event discussions](docs/event-discussions.md). No new global tokens or assets.
 
-Private follow/unfollow uses a compact native disclosure before the conversation
+Private follow/unfollow uses a compact native disclosure after the conversation
 root, with a labeled reply-frequency select for every new reply, UTC daily/weekly
 summaries, or muted follows. Account Preferences exposes a native **Pause all
 notifications** checkbox; pause notices keep that account-wide override explicit.
@@ -783,7 +870,7 @@ tokens, motion, typography, or raster assets are introduced.
 
 ### Cards / Containers
 
-Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Empty context uses a pale-plum ticket placeholder and practical guidance. Loading context uses static blocks, `aria-busy`, and a status announcement. While Discover's **Load more events** request runs, three `aria-hidden` placeholder rows appear above the action. They follow the result list's container layout (stacked, artwork beside facts, or cards) and shimmer only as described under motion; the button's "Loading events…" label remains the announced state. Errors keep retry/navigation available; stale preview/full-event data places a last-known provenance notice immediately before price and sale status, using the existing warning treatment rather than presenting stored availability as live.
+Event context and ticket information use white, quietly bordered containers with the shared radius. Context content has 1.25rem padding, reduced to 1rem for the selected compact view at the small-phone threshold; ticket panels use 1.5rem. Idle context uses a compact pale-plum ticket mark and practical guidance inside its single boundary. Loading context uses static blocks, `aria-busy`, and a status announcement. While Discover's **Load more events** request runs, three `aria-hidden` placeholder rows appear above the action. They follow the result list's container layout (stacked, artwork beside facts, or cards) and stay static pale-plum blocks in all motion modes; the button's "Loading events…" label remains the announced state. Errors keep retry/navigation available; stale preview/full-event data places a last-known provenance notice immediately before price and sale status, using the existing warning treatment rather than presenting stored availability as live.
 
 Keep event price and sale status ahead of participation controls. Search and pagination retain ordinary links/forms without JavaScript. Event Community lists public recommendations separately from explicitly public participants, with profile links and ordinary pagination; private interest contributes to interest counts without naming anyone. Public profiles show opted-in interest and independently published recommendations, using quiet separators and ordinary event links. Discussion shows public questions and links dedicated threads with replies and Helpful. Opt-in Google account destinations provide profiles/privacy defaults, private preferences, durable private saves, independent event interest, public recommendations, and private personalized Radar; disabled deployments explain that accounts are not enabled. Explicit on-sale emails and in-app reply updates are implemented; additional sale/price/event-change emails and discovery digests are out of scope, and push is not implemented. Selection and return strategy remain in the linked UX guide and surface contracts.
 

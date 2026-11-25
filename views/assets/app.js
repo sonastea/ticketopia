@@ -1324,7 +1324,9 @@
           target ||= [...host.querySelectorAll('[data-event-section]')].find(link => link.dataset.eventSection === saved.section);
           target ||= saved.focus ? document.getElementById(saved.focus) : null;
           if (target) {
-            const disclosure = target.closest('details'); if (disclosure) disclosure.open = true;
+            for (let disclosure = target.closest('details'); disclosure; disclosure = disclosure.parentElement.closest('details')) {
+              disclosure.open = true;
+            }
             target.focus({ preventScroll: true });
           }
         } else if (recommend) openRecommendation(host);
@@ -1333,7 +1335,7 @@
           let target = post;
           if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') acknowledge(target = post?.querySelector('.helpful-button'), confirmation.action);
           else if (confirmation.action === 'same_question' || confirmation.action === 'not_same_question') target = post?.querySelector('.same-question-button') || post;
-          else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary');
+          else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-more > summary');
           if (target) { if (target === post) target.tabIndex = -1; target.focus({ preventScroll: true }); }
           if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
           if (confirmation.action !== 'create') {
@@ -1470,8 +1472,9 @@
     if (!desktop.matches) scrollTo(0, saved.documentScroll);
     const draft = [...context.querySelectorAll('[data-discussion-draft]')].find(form => form.dataset.discussionDraft === saved.draft);
     if (draft) {
-      const disclosure = draft.closest('details');
-      if (disclosure) disclosure.open = true;
+      for (let disclosure = draft.closest('details'); disclosure; disclosure = disclosure.parentElement.closest('details')) {
+        disclosure.open = true;
+      }
       draft.querySelector('textarea')?.focus({ preventScroll: true });
     }
   };
@@ -1794,7 +1797,7 @@
           target = helpful || heading;
         }
         else if (confirmation.action === 'same_question' || confirmation.action === 'not_same_question') target = post?.querySelector('.same-question-button') || heading;
-        else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-editor > summary') || heading;
+        else if (confirmation.action === 'edit') target = post?.querySelector('.discussion-more > summary') || heading;
         else if (confirmation.action === 'remove' && post) { post.tabIndex = -1; target = post; }
         if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);
         if (confirmation.action !== 'create') {

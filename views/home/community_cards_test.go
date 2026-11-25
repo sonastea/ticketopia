@@ -59,6 +59,38 @@ func TestCommunityCardsQuoteReasonsWithFacts(t *testing.T) {
 	}
 }
 
+func TestCommunityFiltersRetainNativeBindingsAndLabels(t *testing.T) {
+	markup := renderNeighbor(t, CommunityFilters(CommunityFilterBar{
+		Action: "/community/questions", Prefix: "questions", Label: "Filter open questions",
+		City: "Chicago", Country: "US", CategoryID: "music", ShowConnections: true, Mine: true,
+	}))
+	doc := neighborDocument(t, markup)
+	forms := neighborElements(doc, "form")
+	if len(forms) != 1 || neighborAttributes(forms[0])["method"] != "get" || neighborAttributes(forms[0])["action"] != "/community/questions" {
+		t.Fatalf("filters lost their native destination: %s", markup)
+	}
+	want := map[string]string{"city": "City", "country": "Country code", "category_id": "Category", "connections": "Events"}
+	for _, tag := range []string{"input", "select"} {
+		for _, control := range neighborElements(forms[0], tag) {
+			attrs := neighborAttributes(control)
+			name, id := attrs["name"], attrs["id"]
+			labels := neighborElements(control.Parent, "label")
+			if len(labels) != 1 || neighborAttributes(labels[0])["for"] != id || strings.TrimSpace(neighborText(labels[0])) != want[name] {
+				t.Errorf("missing visible, associated label for %s", name)
+			}
+			delete(want, name)
+		}
+	}
+	if len(want) != 0 {
+		t.Errorf("missing GET fields: %v", want)
+	}
+	for _, want := range []string{`value="Chicago"`, `value="US"`, `value="music" selected`, `value="mine" selected`} {
+		if !strings.Contains(markup, want) {
+			t.Errorf("filter selection was not retained: %s", want)
+		}
+	}
+}
+
 func TestHappeningNowCardsUseStoredArtwork(t *testing.T) {
 	maya, date := "Maya", "2026-11-07"
 	asOf := time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)

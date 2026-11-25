@@ -251,6 +251,10 @@
     form.elements.body.focus();
   });
   document.addEventListener('toggle', event => {
+    if (event.target.matches('.discussion-more') && !event.target.open) {
+      event.target.querySelectorAll('details[open]').forEach(disclosure => { disclosure.open = false; });
+      return;
+    }
     if (!event.target.matches('.discussion-editor')) return;
     if (event.target.open) {
       document.querySelectorAll('.discussion-editor[open]').forEach(other => {
@@ -306,6 +310,11 @@
 
   // Standalone conversations refresh in place just like contextual discussions.
   const page = document.querySelector('.discussion-page[data-discussion-viewer]');
+  function revealDisclosures(target) {
+    for (let disclosure = target?.closest('details'); disclosure; disclosure = disclosure.parentElement.closest('details')) {
+      disclosure.open = true;
+    }
+  }
   let readTurn = 0;
   let readController;
   function rememberConversation() {
@@ -356,8 +365,7 @@
       else if (confirmation) history.replaceState(history.state, '', url);
       restore();
       if (open && confirmation?.action !== 'edit') {
-        const editor = [...content.querySelectorAll('[data-discussion-draft]')].find(form => form.dataset.discussionDraft === open)?.closest('details');
-        if (editor) editor.open = true;
+        revealDisclosures([...content.querySelectorAll('[data-discussion-draft]')].find(form => form.dataset.discussionDraft === open));
       }
       status.textContent = confirmation ? '' : 'Conversation loaded.';
       status.classList.add('sr-only');
@@ -365,13 +373,13 @@
       if (saved) {
         target = [...content.querySelectorAll('[data-discussion-draft]')].find(form => form.dataset.discussionDraft === saved.draft)?.querySelector('textarea');
         target ||= saved.post ? document.getElementById(saved.post)?.querySelector('button[aria-pressed]') : null;
-        if (target?.closest('details')) target.closest('details').open = true;
+        revealDisclosures(target);
         scrollTo(0, saved.scroll);
       } else if (confirmation) {
         const post = document.getElementById('post-' + confirmation.post);
         const marked = {helpful: '.helpful-button', unhelpful: '.helpful-button', same_question: '.same-question-button', not_same_question: '.same-question-button'}[confirmation.action];
         target = marked ? post?.querySelector(marked)
-          : confirmation.action === 'edit' ? post?.querySelector('.discussion-editor > summary') : post;
+          : confirmation.action === 'edit' ? post?.querySelector('.discussion-more > summary') : post;
         if (confirmation.action === 'helpful' || confirmation.action === 'unhelpful') acknowledge(target, confirmation.action);
         if (confirmation.action !== 'create') scrollTo(0, position);
         if (confirmation.action === 'create' || confirmation.action === 'edit') arrive(post);

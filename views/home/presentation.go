@@ -778,13 +778,32 @@ func withTime(label string, start models.EventStart) string {
 	if start.NoSpecificTime {
 		return label
 	}
-	if start.TimeTBA || start.LocalTime == nil {
-		return label + " · Time to be announced"
-	}
-	if clock, err := time.Parse(time.TimeOnly, *start.LocalTime); err == nil {
+	if clock, ok := eventClock(start); ok {
 		return label + " · " + clock.Format("3:04 PM")
 	}
 	return label + " · Time to be announced"
+}
+
+func eventClock(start models.EventStart) (time.Time, bool) {
+	if start.NoSpecificTime || start.TimeTBA || start.LocalTime == nil {
+		return time.Time{}, false
+	}
+	clock, err := time.Parse(time.TimeOnly, *start.LocalTime)
+	return clock, err == nil
+}
+
+// HTML supports a local date and time without a timezone offset. Never turn an
+// unknown showtime into midnight, or present a UTC stamp as the venue's time.
+func eventDateTime(start models.EventStart) string {
+	date, ok := eventDay(start)
+	if !ok {
+		return ""
+	}
+	value := date.Format(time.DateOnly)
+	if clock, ok := eventClock(start); ok {
+		value += "T" + clock.Format(time.TimeOnly)
+	}
+	return value
 }
 
 func venueLabel(event models.Event) string {

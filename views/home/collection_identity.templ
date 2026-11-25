@@ -53,12 +53,20 @@ templ CollectionEventArt(event models.Event, returnURL string) {
 		<a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="event-image-link" data-event-link data-id={ event.ID } aria-label={ "Overview — " + event.Name }>
 			@EventImage(event, artCollection)
 		</a>
-		<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start,"Jan") }</span><strong>{ datePart(event.Start,"2") }</strong></div>
+		@EventDateStub(event.Start)
 	</div>
 }
 
 templ CollectionEventHeading(event models.Event, returnURL string) {
-	<p class="event-date">{ startLabel(event.Start) }</p>
+	<p class="event-date">@EventDateLabel(event.Start, "")</p>
 	<h3><a href={ templ.URL(eventURL(event.ID,"overview",returnURL)) } class="event-link" data-event-link data-id={ event.ID }>{ event.Name }</a></h3>
 	<p class="event-venue">{ venueLabel(event) }</p>
+}
+
+// Community puts the thumbnail beside this identity on phones. Reader content
+// and actions keep the full card width beneath it.
+templ CommunityCardIdentity(event models.Event, returnURL string) {
+	<div class="community-card-identity">
+		@CollectionEventHeading(event, returnURL)
+	</div>
 }

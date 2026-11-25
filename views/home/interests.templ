@@ -86,8 +86,10 @@ templ InterestCollection(page InterestCollectionPage) {
 			}
 			<a href="/" class="text-link" data-interest-empty>Discover events</a>
 		} else {
-			<p class="field-note">Newest interest first. Event details are last-known; check current ticket availability.</p>
-			<ul id="event-list" class="event-list">@EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests)</ul>
+			@layouts.ResultsMeta("Event details are last-known; check current ticket availability.", "Newest interest first")
+			<ul id="event-list" class="event-list" aria-labelledby="event-interests-heading">
+				@EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests)
+			</ul>
 		}
 		if page.List.NextCursor != nil {
 			<a href={ templ.URL(CollectionNextURL(page.ReturnURL, page.List.NextCursor)) } class="text-link">More interested events</a>

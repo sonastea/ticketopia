@@ -13,7 +13,8 @@ fs.mkdirSync(out, {recursive: true});
 (async () => {
   const browser = await (engine === 'webkit' ? webkit : chromium).launch({headless: true, ...(engine === 'chromium' && process.env.CHROMIUM_EXECUTABLE ? {executablePath: process.env.CHROMIUM_EXECUTABLE} : {})});
   try {
-    const owner = await browser.newContext({viewport: {width: 390, height: 844}, hasTouch: true});
+    // Exercise draft, focus and disclosure behavior without document-navigation transitions.
+    const owner = await browser.newContext({viewport: {width: 390, height: 844}, hasTouch: true, reducedMotion: 'reduce'});
     const other = await browser.newContext();
     for (const [context, token] of [[owner, process.env.SAVED_FIXTURE_TOKEN], [other, process.env.SAVED_OTHER_TOKEN]]) {
       await context.addCookies([{name: 'ticketopia_session', value: token, url: base}]);
@@ -148,10 +149,20 @@ fs.mkdirSync(out, {recursive: true});
     await pause(page);
     check('Helpful confirms in place without history or reading-position loss', await page.evaluate(previous => Math.abs(scrollY - previous.scroll) < 2 && history.length === previous.history, before));
     check('Helpful restores focus and preserves the unrelated draft', await helpful().evaluate(button => button === document.activeElement) && await field().inputValue() === 'An unrelated reply draft kept while acknowledging help');
+    const rootMore = page.locator('#post-' + root.id).getByText('More contribution actions', {exact: true}).locator('..');
+    await rootMore.focus();
+    await page.keyboard.press('Enter');
     await page.locator('#post-' + root.id).getByText('Edit your contribution', {exact: true}).click();
     await page.locator('#post-' + root.id + ' textarea').fill('An unsaved question edit');
     await field().waitFor({state: 'hidden'});
     check('Owner edit hides the reply composer instead of competing with it', await page.locator('.discussion-composer textarea:visible').count() === 1 && !await field().isVisible());
+    await rootMore.click();
+    await field().waitFor({state: 'visible'});
+    check('Closing More restores the reply composer', await field().isVisible());
+    await rootMore.click();
+    await page.locator('#post-' + root.id).getByText('Edit your contribution', {exact: true}).click();
+    check('Reopening an editor keeps its draft', await page.locator('#post-' + root.id + ' textarea').inputValue() === 'An unsaved question edit');
+    await page.locator('#post-' + published[0].id + ' .discussion-more > summary').click();
     await page.locator('#post-' + published[0].id).getByText('Edit your contribution', {exact: true}).click();
     await page.waitForFunction(() => document.querySelectorAll('.discussion-editor[open]').length === 1);
     check('Switching editors keeps one active composer and the previous edit draft', await page.locator('.discussion-editor[open]').count() === 1 && await page.locator('#post-' + root.id + ' textarea').inputValue() === 'An unsaved question edit');
@@ -195,7 +206,7 @@ fs.mkdirSync(out, {recursive: true});
     check('Native explicit retry publishes and selects the exact contribution', new URL(nativePage.url()).hash.startsWith('#post-') && await nativePage.locator('.discussion-post > .note-main > .discussion-body').filter({hasText: 'A native reply with the same retained target'}).count() === 1);
     check('Confirmed off-page reply is visible once alongside the paginated conversation', await nativePage.getByRole('heading', {name: 'Selected contribution', exact: true}).count() === 1 && await nativePage.locator('.discussion-replies .discussion-post').count() === 20);
     // Blocked browser storage still supports same-document transitions.
-    const blocked = await browser.newContext({viewport: {width: 390, height: 844}});
+    const blocked = await browser.newContext({viewport: {width: 390, height: 844}, reducedMotion: 'reduce'});
     await blocked.addCookies([{name: 'ticketopia_session', value: process.env.SAVED_FIXTURE_TOKEN, url: base}]);
     await blocked.addInitScript(() => { Storage.prototype.setItem = Storage.prototype.getItem = Storage.prototype.removeItem = () => { throw new Error('Blocked storage'); }; });
     const blockedPage = await blocked.newPage();
@@ -221,7 +232,7 @@ fs.mkdirSync(out, {recursive: true});
     await page.locator('[data-return-results]').click();
     await page.waitForURL(url => url.pathname === '/community/discussions');
     check('Collection return crosses all in-place thread transitions', new URL(page.url()).searchParams.get('city') === 'Berlin' && new URL(page.url()).searchParams.get('limit') === '1');
-    check('No browser runtime errors', !report.errors.length);
+    check('No browser runtime errors: ' + report.errors.join('; '), !report.errors.length);
     fs.writeFileSync(path.join(out, 'checks.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify({engine, checks: report.checks.length, accessibility: report.accessibility.length, screenshots: report.screenshots.length}));
   } finally { await browser.close(); }

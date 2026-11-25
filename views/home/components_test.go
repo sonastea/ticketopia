@@ -64,6 +64,40 @@ func TestProviderSaleStatesStayExplicit(t *testing.T) {
 	}
 }
 
+func TestEventDateLabelPreservesVenueLocalTimeAndUnknowns(t *testing.T) {
+	date := "2026-11-28"
+	clock := "19:30:00"
+	badClock := "not a time"
+	for _, tc := range []struct {
+		name     string
+		start    models.EventStart
+		datetime string
+		text     string
+	}{
+		{"scheduled", models.EventStart{LocalDate: &date, LocalTime: &clock}, "2026-11-28T19:30:00", "Saturday · 7:30 PM"},
+		{"time TBA beats supplied clock", models.EventStart{LocalDate: &date, LocalTime: &clock, TimeTBA: true}, date, "Time to be announced"},
+		{"date only", models.EventStart{LocalDate: &date, LocalTime: &clock, NoSpecificTime: true}, date, "Saturday"},
+		{"invalid clock", models.EventStart{LocalDate: &date, LocalTime: &badClock}, date, "Time to be announced"},
+		{"date TBD beats supplied date", models.EventStart{LocalDate: &date, LocalTime: &clock, DateTBD: true}, "", "Event date to be announced"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			markup := renderNeighbor(t, EventDateLabel(tc.start, "week"))
+			dates := neighborElements(neighborDocument(t, markup), "time")
+			if tc.datetime == "" {
+				if len(dates) != 0 {
+					t.Fatalf("unknown date emitted a machine-readable time: %s", markup)
+				}
+			} else if len(dates) != 1 || neighborAttributes(dates[0])["datetime"] != tc.datetime ||
+				!strings.Contains(markup, `class="sr-only">Sat, Nov 28, 2026`) {
+				t.Fatalf("expected a venue-local time and the full accessible date: %s", markup)
+			}
+			if !strings.Contains(markup, tc.text) {
+				t.Fatalf("missing readable date text %q: %s", tc.text, markup)
+			}
+		})
+	}
+}
+
 func TestEventSectionRegionOwnsOnlyContextArtwork(t *testing.T) {
 	page := EventPage{Detail: models.EventDetail{Item: models.Event{ID: "ticketmaster:Region", Name: "Region event"}}, Section: "overview", ReturnURL: "/saved", ActionReturnURL: "/events/ticketmaster:Region?return_to=%2Fsaved"}
 	for _, panel := range []bool{false, true} {

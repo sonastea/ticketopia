@@ -10,7 +10,6 @@ import "github.com/sonastea/ticketopia/views/components/collapsible"
 import selectcomp "github.com/sonastea/ticketopia/views/components/select"
 import "github.com/sonastea/ticketopia/views/components/alert"
 import "github.com/sonastea/ticketopia/views/components/empty"
-import "github.com/sonastea/ticketopia/views/components/card"
 import "github.com/sonastea/ticketopia/views/components/skeleton"
 
 templ Index(page SearchPage) {
@@ -35,10 +34,7 @@ templ Index(page SearchPage) {
 					}
 				} else if !page.NeedsLocation {
 					<section aria-labelledby="results-heading">
-						<div class="results-heading">
-							<h2 id="results-heading">Upcoming events <span>{ resultsTitle(page.Events.Total) }</span></h2>
-							<span class="sort-label"><span class="sr-only">Sorted by </span>{ sortLabel(page.Filters.Sort) }</span>
-						</div>
+						@layouts.ResultsHeading("results-heading", "Upcoming events", resultsTitle(page.Events.Total), sortLabel(page.Filters.Sort))
 						@ResultsWarning(page.Events.Meta)
 						if len(page.Events.Items) == 0 {
 							@empty.Empty(empty.Props{Class: "feedback empty-state"}) {
@@ -133,7 +129,7 @@ templ SearchControls(page SearchPage) {
 		@collapsible.Native(collapsible.Props{ID: "filters", Class: "filter-disclosure", DefaultOpen: page.NeedsLocation || page.Error != ""}) {
 			@collapsible.Summary() {
 				@layouts.Icon("filters")
-				<span>Filters</span><span class="filter-summary">{ categoryFilterLabel(page) }<span aria-hidden="true">· </span>{ dateRangeLabel(page.Filters) }</span>@layouts.Icon("chevron")
+				<span>Filters</span><span class="filter-summary">{ categoryFilterLabel(page) }<span aria-hidden="true">{ " · " }</span>{ dateRangeLabel(page.Filters) }</span>@layouts.Icon("chevron")
 			}
 			// An open, in-flow dialog: these fields show inline (and submit with the
 			// form) everywhere. On compact screens app.js opens it as a modal sheet,
@@ -241,12 +237,13 @@ templ GenreOptions(genres []models.Genre, selected string) {
 }
 
 templ EmptyContext() {
-	@card.Card(card.Props{Class: "context-empty"}) {
-		<div class="preview-placeholder" aria-hidden="true">@layouts.Icon("ticket")
-</div>
-		<h2>Something catch your eye?</h2>
-		<p>Open an event to see its details, tickets, recommendations and questions here, beside your results.</p>
-	}
+	<div class="context-empty">
+		<div class="preview-placeholder" aria-hidden="true">
+			@layouts.Icon("ticket")
+		</div>
+		<h2>Choose an event</h2>
+		<p>See its details, tickets, recommendations and questions without leaving your results.</p>
+	</div>
 }
 
 templ PreviewLoading() {

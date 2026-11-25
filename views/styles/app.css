@@ -52,7 +52,6 @@
 }
 .radar-match { display: grid; gap: .25rem; margin-block: .75rem; }
 .radar-reasons { padding-inline-start: 1.25rem; color: var(--brand); font-size: .9375rem; }
-.radar-scope { font-variant-numeric: tabular-nums; margin-block-end: .75rem; }
 .follow-search > summary { inline-size: fit-content; max-inline-size: 100%; min-block-size: 2.75rem; padding-block: .6rem; color: var(--brand); font-weight: 700; cursor: pointer; }
 .follow-search > :not(summary) { margin-block-start: 1rem; }
 .follow-search > summary:active { background: var(--brand-soft); color: var(--brand-active); }
@@ -70,6 +69,7 @@
 .destination-page.follows-page { max-inline-size: 65rem; }
 .account-page .field-note { font-size: .875rem; }
 .account-heading { display: grid; gap: .5rem; }
+.account-heading > .intro { margin-block-start: 0; }
 /* Current family as tabs, other families as quiet links on the same rule.
    Tabs wrap rather than scroll, so no destination is ever cut off. */
 .account-navigation { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 0 2rem; margin-block: 1.25rem 2rem; border-block-end: 1px solid var(--line); }
@@ -143,7 +143,7 @@
 .privacy-summary h3 { font-size: 1rem; font-weight: 750; letter-spacing: normal; }
 .privacy-summary ul { display: grid; gap: .35rem; margin: 0; padding-inline-start: 1.25rem; list-style-type: disc; }
 .privacy-summary > .text-link { justify-self: start; }
-.activity-preview { justify-self: start; display: grid; gap: .25rem; max-inline-size: 100%; padding: .75rem 1rem; border: 1px solid var(--control-line); border-radius: var(--radius); background: var(--surface); box-shadow: 0 .375rem 1rem color-mix(in oklch, var(--ink) 10%, transparent); }
+.activity-preview { justify-self: start; display: grid; gap: .25rem; max-inline-size: 100%; padding: .75rem 1rem; border: 1px solid var(--control-line); border-radius: var(--radius); background: var(--surface); }
 .activity-preview > p { margin: 0; }
 .activity-preview-label { color: var(--muted-warm); font-size: .8125rem; font-weight: 700; }
 /* The account-wide sign-out is the one destructive action; it asks first. */
@@ -345,17 +345,6 @@
   /* Brand hue at the artwork tints' fixed lightness (internal/discovery/tint.go):
      the raw brand mixed 18% into white leaves muted text below AA. */
   --brand-tint: oklch(0.66 0.080387 337.297);
-  /* Community depth (the event's Recommendations and Questions & tips only).
-     Soft, plum-tinted layered elevation with a real offset, a hairline ring in
-     place of a border, the brand gradient and its corner light. */
-  --ring-hairline: 0 0 0 1px color-mix(in oklch, var(--ink) 8%, transparent);
-  --elevation-1: var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .06), 0 4px 10px -2px oklch(0.3 0.05 337 / .06), 0 12px 28px -12px oklch(0.3 0.06 337 / .12);
-  --elevation-2: var(--ring-hairline), 0 2px 4px oklch(0.3 0.05 337 / .06), 0 10px 20px -6px oklch(0.3 0.06 337 / .12), 0 24px 48px -16px oklch(0.32 0.08 337 / .24);
-  --gradient-brand: linear-gradient(135deg in oklch, var(--brand-dark), var(--brand) 50%, color-mix(in oklch, var(--brand), var(--brand-tint) 40%));
-  --gradient-glow: radial-gradient(110% 120% at 0% 0%, color-mix(in oklch, var(--brand-soft) 75%, transparent), transparent 60%);
-  /* The coloured lift under gradient-brand controls, and its hover strength. */
-  --lift-brand: 0 8px 18px -8px oklch(0.35 0.09 337 / .6);
-  --lift-brand-hover: 0 12px 24px -8px oklch(0.35 0.09 337 / .7);
   --text-section-display: clamp(1.375rem, 1.2rem + .75vw, 1.75rem);
   /* Google's specified colors remain a scoped provider-brand exception. */
   --google-brand: oklch(0.494884 0.199163 260.601);
@@ -892,7 +881,7 @@ h3 {
 }
 
 .search-form {
-  margin-block-end: 2rem;
+  margin-block-end: clamp(1rem, .875rem + .7cqi, 1.5rem);
 }
 
 /* The keyword field keeps a usable minimum; without room for it beside the
@@ -1059,8 +1048,9 @@ button[data-pending]:not(:has(> .icon))::before {
   button[data-pending]:not(:has(> .icon)) { -webkit-text-fill-color: GrayText; }
   button[data-pending]:not(:has(> .icon))::before { display: none; }
 }
-.destination-page.saved-page { max-inline-size: 70rem; }
-.saved-page > .sort-label { margin-block: 1.5rem .75rem; margin-inline: 0; }
+.destination-page.event-collection-page { max-inline-size: 70rem; }
+.saved-page > .results-meta { margin-block: 1.5rem .75rem; }
+.radar-page > .results-meta { margin-block-end: .75rem; }
 .saved-page .pagination [data-slot="button"] { white-space: normal; max-inline-size: 100%; block-size: auto; }
 
 /* Google's filled-blue treatment; retain the app's 44px target/focus. */
@@ -1112,7 +1102,7 @@ button[data-pending]:not(:has(> .icon))::before {
 }
 
 .filter-disclosure {
-  margin-block-start: .8rem;
+  margin-block-start: .25rem;
 }
 
 .filter-disclosure > summary {
@@ -1123,6 +1113,7 @@ button[data-pending]:not(:has(> .icon))::before {
   font-size: .875rem;
   font-weight: 750;
   list-style: none;
+  border-block-end: 1px solid var(--line);
   border-radius: .3rem;
 }
 
@@ -1353,30 +1344,28 @@ html:has(.filter-sheet:modal) {
 .results-heading {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
   align-items: baseline;
-  gap: .6rem 1rem;
+  gap: .25rem 1rem;
   margin-block-end: .5rem;
 }
 
-.results-heading h2 {
+.results-meta {
+  flex: 1 1 auto;
   display: flex;
   flex-wrap: wrap;
-  gap: .5rem 1rem;
   align-items: baseline;
-}
-
-.results-heading h2 span {
+  gap: .25rem .75rem;
+  margin: 0;
   font-size: .8125rem;
   color: var(--muted-warm);
-  font-weight: 500;
-  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .sort-label {
   font-size: .75rem;
-  color: var(--muted-warm);
 }
+
+.results-meta > .sort-label:not(:first-child) { margin-inline-start: auto; }
 
 .freshness {
   margin-block: .5rem 1rem;
@@ -1616,7 +1605,13 @@ html:has(.filter-sheet:modal) {
   .event-row-lead > :is(.event-copy, .event-row-extension) { grid-column: 2; padding-inline: 1.5rem; }
   .event-row-lead > .event-copy { padding-block-start: 1.5rem; }
   .event-row-lead > :last-child { padding-block-end: 1.5rem; }
-  .event-row-lead .event-copy h3 { font-size: 1.5rem; line-height: 1.25; letter-spacing: -.01em; }
+}
+
+.discovery-workspace:not(.has-selection) .event-row-lead .event-copy h3 {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 1.0625rem + .65cqi, 1.625rem);
+  line-height: 1.2;
+  letter-spacing: -.02em;
 }
 
 /* The open preview owns the selected event's shared transition names. */
@@ -1666,25 +1661,20 @@ html:has(.filter-sheet:modal) {
   block-size: 2.5rem;
 }
 
-/* An event without artwork still gets a picture of its own: its tint (stored,
-   or derived from its ID at the same lightness and chroma) as a diagonal
-   wash with a corner light and a faint ticket-perforation dot grid, and the
-   category icon on a frosted disc. Live-pushed cards without an event use
-   the brand tint. Forced colours drop the paint; the icon remains. */
+/* A flat print-colour field and a perforation grid stand in for missing artwork.
+   Keep the category mark and frame, without imitating provider photography. */
 .image-fallback {
   --fallback-tint: var(--art-tint, var(--brand-tint));
-  background:
-    radial-gradient(circle at center, color-mix(in oklch, var(--fallback-tint) 30%, transparent) 1px, transparent 1.5px) 0 0 / .875rem .875rem,
-    radial-gradient(120% 90% at 0% 0%, color-mix(in oklch, var(--fallback-tint) 12%, var(--surface)), transparent 65%),
-    linear-gradient(135deg, color-mix(in oklch, var(--fallback-tint) 28%, var(--surface)), color-mix(in oklch, var(--fallback-tint) 55%, var(--surface)));
+  background-color: color-mix(in oklch, var(--fallback-tint) 28%, var(--surface));
+  background-image: radial-gradient(circle, color-mix(in oklch, var(--fallback-tint) 48%, var(--surface)) 1px, transparent 1px);
+  background-size: .875rem .875rem;
   color: color-mix(in oklch, var(--fallback-tint), black 45%);
 }
 .image-fallback .icon {
   box-sizing: content-box;
   padding: .625rem;
   border-radius: 50%;
-  background: color-mix(in oklch, var(--surface) 55%, transparent);
-  box-shadow: 0 1px 0 color-mix(in oklch, var(--surface) 70%, transparent) inset;
+  background: var(--surface);
 }
 /* Thumbnails keep the disc small and clear of the date stub. */
 .live-card .image-fallback .icon { padding: .375rem; translate: 0 -.625rem; }
@@ -1766,7 +1756,6 @@ html:has(.filter-sheet:modal) {
 
 .event-row-extension { grid-column: 1 / -1; min-inline-size: 0; }
 .row-details { display: grid; gap: .5rem; margin-block-end: .75rem; }
-.row-details:empty { display: none; }
 .row-details p, .row-activity p { font-size: .875rem; color: var(--muted-warm); max-inline-size: 70ch; }
 /* An upcoming sale reads with the row metadata, not as body text. */
 .row-details .sale-date { margin-block-start: 0; font-size: .8125rem; }
@@ -1789,14 +1778,14 @@ html:has(.filter-sheet:modal) {
   font-weight: 700;
   line-height: 1.3;
   font-variant-numeric: tabular-nums;
-  transition-property: background-color, color, box-shadow;
+  transition-property: background-color, color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
 .activity-chip .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
 .activity-chip strong { font-weight: 800; margin-inline-end: .2em; }
 @media (hover: hover) and (pointer: fine) {
-  .activity-chip:hover { background: var(--brand-soft); color: var(--brand-dark); box-shadow: var(--ring-hairline); }
+  .activity-chip:hover { background: var(--brand-soft); color: var(--brand-dark); }
 }
 /* Count chips keep their own press wash (excluded from the title/artwork reset below). */
 .activity-chip:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); color: var(--brand-active); }
@@ -1812,7 +1801,7 @@ html:has(.filter-sheet:modal) {
   padding-block: 2rem .75rem;
   padding-inline: .75rem;
 }
-.event-group:first-child { padding-block-start: 1rem; }
+.event-group:first-child { padding-block-start: .625rem; }
 .event-group-label {
   color: var(--ink);
   font-family: var(--font-display);
@@ -1856,15 +1845,13 @@ html:has(.filter-sheet:modal) {
     position: sticky;
     inset-block-start: 0;
     z-index: 2;
-    /* Cards slide under a soft lower edge rather than a hard cut. */
-    background: linear-gradient(var(--paper) calc(100% - 1rem), color-mix(in oklch, var(--paper) 0%, transparent));
+    background: var(--paper);
   }
   @container results (min-width: 48rem) {
-    .event-group { padding-block: 1rem 1.25rem; margin-block: -.25rem -1.25rem; }
+    .event-group { padding-block: .75rem .5rem; margin-block-end: -.5rem; }
   }
   html:has(.event-group) { scroll-padding-block-start: 4.5rem; }
-  /* Each later heading covers the one stuck before it; forced colours drop
-     the gradient, so the cover is an opaque system fill. */
+  /* Each later heading covers the previous one, including in forced colours. */
   @media (forced-colors: active) {
     .event-group { background: Canvas; }
   }
@@ -1876,34 +1863,33 @@ html:has(.filter-sheet:modal) {
   position: absolute;
   inset-block-start: .625rem;
   inset-inline-start: .625rem;
-  display: inline-flex;
-  align-items: center;
-  gap: .3rem;
+  display: block;
   padding-block: .25rem;
   padding-inline: .5rem .625rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: .4rem;
   background: var(--surface);
   color: var(--brand);
-  box-shadow: var(--ring-hairline), 0 2px 6px oklch(0.3 0.05 337 / .14);
   font-size: .75rem;
   font-weight: 750;
   line-height: 1.3;
   /* Stays one line until enlarged text leaves the frame too narrow. */
   max-inline-size: calc(100% - 1.25rem);
 }
-.lead-badge .icon { flex: none; inline-size: .875rem; block-size: .875rem; }
 
 /* On phones and tablets the lead keeps its artwork full width above the facts,
    so the first thing in the list is a picture rather than a thumbnail. With a
    preview open it is an ordinary row, so selection never reflows the list. */
 @container results (min-width: 17.5rem) and (width < 48rem) {
-  .discovery-workspace:not(.has-selection) .event-row-lead { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .discovery-workspace:not(.has-selection) .event-row-lead {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    padding-block-start: .375rem;
+  }
   .discovery-workspace:not(.has-selection) .event-row-lead > .event-copy > :is(.event-date, h3, .event-venue) { grid-column: 1; }
   .discovery-workspace:not(.has-selection) .event-row-lead .event-art { grid-row: auto; margin-block-end: .75rem; }
-  .discovery-workspace:not(.has-selection) .event-row-lead .event-art .event-image { aspect-ratio: 16 / 9; }
+  .discovery-workspace:not(.has-selection) .event-row-lead .event-art .event-image { aspect-ratio: 2 / 1; }
   .discovery-workspace:not(.has-selection) .event-row-lead .event-art .date-marker { inset-block-end: .5rem; inset-inline-start: .5rem; max-inline-size: calc(100% - 1rem); padding-inline: .75rem; }
-  .discovery-workspace:not(.has-selection) .event-row-lead .event-copy h3 { font-size: 1.25rem; }
   /* Beside a small thumbnail the marker would crowd the artwork. */
   .has-selection .lead-badge { display: none; }
 }
@@ -1950,11 +1936,17 @@ html:has(.filter-sheet:modal) {
   color: var(--muted-warm);
 }
 
-.event-metadata {
+:is(.event-metadata, .event-summary, .ticket-price) {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: .3rem .85rem;
+  align-items: baseline;
+  gap: .35rem .875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Price and sale facts use one rhythm; the extended event view names the full
+   range, while rows keep the actionable lowest known price. */
+.event-metadata {
   margin-block-start: .75rem;
   font-size: .75rem;
   color: var(--muted-warm);
@@ -2342,29 +2334,6 @@ html:has(.filter-sheet:modal) {
   .pagination-skeleton [data-slot="skeleton"] { border: 1px solid GrayText; }
 }
 
-/* The highlight is a clipped layer that moves with `translate`, which browsers
-   composite, instead of a repainted background position. */
-@media (prefers-reduced-motion: no-preference) {
-  .pagination-skeleton [data-slot="skeleton"] {
-    position: relative;
-    overflow: clip;
-  }
-  .pagination-skeleton [data-slot="skeleton"]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: linear-gradient(90deg, transparent, color-mix(in oklch, var(--surface) 70%, transparent), transparent);
-    translate: -100% 0;
-    animation: skeleton-shimmer 1.4s linear infinite;
-  }
-  .pagination-skeleton [data-slot="skeleton"]:dir(rtl)::after { animation-direction: reverse; }
-}
-
-@keyframes skeleton-shimmer {
-  from { translate: -100% 0; }
-  to { translate: 100% 0; }
-}
-
 .load-error {
   color: var(--error);
   margin-block-start: .75rem;
@@ -2397,15 +2366,16 @@ html:has(.filter-sheet:modal) {
 }
 
 .context-empty h2 {
-  margin-block-end: .65rem;
+  margin-block-end: .375rem;
   font-size: 1.125rem;
 }
 
 .preview-placeholder {
   display: grid;
   place-items: center;
-  min-block-size: 11rem;
-  margin-block: 0 1.25rem;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  margin-block: 0 .875rem;
   margin-inline: 0;
   color: var(--brand);
   background: var(--brand-soft);
@@ -2413,8 +2383,8 @@ html:has(.filter-sheet:modal) {
 }
 
 .preview-placeholder .icon {
-  inline-size: 2.75rem;
-  block-size: 2.75rem;
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
 }
 
 .context-empty p {
@@ -2495,6 +2465,9 @@ html:has(.filter-sheet:modal) {
 .context-tools .open-event { margin-block-start: 0; }
 .event-primary-actions { margin-block: .75rem 1.5rem; }
 .event-primary-actions .ticket-link { inline-size: auto; flex: 1 1 16rem; margin-block-start: 0; }
+@media (min-width: 62rem) {
+  .event-primary-actions .ticket-link { max-inline-size: min(100%, 28rem); }
+}
 .event-primary-actions .field-note { margin-block-start: .5rem; }
 .event-primary-actions .sale-date { margin-block-end: .75rem; }
 /* A wide artwork band leads; identity facts sit on a surface tinted by the
@@ -2514,6 +2487,7 @@ html:has(.filter-sheet:modal) {
   margin-block: -2.5rem 0;
   margin-inline: var(--space-hero-inset);
   padding: 1.25rem;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: color-mix(in oklch, var(--event-tint) 18%, var(--surface));
 }
@@ -2802,18 +2776,14 @@ html:has(.filter-sheet:modal) {
 }
 
 .ticket-price {
-  display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: baseline;
-  gap: .5rem;
 }
 
 .ticket-price strong {
   font-size: .9375rem;
 }
 
-.ticket-price, .event-summary, .event-metadata, .sale-date, .discussion-attribution time {
+.sale-date, .discussion-attribution time {
   font-variant-numeric: tabular-nums;
 }
 
@@ -2895,10 +2865,6 @@ html:has(.filter-sheet:modal) {
 }
 
 .event-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: .35rem 1rem;
   margin-block-start: .75rem;
   color: var(--ink);
   font-size: .875rem;
@@ -3586,9 +3552,6 @@ html:has(.filter-sheet:modal) {
   .discovery-header .intro {
     display: none;
   }
-  .search-form {
-    margin-block-end: 1.25rem;
-  }
   /* The preview replaces the results, but Discover's H1 stays in the outline
      above the preview's H2. */
   .has-selection .discovery-content > :not(.discovery-header) {
@@ -3818,7 +3781,7 @@ html:has(.filter-sheet:modal) {
     from { opacity: 0; translate: 0 var(--count-from); }
   }
   @keyframes post-arrive {
-    from { background-color: var(--brand-soft); box-shadow: 0 0 0 .75rem var(--brand-soft); }
+    from { background-color: var(--brand-soft); }
   }
   /* Below the context threshold, the compact header sticks once 1rem of it has
      slid off the top; then its content recentres and the wordmark steps down to
@@ -3944,7 +3907,17 @@ html:has(.filter-sheet:modal) {
   }
 }
 
-.community-page { max-inline-size: 75rem; }
+.community-page { max-inline-size: 75rem; container: community / inline-size; }
+.community-nav { column-gap: clamp(.75rem, .5rem + 1.25cqi, 1.5rem); row-gap: 0; }
+.community-nav a { justify-content: start; }
+@container community (width < 36rem) {
+  .community-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(8.25rem, (100% - .75rem) / 2)), 1fr));
+    column-gap: .75rem;
+    margin-block-start: 1rem;
+  }
+}
 .recommendation-editor { margin-block: 1rem 1.5rem; margin-inline: 0; }
 .recommendation-editor > summary { display: flex; align-items: center; gap: .5rem; inline-size: fit-content; max-inline-size: 100%; min-block-size: 2.75rem; padding-block: .5rem; padding-inline: .75rem; border: 1px solid var(--control-line); border-radius: .5rem; color: var(--brand); cursor: pointer; font-size: .875rem; font-weight: 700; }
 @media (hover: hover) and (pointer: fine) {
@@ -3959,6 +3932,7 @@ html:has(.filter-sheet:modal) {
 .recommendation-list > li { border-block-start: 1px solid var(--line); padding-block: 1.25rem; padding-inline: 0; }
 .recommendation-copy { min-inline-size: 0; }
 .recommendation-copy h3 { margin-block: .5rem; margin-inline: 0; font-size: 1.125rem; line-height: 1.4; font-weight: 750; }
+.community-card-identity h3 { margin-block: .125rem; }
 /* Titles read like Discover's: ink, plum and underlined on hover, a 44px
    target that still wraps long names (see .event-copy h3 a). */
 .recommendation-copy h3 a {
@@ -4045,7 +4019,6 @@ html:has(.filter-sheet:modal) {
   border: 1px solid color-mix(in oklch, var(--brand) 25%, transparent);
   border-radius: 999px;
   background: var(--surface);
-  box-shadow: var(--ring-hairline), 0 .5rem 1.5rem -.5rem color-mix(in oklch, var(--brand) 35%, transparent);
   color: var(--brand);
   font-size: .875rem;
   font-weight: 700;
@@ -4093,7 +4066,7 @@ html:has(.filter-sheet:modal) {
 [data-discussion-error] { color: var(--error); }
 /* Without motion, or in forced colours, a linked post keeps a static marker. */
 @media (prefers-reduced-motion: reduce) {
-  .discussion-post:is(:target, [data-arrived]) { background-color: var(--brand-soft); box-shadow: 0 0 0 .75rem var(--brand-soft); }
+  .discussion-post:is(:target, [data-arrived]) { background-color: var(--brand-soft); }
   /* The changed count still fades in, without moving. */
   [data-acknowledged] .helpful-count { animation: count-fade 240ms var(--ease-out); }
   @keyframes count-fade { from { opacity: 0; } }
@@ -4102,29 +4075,17 @@ html:has(.filter-sheet:modal) {
   .discussion-post:is(:target, [data-arrived]) { outline: 2px solid Highlight; outline-offset: .5rem; }
 }
 
-/* Event community: composer cards, quote cards and notes.
-   The event's community sections are the one place the interface has depth:
-   raised white surfaces (--elevation-*), the brand gradient and its corner
-   light. Recommendations are quote cards; questions and replies are notes on
-   one raised panel, with an initials avatar beside a name/time line, the words
-   at body size in ink, and one row of compact actions. Composers are cards whose
-   summary invites the action; each card is its own container so the publish
-   action fills a phone's width. Transparent borders keep every surface framed
-   in forced colours, where shadows and gradients are dropped. */
+/* Event community: bordered composers and quote cards, with rule-separated notes. */
 .composer-card {
   container-type: inline-size;
   margin-block: .5rem 1.75rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: calc(var(--radius) + .25rem);
-  background: var(--gradient-glow), var(--surface);
-  box-shadow: var(--elevation-1);
-  transition-property: box-shadow;
-  transition-duration: 240ms;
-  transition-timing-function: var(--ease-out);
+  background: var(--surface);
 }
-.composer-card[open] { box-shadow: var(--elevation-2); }
+.composer-card[open] { border-color: var(--control-line); }
 @media (hover: hover) and (pointer: fine) {
-  .composer-card:not([open]):has(> summary:hover) { box-shadow: var(--elevation-2); }
+  .composer-card:not([open]) > summary:hover:not(:active) { background: var(--paper); }
 }
 :is(.composer-card > summary, .composer-invite) {
   align-items: center;
@@ -4152,7 +4113,6 @@ html:has(.filter-sheet:modal) {
   border-end-start-radius: 0;
   border-end-end-radius: 0;
 }
-/* The brand mark: a gradient tile with a top highlight, lifted off the card. */
 .composer-badge {
   flex: none;
   display: inline-grid;
@@ -4160,10 +4120,9 @@ html:has(.filter-sheet:modal) {
   inline-size: 2.75rem;
   block-size: 2.75rem;
   border: 1px solid transparent;
-  border-radius: .875rem;
-  background: var(--gradient-brand);
-  color: var(--surface);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 30%, transparent), var(--lift-brand);
+  border-radius: .5rem;
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 .composer-badge .icon { inline-size: 1.25rem; block-size: 1.25rem; }
 .composer-prompt { flex: 1 1 12rem; display: grid; gap: .125rem; min-inline-size: 0; margin: 0; }
@@ -4177,26 +4136,11 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   min-block-size: 6.5rem;
   border-radius: .625rem;
   background: var(--paper);
-  transition-property: background-color, border-color, box-shadow;
+  transition-property: background-color, border-color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
-/* The field lights up while writing; the shared focus outline still draws. */
-.composer-form textarea:focus { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 4px color-mix(in oklch, var(--brand-soft) 70%, transparent); }
-/* Publishing is the brand's gradient with a top highlight and a coloured
-   lift; pressing settles it onto the card. */
-.composer-actions > .composer-submit {
-  border: 1px solid transparent;
-  background: var(--gradient-brand);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand);
-  transition-property: box-shadow;
-  transition-duration: 160ms;
-  transition-timing-function: var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) {
-  .composer-actions > .composer-submit:hover:not(:disabled) { background: var(--gradient-brand); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
-}
-.composer-actions > .composer-submit:active:not(:disabled) { background: var(--brand-active); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
+.composer-form textarea:focus { border-color: var(--brand); background: var(--surface); }
 .composer-form .composer-audience { margin: 0; }
 .composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
 /* Starters fill an empty question or tip; they wrap as whole phrases. */
@@ -4250,17 +4194,16 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   font-weight: 650;
 }
 .note-list-head > .list-meta[hidden] { display: none; }
-/* Questions on the event share one raised panel, divided by hairlines. */
+/* Questions on the event share one panel, divided by hairlines. */
 .note-list {
   list-style: none;
   margin-block: 0 1.75rem;
   margin-inline: 0;
   padding-block: 0;
   padding-inline: 1.125rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: calc(var(--radius) + .25rem);
   background: var(--surface);
-  box-shadow: var(--elevation-1);
 }
 .note-list > .note + .note { border-block-start: 1px solid color-mix(in oklch, var(--ink) 8%, transparent); }
 /* Enlarged text on a narrow phone drops the words below the avatar rather than
@@ -4274,33 +4217,25 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 }
 /* Centred on the 44px name line; replies use a smaller circle. */
 .note > .avatar { margin-block-start: .25rem; }
-/* Community avatars carry a soft brand gradient with a top highlight. */
-:is(.note, .rec-card, .public-interest-list) .avatar {
-  border: 1px solid transparent;
-  background: linear-gradient(140deg in oklch, var(--brand-soft), var(--date-surface));
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 70%, transparent), 0 1px 2px oklch(0.3 0.05 337 / .12);
-}
-/* A thread's opening post, and its replies, sit on raised panels. */
-.discussion-post.note:not(.discussion-replies > *) {
+/* A thread's opening post and its replies each have one reading boundary. */
+.discussion-post.note:where(:not(.discussion-replies > *)) {
   margin-block: .75rem 1.5rem;
   padding-block: 1.125rem;
   padding-inline: clamp(.875rem, .5rem + 1.5vw, 1.25rem);
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: calc(var(--radius) + .25rem);
-  background: var(--gradient-glow), var(--surface);
-  box-shadow: var(--elevation-1);
+  background: var(--surface);
 }
 .discussion-post.note:not(.discussion-replies > *) .note-body { font-size: 1.0625rem; }
-/* The static arrival marker (reduced motion) stays visible on the raised post. */
+/* The static arrival marker (reduced motion) stays visible on the opening post. */
 @media (prefers-reduced-motion: reduce) {
-  .discussion-post.note:is(:target, [data-arrived]):not(.discussion-replies > *) { background: var(--brand-soft); box-shadow: var(--elevation-1), 0 0 0 .375rem var(--brand-soft); }
+  .discussion-post.note:is(:target, [data-arrived]):not(.discussion-replies > *) { background: var(--brand-soft); }
 }
 .discussion-replies:has(> .note) {
   padding-inline: clamp(.875rem, .5rem + 1.5vw, 1.125rem);
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: calc(var(--radius) + .25rem);
   background: var(--surface);
-  box-shadow: var(--elevation-1);
 }
 .discussion-replies > .note:first-child { border-block-start: 0; }
 .discussion-replies > .discussion-post { border-block-start-color: color-mix(in oklch, var(--ink) 8%, transparent); }
@@ -4356,8 +4291,8 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   padding-inline: .5rem;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--gradient-brand);
-  color: var(--surface);
+  background: var(--brand-soft);
+  color: var(--brand);
   font-size: .75rem;
   font-weight: 750;
   letter-spacing: .02em;
@@ -4403,19 +4338,11 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   min-inline-size: 0;
   padding-block: 1.25rem 1rem;
   padding-inline: 1.25rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: calc(var(--radius) + .25rem);
-  background: var(--gradient-glow), var(--surface);
-  box-shadow: var(--elevation-1);
-  transition-property: box-shadow;
-  transition-duration: 240ms;
-  transition-timing-function: var(--ease-out);
+  background: var(--surface);
 }
-@media (hover: hover) and (pointer: fine) {
-  .rec-cards > .rec-card:hover { box-shadow: var(--elevation-2); }
-}
-/* The viewer's own card is framed by the brand gradient. */
-.rec-cards > .rec-card-own { background: var(--gradient-glow) padding-box, linear-gradient(var(--surface), var(--surface)) padding-box, var(--gradient-brand) border-box; border-width: 1.5px; }
+.rec-cards > .rec-card-own { border-color: var(--brand); }
 .rec-card .rec-quote {
   position: relative;
   margin: 0;
@@ -4478,7 +4405,6 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 }
 :is(.note-action, .note-action-static, .note-actions > details > summary) .icon { flex: none; inline-size: 1.125rem; block-size: 1.125rem; }
 .note-action-static { font-weight: 600; }
-.note-action-end { margin-inline-start: auto; }
 .note-action-count { font-variant-numeric: tabular-nums; }
 @media (hover: hover) and (pointer: fine) {
   :is(.note-action, .note-actions > details > summary):hover { background: color-mix(in oklch, var(--brand-soft) 55%, var(--surface)); color: var(--brand); }
@@ -4492,47 +4418,112 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .note-actions > details > :not(summary) { margin-block-start: .5rem; }
 .note .note-actions .button-quiet { margin: 0; }
 
+.discussion-open > .discussion-open-arrow { display: none; }
+.note-actions > .discussion-more { margin-inline-start: auto; }
+.discussion-more > summary { justify-content: center; min-inline-size: 2.75rem; }
+.discussion-more-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: .25rem;
+  padding-inline-start: .75rem;
+  border-inline-start: 1px solid var(--line);
+}
+.discussion-more-actions > details { min-inline-size: 0; }
+.discussion-more-actions > details[open] { container-type: inline-size; flex-basis: 100%; }
+.discussion-more-actions > details > summary { gap: .375rem; padding-inline: .5rem; }
+.discussion-more-actions > details > summary .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
+.discussion-more-actions > details > :not(summary) { margin-block-start: .5rem; }
+
+/* Compact reading surfaces use the workspace gutters once, not once per card. */
+@container workspace (width < 40rem) {
+  .discussion-event-heading { margin-block: .75rem 1.25rem; }
+  .discussion-page .conversation-follow-row { gap: 0 .5rem; margin-block: .25rem 1rem; }
+  .discussion-page .conversation-follow-row > .text-link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    font-size: .8125rem;
+  }
+  .community-panel > .composer-card:not([open]) { border-inline: 0; border-radius: 0; background: transparent; }
+  .community-panel > .composer-card:not([open]) > summary { padding-inline: 0; padding-block: .75rem; }
+  .community-panel .note-list-head { margin-block: 1.25rem .5rem; }
+  .discussion-list.note-list, .discussion-replies:has(> .note),
+  .discussion-post.note:where(:not(.discussion-replies > *)) {
+    padding-inline: 0;
+    border-inline: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .discussion-replies:has(> .note) { border-block-end: 0; }
+  .discussion-post.note:where(:not(.discussion-replies > *)) { margin-block: .5rem; }
+  .discussion-reply-composer.composer-card {
+    padding-inline: 0;
+    border-inline: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  :is(.discussion-list, .discussion-post) .note-main { flex-basis: min(100%, 11rem); }
+  :is(.discussion-list > .note, .discussion-post.note) { column-gap: .625rem; }
+  :is(.discussion-list > .note, .discussion-post.note) > .avatar {
+    inline-size: 2rem;
+    block-size: 2rem;
+    margin-block-start: .375rem;
+  }
+  .discussion-list .note-body:not(.note-quiet) { font-weight: 650; }
+  .discussion-list .discussion-open { flex: 1 1 100%; padding-inline-start: 0; }
+  .discussion-open > .discussion-open-arrow { display: block; margin-inline-start: auto; }
+  .discussion-open > .icon:not(.discussion-open-arrow) { display: none; }
+  .discussion-post .note-actions { gap: 0 .125rem; margin-block-start: .125rem; }
+  .discussion-reply-action > .icon { display: none; }
+  .discussion-post .note-actions :is(.helpful-button, .same-question-button) {
+    min-inline-size: 2.75rem;
+    padding-inline: .375rem;
+    border-color: transparent;
+    background: transparent;
+  }
+  .discussion-post .note-actions :is(.helpful-button, .same-question-button)[aria-pressed="true"] {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+  }
+  .discussion-post .note-actions :is(.helpful-button, .same-question-button):active:not(:disabled) {
+    background: var(--brand-soft);
+  }
+  .discussion-helpful-label {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: clip;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discussion-post.note:is(:target, [data-arrived]) { background: var(--brand-soft); }
+}
+
 /* Public interest on the event: name chips, not a rule-separated list. */
 .event-section .public-interest-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .75rem 0; }
 .event-section .public-interest-list li { padding: 0; border: 0; }
 .public-interest-list a > .avatar { inline-size: 1.75rem; block-size: 1.75rem; font-size: .75rem; }
 .event-section .public-interest-list a {
   padding-inline: .375rem .875rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
-  box-shadow: var(--elevation-1);
   color: var(--ink);
   font-weight: 650;
   text-decoration: none;
-  transition-property: box-shadow, color;
+  transition-property: background-color, border-color, color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
 @media (hover: hover) and (pointer: fine) {
-  .event-section .public-interest-list a:hover { box-shadow: var(--elevation-2); color: var(--brand); }
+  .event-section .public-interest-list a:hover { border-color: var(--control-line); color: var(--brand); }
 }
 .event-section .public-interest-list a:active { background: var(--brand-soft); color: var(--brand-active); }
 @media (prefers-reduced-motion: no-preference) {
   .composer-chevron { transition: rotate 200ms var(--ease-out); }
-  /* Raised surfaces lift a little under the pointer. */
-  :is(.composer-card, .rec-cards > .rec-card) { transition-property: box-shadow, translate; }
-  @media (hover: hover) and (pointer: fine) {
-    .rec-cards > .rec-card:hover,
-    .composer-card:not([open]):has(> summary:hover) { translate: 0 -2px; }
-  }
-  /* The one authored moment: quote cards rise into place as they scroll in.
-     Only position moves: the words never fade and targets keep their size. */
-  @supports (animation-timeline: view()) {
-    .rec-cards > .rec-card {
-      animation: rec-card-rise linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 70%;
-    }
-  }
-  @keyframes rec-card-rise {
-    from { transform: translateY(1.5rem); }
-  }
 }
 .moderation-page { max-inline-size: 72rem; }
 .moderation-page > .page-header { margin-block: 1.25rem .75rem; }
@@ -4625,7 +4616,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
     outline: 3px solid var(--brand);
     outline-offset: 4px;
   }
-  .command-bar #keyword:focus-visible { outline: none; }
+  .command-bar #keyword:focus-visible { outline-color: transparent; }
 }
 [data-slot="button"].command-location {
   justify-content: start;
@@ -4704,8 +4695,8 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 @media (hover: hover) and (pointer: fine) {
   .date-chips a:hover { background: var(--brand-soft); color: var(--brand-dark); }
 }
-.date-chips a:active { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-active); }
 .date-chips a[aria-current="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); font-weight: 750; }
+.date-chips a:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); border-color: var(--brand); color: var(--brand-active); }
 @media (forced-colors: active) {
   .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }
 }
@@ -4734,36 +4725,34 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   :is(.date-chips, .event-section-nav):dir(rtl) { --overflow-fade-direction: to left; }
 }
 
-/* Community filters: one compact bar. Fields sit on a paper fill inside it. */
-.filter-bar {
+/* Community filters keep their labels once filled. The form wraps in source
+   order and uses the same bordered native controls as Discover. */
+.community-filters, .live-filter-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: .5rem;
-  margin-block: 1.5rem;
-  padding: .375rem;
-  border: 1px solid var(--control-line);
-  border-radius: var(--radius);
-  background: var(--surface);
+  margin-block: 1rem 1.25rem;
+  padding-block-end: .875rem;
+  border-block-end: 1px solid var(--line);
 }
-.filter-bar > :is([data-slot="input"], [data-slot="native-select"]) {
-  flex: 1 1 10rem;
-  inline-size: auto;
+.community-filters { align-items: end; gap: .625rem .75rem; }
+.community-filter-field { flex: 1 1 9rem; max-inline-size: min(100%, 20rem); }
+.community-filter-field.community-filter-country { flex: 0 1 7rem; }
+.community-filter-field :is(input, select) {
   min-block-size: 2.75rem;
-  border-color: transparent;
-  background-color: var(--paper);
+  margin-block-start: .25rem;
+  padding-block: .5rem;
+  line-height: 1.5;
 }
-.filter-bar > .filter-bar-country { flex: 0 1 7rem; }
-.filter-bar > .action { flex: none; }
-.live-filter-bar { gap: .25rem 1rem; padding-block: .25rem; padding-inline: 1rem .5rem; }
+.community-filters > .action { flex: none; }
+.live-filter-bar { align-items: center; gap: .25rem 1rem; }
 .live-filter-bar > * { margin-block: 0; }
 .live-filter-bar > [data-live-summary] { flex: 1 1 14rem; }
 .live-filter-bar > form { flex: 0 1 auto; max-inline-size: 100%; }
-.live-filter-bar > form:has(> details[open]) { flex-basis: 100%; order: 1; padding-block-end: 1rem; }
-.live-filter-bar > .account-actions { flex: 0 1 auto; min-inline-size: 0; margin: 0; gap: 0 1rem; }
+.live-filter-bar > form:has(> details[open]) { flex-basis: 100%; }
+.live-filter-bar > .account-actions { flex: 0 1 auto; min-inline-size: 0; gap: 0 .25rem; }
 
 /* Community cards: artwork with the date stub, the people and their words as
-   pull quotes, then the event facts. Raised by the depth rules at the end. */
+   pull quotes, then the event facts. */
 .community-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
@@ -4788,6 +4777,36 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   border-start-end-radius: calc(var(--radius) - 1px);
 }
 .community-cards .recommendation-copy { padding: 1.25rem; }
+/* The single-column programme uses a thumbnail when the identity has room
+   beside it. Quotes, price and actions retain the full reading width. */
+@container community (17.5rem <= width < 37.5rem) {
+  .community-cards > li.recommendation-event {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: .75rem 1rem;
+    padding: .875rem;
+  }
+  .community-cards .recommendation-copy { display: contents; }
+  .community-cards .recommendation-copy > * { grid-column: 1 / -1; }
+  .community-cards .recommendation-copy > .community-card-identity { grid-column: 2; }
+  .community-cards .recommendation-event .event-image { aspect-ratio: 1; border-radius: .65rem; }
+  .community-cards .event-image .image-fallback .icon {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    padding: .375rem;
+    translate: 0 -.625rem;
+  }
+  .community-cards .event-art .date-marker {
+    inset-block-end: .3rem;
+    inset-inline-start: .3rem;
+    max-inline-size: calc(100% - .6rem);
+    padding-inline: .45rem;
+  }
+  .community-cards .recommendation-copy > :is(.pull-quote, .community-recommenders, .card-actions, .event-summary, .list-meta, .want-to-know, .event-last-known) {
+    margin-block: 0;
+  }
+}
 /* Each card ends in an action bar: the main destination as a soft plum button
    that fills the row (its arrow nudges forward on hover), and a compact ghost
    companion. Both keep 44px targets and complete accessible names. */
@@ -4813,7 +4832,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   font-weight: 700;
   line-height: 1.3;
   text-decoration: none;
-  transition-property: background-color, color, box-shadow;
+  transition-property: background-color, color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
@@ -4836,7 +4855,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   color: var(--muted-warm);
 }
 @media (hover: hover) and (pointer: fine) {
-  .card-action-primary:hover { background: var(--brand-soft); color: var(--brand-dark); box-shadow: var(--ring-hairline); }
+  .card-action-primary:hover { background: var(--brand-soft); color: var(--brand-dark); }
   .card-action-secondary:hover { background: color-mix(in oklch, var(--brand-soft) 55%, var(--surface)); color: var(--brand); }
 }
 :is(.card-action-primary, .card-action-secondary):active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); color: var(--brand-active); }
@@ -4882,7 +4901,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   color: var(--ink);
   font-size: .9375rem;
   text-decoration: none;
-  transition-property: background-color, box-shadow;
+  transition-property: background-color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
 }
@@ -4890,7 +4909,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .open-questions-line strong { color: var(--brand); font-variant-numeric: tabular-nums; }
 .open-questions-line .icon { flex: none; inline-size: 1.25rem; block-size: 1.25rem; color: var(--brand); }
 @media (hover: hover) and (pointer: fine) {
-  .open-questions-line:hover { background: var(--brand-soft); box-shadow: var(--ring-hairline); }
+  .open-questions-line:hover { background: var(--brand-soft); }
 }
 .open-questions-line:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); }
 @media (forced-colors: active) { .open-questions-line { border: 1px solid LinkText; } }
@@ -4908,7 +4927,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 
 /* One Tickets and Save family on rows, cards, the preview and the event page:
    the action bar's corners, a 1.125rem icon and the same 44px rhythm. Tickets
-   takes the brand gradient everywhere (depth layer); a row's Tickets fills
+   is filled on the event and outlined in lists, where it fills
    its action bar beside Save, like the event page's. */
 :is(.ticket-link, .ticket-row-link, .event-actions .button-quiet) { border-radius: .625rem; }
 :is(.ticket-link, .ticket-row-link) .icon { flex: none; inline-size: 1.125rem; block-size: 1.125rem; }
@@ -4924,8 +4943,6 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 /* The preview's way to the full page is the action bar's ghost companion. */
 .context-tools .open-event { margin-inline-start: -.75rem; color: var(--brand); }
 
-/* Happening Now's toast and refresh controls are ghost actions on its bar. */
-.live-filter-bar > .account-actions { gap: 0 .25rem; }
 .pull-quote { display: grid; gap: .75rem; margin-block: 1rem; margin-inline: 0; }
 .community-recommenders .pull-quote { margin: 0; }
 .pull-quote blockquote {
@@ -5092,160 +5109,6 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   text-align: center;
 }
 
-/* Depth across discovery and the event page, by hierarchy. Last in the file:
-   it refines the component rules above at equal specificity.
-   Full depth (raised white surface, corner glow, --elevation-1 rising to
-   --elevation-2, a 2px lift with motion allowed) marks the primary things to
-   pick up: Discover's result cards, the preview panel, the event's identity
-   card, Community and Happening Now cards. The event's Tickets action and the
-   current date chip take the brand gradient. Quieter controls (list rows, the
-   command bar, chips, tabs, plans) get only the hairline ring and a soft
-   resting shadow, so the primary things still stand out. Transparent borders
-   keep every surface framed in forced colours. */
-
-/* Discover and the Saved, Interests and Radar collections share these rows.
-   List rows lift onto a raised surface only when lit; with a preview open
-   the results are always a list, so selection uses this. */
-@container results (width < 48rem) {
-  .event-list > .event-row:is([data-selected="true"], :has(:is(.event-link, .event-art > a):active)) { box-shadow: var(--elevation-1); }
-  @media (hover: hover) and (pointer: fine) {
-    .event-list > .event-row:has(:is(.event-link, .event-art > a):hover) { box-shadow: var(--elevation-1); }
-  }
-}
-/* Wide results (no preview open) are raised cards, like Community's. */
-@container results (min-width: 48rem) {
-  .event-list > .event-row {
-    --card-art-radius: calc(var(--radius) + .25rem - 1px);
-    border-color: transparent;
-    border-radius: calc(var(--radius) + .25rem);
-    background: var(--gradient-glow), var(--surface);
-    box-shadow: var(--elevation-1);
-    transition-property: background-color, border-color, box-shadow;
-    transition-duration: 220ms;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .event-list > .event-row:has(:is(.event-link, .event-art > a):hover) {
-      border-color: transparent;
-      background: var(--gradient-glow), var(--surface);
-      box-shadow: var(--elevation-2);
-    }
-  }
-  .event-list > .event-row:has(:is(.event-link, .event-art > a):active) {
-    background: var(--row-press);
-    box-shadow: var(--elevation-1);
-  }
-}
-@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
-  @container results (min-width: 48rem) {
-    .event-list > .event-row { transition-property: background-color, border-color, box-shadow, translate; }
-    .event-list > .event-row:has(:is(.event-link, .event-art > a):hover) { translate: 0 -2px; }
-  }
-}
-
-/* The preview panel is the workspace's raised companion surface. */
-.event-context {
-  border-color: transparent;
-  border-radius: calc(var(--radius) + .25rem);
-  box-shadow: var(--elevation-2);
-}
-
-/* Community and Happening Now filter bars match the command bar's resting lift. */
-.filter-bar { box-shadow: var(--elevation-1); }
-
-/* Discover's command bar: a raised field, plum-edged while typing. */
-.command-bar {
-  box-shadow: var(--elevation-1);
-  transition-property: border-color, box-shadow;
-  transition-duration: 160ms;
-  transition-timing-function: var(--ease-out);
-}
-@supports selector(:has(*)) {
-  .command-bar:has(#keyword:focus) { border-color: var(--brand); box-shadow: var(--elevation-1), 0 0 0 4px color-mix(in oklch, var(--brand-soft) 70%, transparent); }
-}
-
-/* Date chips sit on the hairline ring; the current one is the brand gradient. */
-.date-chips a {
-  border-color: transparent;
-  box-shadow: var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .08);
-  transition-property: background-color, color, border-color, box-shadow;
-}
-.date-chips a[aria-current="true"] {
-  border-color: transparent;
-  /* An opaque plum base under the gradient: white text never meets a clear
-     background while the press colour transitions in. */
-  background: var(--gradient-brand) var(--brand);
-  color: var(--surface);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand);
-}
-@media (hover: hover) and (pointer: fine) {
-  .date-chips a[aria-current="true"]:hover { background: var(--gradient-brand) var(--brand); color: var(--surface); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
-}
-.date-chips a[aria-current="true"]:active { background: var(--brand-active); color: var(--surface); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
-
-/* The event's identity card rises off the artwork band. */
-.event-identity > .event-heading {
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius) + .25rem);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 60%, transparent), var(--elevation-1);
-}
-
-/* Tickets on the event page, the preview and every result row: the brand
-   gradient over an opaque plum base, with a top highlight; pressing settles
-   it. The event's own Tickets rests on the coloured lift; in a list of events
-   the lift appears only on hover, so a grid of cards doesn't glow. */
-:is(.event-primary-actions .ticket-link, .ticket-row-link) {
-  border-color: transparent;
-  background: var(--gradient-brand) var(--brand);
-  color: var(--surface);
-  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand);
-  transition-property: box-shadow;
-  transition-duration: 160ms;
-  transition-timing-function: var(--ease-out);
-}
-.event-row .ticket-row-link { box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent); }
-@media (hover: hover) and (pointer: fine) {
-  :is(.event-primary-actions .ticket-link, .ticket-row-link):hover { background: var(--gradient-brand) var(--brand); color: var(--surface); box-shadow: inset 0 1px 0 color-mix(in oklch, var(--surface) 25%, transparent), var(--lift-brand-hover); }
-}
-:is(.event-primary-actions .ticket-link, .ticket-row-link):active { background: var(--brand-active); color: var(--surface); box-shadow: inset 0 1px 2px color-mix(in oklch, var(--brand-active), black 30%); }
-
-/* Save and the plans controls rest on the hairline ring with a soft shadow,
-   on the event and in every result row alike. */
-:is(.event-primary-actions, .event-participation, .event-row) .event-actions .button-quiet {
-  box-shadow: var(--ring-hairline), 0 1px 2px oklch(0.3 0.05 337 / .08);
-  transition-property: background-color, border-color, color, box-shadow;
-}
-:is(.event-primary-actions, .event-participation, .event-row) .event-actions .button-quiet:is([data-saved="true"], [aria-pressed="true"]) {
-  box-shadow: 0 1px 2px oklch(0.3 0.05 337 / .1);
-}
-
-/* Section tabs: a recessed track with the current segment raised. */
-.event-section-nav { box-shadow: inset 0 1px 2px oklch(0.3 0.05 337 / .08); }
-.event-section-nav .tab-mark { border-color: transparent; box-shadow: var(--elevation-1); }
-
-/* Community and Happening Now cards are raised; hovering their links lifts them. */
-.community-cards > li.recommendation-event,
-.live-card {
-  border-color: transparent;
-  border-radius: calc(var(--radius) + .25rem);
-  box-shadow: var(--elevation-1);
-  transition-property: background-color, border-color, box-shadow;
-  transition-duration: 220ms;
-  transition-timing-function: var(--ease-out);
-}
-.community-cards > li.recommendation-event { background: var(--gradient-glow), var(--surface); }
-.community-cards .recommendation-event .event-image {
-  border-start-start-radius: calc(var(--radius) + .25rem - 1px);
-  border-start-end-radius: calc(var(--radius) + .25rem - 1px);
-}
-@media (hover: hover) and (pointer: fine) {
-  .community-cards > li.recommendation-event:has(a:hover),
-  .live-card:has(.live-card-link:hover) { border-color: transparent; box-shadow: var(--elevation-2); }
-  @media (prefers-reduced-motion: no-preference) {
-    .community-cards > li.recommendation-event, .live-card { transition-property: background-color, border-color, box-shadow, translate; }
-    .community-cards > li.recommendation-event:has(a:hover),
-    .live-card:has(.live-card-link:hover) { translate: 0 -2px; }
-  }
-}
 /* Press colours land at once; only the release eases back, using each
    control's own transition. */
 :is(a[href], button, summary, [role="button"], label):active,
@@ -5260,16 +5123,10 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   /* The compound save selector lifts the whole list above the event-actions
      quiet-button transition list. */
   :is(.action, .event-primary-actions .ticket-link, .ticket-row-link, .event-actions .button-quiet.save-button, .save-button) {
-    transition-property: background-color, color, border-color, box-shadow, scale;
+    transition-property: background-color, color, border-color, scale;
   }
   :is(.action, .event-primary-actions .ticket-link, .ticket-row-link, .event-actions .button-quiet.save-button, .save-button):active:not(:disabled) {
     scale: .97;
     transition: scale 160ms var(--ease-out);
   }
-}
-
-/* Restated after the depth rules, which would otherwise mask these. */
-@media (forced-colors: active) {
-  .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }
-  .event-section-nav .tab-mark { border-color: Highlight; }
 }

@@ -54,9 +54,11 @@ templ EventRowsContent(events []models.Event, returnURL string, selectedID strin
 }
 
 templ EventRow(event models.Event, returnURL string, selectedID string, saves SaveView, actionReturnURL string, interests InterestView, matches map[string]radar.Item, activity map[string]eventactivity.Preview, extended bool, mode rowMode) {
-	<li class={ "event-row", templ.KV("event-row-lead", mode.Lead) } data-event-id={ event.ID } data-selected={ fmt.Sprint(event.ID == selectedID) }>
+	{{ overviewURL := templ.URL(eventURL(event.ID, "overview", returnURL)) }}
+	{{ selected := fmt.Sprint(event.ID == selectedID) }}
+	<li class={ "event-row", templ.KV("event-row-lead", mode.Lead) } data-event-id={ event.ID } data-selected={ selected }>
 		<div class="event-art">
-			<a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } data-event-link data-id={ event.ID } tabindex="-1" aria-hidden="true">
+			<a href={ overviewURL } data-event-link data-id={ event.ID } tabindex="-1" aria-hidden="true">
 				if mode.Lead {
 					@EventImage(event, artLead)
 				} else {
@@ -64,33 +66,28 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 				}
 			</a>
 			if mode.Lead {
-				<span class="lead-badge" aria-hidden="true">@layouts.Icon("sparkles")<span>{ mode.Countdown }</span></span>
+				<span class="lead-badge" aria-hidden="true">{ mode.Countdown }</span>
 			}
-			<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
+			@EventDateStub(event.Start)
 		</div>
 		<div class="event-copy">
 			<p class="event-date">
-				// Under an agenda heading the visible date drops what the heading
-				// and stub already say; assistive technology keeps the full date.
-				if short := agendaStartLabel(event.Start, mode.Kind); short != "" {
-					<span aria-hidden="true">{ short }</span><span class="sr-only">{ startLabel(event.Start) }</span>
-				} else {
-					{ startLabel(event.Start) }
-				}
+				@EventDateLabel(event.Start, mode.Kind)
 				if extended {
 					<span class="viewing-label" aria-hidden="true">@layouts.Icon("viewing")<span>Viewing</span></span>
 				}
 			</p>
-			<h3 style={ transitionStyle("title", event.ID) }><a href={ templ.URL(eventURL(event.ID, "overview", returnURL)) } class="event-link" data-event-link data-id={ event.ID } aria-current={ fmt.Sprint(event.ID == selectedID) }>{ event.Name }</a></h3>
+			<h3 style={ transitionStyle("title", event.ID) }><a href={ overviewURL } class="event-link" data-event-link data-id={ event.ID } aria-current={ selected }>{ event.Name }</a></h3>
 			<p class="event-venue">{ venueLabel(event) }</p>
 			// The lowest known price leads the facts, in ink; an unknown price
 			// keeps its explicit label.
-			<div class="event-metadata">
-				if from := fromPriceLabel(event.PriceRanges); from != "" {
+			{{ from := fromPriceLabel(event.PriceRanges) }}
+			<div class="event-metadata" role="group" aria-label="Price and sale status">
+				if from != "" {
 					<strong class="price-tag"><span class="sr-only">Price </span>{ from }</strong>
 				}
 				@EventStatus(event.Status)
-				if fromPriceLabel(event.PriceRanges) == "" {
+				if from == "" {
 					<span>{ priceLabel(event.PriceRanges) }</span>
 				}
 				if event.Meta != nil && event.Meta.Stale {
@@ -113,41 +110,47 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 			}
 			if !extended {
 				@RowQuote(activity[event.ID], false)
-				@EventRowTools(event, returnURL, saves, actionReturnURL, interests, false)
+				@EventRowDetails(event, false)
+				@EventRowTools(event, returnURL, saves, actionReturnURL, interests)
 			}
 		</div>
 		if extended {
 			<div class="event-row-extension">
-				<div class="row-details">
-					if featuringLabel(event) != "" {
-						<p><strong>Featuring</strong> { featuringLabel(event) }</p>
-					}
-					if sale := upcomingSaleLabel(event, layouts.Now(ctx)); sale != "" {
-						<p class="sale-date">{ sale }</p>
-					}
-				</div>
+				@EventRowDetails(event, true)
 				@RowQuote(activity[event.ID], mode.Lead)
 				@EventRowActivity(event.ID, activity[event.ID], returnURL)
-				@EventRowTools(event, returnURL, saves, actionReturnURL, interests, true)
+				@EventRowTools(event, returnURL, saves, actionReturnURL, interests)
 			</div>
 		}
 	</li>
 }
 
-templ EventRowTools(event models.Event, returnURL string, saves SaveView, actionReturnURL string, interests InterestView, extended bool) {
-	if !extended {
-		if featuringLabel(event) != "" {
-			<p>{ featuringLabel(event) }</p>
-		}
-		if sale := upcomingSaleLabel(event, layouts.Now(ctx)); sale != "" {
-			<p class="sale-date">{ sale }</p>
-		}
+templ EventRowDetails(event models.Event, extended bool) {
+	{{ featuring := featuringLabel(event) }}
+	{{ sale := upcomingSaleLabel(event, layouts.Now(ctx)) }}
+	if featuring != "" || sale != "" {
+		<div class="row-details">
+			if featuring != "" {
+				<p>
+					if extended {
+						<strong>Featuring</strong>{ " " }
+					}
+					{ featuring }
+				</p>
+			}
+			if sale != "" {
+				<p class="sale-date">{ sale }</p>
+			}
+		</div>
 	}
+}
+
+templ EventRowTools(event models.Event, returnURL string, saves SaveView, actionReturnURL string, interests InterestView) {
 	@EventActionControlsThen(event.ID, event.Name, saves, actionReturnURL, false, rowInterest(event, returnURL, actionReturnURL, interests)) {
 		if event.Source.URL != "" {
 			// The event page's Tickets action in its tonal form: the same shape,
-			// type and icon, quieter so a grid of cards isn't a wall of gradients.
-			@button.Button(button.Props{Href: event.Source.URL, Class: "action ticket-row-link", Attributes: templ.Attributes{"aria-label": "Tickets on Ticketmaster for " + event.Name}}) {
+			// type and icon, outlined so a list of events doesn't read like a toolbar.
+			@button.Button(button.Props{Href: event.Source.URL, Class: "action action-secondary ticket-row-link", Attributes: templ.Attributes{"aria-label": "Tickets on Ticketmaster for " + event.Name}}) {
 				// The accessible name keeps the provider and event; the visible label is short so Save fits beside it.
 				<span>Tickets</span>@layouts.Icon("external")
 			}

@@ -4,6 +4,31 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-25 — Flat, event-first discovery and community surfaces
+
+- Discover, Saved, Interests, Radar, event details and previews, Community,
+  and Happening Now use borders and flat fills instead of decorative shadows,
+  gradients, and hover lifts. Event composers, notes, and quotes follow the
+  same treatment; focus and reorder markers remain. Linked and newly arrived
+  posts keep their fill and forced-colors outline without a shadow.
+- Tickets stays solid plum in event details and previews and becomes outlined in
+  lists, beside quiet Save. Publish is solid plum; the current date shortcut
+  has a pale-plum fill and plum border.
+- Discover's lead uses Bricolage Grotesque and a wide 2:1 crop in narrow lists;
+  regular rows retain Manrope. Desktop date groups stick on opaque paper; the
+  idle preview has one border and a compact ticket mark. Pagination skeletons
+  stay still in all motion modes. Missing artwork uses a
+  flat event tint, perforation dots, and a solid icon tile; provider images,
+  breakpoints, and interactions are unchanged. See [DESIGN.md](../../DESIGN.md).
+- A tighter Discover filter strip leaves more room for the agenda. Shared date
+  markup keeps venue-local times and unknowns consistent across event surfaces.
+- Community uses visible filter labels and compact thumbnail-and-identity rows;
+  Community and personal collections share quieter heading and list metadata.
+- Phone discussions use full-width rows and dividers instead of nested cards.
+  Threads lead with the post before follow settings, keep Reply and Helpful
+  visible, and group edit, remove, and report under a native More disclosure.
+  See [conversation ergonomics](../event-discussions.md#conversation-ergonomics-and-draft-safety).
+
 ### 2026-11-20 — Follow-up: error pages, consent, and the browser journeys
 
 - One error layout, `layouts.ErrorPage`, for the 404/405 page and the account,

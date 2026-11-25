@@ -9,11 +9,9 @@ import "github.com/sonastea/ticketopia/views/components/empty"
 
 templ Saved(page SavedPage) {
 	@layouts.App("saved", "Saved events") {
-		<main id="main" class="destination-page saved-page">
-			<h1>Saved events</h1>
-			<p class="intro">Your private collection. Saving doesn't publish your interest or reserve tickets.</p>
+		<main id="main" class="destination-page event-collection-page saved-page">
+			@layouts.PageHeader("Saved events", "Your private collection. Saving doesn't publish your interest or reserve tickets.")
 			<p id="saved-notice" class="field-note" role="status"></p>
-			<p class="sort-label">Newest saved first</p>
 			if page.Error != "" {
 				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
 					<h2>Saved events couldn't load</h2>
@@ -36,9 +34,8 @@ templ Saved(page SavedPage) {
 					}
 				}
 			} else {
-				<p class="participation-note">Last-known event details are kept with your saves. Check the event or ticket page for current availability.</p>
-				<h2 class="sr-only">Your saved events</h2>
-				<ul id="event-list" class="event-list">
+				@layouts.ResultsMeta("Last-known event details are kept with your saves. Check the event or ticket page for current availability.", "Newest saved first")
+				<ul id="event-list" class="event-list" aria-label="Your saved events">
 					@EventRows(page.events(), page.ReturnURL, "", page.Saves, page.ReturnURL, page.Interests)
 				</ul>
 				<div class="pagination">

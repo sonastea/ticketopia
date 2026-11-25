@@ -6,7 +6,7 @@ import "github.com/sonastea/ticketopia/views/layouts"
 
 templ HappeningNow(p HappeningNowPage) {
 	@layouts.App("community", "Happening Now") {
-		<main id="main" class="destination-page live-activity" data-live-page data-live-guest?={ !p.SignedIn && p.Error == "" }>
+		<main id="main" class="destination-page community-page live-activity" data-live-page data-live-guest?={ !p.SignedIn && p.Error == "" }>
 			<header class="page-header account-heading">
 				<div class="live-heading">
 					<h1 tabindex="-1" data-live-heading>Happening Now</h1>
@@ -19,7 +19,7 @@ templ HappeningNow(p HappeningNowPage) {
 			if !p.Enabled {
 				<p>Live activity is unavailable on this server.</p>
 			} else {
-				<div class="filter-bar live-filter-bar">
+				<div class="live-filter-bar">
 					<p class="list-meta" data-live-summary>{ p.summary() }</p>
 					<form id="live-filter-form" class="account-form" method={ happeningMethod(p.SignedIn) } action={ happeningAction(p.SignedIn) } data-live-filter-form>
 						if p.SignedIn {
@@ -72,7 +72,7 @@ templ HappeningNow(p HappeningNowPage) {
 								if event, ok := p.Events[item.EventID]; ok {
 									<div class="event-art">
 										@EventImage(event, artThumb)
-										<div class="date-marker" aria-hidden="true"><span>{ datePart(event.Start, "Jan") }</span><strong>{ datePart(event.Start, "2") }</strong></div>
+										@EventDateStub(event.Start)
 									</div>
 								} else {
 									<div class="event-art">@EventImage(models.Event{}, artThumb)
@@ -82,7 +82,7 @@ templ HappeningNow(p HappeningNowPage) {
 									<p class="byline"><span class="avatar" aria-hidden="true" data-live-avatar>{ liveInitials(item) }</span><span data-live-attribution>{ activityAttribution(item) }</span></p>
 									<a class="text-link live-card-link" data-event-link data-live-event-link data-id={ item.EventID } href={ templ.URL(eventURL(item.EventID, "overview", p.ReturnURL)) }>{ item.EventTitle }</a>
 									if event, ok := p.Events[item.EventID]; ok {
-										<p class="event-date">{ startLabel(event.Start) }</p>
+										<p class="event-date">@EventDateLabel(event.Start, "")</p>
 									}
 									<p class="field-note" data-live-meta>{ p.meta(item) }</p>
 								</div>

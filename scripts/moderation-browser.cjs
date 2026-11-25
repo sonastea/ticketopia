@@ -36,6 +36,7 @@ fs.mkdirSync(out, {recursive: true});
     check('Reply is created independently', reply.status() === 201);
     const rp = await reporter.newPage();
     await rp.goto(base + thread);
+    await rp.locator('#post-' + root.id + ' .discussion-more > summary').click();
     await rp.locator('#post-' + root.id).getByRole('link', {name: 'Report privately'}).click();
     check('Report page keeps event and contribution context', await rp.getByRole('heading', {name: 'A good night in the city'}).count() === 1 && (await rp.locator('blockquote').innerText()).includes('venue tip'));
     await rp.getByLabel('Reason', {exact: true}).selectOption('private_information');

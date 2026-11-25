@@ -104,6 +104,12 @@ in-app reply notifications with frequency controls and visibility-safe direct li
 
 ### Conversation ergonomics and draft safety
 
+On phones, questions and replies use the available reading width with dividers
+instead of enclosing cards. **Reply** and **Helpful** stay visible; open
+**More contribution actions** beside a post to edit or remove your own
+contribution or privately report someone else's. Follow settings sit after the
+opening post, before the replies. See [Event Discussions in DESIGN.md](../DESIGN.md#event-discussions).
+
 Standalone same-thread reply-target/pagination links and confirmed writes refresh
 only the conversation, not the document. Helpful/edit/remove retain reading position
 and restore focus to the affected control or placeholder; unrelated drafts survive

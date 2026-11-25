@@ -14,6 +14,27 @@ templ PageHeader(title, intro string) {
 	{ children... }
 }
 
+// ResultsHeading separates the section's name from supporting list metadata.
+templ ResultsHeading(id, title, detail, order string) {
+	<div class="results-heading">
+		<h2 id={ id }>{ title }</h2>
+		@ResultsMeta(detail, order)
+	</div>
+}
+
+templ ResultsMeta(detail, order string) {
+	if detail != "" || order != "" {
+		<p class="results-meta">
+			if detail != "" {
+				<span>{ detail }</span>
+			}
+			if order != "" {
+				<span class="sort-label"><span class="sr-only">Order: </span>{ order }</span>
+			}
+		</p>
+	}
+}
+
 // SectionNotice confirms a change inside the section it belongs to.
 templ SectionNotice(message string) {
 	if message != "" {
