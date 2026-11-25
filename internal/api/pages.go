@@ -223,6 +223,9 @@ func (a *api) eventPageHandler(c echo.Context) error {
 	}
 	if err != nil {
 		status, page.Error = errorMessage(err)
+		if status == http.StatusTooManyRequests || status >= http.StatusInternalServerError {
+			page.RetryURL = c.Request().URL.RequestURI()
+		}
 		setRetryAfter(c, err)
 		if c.Request().Header.Get("X-Ticketopia-Panel") == "true" || c.Request().Header.Get("X-Ticketopia-Section") == "true" {
 			return c.String(status, page.Error)

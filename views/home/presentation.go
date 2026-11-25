@@ -58,6 +58,7 @@ type EventPage struct {
 	Section           string
 	ReturnURL         string
 	Error             string
+	RetryURL          string
 	Saves             SaveView
 	Interests         InterestView
 	Participants      interests.Participants

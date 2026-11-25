@@ -18,7 +18,10 @@ templ ReportConcern(p ReportPage) {
 				if p.Post.Removed || p.Post.Hidden {
 					<p class="field-note">This contribution is no longer visible. You can still check any report you've already sent.</p>
 				} else {
-					@PostAttribution(p.Post)<blockquote class="discussion-body">{ p.Post.Body }</blockquote>
+					<figure class="moderation-evidence">
+						<figcaption><strong>Reported contribution</strong>@PostAttribution(p.Post)</figcaption>
+						<blockquote class="discussion-body">{ p.Post.Body }</blockquote>
+					</figure>
 				}
 				<a href={ templ.URL(ThreadURL(p.Post.EventID,p.Post.ThreadID,"/")) } class="text-link">Back to conversation</a>
 			}
@@ -65,7 +68,11 @@ templ OwnModeration(p OwnModerationPage) {
 			}
 			if p.OutcomesView {
 				if len(p.Outcomes.Items)==0 {
-					<p>No moderation actions on your contributions on this page.</p>
+					<div class="destination-state">
+						<h2>No moderation actions on your contributions on this page.</h2>
+						<p>If a moderator acts on something you posted, the decision and any option to request another review will appear here.</p>
+						<a href="/me/reports" class="text-link moderation-utility">View your reports</a>
+					</div>
 				}
 				for _,o:=range p.Outcomes.Items {
 					<section class="moderation-record" aria-label="Moderation outcome">
@@ -92,16 +99,16 @@ templ OwnModeration(p OwnModerationPage) {
 				for _,r:=range p.Reports.Items {
 					<section class="moderation-record" aria-label="Your private report">
 						<h2>{ r.EventName }</h2>
-						<p class="field-note">{ ternary(r.PostID==r.ThreadID,"Reported question or tip","Reported reply") } · { "posted " }@layouts.Stamp(r.PostCreatedAt)</p>
-						<p><strong>{ reportReason(r.Reason) }</strong></p>
-						<p class="field-note">{ "Received " }@layouts.Stamp(r.CreatedAt)</p>
-						if r.Context!="" {
-							<p class="discussion-body">{ r.Context }</p>
-						}
 						if r.Outcome==nil {
 							<p><strong>Awaiting moderator review</strong></p>
 						} else {
 							@OutcomeSummary(moderation.Outcome{Action:r.Outcome.Action,Reason:r.Outcome.Reason,CreatedAt:r.Outcome.CreatedAt})
+						}
+						<p class="field-note">{ ternary(r.PostID==r.ThreadID,"Reported question or tip","Reported reply") } · { "posted " }@layouts.Stamp(r.PostCreatedAt)</p>
+						<p><strong>{ reportReason(r.Reason) }</strong></p>
+						<p class="field-note">{ "Received " }@layouts.Stamp(r.CreatedAt)</p>
+						if r.Context!="" {
+							<p class="discussion-body"><strong>Your note:</strong> { r.Context }</p>
 						}
 						<a href={ templ.URL(ContributionURL(r.EventID,r.ThreadID,r.PostID)) } class="text-link">Open reported contribution</a>
 					</section>
@@ -155,16 +162,21 @@ templ ModerationQueue(p ModerationQueuePage) {
 				<p class="moderation-empty">No cases on this page. { ternary(p.All,"Reports and decisions will appear here.","There are no reports or review requests awaiting a decision on this page.") }</p>
 			}
 			for _,v:=range p.List.Items {
-				<article class="moderation-record"><h2><a href={ templ.URL("/moderation/posts/"+v.Post.ID) } class="text-link">{ v.Post.Event.Name }</a></h2><p class="event-date">{ startLabel(v.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(v.Post.Event) }</p>
+				<article class="moderation-record">
+					<h2>{ ternary(v.PendingReports + v.PendingAppeals > 0, "Awaiting review", "Reviewed") }</h2>
 					if v.Post.Hidden {
 						<p class="field-note">Contribution hidden by a moderator</p>
 					} else if v.Post.Removed {
 						<p class="field-note">Contribution removed by its author</p>
 					} else {
-						@PostAttribution(v.Post)<p class="discussion-body">{ v.Post.Body }</p>
+						<blockquote class="discussion-body">{ v.Post.Body }</blockquote>
 					}
-					<p class="field-note">{ fmt.Sprint(v.PendingReports) } reports and { fmt.Sprint(v.PendingAppeals) } author review requests awaiting a decision</p>
 					<a href={ templ.URL("/moderation/posts/"+v.Post.ID) } class="text-link moderation-utility">Review contribution</a>
+					if !v.Post.Hidden && !v.Post.Removed {
+						@PostAttribution(v.Post)
+					}
+					<p class="list-meta"><strong>{ v.Post.Event.Name }</strong>{ " · " }{ startLabel(v.Post.Event.Start) }{ " · " }{ venueLabel(v.Post.Event) }</p>
+					<p class="field-note">{ fmt.Sprint(v.PendingReports) } reports and { fmt.Sprint(v.PendingAppeals) } author review requests awaiting a decision</p>
 				</article>
 			}
 			if p.List.NextCursor!=nil {
@@ -181,18 +193,19 @@ templ ModerationCase(p ModerationCasePage) {
 			@layouts.PageHeader("Review contribution", "")
 			<header class="discussion-event-heading"><h2>{ p.Case.Post.Event.Name }</h2><p class="event-date">{ startLabel(p.Case.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Case.Post.Event) }</p><a href={ templ.URL(ThreadURL(p.Case.Post.EventID,p.Case.Post.ThreadID,"/")) } class="text-link moderation-utility">Read the full conversation</a></header>
 			<section class="moderation-record" aria-labelledby="current-contribution"><h2 id="current-contribution">Current contribution</h2>
-				// Status, author and reply target are one metadata line.
-				<p class="list-meta">
-					{ ternary(p.Case.Post.Removed,"Removed by the author",ternary(p.Case.Post.Hidden,"Hidden by a moderator","Publicly visible")) } · Author account: { p.Case.AuthorID }
-					if p.Case.Post.ParentID!="" {
-						· Reply target: { p.Case.Post.ParentID }
-					}
-				</p>
+				<p class="list-meta">{ ternary(p.Case.Post.Removed,"Removed by the author",ternary(p.Case.Post.Hidden,"Hidden by a moderator","Publicly visible")) }</p>
 				if p.Case.CurrentBody!="" {
 					<blockquote class="discussion-body">{ p.Case.CurrentBody }</blockquote>
 				} else {
 					<p class="field-note">The author removed the text. It cannot be restored.</p>
 				}
+				<details class="account-token-details">
+					<summary>Evidence identifiers</summary>
+					<p class="list-meta">Author account: { p.Case.AuthorID }</p>
+					if p.Case.Post.ParentID!="" {
+						<p class="list-meta">Reply target: { p.Case.Post.ParentID }</p>
+					}
+				</details>
 			</section>
 			<section class="moderation-record" aria-labelledby="reported-concerns"><h2 id="reported-concerns">Private reports</h2>
 				for _,r:=range p.Case.Reports {
@@ -242,9 +255,13 @@ templ ModerationCase(p ModerationCasePage) {
 								}
 						}
 						</label>
-						<label class="field">Decision reason <span>(shared with reporters and the affected author; up to 2000 characters)</span><textarea name="reason" rows="3" required maxlength="2000">{ p.Review.Reason }</textarea></label>
+						<div class="field">
+							<label for="decision-reason">Decision reason <span>(shared with reporters and the affected author; up to 2000 characters)</span></label>
+							<p id="decision-reason-privacy">Never include reporter identities or private evidence in the shared reason.</p>
+							<textarea id="decision-reason" name="reason" rows="3" required maxlength="2000" aria-describedby="decision-reason-privacy">{ p.Review.Reason }</textarea>
+						</div>
 						<label class="field">Private moderator notes <span>(optional, up to 2000 characters)</span><textarea name="notes" rows="3" maxlength="2000">{ p.Review.Notes }</textarea></label>
-						<p class="field-note">Never include reporter identities or private evidence in the shared reason. This decision closes all reports and author review requests currently awaiting review for this contribution. Hiding withholds text, attribution, and Helpful counts while keeping replies; restoration doesn't undo an author's removal.</p>
+						<p class="field-note">This closes all reports and author review requests currently awaiting review. Hiding withholds text, attribution and Helpful counts while keeping replies. Restoration doesn't undo an author's removal.</p>
 						@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
 							Record decision
 						}

@@ -248,7 +248,7 @@ func (a *api) unsubscribePage(c echo.Context) error {
 	}
 	token := c.Param("token")
 	if !accounts.ValidID(token) {
-		return a.accountPageError(c, reminders.ErrNotFound)
+		return render(c, http.StatusNotFound, account.ReminderLinkExpired())
 	}
 	done := false
 	if c.Request().Method == "POST" {
@@ -256,6 +256,9 @@ func (a *api) unsubscribePage(c echo.Context) error {
 			return a.accountPageError(c, err)
 		}
 		if err := a.reminders.Unsubscribe(c.Request().Context(), token); err != nil {
+			if errors.Is(err, reminders.ErrNotFound) {
+				return render(c, http.StatusNotFound, account.ReminderLinkExpired())
+			}
 			return a.accountPageError(c, err)
 		}
 		done = true

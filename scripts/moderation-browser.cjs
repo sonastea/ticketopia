@@ -12,7 +12,7 @@ fs.mkdirSync(out, {recursive: true});
   const browser = await chromium.launch({headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE});
   try {
     const context = async (token, native = false) => {
-      const c = await browser.newContext({viewport: {width: 1440, height: 1000}, javaScriptEnabled: !native});
+      const c = await browser.newContext({viewport: {width: 1440, height: 1000}, javaScriptEnabled: !native, reducedMotion: 'reduce'});
       if (token) await c.addCookies([{name: 'ticketopia_session', value: token, url: base}]);
       return c;
     };
@@ -133,7 +133,7 @@ fs.mkdirSync(out, {recursive: true});
     await mp.emulateMedia({forcedColors: 'active', reducedMotion: 'reduce'});
     await mp.getByLabel('Action', {exact:true}).focus();
     check('Forced-colors keyboard focus retains an outline', await mp.getByLabel('Action', {exact:true}).evaluate(el => getComputedStyle(el).outlineStyle !== 'none'));
-    check('No browser runtime errors', report.errors.length === 0);
+    check('No browser runtime errors: ' + report.errors.join('; '), report.errors.length === 0);
     fs.writeFileSync(path.join(out, 'moderation-checks.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify({checks: report.checks.length, screenshots: report.screenshots.length, accessibility: report.accessibility.length}));
   } finally {await browser.close();}

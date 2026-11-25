@@ -18,12 +18,24 @@ templ Reminders(p ReminderPage) {
 					<p class="reminder-confirmation" role="status">{ p.Notice }</p>
 				}
 				if p.Account.Preferences.NotificationsPaused || !p.Account.Preferences.EmailReminders {
-					<p class="account-notice" role="status">Delivery is paused by email permission or global pause. Review <a href="/me/preferences" class="text-link">Preferences</a> to allow eligible sends. Saving timing does not change those choices.</p>
+					<p class="account-notice" role="status">
+						if p.Account.Preferences.NotificationsPaused && !p.Account.Preferences.EmailReminders {
+							All notifications are paused and reminder emails are off.
+						} else if p.Account.Preferences.NotificationsPaused {
+							All notifications are paused.
+						} else {
+							Reminder emails are off.
+						}
+						{ " " }Your saved timing stays the same. <a href="/me/preferences#notifications" class="text-link">Open notification preferences</a>
+					</p>
 				}
 				if p.Event != nil {
 					<section class="reminder-detail" aria-labelledby="reminder-event-heading">
 						<h2 id="reminder-event-heading">{ p.Event.Name }</h2>
-						<a href={ templ.URL("/events/"+p.Event.ID+"?section=overview") } class="text-link">Event Overview</a>
+						<nav class="account-section-jumps" aria-label="Reminder destinations">
+							<a href="/me/reminders" class="text-link">All reminders</a>
+							<a href={ templ.URL("/events/"+p.Event.ID+"?section=overview") } class="text-link">Event Overview</a>
+						</nav>
 						<p class="tabular-nums"><strong>Public ticket sale:</strong> { p.SaleTime() }</p>
 						<p class="field-note">This is the ticket-sale time, not the event date. Times below use your account time zone: { p.Zone() }.</p>
 						if p.Own != nil {
@@ -101,5 +113,14 @@ templ ReminderUnsubscribe(token string, done bool) {
 			}
 			<a href="/me/reminders" class="text-link">Manage your reminders</a>
 		</main>
+	}
+}
+
+templ ReminderLinkExpired() {
+	@layouts.App("profile", "Reminder link unavailable") {
+		@layouts.ErrorPage("This reminder link no longer works", "No reminders were changed by this request.", "") {
+			@button.Button(button.Props{Href: "/me/reminders", Class: "action"}) { Manage reminders }
+			<a href="/" class="text-link">Discover events without signing in</a>
+		}
 	}
 }

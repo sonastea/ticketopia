@@ -135,7 +135,10 @@ templ Profile(p Page) {
 					if p.Error != "" {
 						<p class="field-note">Not saved yet. Your public profile is unchanged.</p>
 					}
-					<a href={ templ.URL("/users/" + p.Account.ID) } class="text-link">View your public profile</a>
+					<nav class="account-section-jumps" aria-label="Profile actions">
+						<a href="#profile-heading" class="text-link">Edit profile</a>
+						<a href={ templ.URL("/users/" + p.Account.ID) } class="text-link">View your public profile</a>
+					</nav>
 				</div>
 			</section>
 			<section class="profile-activity" aria-labelledby="profile-activity-heading">
@@ -187,6 +190,7 @@ templ Privacy(p Page) {
 	<div class="privacy-layout">
 		<form action="/me/privacy" method="post" class="account-form account-panel account-preferences" aria-label="Privacy settings">
 			@CSRF(p.CSRF)
+			<a href="#privacy-summary-heading" class="text-link privacy-summary-jump">See who can view your activity</a>
 			<fieldset class="account-checkboxes notification-preferences">
 				<legend>New Interested choices</legend>
 				<div class="notification-options">
@@ -258,6 +262,13 @@ templ Privacy(p Page) {
 // Security keeps sign-in, connected apps and tokens together, with the
 // account-wide sign-out last and behind a confirmation.
 templ Security(p Page) {
+	<nav class="account-section-jumps" aria-label="On this page">
+		if p.ConnectionsEnabled {
+			<a href="#connected-apps" class="text-link">Connected apps</a>
+		}
+		<a href="#api-access" class="text-link">API tokens</a>
+		<a href="#all-devices" class="text-link">All devices</a>
+	</nav>
 	<section class="account-section" aria-labelledby="sign-in-heading">
 		<h2 id="sign-in-heading">Sign-in</h2>
 		<p>Signed in with Google as <strong class="account-email">{ p.Account.Email }</strong>. Only you can see this email.</p>
@@ -324,7 +335,7 @@ templ Security(p Page) {
 			</form>
 		</details>
 	</section>
-	<section class="account-section" aria-labelledby="sign-out-all-heading">
+	<section id="all-devices" class="account-section" aria-labelledby="sign-out-all-heading">
 		<h2 id="sign-out-all-heading">All devices</h2>
 		<p>Lost a device, or think someone else has access? Sign out everywhere at once.</p>
 		@layouts.ConfirmDisclosure("Sign out of all devices") {
@@ -347,6 +358,11 @@ templ Security(p Page) {
 }
 
 templ Preferences(p Page) {
+	<nav class="account-section-jumps" aria-label="On this page">
+		<a href="#preferences-heading" class="text-link">Location</a>
+		<a href="#notifications" class="text-link">Notifications</a>
+		<a href="#categories" class="text-link">Event categories</a>
+	</nav>
 	<form action="/me/preferences" method="post" class="account-form account-panel account-preferences" aria-labelledby="preferences-heading">
 		@CSRF(p.CSRF)
 		<h2 id="preferences-heading">Location &amp; time zone</h2>
@@ -366,7 +382,7 @@ templ Preferences(p Page) {
 			@input.Input(input.Props{ID:"timezone",Name:"timezone",Value:p.Account.Preferences.Timezone,Required:true,Attributes:templ.Attributes{"maxlength":"64","aria-describedby":"timezone-help"}})
 		}
 		<p id="timezone-help" class="field-note">For example America/Chicago or Europe/Berlin. Reminder times use this zone; event dates use the venue's.</p>
-		<fieldset class="account-checkboxes notification-preferences"><legend>Notifications</legend>
+		<fieldset id="notifications" class="account-checkboxes notification-preferences"><legend>Notifications</legend>
 			<div class="notification-options">
 				<div class="notification-option">
 					<label>

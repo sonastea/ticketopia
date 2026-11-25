@@ -17,6 +17,14 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   searches can clear the keyword without losing the other filters.
 - Community filters start collapsed with an active-filter summary so the
   recommendations come into view sooner. Radar now names its results section.
+- Account pages use a compact tab grid and add jumps to profile editing,
+  notification preferences, and security controls. Reminders explain the
+  actual pause setting without changing the saved timing.
+- Moderation puts the submission and review state ahead of event metadata.
+  Case identifiers are disclosed separately, and privacy guidance is shown
+  immediately before the shared decision reason.
+- Temporary event lookup failures offer retry without leaving the event.
+  An invalid reminder link explains that nothing changed and points to reminders.
 
 - Discover, Saved, Interests, Radar, event details and previews, Community,
   and Happening Now use borders and flat fills instead of decorative shadows,
@@ -79,38 +87,5 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   current and should be reviewed before deciding again. A test holds the case
   page to the notes budget (after a failure and once the author removed the
   reply) and checks that alert, and the moderation journey passes.
-
-### 2026-11-19 — Phase 6: public profile, sign-in and the agents guide
-
-- A public profile (`/users/{id}`) leads with the same card as `/me`: initial,
-  name, bio, its privacy line and a way back to Discover.
-- Sign-in's Google and privacy notes are one note; when sign-in continues an
-  event, that event's context is its own short section.
-- The agents guide uses the shared page header, with its "On this page" links as
-  local navigation.
-- On profiles, a recommendation row's date stub stays with its artwork instead
-  of drifting to the bottom of a tall row.
-- A test holds the public profile and sign-in to the notes budget.
-
-### 2026-11-19 — Phase 5: personal collections
-
-- Radar's scope reads "Chicago, US · Nov 19, 2026 – Feb 16, 2027". Its
-  staleness, coverage state (each with its own wording, such as "not a
-  confirmed empty search") and "Updated … Venue-local event times" read as one
-  visible line; a result row shows "Updated…" only when its own data is stale.
-- Radar's bottom note moves into the shared source footer, which now also says
-  that details Ticketmaster hasn't supplied are left out rather than guessed.
-- A draft's expiry joins its metadata line ("· not published, expires …").
-- On wide screens, Reminders' tabs fit on one row: the page keeps the shared
-  account width, with a 70ch measure for its content.
-- The `Stamp` children guard now matches only a `{` on the same line as the
-  call, which is when templ treats it as children.
-- The reminders journey finds the Preferences city field and notification
-  group unambiguously, its pause copy check matches the current wording, and it
-  ignores Chromium's view-transition abort under emulated reduced motion, so it
-  runs to the end again. The radar journey checks the not-collected wording.
-  Run with non-fatal checks against Phase 4 with the same scripts, the radar,
-  reminders, saved, follows, interests and followed discussions journeys show
-  the same findings.
 
 Older entries: [app rework archive](archive/app-rework/).

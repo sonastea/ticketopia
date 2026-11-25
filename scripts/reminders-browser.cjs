@@ -46,7 +46,7 @@ fs.mkdirSync(out, {recursive: true});
     check('Resaving exposes settings without consent',(await owner.request.get(base+endpoint)).status()===404);
     await page.locator('.reminder-button').click();
     check('Explicit pending form',await page.getByRole('button',{name:'Save email reminder'}).count()===1);
-    check('Defaults remain paused',(await page.locator('main').innerText()).includes('Delivery is paused'));
+    check('Defaults explain why reminders are paused',(await page.locator('main').innerText()).includes('Reminder emails are off.'));
     // Configuring a reminder never changes the account-wide pause (docs/reminders.md);
     // accounts no longer start paused, so compare with the state before.
     const pausedAtStart=(await (await owner.request.get(base+'/api/v1/me/preferences')).json()).notifications_paused;

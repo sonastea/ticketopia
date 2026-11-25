@@ -40,9 +40,15 @@ templ Event(page EventPage) {
 			if page.Error != "" {
 				@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
 					<h1>Event unavailable</h1>
-					<p>{ page.Error }</p>@button.Button(button.Props{Href: page.ReturnURL, Class: "action"}) {
-	Find another event
-}
+					<p>{ page.Error }</p>
+					<div class="account-actions">
+						if page.RetryURL != "" {
+							@button.Button(button.Props{Href: page.RetryURL, Class: "action"}) { Try this event again }
+							<a href={ templ.URL(page.ReturnURL) } class="text-link">Find another event</a>
+						} else {
+							@button.Button(button.Props{Href: page.ReturnURL, Class: "action"}) { Find another event }
+						}
+					</div>
 				}
 			} else {
 				<article class="event-main" data-event-shell={ page.Detail.Item.ID } data-viewer-key={ page.Saves.CSRF }>

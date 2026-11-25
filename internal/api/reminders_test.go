@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -53,6 +54,10 @@ func TestReminderUnsubscribeRequiresConfirmation(t *testing.T) {
 	}
 	if post.Header().Get("Referrer-Policy") != "no-referrer" || post.Header().Get("Cache-Control") != "private, no-store" {
 		t.Fatal("unsubscribe token could leak")
+	}
+	broken := accountRequest(a, "GET", "/reminders/unsubscribe/not-a-valid-link", "", "", "", "", "", "")
+	if broken.Code != http.StatusNotFound || r.stops != 1 || !strings.Contains(broken.Body.String(), "No reminders were changed by this request.") {
+		t.Fatal("invalid unsubscribe link did not provide reminder-specific recovery")
 	}
 }
 func (r *reminderStub) Set(_ context.Context, owner, event string, lead int) (reminders.Item, error) {
