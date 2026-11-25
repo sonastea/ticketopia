@@ -201,13 +201,21 @@
   font-size: .875rem;
   white-space: pre;
 }
-/* The consent page states what an app can post for the publish checkbox's
-   current state; without :has() it keeps the statement true in both. */
-.connect-public-off, .connect-public-on { display: none; }
+.connect-permissions { margin: 0; }
+.connect-permissions legend { font-size: 1.125rem; font-weight: 750; }
+.connect-permissions > p,
+.account-connect .connect-permissions > label { padding-block: .75rem; border-block-end: 1px solid var(--line); }
+.account-connect .connect-permissions > label { align-items: start; }
+.connect-permissions input { flex: none; margin-block-start: .2em; }
+.connect-grant { padding-block-start: .75rem; border-block-start: 1px solid var(--line); }
+.connect-grant-read, .connect-grant-base, .connect-grant-write, .connect-grant-publish { display: none; }
 @supports selector(:has(*)) {
-  .connect-public-either { display: none; }
-  .account-connect form:not(:has([name="publish"]:checked)) .connect-public-off,
-  .account-connect form:has([name="publish"]:checked) .connect-public-on { display: list-item; }
+  .connect-grant-fallback { display: none; }
+  .connect-grant-read,
+  .account-connect form:has(:is([name="write"], [name="publish"]):checked) .connect-grant-base,
+  .account-connect form:has([name="write"]:checked) .connect-grant-write,
+  .account-connect form:has([name="publish"]:checked) .connect-grant-publish { display: inline; }
+  .account-connect form:has(:is([name="write"], [name="publish"]):checked) .connect-grant-read { display: none; }
 }
 /* The page keeps the shared account width so its tabs fit; reading content keeps a 70ch measure. */
 .reminders-page > :not(.page-header, .account-navigation) { max-inline-size: 70ch; }
@@ -1980,7 +1988,7 @@ html:has(.filter-sheet:modal) {
   font-weight: 650;
 }
 
-.event-status[data-status="onsale"] {
+.event-status[data-status="onsale"]:not([data-last-known]) {
   color: var(--success);
 }
 

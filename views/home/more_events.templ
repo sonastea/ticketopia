@@ -82,15 +82,17 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 			// The lowest known price leads the facts, in ink; an unknown price
 			// keeps its explicit label.
 			{{ from := fromPriceLabel(event.PriceRanges) }}
+			{{ stale := event.Meta != nil && event.Meta.Stale }}
 			<div class="event-metadata" role="group" aria-label="Price and sale status">
-				if from != "" {
-					<strong class="price-tag"><span class="sr-only">Price </span>{ from }</strong>
+				if !saleWithdrawn(event.Status) {
+					if from != "" {
+						<strong class="price-tag"><span class="sr-only">Price </span>{ from }</strong>
+					} else {
+						<span>{ priceLabel(event.PriceRanges) }</span>
+					}
 				}
-				@EventStatus(event.Status)
-				if from == "" {
-					<span>{ priceLabel(event.PriceRanges) }</span>
-				}
-				if event.Meta != nil && event.Meta.Stale {
+				@EventSaleStatus(event.Status, stale)
+				if stale {
 					<span class="event-last-known">Last-known as of { freshnessLabel(event.Meta.DataAsOf) }</span>
 				}
 			</div>
@@ -138,7 +140,7 @@ templ EventRowDetails(event models.Event, extended bool) {
 					{ featuring }
 				</p>
 			}
-			if sale != "" {
+			if sale != "" && (event.Meta == nil || !event.Meta.Stale) {
 				<p class="sale-date">{ sale }</p>
 			}
 		</div>
@@ -148,11 +150,15 @@ templ EventRowDetails(event models.Event, extended bool) {
 templ EventRowTools(event models.Event, returnURL string, saves SaveView, actionReturnURL string, interests InterestView) {
 	@EventActionControlsThen(event.ID, event.Name, saves, actionReturnURL, false, rowInterest(event, returnURL, actionReturnURL, interests)) {
 		if event.Source.URL != "" {
+			{{ label := ticketReviewLabel(event.Status, event.Meta != nil && event.Meta.Stale) }}
+			if label == "" {
+				{{ label = "Tickets" }}
+			}
 			// The event page's Tickets action in its tonal form: the same shape,
 			// type and icon, outlined so a list of events doesn't read like a toolbar.
-			@button.Button(button.Props{Href: event.Source.URL, Class: "action action-secondary ticket-row-link", Attributes: templ.Attributes{"aria-label": "Tickets on Ticketmaster for " + event.Name}}) {
+			@button.Button(button.Props{Href: event.Source.URL, Class: "action action-secondary ticket-row-link", Attributes: templ.Attributes{"aria-label": label + " on Ticketmaster for " + event.Name}}) {
 				// The accessible name keeps the provider and event; the visible label is short so Save fits beside it.
-				<span>Tickets</span>@layouts.Icon("external")
+				<span>{ label }</span>@layouts.Icon("external")
 			}
 		} else {
 			<p class="field-note">Ticket link unavailable.</p>

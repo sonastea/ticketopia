@@ -6,6 +6,13 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ### 2026-11-25 — Flat, event-first discovery and community surfaces
 
+- Canceled and postponed events direct people to event updates instead of
+  selling tickets. Rescheduled and last-known events ask people to verify
+  ticket details; last-known sale status is explicitly labeled.
+- App consent starts read-only. Private changes and public actions are
+  independent opt-ins and the summary next to Connect names the chosen access.
+  See [agent access](../app-mcp.md).
+
 - Discover, Saved, Interests, Radar, event details and previews, Community,
   and Happening Now use borders and flat fills instead of decorative shadows,
   gradients, and hover lifts. Event composers, notes, and quotes follow the

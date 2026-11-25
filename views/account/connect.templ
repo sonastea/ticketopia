@@ -18,43 +18,15 @@ templ Consent(p ConsentPage) {
 					for _, field := range p.Fields {
 						<input type="hidden" name={ field.Name } value={ field.Value }/>
 					}
-					// What the app can and can't do, in the Privacy page's
-					// "Who sees what" pattern; the checkboxes below add to it.
-					<section class="summary-card privacy-summary connect-summary" aria-labelledby="connect-summary-heading">
-						<h2 id="connect-summary-heading">What it can do</h2>
-						<div class="privacy-summary-group">
-							<h3>Can</h3>
-							<ul>
-								<li>Search events and read their details</li>
-								<li>Read your radar, saved events, on-sale reminders, follows and Interested events</li>
-							</ul>
-						</div>
-						<div class="privacy-summary-group">
-							<h3>Can't</h3>
-							<ul>
-								<li>See your email</li>
-								<li>Change your profile or preferences</li>
-								if p.Publish {
-									// Exactly one item is shown for the checkbox's state; browsers
-									// without :has() show the one that is true in both states.
-									<li class="connect-public connect-public-either">Post anything publicly unless you allow it below; even then, anything it writes waits for you as a draft</li>
-									<li class="connect-public connect-public-off">Post anything publicly</li>
-									<li class="connect-public connect-public-on">Publish anything it writes: it waits for you as a draft</li>
-								} else {
-									<li>Post anything publicly</li>
-								}
-							</ul>
-						</div>
-						<p class="field-note">You can disconnect this app in Security &amp; Apps. The connection expires 30 days after you connect or after the app last refreshes its access.</p>
-					</section>
-					if p.Write || p.Publish {
-						<div class="account-checkboxes">
+					<fieldset class="account-checkboxes connect-permissions">
+						<legend>What this app can do</legend>
+						<p><strong>Read account data</strong> <span class="field-note">Included</span><br/>Search events and read your radar, saved events, reminders, follows, public activity, preferences and pending drafts.</p>
 							if p.Write {
 								<label>
-									<input type="checkbox" name="write" checked aria-labelledby="connect-write-label" aria-describedby="connect-write-help"/>
+									<input type="checkbox" name="write" aria-labelledby="connect-write-label" aria-describedby="connect-write-help"/>
 									<span class="notification-copy">
-										<span id="connect-write-label" class="notification-title">Also allow changes</span>
-										<span id="connect-write-help" class="field-note">Save and remove events, set or stop on-sale reminders, follow artists and venues, mark events Interested (privately), and draft recommendation reasons, questions, tips and replies for you to review. Leave this off to keep it from making these changes.</span>
+										<span id="connect-write-label" class="notification-title">Allow private changes</span>
+										<span id="connect-write-help" class="field-note">Manage saves, reminders, follows and reply updates; change private interest; create or discard drafts for your review.</span>
 									</span>
 								</label>
 							}
@@ -63,13 +35,14 @@ templ Consent(p ConsentPage) {
 								<label>
 									<input type="checkbox" name="publish" aria-labelledby="connect-publish-label" aria-describedby="connect-publish-help"/>
 									<span class="notification-copy">
-										<span id="connect-publish-label" class="notification-title">Also allow posting publicly as { p.DisplayName }</span>
-										<span id="connect-publish-help" class="field-note">Make your Interested choices public, recommend events without a reason, withdraw your recommendations, and mark questions, tips and replies Helpful. Its recommendations show "via { p.ClientName } ({ p.ClientHost })" publicly. Anything it writes, such as a reason, a question or a reply, comes back to you as a draft to review before it's posted. It can never edit or remove your posts.</span>
+										<span id="connect-publish-label" class="notification-title">Allow public actions as { p.DisplayName }</span>
+										<span id="connect-publish-help" class="field-note">Make interest public, recommend without a reason, withdraw recommendations, or mark contributions Helpful. Recommendations show “via { p.ClientName } ({ p.ClientHost })”. Text it writes still needs your approval before posting.</span>
 									</span>
 								</label>
 							}
-						</div>
-					}
+						<p class="field-note">The app can’t see your email, change your profile or preferences, or edit or remove your posts.</p>
+					</fieldset>
+					<p class="connect-grant"><strong>Connect with:</strong> <span class="connect-grant-read">read-only access</span><span class="connect-grant-fallback">read access plus any permissions checked above</span><span class="connect-grant-base">read access</span><span class="connect-grant-write">, private changes</span><span class="connect-grant-publish">, public actions</span>.</p>
 					<div class="account-actions">
 						@button.Button(button.Props{Type: button.TypeSubmit, Class: "action", Attributes: templ.Attributes{"name": "decision", "value": "allow"}}) {
 							Connect
@@ -84,6 +57,7 @@ templ Consent(p ConsentPage) {
 						<p class="field-note">Either way, you'll return to <span class="account-connect-host">{ p.RedirectHost }</span>.</p>
 					}
 				</form>
+				<p class="field-note">Disconnect at any time in <a href="/me/security" class="text-link">Security &amp; Apps</a>. Access expires after 30 days without a refresh.</p>
 			</div>
 		</main>
 	}

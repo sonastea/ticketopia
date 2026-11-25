@@ -111,6 +111,7 @@ templ EventSectionResponse(page EventPage, panel bool) {
 templ EventHeading(page EventPage, panel bool) {
 	if panel {
 		<div class="context-heading" data-shell-facts>
+			@EventScheduleNotice(page.Detail.Item.Status)
 			<h2 style={ transitionStyle("title", page.Detail.Item.ID) }>{ page.Detail.Item.Name }</h2>
 			@EventHeadingFacts(page)
 		</div>
@@ -118,6 +119,7 @@ templ EventHeading(page EventPage, panel bool) {
 		<div class="event-heading" data-shell-facts>
 			@EventDateStub(page.Detail.Item.Start)
 			<div>
+				@EventScheduleNotice(page.Detail.Item.Status)
 				<h1 style={ transitionStyle("title", page.Detail.Item.ID) }>{ page.Detail.Item.Name }</h1>
 				@EventHeadingFacts(page)
 			</div>
@@ -128,13 +130,16 @@ templ EventHeading(page EventPage, panel bool) {
 templ EventHeadingFacts(page EventPage) {
 	<p class="event-date">@EventDateLabel(page.Detail.Item.Start, "")</p>
 	<p class="event-venue">{ venueLabel(page.Detail.Item) }</p>
-	if sale := upcomingSaleLabel(page.Detail.Item, layouts.Now(ctx)); sale != "" {
+	if sale := upcomingSaleLabel(page.Detail.Item, layouts.Now(ctx)); sale != "" && !page.Detail.Meta.Stale {
 		<p class="sale-date">{ sale }</p>
 	}
 	if page.Detail.Meta.Stale {
 		@Freshness(page.Detail.Meta)
 	}
-	@EventFacts(page.Detail.Item)
+	if !saleWithdrawn(page.Detail.Item.Status) && page.Detail.Item.Status != "rescheduled" {
+		@EventPriceFacts(page.Detail.Item, page.Detail.Meta.Stale)
+	}
+	<p class="genre-label">{ classificationLabel(page.Detail.Item) }</p>
 }
 
 templ EventSectionRegion(page EventPage, panel bool) {
@@ -168,7 +173,7 @@ templ EventSectionRegion(page EventPage, panel bool) {
 templ EventPrimaryActions(page EventPage) {
 	<div class="event-primary-actions">
 		@EventActionControls(page.Detail.Item.ID, page.Detail.Item.Name, page.Saves, page.ActionReturnURL, false) {
-			@TicketAction(page.Detail.Item)
+			@TicketAction(page.Detail.Item, page.Detail.Meta.Stale)
 		}
 		if page.Saves.Error != "" {
 			<p class="field-note" role="status">{ page.Saves.Error }</p>
@@ -189,10 +194,23 @@ templ EventProvenance(page EventPage) {
 }
 
 templ EventFacts(event models.Event) {
-	<div class="event-summary" role="group" aria-label="Price and sale status">
-		<strong>{ priceLabel(event.PriceRanges) }</strong>@EventStatus(event.Status)
-	</div>
+	@EventPriceFacts(event, event.Meta != nil && event.Meta.Stale)
 	<p class="genre-label">{ classificationLabel(event) }</p>
+}
+
+templ EventPriceFacts(event models.Event, stale bool) {
+	<div class="event-summary" role="group" aria-label="Price and sale status">
+		if !saleWithdrawn(event.Status) {
+			<strong>{ priceLabel(event.PriceRanges) }</strong>
+		}
+		@EventSaleStatus(event.Status, stale)
+	</div>
+}
+
+templ EventScheduleNotice(status string) {
+	if saleWithdrawn(status) || status == "rescheduled" {
+		<p class="event-schedule-notice">@EventStatus(status)</p>
+	}
 }
 
 templ EventParticipation(page EventPage, noteID string) {
@@ -251,10 +269,12 @@ templ EventSectionContent(page EventPage) {
 				if calendar.Available(page.Detail.Item) {
 					<h3>When</h3>
 					<p>{ startLabel(page.Detail.Item.Start) }</p>
-					<a href={ templ.SafeURL(calendarURL(page.Detail.Item.ID)) } class="text-link calendar-link" download>
-						@layouts.Icon("calendar")
-						<span>Add to calendar</span>
-					</a>
+					if !saleWithdrawn(page.Detail.Item.Status) {
+						<a href={ templ.SafeURL(calendarURL(page.Detail.Item.ID)) } class="text-link calendar-link" download>
+							@layouts.Icon("calendar")
+							<span>Add to calendar</span>
+						</a>
+					}
 				}
 				if featuringLabel(page.Detail.Item) != "" {
 					<h3>Featuring</h3>
@@ -310,20 +330,24 @@ templ EventHistory(history *models.EventHistory) {
 }
 
 templ TicketDetails(event models.Event) {
+	{{ stale := event.Meta != nil && event.Meta.Stale }}
 	<div class="ticket-details">
-		<div class="ticket-price">
-			<strong>{ priceLabel(event.PriceRanges) }</strong>@EventStatus(event.Status)
-		</div>
-		if sale := saleLabel(event); sale != "" {
+		@EventPriceFacts(event, stale)
+		if sale := saleLabel(event); sale != "" && !stale && !saleWithdrawn(event.Status) {
 			<p class="sale-date">{ sale }</p>
 		}
-		@TicketAction(event)
+		@TicketAction(event, stale)
 	</div>
 }
 
-templ TicketAction(event models.Event) {
+templ TicketAction(event models.Event, stale bool) {
 	if event.Source.URL != "" {
-		@button.Button(button.Props{Href: event.Source.URL, Class: "action ticket-link"}) {
+		if label := ticketReviewLabel(event.Status, stale); label != "" {
+			@button.Button(button.Props{Href: event.Source.URL, Class: "action action-secondary ticket-link"}) {
+				<span>{ label }<span class="ticket-provider">{ " on Ticketmaster" }</span></span>@layouts.Icon("external")
+			}
+		} else {
+			@button.Button(button.Props{Href: event.Source.URL, Class: "action ticket-link"}) {
 			// The provider stays in the accessible name when a narrow action bar hides it.
 			<span>Tickets<span class="ticket-provider">{ " on Ticketmaster" }</span>
 				// The price that decides the click rides on the action itself.
@@ -331,6 +355,7 @@ templ TicketAction(event models.Event) {
 					<span class="ticket-from">{ " · " + from }</span>
 				}
 			</span>@layouts.Icon("external")
+			}
 		}
 	} else {
 		<p>A ticket link hasn't been supplied for this event.</p>
@@ -358,7 +383,14 @@ templ ParticipationButton(name string, text string, noteID string) {
 }
 
 templ EventStatus(status string) {
-	@badge.Badge(badge.Props{Variant: badge.VariantOutline, Class: "event-status", Attributes: templ.Attributes{"data-status": status}}) {
+	@EventSaleStatus(status, false)
+}
+
+templ EventSaleStatus(status string, stale bool) {
+	@badge.Badge(badge.Props{Variant: badge.VariantOutline, Class: "event-status", Attributes: templ.Attributes{"data-status": status, "data-last-known": stale}}) {
+		if stale {
+			{ "Last known: " }
+		}
 		{ statusLabel(status) }
 	}
 }

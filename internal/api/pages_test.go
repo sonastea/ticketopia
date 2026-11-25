@@ -55,8 +55,8 @@ func TestSelectedEventFailureDoesNotReplaceResults(t *testing.T) {
 		if tc.path == "/events/ticketmaster:available" {
 			body := rec.Body.String()
 			actions := strings.Index(body, `data-event-actions`)
-			if price := strings.Index(body, "USD 20"); price < 0 || price >= actions || strings.Index(body, "Canceled") >= actions {
-				t.Fatal("decision-critical price/cancellation must precede participation controls")
+			if actions < 0 || strings.Contains(body, "USD 20") || strings.Index(body, "Canceled") >= actions {
+				t.Fatal("cancellation must precede participation and hide the former price")
 			}
 		}
 	}

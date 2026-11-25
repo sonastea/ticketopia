@@ -251,20 +251,27 @@ func TestOAuthConsentPublishCheckbox(t *testing.T) {
 		return oauth.AuthorizePath + "?" + v.Encode()
 	}
 	page := f.browserRequest(t, http.MethodGet, request("read write"), nil).Body.String()
-	if strings.Contains(page, `name="publish"`) || !strings.Contains(page, "<li>Post anything publicly</li>") || strings.Contains(page, "connect-public") {
+	if strings.Contains(page, `name="publish"`) || !strings.Contains(page, "read-only access") {
 		t.Fatalf("consent without publish:\n%s", page)
 	}
 	page = f.browserRequest(t, http.MethodGet, request("read write publish"), nil).Body.String()
-	checkbox := regexp.MustCompile(`<input type="checkbox" name="publish"[^>]*>`).FindString(page)
-	if checkbox == "" || strings.Contains(checkbox, "checked") || !strings.Contains(page, "Also allow posting publicly as Event explorer") ||
-		!strings.Contains(page, "connect-public-off") || !strings.Contains(page, "connect-public-on") || !strings.Contains(page, "connect-public-either") {
+	for _, name := range []string{"write", "publish"} {
+		checkbox := regexp.MustCompile(`<input type="checkbox" name="` + name + `"[^>]*>`).FindString(page)
+		if checkbox == "" || strings.Contains(checkbox, "checked") {
+			t.Fatalf("%s must be opt-in: %q", name, checkbox)
+		}
+	}
+	if !strings.Contains(page, "Allow public actions as Event explorer") || !strings.Contains(page, "Allow private changes") {
 		t.Fatalf("consent with publish:\n%s", page)
 	}
-	decide := func(publish bool) []string {
+	decide := func(write, publish bool) []string {
 		t.Helper()
-		form := url.Values{"decision": {"allow"}, "write": {"on"}}
+		form := url.Values{"decision": {"allow"}}
 		for _, m := range hiddenInput.FindAllStringSubmatch(page, -1) {
 			form.Set(m[1], html.UnescapeString(m[2]))
+		}
+		if write {
+			form.Set("write", "on")
 		}
 		if publish {
 			form.Set("publish", "on")
@@ -284,11 +291,18 @@ func TestOAuthConsentPublishCheckbox(t *testing.T) {
 		t.Fatal("no new code")
 		return nil
 	}
-	if scopes := decide(false); slices.Contains(scopes, oauth.ScopePublish) {
-		t.Fatalf("publish without the checkbox: %v", scopes)
-	}
-	if scopes := decide(true); !slices.Equal(scopes, []string{"read", "write", "publish"}) {
-		t.Fatalf("publish with the checkbox: %v", scopes)
+	for _, choice := range []struct {
+		write, publish bool
+		want           []string
+	}{
+		{false, false, []string{"read"}},
+		{true, false, []string{"read", "write"}},
+		{false, true, []string{"read", "publish"}},
+		{true, true, []string{"read", "write", "publish"}},
+	} {
+		if got := decide(choice.write, choice.publish); !slices.Equal(got, choice.want) {
+			t.Fatalf("consent granted %v, want %v", got, choice.want)
+		}
 	}
 	// The connected apps list labels a connection that can post publicly.
 	f.connect(f.accountStorage.account.ID, oauth.ScopeRead, oauth.ScopePublish)

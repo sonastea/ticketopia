@@ -210,7 +210,7 @@ func agentGuidePermissions(p AgentGuidePage) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if p.OAuth {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "Also allow changes ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "Allow private changes ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -316,7 +316,7 @@ func agentGuideConnect(p AgentGuidePage) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<p>In OpenCode, open <code>/mcps</code> and choose Ticketopia to sign in.</p></div><p>When your app opens Ticketopia in a browser, sign in if asked. Check the app’s name, who published it (its website), and the Ticketopia account you’re connecting. Only continue if you started the request yourself.</p><p>If the app asks for changes, <strong>Also allow changes</strong> starts checked. Turn it off to deny those changes. If the app asks to post publicly, <strong>Also allow posting publicly as [your name]</strong> is a separate choice and starts unchecked. Leave both off for read-only access.</p><p>Other clients can connect if they support MCP OAuth with a Client ID Metadata Document. Clients that only support Dynamic Client Registration can’t sign in here. A hosted client needs a public HTTPS URL.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<p>In OpenCode, open <code>/mcps</code> and choose Ticketopia to sign in.</p></div><p>When your app opens Ticketopia in a browser, sign in if asked. Check the app’s name, who published it (its website), and the Ticketopia account you’re connecting. Only continue if you started the request yourself.</p><p><strong>Allow private changes</strong> and <strong>Allow public actions as [your name]</strong> are separate choices and both start unchecked. Leave both off for read-only access.</p><p>Other clients can connect if they support MCP OAuth with a Client ID Metadata Document. Clients that only support Dynamic Client Registration can’t sign in here. A hosted client needs a public HTTPS URL.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

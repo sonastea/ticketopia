@@ -950,6 +950,17 @@ func saleWithdrawn(status string) bool {
 	return false
 }
 
+func ticketReviewLabel(status string, stale bool) string {
+	switch {
+	case saleWithdrawn(status):
+		return "Check event updates"
+	case stale || status == "rescheduled":
+		return "Verify ticket details"
+	default:
+		return ""
+	}
+}
+
 func freshnessLabel(at time.Time) string { return at.UTC().Format("Jan 2, 15:04 UTC") }
 
 // artSlot names where event artwork is drawn, so its sizes hint describes the

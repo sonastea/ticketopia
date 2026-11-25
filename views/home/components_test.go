@@ -280,7 +280,8 @@ func TestEventContextOpensRequestedSectionWithoutInformationDisclosure(t *testin
 }
 
 func TestEventOverviewKeepsDecisionContentVisibleAndActionsIndependent(t *testing.T) {
-	event := models.Event{ID: "ticketmaster:Overview", Name: "Local show", Info: "A supplied description", PleaseNote: "Bring photo ID", Status: "canceled", Source: models.Source{URL: "https://www.ticketmaster.com/overview"}, Place: &models.Place{Name: "Local hall", Address: "12 Main Street"}}
+	date := "2026-12-05"
+	event := models.Event{ID: "ticketmaster:Overview", Name: "Local show", Info: "A supplied description", PleaseNote: "Bring photo ID", Status: "canceled", Start: models.EventStart{LocalDate: &date}, Source: models.Source{URL: "https://www.ticketmaster.com/overview"}, Place: &models.Place{Name: "Local hall", Address: "12 Main Street"}}
 	page := EventPage{Detail: models.EventDetail{Item: event, Meta: models.Freshness{Stale: true, DataAsOf: time.Now()}}, Section: "overview", Saves: SaveView{Enabled: true, SignedIn: true, Reminders: true, States: map[string]bool{event.ID: true}}, Interests: InterestView{Enabled: true, SignedIn: true}}
 	for name, component := range map[string]templ.Component{"panel": EventContext(page), "page": Event(page)} {
 		t.Run(name, func(t *testing.T) {
@@ -289,7 +290,7 @@ func TestEventOverviewKeepsDecisionContentVisibleAndActionsIndependent(t *testin
 				t.Fatal(err)
 			}
 			markup := out.String()
-			for _, text := range []string{"A supplied description", "Bring photo ID", "12 Main Street", `Tickets<span class="ticket-provider"> on Ticketmaster</span>`, "Showing last-known details", `data-status="canceled"`, "Price not listed"} {
+			for _, text := range []string{"A supplied description", "Bring photo ID", "12 Main Street", `Check event updates<span class="ticket-provider"> on Ticketmaster</span>`, "Showing last-known details", `data-status="canceled"`} {
 				if !strings.Contains(markup, text) {
 					t.Errorf("missing decision content %q", text)
 				}
@@ -297,9 +298,10 @@ func TestEventOverviewKeepsDecisionContentVisibleAndActionsIndependent(t *testin
 			if strings.Count(markup, "data-save-form") != 1 || strings.Count(markup, `class="interest-form"`) != 1 || strings.Count(markup, "On-sale reminder</span>") != 1 {
 				t.Fatal("actions duplicated or lost")
 			}
-			// Price and status lead; Tickets, then your plans, form one action
-			// cluster before the section content.
-			if strings.Index(markup, "Price not listed") > strings.Index(markup, "ticket-link") || strings.Index(markup, "ticket-link") > strings.Index(markup, "data-interest-form") || strings.Index(markup, "data-interest-form") > strings.Index(markup, "reminder-button") || strings.Index(markup, "reminder-button") > strings.Index(markup, "A supplied description") {
+			if strings.Contains(markup, "Price not listed") || strings.Contains(markup, "Add to calendar") || strings.Contains(markup, `Tickets<span class="ticket-provider">`) {
+				t.Fatal("canceled event still looks bookable")
+			}
+			if strings.Index(markup, `data-status="canceled"`) > strings.Index(markup, "ticket-link") || strings.Index(markup, "ticket-link") > strings.Index(markup, "data-interest-form") || strings.Index(markup, "data-interest-form") > strings.Index(markup, "reminder-button") || strings.Index(markup, "reminder-button") > strings.Index(markup, "A supplied description") {
 				t.Fatal("decision facts, primary actions, and secondary participation out of order")
 			}
 			doc, err := html.Parse(strings.NewReader(markup))
