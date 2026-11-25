@@ -62,9 +62,13 @@ func TestCommunityCardsQuoteReasonsWithFacts(t *testing.T) {
 func TestCommunityFiltersRetainNativeBindingsAndLabels(t *testing.T) {
 	markup := renderNeighbor(t, CommunityFilters(CommunityFilterBar{
 		Action: "/community/questions", Prefix: "questions", Label: "Filter open questions",
-		City: "Chicago", Country: "US", CategoryID: "music", ShowConnections: true, Mine: true,
+		City: "Chicago", Country: "US", CategoryID: "music", Categories: []models.Category{{ID: "music", Name: "Music"}}, ShowConnections: true, Mine: true,
 	}))
 	doc := neighborDocument(t, markup)
+	summaries := neighborElements(doc, "summary")
+	if len(summaries) != 1 || !strings.Contains(neighborText(summaries[0]), "Chicago, US · Music · Your events") {
+		t.Fatal("collapsed filter does not show what is applied")
+	}
 	forms := neighborElements(doc, "form")
 	if len(forms) != 1 || neighborAttributes(forms[0])["method"] != "get" || neighborAttributes(forms[0])["action"] != "/community/questions" {
 		t.Fatalf("filters lost their native destination: %s", markup)

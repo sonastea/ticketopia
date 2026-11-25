@@ -653,11 +653,10 @@ Explicit customization reveals section/link drag handles and Move up / Move down
 Event sections remain real links in a light-stone segmented group. The current
 section has a white surface, quiet full border, heavier plum text, and an explicit
 forced-colors border. Inactive hover uses neutral stone, not the current state.
-Links stay on one row that scrolls sideways when they outgrow it (phones,
-enlarged text), keeping the current section scrolled into view; focus rings draw
-inside the tab so the row cannot clip them. Where scroll-driven animations are
-supported, the row (like the date chips) fades 1.5rem at whichever edge has more
-to scroll; other browsers keep a hard edge. All retain 44px targets. Current
+The segmented grid adds rows as space runs out so every section remains visible
+on phones and at enlarged text. Focus rings draw inside the tab. The date
+shortcuts also wrap; neither control requires sideways scrolling. All retain
+44px targets. Current
 destinations use `aria-current`, not partial ARIA-tab semantics. Other section
 navigation retains its straight underline with square link corners.
 
@@ -700,8 +699,9 @@ city's remembered calendar day). Name-sorted results stay one list. The soonest
 event on the first page leads as an **Up next** card when its date is known and
 not past: across the whole card grid with
 artwork at the start and a fluid Bricolage Grotesque title beside it, and with
-full-width 2:1 artwork above its facts in narrower lists (an ordinary row while
-a preview is open, so selection never reflows the list). A white bordered label
+full-width 2:1 provider artwork above its facts in narrower lists (an ordinary
+row while a preview is open). When there is no usable photograph, a compact
+square fallback sits beside the title instead. A white bordered label
 marks its artwork's top start corner with how soon it is (**Up next ·
 Tonight** for a known evening start, Today, Tomorrow, In N days within two weeks,
 otherwise **Up next**). An event already under way passes the lead to the next.

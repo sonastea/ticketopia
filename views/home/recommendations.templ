@@ -214,13 +214,6 @@ templ Community(p CommunityPage) {
 				if p.CategoriesUnavailable {
 					<p class="field-note">Category options couldn't refresh. Recommendations and your selected filter are still available.</p>
 				}
-				if p.OpenQuestions>0 {
-					<a href={ templ.URL(p.openQuestionsLink()) } class="open-questions-line">
-						@layouts.Icon("hand-helping")
-						<span><strong>{ p.openQuestionsLabel() }</strong> nobody has answered yet. Can you help?</span>
-						@layouts.IconClass("arrow", "icon card-action-arrow")
-					</a>
-				}
 				if p.Error!="" {
 					@alert.Alert(alert.Props{Class:"feedback error-state",Variant:alert.VariantDestructive}) {
 						<h2>Recommendations couldn't load</h2><p>{ p.Error }</p><a href="/community" class="text-link">Reset filters and retry</a>
@@ -229,6 +222,13 @@ templ Community(p CommunityPage) {
 					<section class="community-results" aria-labelledby="community-results-heading">
 						@layouts.ResultsHeading("community-results-heading", "Recommended events", "", "First recommended, newest first")
 						@CommunityRecommendationList(p.List,p.ReturnURL,communityContext(p.ReturnURL,p.Filters.City,p.Filters.Country,p.Filters.CategoryID))
+						if p.OpenQuestions>0 {
+							<a href={ templ.URL(p.openQuestionsLink()) } class="open-questions-line">
+								@layouts.Icon("hand-helping")
+								<span><strong>{ p.openQuestionsLabel() }</strong> nobody has answered yet. Can you help?</span>
+								@layouts.IconClass("arrow", "icon card-action-arrow")
+							</a>
+						}
 						if p.List.NextCursor != nil {
 							@button.Button(button.Props{Href:CollectionNextURL(p.ReturnURL,p.List.NextCursor),Variant:button.VariantOutline,Class:"action action-secondary"}) {
 								More recommendations
@@ -259,6 +259,13 @@ templ CommunityEmpty(title, body, href, action string) {
 // Keep labels visible after a filter has a value. These are ordinary GET
 // forms; each collection retains its own action and field IDs.
 templ CommunityFilters(f CommunityFilterBar) {
+	<details class="community-filter-disclosure">
+		<summary>
+			@layouts.Icon("filters")
+			<span>{ f.Label }</span>
+			<span class="list-meta">{ f.summary() }</span>
+			@layouts.IconClass("chevron", "icon community-filter-chevron")
+		</summary>
 	<form action={ templ.SafeURL(f.Action) } method="get" class="community-filters" aria-label={ f.Label }>
 		<div class="field community-filter-field">
 			@label.Label(label.Props{For: f.Prefix+"-city"}) { City }
@@ -293,6 +300,7 @@ templ CommunityFilters(f CommunityFilterBar) {
 			Apply
 		}
 	</form>
+	</details>
 }
 
 templ Avatar(text string) {
@@ -309,11 +317,6 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 			@CommunityEmpty("No recommendations yet.","When someone recommends an event, it appears here with their reasons. Found something worth going to? Open it and choose Recommend.","/","Find an event to recommend")
 		}
 	} else {
-		// Last-known details are explained once for the list; each affected
-		// card keeps a short marker.
-		if anyStale(feed) {
-			<p class="freshness-notice-line">Some events show last-known details, not live availability. Check the ticket page before you buy.</p>
-		}
 		<ul class="recommendation-list community-cards">
 			for _,group:=range feed.Items {
 				<li class="recommendation-event">
@@ -345,7 +348,8 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 						if group.Meta.Stale {
 							<p class="event-last-known">Price and sale status last known { freshnessLabel(group.Meta.DataAsOf) }</p>
 						}
-						@EventFacts(group.Event)
+						@EventPriceFacts(group.Event, group.Meta.Stale)
+						<p class="genre-label">{ classificationLabel(group.Event) }</p>
 						<p class="list-meta"><span data-live-total={ group.Event.ID }><strong>{ fmt.Sprint(group.Count) }</strong> { recommendationCountLabel(group.Count) }</span>{ " · first recommended " }@layouts.StampDate(group.FirstRecommendedAt)</p>
 						// Two places: the event's own Recommendations section, and the
 						// full paginated list for this event.
@@ -364,6 +368,9 @@ templ CommunityRecommendationList(feed recommendations.Feed,returnURL string,c l
 				</li>
 			}
 		</ul>
+		if anyStale(feed) {
+			<p class="freshness-notice-line">Some events show last-known details, not live availability. Check the ticket page before you buy.</p>
+		}
 	}
 }
 

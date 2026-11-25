@@ -232,7 +232,7 @@ templ EventParticipation(page EventPage, noteID string) {
 		@InterestDetails(page.Detail.Item.ID, page.Interests, page.ActionReturnURL)
 		<p id={ noteID } class="participation-note">
 			if page.Saves.Enabled {
-				Saves and reminders are private. Interested adds to the public count, with your name only if you choose Public. Recommendations are public. None of these reserve tickets or confirm attendance, and only a reminder sends email.
+				Saves and reminders are private. Interest counts are public; your name appears only if you choose Public. Recommendations are public. None reserve tickets or confirm attendance.
 			} else {
 				Saving and Interested require accounts to be enabled.
 			}

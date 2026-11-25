@@ -1395,7 +1395,7 @@ func EventParticipation(page EventPage, noteID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if page.Saves.Enabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "Saves and reminders are private. Interested adds to the public count, with your name only if you choose Public. Recommendations are public. None of these reserve tickets or confirm attendance, and only a reminder sends email.")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "Saves and reminders are private. Interest counts are public; your name appears only if you choose Public. Recommendations are public. None reserve tickets or confirm attendance.")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -1885,9 +1885,8 @@ html:has(.filter-sheet:modal) {
   max-inline-size: calc(100% - 1.25rem);
 }
 
-/* On phones and tablets the lead keeps its artwork full width above the facts,
-   so the first thing in the list is a picture rather than a thumbnail. With a
-   preview open it is an ordinary row, so selection never reflows the list. */
+/* Real lead artwork can use the full frame. The missing-art treatment below
+   leaves the title and the date in the first scan. */
 @container results (min-width: 17.5rem) and (width < 48rem) {
   .discovery-workspace:not(.has-selection) .event-row-lead {
     grid-template-columns: minmax(0, 1fr);
@@ -1900,6 +1899,41 @@ html:has(.filter-sheet:modal) {
   .discovery-workspace:not(.has-selection) .event-row-lead .event-art .date-marker { inset-block-end: .5rem; inset-inline-start: .5rem; max-inline-size: calc(100% - 1rem); padding-inline: .75rem; }
   /* Beside a small thumbnail the marker would crowd the artwork. */
   .has-selection .lead-badge { display: none; }
+}
+.discovery-workspace:not(.has-selection) .event-row-lead:not(:has(> .event-art img:not([hidden]))) {
+  grid-template-columns: min(26%, 7rem) minmax(0, 1fr);
+  grid-template-rows: auto;
+  gap: .5rem .875rem;
+  padding: .875rem;
+}
+.discovery-workspace:not(.has-selection) .event-row-lead:not(:has(> .event-art img:not([hidden]))) > .event-art {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  margin: 0;
+}
+.discovery-workspace:not(.has-selection) .event-row-lead:not(:has(> .event-art img:not([hidden]))) > .event-art .event-image {
+  aspect-ratio: 1;
+  block-size: auto;
+  min-block-size: 0;
+  border-radius: .65rem;
+}
+.discovery-workspace:not(.has-selection) .event-row-lead:not(:has(> .event-art img:not([hidden]))) > .event-copy {
+  display: block;
+  grid-column: 2;
+  padding: 0;
+}
+.discovery-workspace:not(.has-selection) .event-row-lead:not(:has(> .event-art img:not([hidden]))) > .event-row-extension {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+}
+.event-row-lead:not(:has(> .event-art img:not([hidden]))) .lead-badge { display: none; }
+.event-row-lead:not(:has(> .event-art img:not([hidden]))) .event-art .date-marker {
+  inset-block-end: .25rem;
+  inset-inline-start: .25rem;
+  max-inline-size: calc(100% - .5rem);
+  padding-inline: .25rem;
 }
 .row-activity-links { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; }
 .row-activity-links a { display: inline-flex; align-items: center; min-block-size: 2.75rem; font-size: .8125rem; }
@@ -2574,28 +2608,22 @@ html:has(.filter-sheet:modal) {
   pointer-events: none;
 }
 
-/* Event sections are navigation, with an explicit segmented current state. */
-/* One row that scrolls sideways when the tabs outgrow it (phones, enlarged
-   text) rather than wrapping a lone tab onto a second line. */
+/* All destinations stay visible rather than sliding out of the narrow preview. */
 .event-section-nav {
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
   gap: .25rem;
   padding: .25rem;
   border: 0;
   border-radius: .75rem;
   background: var(--nav-surface);
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scroll-padding-inline: .25rem;
 }
 
-/* The scrolling row would clip the shared outset ring; draw it inside the tab. */
 .event-section-nav a:focus-visible { outline-offset: -3px; }
 
 .event-section-nav a {
-  flex: 1 0 auto;
-  white-space: nowrap;
-  padding-inline: .65rem;
+  text-align: center;
+  padding-inline: .375rem;
   border: 1px solid transparent;
   border-radius: .5rem;
   color: var(--muted-warm);
@@ -4670,24 +4698,21 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   }
 }
 
-/* Date shortcuts are plain links that scroll sideways rather than wrap. The
-   padding keeps focus outlines inside the scroll container. */
+/* Let the presets wrap at narrow widths rather than hiding the last label. */
 .date-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: .5rem;
   margin-block: .25rem 0;
   margin-inline: -.5rem;
   padding: .5rem;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: none;
 }
 .date-chips a {
-  flex: none;
+  flex: 0 1 auto;
   display: inline-flex;
   align-items: center;
   min-block-size: 2.75rem;
-  padding-inline: 1rem;
+  padding-inline: .75rem;
   border: 1px solid var(--control-line);
   border-radius: .5rem;
   background: var(--surface);
@@ -4695,7 +4720,6 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   font-size: .875rem;
   font-weight: 650;
   text-decoration: none;
-  white-space: nowrap;
   transition-property: background-color, color, border-color;
   transition-duration: 160ms;
   transition-timing-function: var(--ease-out);
@@ -4703,38 +4727,39 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 @media (hover: hover) and (pointer: fine) {
   .date-chips a:hover { background: var(--brand-soft); color: var(--brand-dark); }
 }
-.date-chips a[aria-current="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); font-weight: 750; }
+.date-chips a[aria-current="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); font-weight: 750; text-decoration: underline; text-underline-offset: .2em; }
 .date-chips a:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); border-color: var(--brand); color: var(--brand-active); }
+.discovery-workspace.discovery-empty:not(.has-selection) { grid-template-columns: minmax(0, 48rem); }
+.discovery-empty:not(.has-selection) > .event-context { display: none; }
 @media (forced-colors: active) {
   .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }
 }
 
-/* Rows that scroll sideways fade whichever edge still has more to show. The
-   scroll position drives the fade widths; without overflow the timeline is
-   inactive and both stay 0, and engines without scroll-driven animations keep
-   the hard edge (the vendored scroll-fade-x utility would fade them always).
-   Nothing moves. Focused items scroll clear of the fade (app.js). */
-@property --overflow-fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --overflow-fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@keyframes overflow-fade-start { from { --overflow-fade-start: 0px; } to { --overflow-fade-start: 1.5rem; } }
-@keyframes overflow-fade-end { from { --overflow-fade-end: 1.5rem; } to { --overflow-fade-end: 0px; } }
-@supports (animation-timeline: scroll()) {
-  :is(.date-chips, .event-section-nav) {
-    --overflow-fade-direction: to right;
-    scroll-padding-inline: 1.5rem;
-    mask-image: linear-gradient(var(--overflow-fade-direction), transparent, oklch(0% 0 none) var(--overflow-fade-start), oklch(0% 0 none) calc(100% - var(--overflow-fade-end)), transparent);
-    animation-name: overflow-fade-start, overflow-fade-end;
-    animation-duration: auto;
-    animation-timing-function: linear;
-    animation-fill-mode: both;
-    animation-timeline: scroll(self inline);
-    animation-range: 0 1.5rem, calc(100% - 1.5rem) 100%;
-  }
-  :is(.date-chips, .event-section-nav):dir(rtl) { --overflow-fade-direction: to left; }
-}
-
 /* Community filters keep their labels once filled. The form wraps in source
    order and uses the same bordered native controls as Discover. */
+.community-filter-disclosure {
+  margin-block: .5rem .875rem;
+  border-block-end: 1px solid var(--line);
+}
+.community-filter-disclosure > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .5rem;
+  min-block-size: 2.75rem;
+  padding-block: .375rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+.community-filter-disclosure > summary::-webkit-details-marker { display: none; }
+.community-filter-disclosure > summary .icon { flex: none; inline-size: 1rem; block-size: 1rem; }
+.community-filter-chevron { margin-inline-start: auto; }
+.community-filter-disclosure[open] .community-filter-chevron { rotate: 180deg; }
+.community-filter-disclosure > summary:active { color: var(--brand-active); }
+@media (hover: hover) and (pointer: fine) {
+  .community-filter-disclosure > summary:hover { color: var(--brand); }
+}
 .community-filters, .live-filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -4742,7 +4767,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   padding-block-end: .875rem;
   border-block-end: 1px solid var(--line);
 }
-.community-filters { align-items: end; gap: .625rem .75rem; }
+.community-filters { align-items: end; gap: .625rem .75rem; margin-block: .5rem 0; border-block-end: 0; }
 .community-filter-field { flex: 1 1 9rem; max-inline-size: min(100%, 20rem); }
 .community-filter-field.community-filter-country { flex: 0 1 7rem; }
 .community-filter-field :is(input, select) {

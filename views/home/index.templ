@@ -14,7 +14,7 @@ import "github.com/sonastea/ticketopia/views/components/skeleton"
 
 templ Index(page SearchPage) {
 	@layouts.App("discover", "Discover events") {
-		<main id="main" class={ "discovery-workspace", templ.KV("has-selection", page.SelectedID != "") } data-results-url={ page.ReturnURL }>
+		<main id="main" class={ "discovery-workspace", templ.KV("has-selection", page.SelectedID != ""), templ.KV("discovery-empty", len(page.Events.Items) == 0) } data-results-url={ page.ReturnURL }>
 			<div class="discovery-content">
 				<header class="discovery-header">
 					<h1>Find your next event</h1>
@@ -34,14 +34,18 @@ templ Index(page SearchPage) {
 					}
 				} else if !page.NeedsLocation {
 					<section aria-labelledby="results-heading">
-						@layouts.ResultsHeading("results-heading", "Upcoming events", resultsTitle(page.Events.Total), sortLabel(page.Filters.Sort))
+						@layouts.ResultsHeading("results-heading", searchResultsHeading(page), resultsTitle(page.Events.Total), sortLabel(page.Filters.Sort))
 						@ResultsWarning(page.Events.Meta)
 						if len(page.Events.Items) == 0 {
 							@empty.Empty(empty.Props{Class: "feedback empty-state"}) {
 								<h3>{ emptySearchTitle(page.Events.Meta) }</h3>
-								<p>{ emptySearchMessage(page.Events.Meta) }</p>@button.Button(button.Props{Href: "/", Variant: button.VariantLink, Class: "text-link"}) {
-	Reset filters
-}
+								<p>{ emptySearchMessage(page.Events.Meta) }</p>
+								<div class="account-actions">
+									if page.Filters.Keyword != "" {
+										@button.Button(button.Props{Href: clearSearchKeyword(page), Class: "action"}) { Clear keyword }
+									}
+									@button.Button(button.Props{Href: "/", Variant: button.VariantLink, Class: "text-link"}) { Reset filters }
+								</div>
 							}
 						} else {
 							if !page.Saves.Enabled {
@@ -106,7 +110,7 @@ templ SearchControls(page SearchPage) {
 					Event, performer, team, or venue
 				}
 				@layouts.Icon("search")
-				@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Search events, artists, venues", Attributes: templ.Attributes{"maxlength": "120", "enterkeyhint": "search"}})
+				@input.Input(input.Props{Type: "search", ID: "keyword", Name: "keyword", Value: page.Filters.Keyword, Placeholder: "Search events", Attributes: templ.Attributes{"maxlength": "120", "enterkeyhint": "search"}})
 				@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
 					Find events
 				}
@@ -258,6 +262,7 @@ templ PreviewLoading() {
 templ PreviewError(message string, eventURL string, returnURL string) {
 	@alert.Alert(alert.Props{Class: "context-inner feedback"}) {
 		<h2>Event preview unavailable</h2>
+		<p data-preview-event-name hidden></p>
 		<p>{ message }</p>
 		@button.Button(button.Props{Class: "action", Attributes: templ.Attributes{"data-preview-retry": true, "hidden": true}}) {
 			Retry

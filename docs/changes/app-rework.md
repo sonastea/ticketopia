@@ -12,6 +12,11 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 - App consent starts read-only. Private changes and public actions are
   independent opt-ins and the summary next to Connect names the chosen access.
   See [agent access](../app-mcp.md).
+- Discover uses a compact thumbnail when the lead has no provider image.
+  Date presets and event sections wrap rather than clipping, and empty keyword
+  searches can clear the keyword without losing the other filters.
+- Community filters start collapsed with an active-filter summary so the
+  recommendations come into view sooner. Radar now names its results section.
 
 - Discover, Saved, Interests, Radar, event details and previews, Community,
   and Happening Now use borders and flat fills instead of decorative shadows,

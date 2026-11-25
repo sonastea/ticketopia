@@ -393,25 +393,6 @@
   document.addEventListener('error', event => {
     if (event.target.matches?.('.event-image img')) event.target.hidden = true;
   }, true);
-  // Keep the current event section, and any focused item, in view within
-  // sideways-scrolling rows, clear of their scroll padding (edge fades). Focus
-  // alone leaves a partly visible item where it is.
-  const revealInRow = (row, item) => {
-    if (!item || row.scrollWidth <= row.clientWidth) return;
-    const inset = parseFloat(getComputedStyle(row).scrollPaddingInlineStart) || 4;
-    const box = row.getBoundingClientRect(), rect = item.getBoundingClientRect();
-    if (rect.left < box.left + inset) row.scrollLeft += rect.left - box.left - inset;
-    else if (rect.right > box.right - inset) row.scrollLeft += rect.right - box.right + inset;
-  };
-  const revealCurrentTab = () => {
-    for (const nav of document.querySelectorAll('.event-section-nav')) revealInRow(nav, nav.querySelector('[aria-current="page"]'));
-  };
-  revealCurrentTab();
-  document.addEventListener('ticketopia:section-loaded', revealCurrentTab);
-  document.addEventListener('focusin', event => {
-    const row = event.target.closest?.('.date-chips, .event-section-nav');
-    if (row) revealInRow(row, event.target);
-  });
   // Result artwork that loads after the page (lazy or slow) fades over its
   // placeholder. Images already loaded before this script stay as they are.
   document.addEventListener('load', event => {
@@ -1700,8 +1681,14 @@
   };
   window.addEventListener('pageshow', restoreResults);
 
-  const showError = (url, retry) => {
+  const showError = (id, url, retry) => {
     context.replaceChildren(previewTemplate('error'));
+    const title = [...workspace.querySelectorAll('.event-row h3 .event-link')].find(link => link.dataset.id === id)?.textContent.trim();
+    if (title) {
+      const name = context.querySelector('[data-preview-event-name]');
+      name.textContent = title;
+      name.hidden = false;
+    }
     const button = context.querySelector('[data-preview-retry]');
     button.hidden = false;
     button.addEventListener('click', retry);
@@ -1783,7 +1770,6 @@
       renderedURL = location.href;
       markSelection(id);
       context.replaceChildren(fresh);
-      revealCurrentTab();
       window.htmx?.process(context);
       context.scrollTop = 0;
       const heading = context.querySelector('.context-heading h2');
@@ -1828,7 +1814,7 @@
       status.textContent = confirmation?.notice || 'Event preview loaded: ' + context.querySelector('.context-heading h2').textContent;
     } catch {
       if (turn === generation) {
-        showError(url, () => select(id, section, push, recommend, conversation, confirmation));
+        showError(id, url, () => select(id, section, push, recommend, conversation, confirmation));
         if (panelHadFocus || !desktop.matches) context.querySelector('[data-preview-retry]')?.focus();
         status.textContent = 'Event preview could not be loaded.';
       }

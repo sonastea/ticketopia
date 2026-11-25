@@ -238,6 +238,30 @@ func (f CommunityFilterBar) hasCategory() bool {
 	return false
 }
 
+func (f CommunityFilterBar) summary() string {
+	parts := make([]string, 0, 3)
+	if location := strings.Trim(strings.Join([]string{f.City, f.Country}, ", "), ", "); location != "" {
+		parts = append(parts, location)
+	}
+	if f.CategoryID != "" && f.CategoryID != "all" {
+		categoryName := f.CategoryID
+		for _, category := range f.Categories {
+			if category.ID == f.CategoryID {
+				categoryName = category.Name
+				break
+			}
+		}
+		parts = append(parts, categoryName)
+	}
+	if f.Mine {
+		parts = append(parts, "Your events")
+	}
+	if len(parts) == 0 {
+		return "All events"
+	}
+	return strings.Join(parts, " · ")
+}
+
 // initials draws a profile's avatar letters from its first and last words.
 func initials(name string) string {
 	words := strings.Fields(name)
@@ -699,6 +723,21 @@ type dateChip struct {
 }
 
 func dateChips(page SearchPage) []dateChip { return dateChipsAt(page, time.Now()) }
+
+func searchResultsHeading(page SearchPage) string {
+	for _, chip := range dateChips(page) {
+		if chip.Current && page.Filters.City != "" {
+			return chip.Label + " in " + page.Filters.City
+		}
+	}
+	return "Upcoming events"
+}
+
+func clearSearchKeyword(page SearchPage) string {
+	values := page.Filters.Values()
+	values.Del("keyword")
+	return "/?" + values.Encode()
+}
 
 // Chips are plain links to start_date/end_date URLs that keep the other
 // filters. Only the first matching range is marked current.
