@@ -1429,7 +1429,8 @@
       }
     });
     document.addEventListener('ticketopia:discussion-saved', event => {
-      if (!sectionRegion()?.contains(event.target)) return;
+      // Expanded conversations refresh themselves (discussions.js).
+      if (!sectionRegion()?.contains(event.target) || event.target.closest('[data-inline-replies]')) return;
       const url = new URL(location.href);
       const target = new URL(event.detail.location, location.origin);
       if (event.detail.action === 'create' && target.pathname.includes('/discussions/')) return;
@@ -1878,7 +1879,9 @@
       return;
     }
     const thread = event.target.closest('#event-context [data-thread-link], .event-row [data-thread-link]');
-    if (thread) {
+    // Inside an expanded conversation only Open full conversation leaves it;
+    // replies, Reply and paging stay in place (discussions.js).
+    if (thread && (!thread.closest('[data-inline-replies]') || thread.matches('.inline-full'))) {
       event.preventDefault();
       const url = new URL(thread.href);
       if (thread.closest('.event-row')) lastFocusID = decodeURIComponent(url.pathname.split('/')[2]);
@@ -1920,7 +1923,8 @@
   addEventListener('popstate', restoreSelection);
   addEventListener('pagehide', () => { rememberPanel(); rememberResults(); });
   document.addEventListener('ticketopia:discussion-saved', event => {
-    if (!context.contains(event.target)) return;
+    // Expanded conversations refresh themselves (discussions.js).
+    if (!context.contains(event.target) || event.target.closest('[data-inline-replies]')) return;
     event.preventDefault();
     const url = new URL(event.detail.location, location.origin);
     const confirmation = { ...event.detail, scroll: context.scrollTop, documentScroll: scrollY };

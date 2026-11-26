@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-11-26 — Replies expand in place
+
+- On an event's **Questions & tips**, each question or tip has a **N replies**
+  toggle that expands its replies beneath it, like a comment thread: oldest
+  first, **Show more replies**, Helpful and Reply on each, and a reply box at
+  the end. Reply on a reply loads its own reply box, and a write refreshes only
+  that conversation. Without script the link still opens the conversation page,
+  which stays for sharing and notifications. See
+  [web experience](../event-discussions.md#web-experience).
+
 ### 2026-11-22 — Live replies for people taking part
 
 - While a signed-in person takes part in an open conversation (following it,
@@ -85,16 +95,3 @@
   views), responsive (150/5), discussions (69/14), plus moderation. Browser scripts
   now use the stable `[data-recommendation-editor]` hook and the note's body path.
   Real phones, WebKit and manual screen readers remain unchecked.
-
-### 2026-10-29 — Batched moderation and community page reads
-
-- The moderator review queue reads a page's public post projections in one query
-  instead of one per row (default page: 22 statements -> 2, about 23 ms -> 3.5 ms
-  locally). Order, cursors, pending counts, own-case exclusion and redaction are
-  unchanged. See [moderation](../moderation.md).
-- Discussion and recommendation pages send and decode each event snapshot once
-  per page instead of once per row, still in one statement. With 64 KB snapshots
-  a 21-row page fell by 43–56% (thread 3.8 -> 2.2 ms, community 5.8 -> 2.5 ms,
-  recommendations 3.3 -> 1.5 ms; 3.0 MB -> 0.2 MB). At the 2.6 KB fixture size,
-  community pages are 37% faster and recommendations 4% faster, while thread
-  pages are about 5% (0.09 ms) slower. All allocate about half the bytes.

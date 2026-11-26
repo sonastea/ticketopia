@@ -46,10 +46,22 @@ invalid encoding/control characters and overlong text are rejected, not truncate
 Text is escaped, never rendered as markup. Names and profile links are public
 even when interest is private.
 
-Root posts are newest-first. **Open conversation** selects the root and oldest-first
-replies inside the contextual view; **Open full conversation** expands to the
-shareable `/events/{event_id}/discussions/{discussion_id}` page. Without JavaScript
-conversation links navigate normally. Replies to replies name a target within the same root;
+Root posts are newest-first. On an event's **Questions & tips**, each question
+or tip's **N replies** toggle (**Reply** when there are none) expands its replies
+beneath it, like a comment thread, from the
+`/events/{event_id}/discussions/{discussion_id}/inline` fragment: oldest-first
+replies with Helpful and Reply, **Show more replies** appending the next page,
+and a reply box at the end (a sign-in link when signed out). An empty
+conversation opens straight into its reply box. Reply on a reply loads that
+target's reply box, keeping each target's draft. A write refreshes only that
+conversation and returns focus to what changed, and the toggle's count follows.
+Collapsing keeps what was loaded. Live new-reply checks run on the full
+conversation, not on expanded replies. Links and forms inside point at the shareable
+`/events/{event_id}/discussions/{discussion_id}` page (**Open full conversation**),
+which also serves links, notifications and readers without JavaScript: without
+it the toggle stays hidden and **Open conversation** navigates normally.
+Community feeds keep **Open conversation**, which selects the root and
+oldest-first replies inside the contextual view. Replies to replies name a target within the same root;
 there is at most one visual nesting level. Reply targets can be read independently
 of the current reply page. Authors can edit or remove their own posts. Removal
 withholds the body and author attribution, clears reactions, and leaves a

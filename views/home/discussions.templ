@@ -87,8 +87,9 @@ templ DiscussionRoots(list discussions.List, c listContext, returnURL string) {
 			<p>No questions or tips yet. Ask what you'd like to know before you go, or share something that would help others.</p>
 		}
 	} else if !c.showsEvent() {
-		// On the event itself, each question or tip is a note; the whole
-		// conversation is one labelled action with its reply count.
+		// On the event itself, each question or tip is a note whose replies
+		// expand beneath it, like a comment thread. Script reveals the expand
+		// control; without it, the link opens the conversation page.
 		<ul class="discussion-list note-list">
 			for _,post:=range list.Items {
 				<li class="note">
@@ -107,12 +108,17 @@ templ DiscussionRoots(list discussions.List, c listContext, returnURL string) {
 							<p class="note-body discussion-body">{ post.Body }</p>
 						}
 						<div class="note-actions">
-							<a href={ templ.URL(ThreadURL(post.EventID, post.ID, DiscussionOrigin(returnURL))) } class="note-action discussion-open" data-thread-link>
+							<a href={ templ.URL(ThreadURL(post.EventID, post.ID, DiscussionOrigin(returnURL))) } class="note-action discussion-open" data-thread-link data-replies-fallback>
 								@layouts.Icon("message-circle")
 								<span>Open conversation<span class="note-action-count">{ " · " }{ fmt.Sprint(post.ReplyCount) } { ternary(post.ReplyCount == 1, "reply", "replies") }</span></span>
 								@layouts.IconClass("arrow", "icon discussion-open-arrow")
 							</a>
+							<button type="button" class="note-action discussion-replies-toggle" hidden data-replies-toggle aria-expanded="false" aria-controls={ "replies-" + post.ID } data-replies-src={ InlineRepliesURL(post.EventID, post.ID, DiscussionOrigin(returnURL)) }>
+								@layouts.IconClass("chevron", "icon replies-chevron")
+								<span data-replies-label>{ repliesLabel(post.ReplyCount) }</span>
+							</button>
 						</div>
+						<div id={ "replies-" + post.ID } class="inline-replies" data-inline-replies hidden></div>
 					</div>
 				</li>
 			}
@@ -641,4 +647,58 @@ templ SameQuestionControl(post discussions.Post, viewer, csrf, returnURL string,
 		}
 		<p hidden data-discussion-error class="field-note" role="alert"></p>
 	</form>
+}
+
+// InlineReplies is a conversation's replies and reply box, expanded beneath
+// its question or tip on the event (see discussions.js). Replies run oldest
+// first; "Show more replies" appends the next page. Reply on a reply loads
+// the reply box for that target. Links and forms point at the shareable
+// thread page, which also serves readers without script.
+templ InlineReplies(p DiscussionPage, inline string) {
+	<div class="inline-replies-content" data-reply-count={ fmt.Sprint(p.Root.ReplyCount) } data-inline-src={ inline }>
+		if p.View.Error != "" {
+			<p role="alert" class="field-note">{ p.View.Error }</p>
+		} else if len(p.View.List.Items) > 0 || p.selectedOffPage() {
+			<div class="discussion-replies inline-reply-list" data-inline-list>
+				for _, post := range p.View.List.Items {
+					@DiscussionPost(post, p.View, p.URL)
+				}
+				if p.selectedOffPage() {
+					@DiscussionPost(*p.Selected, p.View, p.URL)
+				}
+			</div>
+			if p.View.List.NextCursor != nil {
+				<a href={ templ.URL(CollectionNextURL(p.URL, p.View.List.NextCursor)) } class="text-link inline-more" data-inline-more={ CollectionNextURL(inline, p.View.List.NextCursor) }>Show more replies</a>
+			}
+		}
+		<div class="inline-reply-composer" data-inline-composer>
+			if p.ReplyTo != nil {
+				if p.ReplyTo.Removed || p.ReplyTo.Hidden {
+					<p class="field-note">Replying to a contribution whose text is no longer visible.</p>
+				} else {
+					<figure class="reply-target">
+						<figcaption>Replying to { p.ReplyTo.Profile.DisplayName }:</figcaption>
+						<blockquote class="discussion-body">{ p.ReplyTo.Body }</blockquote>
+					</figure>
+				}
+				// Back to the conversation's own reply box and its draft.
+				<a href={ templ.URL(p.URL + "#discussion-composer") } class="text-link inline-top" data-inline-top>Reply to the conversation instead</a>
+			}
+			if p.View.ViewerID != "" {
+				@DiscussionComposer(DiscussionForm{EventID: p.Event.ID, ThreadID: p.Root.ID, ParentID: p.ParentID, Action: "create", Key: p.View.Key, ReturnURL: p.URL, CSRF: p.View.CSRF, ViewerID: p.View.ViewerID}, "Your reply", "Reply")
+			} else {
+				<a href={ templ.URL(signInURL(p.URL)) } class="text-link">Sign in to reply or mark a contribution Helpful</a>
+			}
+		</div>
+		<a href={ templ.URL(p.URL) } class="text-link inline-full" data-thread-link>Open full conversation</a>
+	</div>
+}
+
+// InlineRepliesFailure keeps a way into the conversation when its replies
+// couldn't load in place.
+templ InlineRepliesFailure(message, thread string) {
+	<div class="inline-replies-content">
+		<p role="alert" class="field-note">{ message }</p>
+		<a href={ templ.URL(thread) } class="text-link" data-thread-link>Open conversation</a>
+	</div>
 }

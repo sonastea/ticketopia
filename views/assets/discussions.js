@@ -427,6 +427,211 @@
       readConversation(url, {confirmation: event.detail});
     });
   }
+  // Questions & tips on an event expand their replies in place, as comment
+  // threads do: the toggle loads replies and a reply box beneath the question
+  // (InlineReplies), Show more appends, Reply on a reply loads its reply box,
+  // and a write refreshes only what it changed. The reply box itself is never
+  // replaced by a refresh, so a write in flight keeps its form. Responses
+  // arriving after a newer request, or after the region left the page, are
+  // dropped. Without script, the link beside the toggle opens the conversation.
+  const inlineTurns = new WeakMap();
+  const composerTurns = new WeakMap();
+  const nextTurn = (map, region) => { const turn = (map.get(region) || 0) + 1; map.set(region, turn); return turn; };
+  const inlinePending = region => Boolean(region.querySelector('[data-inline-composer] [data-discussion-form][data-pending="true"]'));
+  function enhanceInlineReplies() {
+    document.querySelectorAll('[data-replies-toggle][hidden]').forEach(toggle => {
+      toggle.hidden = false;
+      toggle.parentElement.querySelector('[data-replies-fallback]')?.setAttribute('hidden', '');
+    });
+  }
+  // Progress and failures are announced outside the busy region.
+  function inlineStatus(region) {
+    let status = region.previousElementSibling;
+    if (!status?.matches('[data-inline-status]')) {
+      status = document.createElement('p');
+      status.className = 'sr-only'; status.setAttribute('role', 'status'); status.dataset.inlineStatus = '';
+      region.before(status);
+    }
+    return status;
+  }
+  async function fetchInline(url) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(url, {credentials: 'same-origin', signal: controller.signal});
+      if (!response.ok || response.redirected) throw new Error('unavailable');
+      const fresh = new DOMParser().parseFromString(await response.text(), 'text/html').querySelector('.inline-replies-content[data-inline-src]');
+      if (!fresh || fresh.querySelector('script')) throw new Error('unavailable');
+      return fresh;
+    } finally { clearTimeout(timeout); }
+  }
+  const inlineSource = region => new URL(region.querySelector('[data-inline-src]').dataset.inlineSrc, location.origin);
+  const toggleFor = region => document.querySelector(`[data-replies-toggle][aria-controls="${region.id}"]`);
+  function syncInlineCount(region, count) {
+    const content = region.querySelector('[data-reply-count]');
+    if (!Number.isInteger(count)) count = Number(content?.dataset.replyCount);
+    if (!Number.isInteger(count)) return;
+    if (content) content.dataset.replyCount = String(count);
+    const label = toggleFor(region)?.querySelector('[data-replies-label]');
+    if (label) label.textContent = count === 0 ? 'Reply' : count === 1 ? '1 reply' : `${count} replies`;
+  }
+  function inlineFailure(region, src) {
+    const message = document.createElement('p');
+    message.className = 'field-note'; message.textContent = 'Replies couldn’t load. ';
+    const retry = document.createElement('button');
+    retry.type = 'button'; retry.className = 'button-quiet'; retry.textContent = 'Retry';
+    retry.addEventListener('click', () => openInline(region, src, false));
+    const native = document.createElement('a');
+    native.className = 'text-link'; native.textContent = 'Open conversation';
+    native.href = new URL(src, location.origin).pathname.replace(/\/inline$/, '');
+    message.append(retry, document.createTextNode(' '), native);
+    region.replaceChildren(message);
+  }
+  async function openInline(region, src, startWriting) {
+    if (region.dataset.loaded || region.dataset.loading) return;
+    region.dataset.loading = 'true';
+    const turn = nextTurn(inlineTurns, region);
+    const status = inlineStatus(region);
+    status.textContent = 'Loading replies…';
+    region.setAttribute('aria-busy', 'true');
+    try {
+      const fresh = await fetchInline(src);
+      if (!region.isConnected || inlineTurns.get(region) !== turn) return;
+      region.replaceChildren(fresh);
+      region.dataset.loaded = 'true';
+      syncInlineCount(region);
+      restore();
+      const count = Number(fresh.dataset.replyCount);
+      status.textContent = count === 0 ? 'No replies yet.' : count === 1 ? '1 reply shown.' : `${count} replies.`;
+      if (region.hidden) return;
+      if (motionOK()) region.animate({opacity: [0, 1]}, {duration: 160, easing: easing('out')});
+      // An empty conversation opens straight into its reply box.
+      if (startWriting && count === 0) region.querySelector('[data-inline-composer] textarea')?.focus();
+    } catch (_) {
+      if (!region.isConnected || inlineTurns.get(region) !== turn) return;
+      inlineFailure(region, src);
+      status.textContent = 'Replies couldn’t load.';
+    } finally {
+      delete region.dataset.loading;
+      region.removeAttribute('aria-busy');
+    }
+  }
+  // Loads the reply box for a target (or the conversation's own when target
+  // is empty), unless a write from the current one is still in flight.
+  async function retargetInline(region, target) {
+    if (inlinePending(region)) return;
+    const turn = nextTurn(composerTurns, region);
+    const src = inlineSource(region);
+    if (target) src.searchParams.set('reply_to', target);
+    document.querySelectorAll('[data-discussion-draft]').forEach(save);
+    try {
+      const fresh = await fetchInline(src);
+      const current = region.querySelector('[data-inline-composer]');
+      if (!region.isConnected || composerTurns.get(region) !== turn || !current || inlinePending(region)) return;
+      current.replaceWith(fresh.querySelector('[data-inline-composer]'));
+      restore();
+      if (!region.hidden) region.querySelector('[data-inline-composer] textarea, [data-inline-composer] a:not([data-inline-top])')?.focus();
+    } catch (_) {
+      if (region.isConnected && composerTurns.get(region) === turn) inlineStatus(region).textContent = 'That reply box couldn’t open. Try again.';
+    }
+  }
+  document.addEventListener('click', async event => {
+    if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const toggle = event.target.closest('[data-replies-toggle]');
+    if (toggle) {
+      const region = document.getElementById(toggle.getAttribute('aria-controls'));
+      if (!region) return;
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      region.hidden = !open;
+      if (!open) { region.querySelectorAll('[data-discussion-draft]').forEach(save); return; }
+      if (!region.dataset.loaded) openInline(region, toggle.dataset.repliesSrc, true);
+      else if (Number(region.querySelector('[data-reply-count]')?.dataset.replyCount) === 0) region.querySelector('[data-inline-composer] textarea')?.focus();
+      return;
+    }
+    const region = event.target.closest('[data-inline-replies]');
+    if (!region) return;
+    const more = event.target.closest('[data-inline-more]');
+    if (more) {
+      event.preventDefault();
+      if (more.dataset.busy) return;
+      more.dataset.busy = 'true'; more.setAttribute('aria-busy', 'true');
+      const status = inlineStatus(region);
+      try {
+        const fresh = await fetchInline(more.dataset.inlineMore);
+        const list = region.querySelector('[data-inline-list]');
+        if (!region.isConnected || !more.isConnected || !list) return;
+        const added = [...(fresh.querySelector('[data-inline-list]')?.children ?? [])];
+        // A reply already shown out of order (just published) moves to its place.
+        for (const post of added) list.querySelector(`[id="${CSS.escape(post.id)}"]`)?.remove();
+        list.append(...added);
+        const next = fresh.querySelector('[data-inline-more]');
+        if (next) more.replaceWith(next); else more.remove();
+        status.textContent = added.length === 1 ? '1 more reply shown.' : `${added.length} more replies shown.`;
+        if (added[0]) { added[0].tabIndex = -1; added[0].focus(); }
+      } catch (_) {
+        if (more.isConnected) more.textContent = 'Couldn’t load more replies. Try again';
+        status.textContent = 'More replies couldn’t load.';
+      } finally {
+        delete more.dataset.busy; more.removeAttribute('aria-busy');
+      }
+      return;
+    }
+    const reply = event.target.closest('.discussion-reply-action');
+    if (reply) {
+      // Reply to a reply loads the reply box for that target, keeping the
+      // replies already shown; each target keeps its own draft.
+      event.preventDefault();
+      retargetInline(region, new URL(reply.href).searchParams.get('reply_to') || '');
+      return;
+    }
+    if (event.target.closest('[data-inline-top]')) {
+      event.preventDefault();
+      retargetInline(region, '');
+    }
+  });
+  // A write inside an expanded conversation refreshes what it changed (the
+  // shell skips these): a new reply is added, a changed one replaced in
+  // place, keeping every page already shown and the reply box as it is.
+  document.addEventListener('ticketopia:discussion-saved', async event => {
+    const region = event.target.closest('[data-inline-replies]');
+    if (!region) return;
+    event.preventDefault();
+    const {action, post} = event.detail;
+    const turn = nextTurn(inlineTurns, region);
+    const src = inlineSource(region);
+    if (post) src.searchParams.set('post_id', post);
+    const status = inlineStatus(region);
+    try {
+      const fresh = await fetchInline(src);
+      if (!region.isConnected || inlineTurns.get(region) !== turn) return;
+      syncInlineCount(region, Number(fresh.dataset.replyCount));
+      const changed = post ? fresh.querySelector(`[id="post-${CSS.escape(post)}"]`) : null;
+      let list = region.querySelector('[data-inline-list]');
+      if (!list && fresh.querySelector('[data-inline-list]')) {
+        // The first reply: take the fresh list, keeping the current reply box.
+        list = fresh.querySelector('[data-inline-list]');
+        region.querySelector('[data-inline-composer]').before(list);
+      } else if (changed) {
+        const shown = list.querySelector(`[id="post-${CSS.escape(post)}"]`);
+        if (shown) shown.replaceWith(changed);
+        else if (action === 'create') list.append(changed);
+      }
+      restore();
+      const target = post && document.getElementById('post-' + post);
+      if (!target || !region.contains(target) || region.hidden) return;
+      const marked = {helpful: '.helpful-button', unhelpful: '.helpful-button', same_question: '.same-question-button', not_same_question: '.same-question-button'}[action];
+      const focus = marked ? target.querySelector(marked) : target;
+      if (!focus) return;
+      if (action === 'helpful' || action === 'unhelpful') acknowledge(focus, action);
+      if (action === 'create' || action === 'edit') arrive(target);
+      if (focus.matches('article')) focus.tabIndex = -1;
+      focus.focus({preventScroll: action !== 'create'});
+    } catch (_) {
+      if (region.isConnected && inlineTurns.get(region) === turn) status.textContent = 'Your change was saved, but the conversation couldn’t refresh. Reopen it to see the latest.';
+    }
+  });
+
   document.addEventListener('submit', async event => {
     const form = event.target.closest('[data-discussion-form]');
     if (!form || !window.fetch || !event.submitter) return;
@@ -517,21 +722,24 @@
     if (location.hash === '#discussion-composer' && (!document.activeElement || document.activeElement === document.body)) document.querySelector('#discussion-composer textarea')?.focus();
   };
   document.addEventListener('DOMContentLoaded', () => {
-    restore(); keepComposerVisible();
+    restore(); keepComposerVisible(); enhanceInlineReplies();
     focusComposer();
     // A cross-document view transition drops focus set while the page loads
     // (arriving from Answer or Reply), so place it again once it finishes.
     // This deferred script runs after pagereveal, so read the active one.
     document.activeViewTransition?.finished.then(focusComposer, focusComposer);
   });
-  document.addEventListener('htmx:afterSwap', restore);
+  document.addEventListener('htmx:afterSwap', () => { restore(); enhanceInlineReplies(); });
   document.addEventListener('ticketopia:remember-drafts', () => document.querySelectorAll('[data-discussion-draft]').forEach(save));
-  document.addEventListener('ticketopia:section-loaded', restore);
+  document.addEventListener('ticketopia:section-loaded', () => { restore(); enhanceInlineReplies(); });
   window.addEventListener('pagehide', () => document.querySelectorAll('[data-discussion-draft]').forEach(save));
   // Only added subtrees that contain a draft form trigger the document scan.
   const addsDraft = record => [...record.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE
     && (node.matches('[data-discussion-draft]') || node.querySelector('[data-discussion-draft]')));
+  const addsToggle = record => [...record.addedNodes].some(node => node.nodeType === Node.ELEMENT_NODE
+    && (node.matches('[data-replies-toggle]') || node.querySelector('[data-replies-toggle]')));
   new MutationObserver(records => {
+    if (records.some(addsToggle)) enhanceInlineReplies();
     if (records.some(addsDraft)) restore();
     // A closed or replaced panel stops its conversation's check at once.
     else if (live.element && !live.element.isConnected) scheduleLive();

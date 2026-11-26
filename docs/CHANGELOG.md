@@ -4,6 +4,7 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-11-26 — [Positive event communities](changes/event-communities.md)
 - 2026-11-26 — [Authentication and accounts](changes/accounts.md)
 - 2026-11-26 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-26 — [OpenAPI contract](changes/openapi.md)
@@ -15,7 +16,6 @@ one entry per feature. Related changes stay in the same feature document. Browse
 - 2026-11-24 — [Followed discussions](changes/followed-discussions.md)
 - 2026-11-23 — [Live community activity](changes/live-community-activity.md)
 - 2026-11-23 — [Event discovery](changes/discovery.md)
-- 2026-11-22 — [Positive event communities](changes/event-communities.md)
 - 2026-11-20 — [CI performance](changes/ci-performance.md)
 - 2026-11-19 — [Observability](changes/observability.md)
 - 2026-11-15 — [Local development services](changes/local-development.md)

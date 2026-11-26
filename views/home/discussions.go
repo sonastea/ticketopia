@@ -149,6 +149,25 @@ func ThreadURL(event, thread, origin string) string {
 	return path
 }
 
+// InlineRepliesURL is the fragment of a thread's replies that the event's
+// Questions & tips list expands in place.
+func InlineRepliesURL(event, thread, origin string) string {
+	u, _ := url.Parse(ThreadURL(event, thread, origin))
+	u.Path += "/inline"
+	return u.String()
+}
+
+// repliesLabel names a conversation's replies for its expand control.
+func repliesLabel(count int) string {
+	switch count {
+	case 0:
+		return "Reply"
+	case 1:
+		return "1 reply"
+	}
+	return fmt.Sprintf("%d replies", count)
+}
+
 // ContributionURL selects a reply independently of the paginated reply list,
 // so a private receipt links to its exact public contribution or placeholder.
 func ContributionURL(event, thread, post string) string {

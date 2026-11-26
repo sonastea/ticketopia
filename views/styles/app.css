@@ -4593,6 +4593,19 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .note .note-actions .button-quiet { margin: 0; }
 
 .discussion-open > .discussion-open-arrow { display: none; }
+/* A question or tip's replies expand beneath it, like a comment thread: the
+   toggle's chevron turns, and replies sit indented on a quiet rule. */
+.discussion-replies-toggle { color: var(--brand); font-weight: 700; }
+.discussion-replies-toggle[aria-expanded="true"] .replies-chevron { rotate: 180deg; }
+.inline-replies {
+  margin-block-start: .25rem;
+  padding-inline-start: .875rem;
+  border-inline-start: 2px solid var(--line);
+}
+.inline-replies-content, .inline-reply-list, .inline-reply-composer { display: grid; gap: .5rem; min-inline-size: 0; }
+.inline-replies-content { gap: .75rem; }
+.inline-replies :is(.inline-more, .inline-full, .inline-top) { display: inline-flex; align-items: center; justify-self: start; min-block-size: 2.75rem; }
+.inline-replies .text-link:active { color: var(--brand-active); text-decoration-thickness: 2px; }
 .note-actions > .discussion-more { margin-inline-start: auto; }
 .discussion-more > summary { justify-content: center; min-inline-size: 2.75rem; }
 .discussion-more-actions {
@@ -4698,6 +4711,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .event-section .public-interest-list a:active { background: var(--brand-soft); color: var(--brand-active); }
 @media (prefers-reduced-motion: no-preference) {
   .composer-chevron { transition: rotate 200ms var(--ease-out); }
+  .replies-chevron { transition: rotate 200ms var(--ease-out); }
 }
 .moderation-page { max-inline-size: 72rem; }
 .moderation-page > .page-header { margin-block: 1.25rem .75rem; }

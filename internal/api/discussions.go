@@ -33,6 +33,7 @@ func (a *api) discussionRoutes(e *echo.Echo) {
 	e.GET("/events/:event_id/discussions", a.discussionCollectionPage)
 	e.GET("/events/:event_id/discussions/:discussion_id", a.discussionCollectionPage)
 	e.GET("/events/:event_id/discussions/:discussion_id/new-replies", a.newRepliesHandler)
+	e.GET("/events/:event_id/discussions/:discussion_id/inline", a.inlineRepliesHandler)
 	e.GET("/community/discussions", a.discussionCommunityPage)
 	e.GET("/community/questions", a.openQuestionsPage)
 	e.POST("/discussion-actions", a.discussionActionPage)
@@ -267,6 +268,32 @@ func (a *api) discussionCollectionPage(c echo.Context) error {
 		return render(c, http.StatusOK, home.EventContext(page))
 	}
 	return render(c, status, home.Discussion(p))
+}
+
+// inlineRepliesHandler serves a question or tip's replies and reply box as a
+// fragment the event's Questions & tips list expands in place, like comment
+// threads: cursor pages more replies, reply_to targets one reply, post_id
+// adds one that isn't on the page. Links and forms inside point at the
+// shareable thread page, so they work anywhere, with or without script.
+func (a *api) inlineRepliesHandler(c echo.Context) error {
+	privateAccountResponse(c)
+	id, err := savedEventID(c)
+	thread := c.Param("discussion_id")
+	if err == nil {
+		// Only a conversation's replies expand: never the event's list.
+		err = discussions.PostID(thread)
+	}
+	var p home.DiscussionPage
+	status := http.StatusOK
+	if err == nil {
+		p, status, err = a.loadDiscussionPage(c, id, thread, c.QueryParams(), "")
+	}
+	if err != nil {
+		status, _, detail, _ := accountError(err)
+		return render(c, status, home.InlineRepliesFailure(detail, home.ThreadURL(c.Param("event_id"), thread, "")))
+	}
+	p.URL = home.ThreadURL(id, thread, p.ReturnURL)
+	return render(c, status, home.InlineReplies(p, home.InlineRepliesURL(id, thread, p.ReturnURL)))
 }
 
 // Both the discovery shell and shareable thread use the same permission-filtered

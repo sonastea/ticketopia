@@ -519,3 +519,55 @@ func TestLiveReplyChecks(t *testing.T) {
 		t.Fatal("live check while off", w.Code)
 	}
 }
+
+// A question or tip on the event expands its replies in place: the list
+// offers a hidden toggle (script reveals it) beside the conversation link,
+// and the inline fragment serves replies and a reply box whose links and
+// forms point at the shareable thread page.
+func TestInlineRepliesFragment(t *testing.T) {
+	a, repo, browser, _, _, event := discussionAPI(t)
+	if w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Is there a coat check?"}`, browser, accounts.ID()); w.Code != 201 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	thread := repo.post.ID
+	section := accountRequest(a, "GET", "/events/"+event+"?section=discussion", "", browser, "", "", "", "").Body.String()
+	inline := "/events/" + url.PathEscape(event) + "/discussions/" + thread + "/inline"
+	for _, want := range []string{`data-replies-toggle`, `aria-controls="replies-` + thread + `"`, `data-replies-src="` + inline, `data-replies-fallback`, `id="replies-` + thread + `"`} {
+		if !strings.Contains(section, want) {
+			t.Fatalf("section lacks %q", want)
+		}
+	}
+	threadPath := "/events/" + url.PathEscape(event) + "/discussions/" + thread
+	for _, tc := range []struct {
+		cookie string
+		want   []string
+	}{
+		{browser, []string{`class="inline-replies-content"`, `data-reply-count="0"`, `data-inline-src="` + inline + `"`, `Your reply`, `value="` + threadPath + `"`, `href="` + threadPath + `" class="text-link inline-full"`, `Is there a coat check?`}},
+		{"", []string{`class="inline-replies-content"`, `Sign in to reply`}},
+	} {
+		w := accountRequest(a, "GET", inline, "", tc.cookie, "", "", "", "")
+		body := w.Body.String()
+		if w.Code != 200 || strings.Contains(body, "<html") || w.Header().Get("Cache-Control") != "private, no-store" {
+			t.Fatal("inline fragment", w.Code, body)
+		}
+		for _, want := range tc.want {
+			if !strings.Contains(body, want) {
+				t.Fatalf("signed in=%v: missing %q in %s", tc.cookie != "", want, body)
+			}
+		}
+	}
+	// Reply to a reply targets that contribution's reply box, with a way
+	// back to the conversation's own.
+	if body := accountRequest(a, "GET", inline+"?reply_to="+thread, "", browser, "", "", "", "").Body.String(); !strings.Contains(body, `name="parent_id" value="`+thread+`"`) || !strings.Contains(body, `data-inline-top`) {
+		t.Fatal("reply target lost", body)
+	}
+	// Only a conversation expands: a malformed thread is refused as a fragment.
+	if w := accountRequest(a, "GET", "/events/"+url.PathEscape(event)+"/discussions/not-a-thread/inline", "", browser, "", "", "", ""); w.Code != 400 || strings.Contains(w.Body.String(), "<html") {
+		t.Fatal("malformed thread", w.Code, w.Body.String())
+	}
+	// A conversation that isn't there still offers the way in, as a fragment.
+	w := accountRequest(a, "GET", "/events/"+url.PathEscape(event)+"/discussions/"+accounts.ID()+"/inline", "", browser, "", "", "", "")
+	if w.Code != 404 || strings.Contains(w.Body.String(), "<html") || !strings.Contains(w.Body.String(), "Open conversation") {
+		t.Fatal("missing thread", w.Code, w.Body.String())
+	}
+}

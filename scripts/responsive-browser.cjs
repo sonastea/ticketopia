@@ -116,7 +116,11 @@ fs.mkdirSync(out, {recursive: true});
       await activate(panel.getByRole('link', {name: 'Questions & tips', exact: true}));
       await panel.locator('.discussion-editor > summary').waitFor();
       check(name + ': tickets remain visible across section changes', await panel.locator('.ticket-link').isVisible());
-      await activate(panel.getByRole('link', {name: /Open conversation/}).filter({hasText: 'Open conversation'}).first());
+      // Replies expand in place; Open full conversation selects the thread.
+      await activate(panel.locator('[data-replies-toggle][aria-controls="replies-' + root.id + '"]'));
+      await panel.locator('#replies-' + root.id + ' .inline-full').waitFor();
+      check(name + ': replies expand in place under the question', await panel.locator('#replies-' + root.id + ' #post-' + answer.id).count() === 1);
+      await activate(panel.locator('#replies-' + root.id + ' .inline-full'));
       try { await panel.locator('#post-' + root.id).waitFor(); }
       catch (error) { throw new Error(error.message + '\n' + JSON.stringify({name, url: page.url(), context: await panel.innerText(), posts: await panel.locator('.discussion-post').evaluateAll(nodes => nodes.map(node => node.id))})); }
       check(name + ': thread selection retains results and event identity', new URL(page.url()).searchParams.get('selected_thread') === root.id && await page.locator('.event-row').count() === 3);
@@ -291,7 +295,9 @@ fs.mkdirSync(out, {recursive: true});
     await publicPage.keyboard.press('Enter');
     await publicPage.locator('#event-context').getByRole('link', {name: 'Questions & tips', exact: true}).click();
     await publicPage.locator('#event-context .discussion-list').waitFor();
-    await publicPage.locator('#event-context [data-thread-link][href*="/discussions/' + root.id + '"]').focus();
+    await publicPage.locator('#event-context [data-replies-toggle][aria-controls="replies-' + root.id + '"]').focus();
+    await publicPage.keyboard.press('Enter');
+    await publicPage.locator('#event-context #replies-' + root.id + ' .inline-full').focus();
     await publicPage.keyboard.press('Enter');
     await publicPage.locator('#event-context #post-' + root.id).waitFor();
     await publicPage.locator('#event-context #post-' + answer.id).getByRole('link', {name: 'Reply', exact: true}).focus();
