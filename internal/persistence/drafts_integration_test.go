@@ -275,6 +275,16 @@ func TestMariaDBDraftPublicationIsTransactional(t *testing.T) {
 		t.Fatalf("stale review consumed the draft: %v", err)
 	}
 	write.Expect = &recommendations.Current{Active: true, ReasonHash: recommendations.ReasonHash("Mine")}
+	// An agent publishing never replaces the person's own reason, even when
+	// its review matches: checked under the row lock, keeping the draft.
+	agent := write
+	agent.KeepPersonal = true
+	if _, _, err := pools[2].Recommendations().Write(t.Context(), owner.ID, detail, agent); !errors.Is(err, recommendations.ErrPersonal) {
+		t.Fatalf("agent replaced the person's reason: %v", err)
+	}
+	if _, err := pools[0].Drafts().Get(t.Context(), owner.ID, id, now); err != nil {
+		t.Fatalf("refused agent publication consumed the draft: %v", err)
+	}
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	published, gone := 0, 0

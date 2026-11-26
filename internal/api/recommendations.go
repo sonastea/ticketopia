@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
+	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/views/home"
 )
@@ -49,8 +50,8 @@ func (a *api) recommendationPrincipal(c echo.Context, write bool) (accounts.Prin
 		}
 		err = a.checkWrite(c, p)
 		if err == nil {
-			// Publishing and withdrawing are public; tokens draft reasons.
-			err = checkPublic(p)
+			// Publishing and withdrawing are public: a token needs publish.
+			err = a.checkPublic(c, p)
 		}
 	}
 	return p, err
@@ -88,7 +89,14 @@ func (a *api) setRecommendationHandler(c echo.Context) error {
 	if err := decodeAccountJSON(c, &body); err != nil {
 		return accountProblem(c, err)
 	}
-	item, created, err := a.recommendations.Set(c.Request().Context(), p.Account.ID, id, body.Reason)
+	var item recommendations.Item
+	var created bool
+	if p.Credential.Kind == "api" {
+		// Never replaces the person's recommendation; labelled an API client's.
+		item, created, err = a.agentRecommend(c.Request().Context(), p.Account.ID, id, body.Reason, drafts.Client{})
+	} else {
+		item, created, err = a.recommendations.Set(c.Request().Context(), p.Account.ID, id, body.Reason)
+	}
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -110,7 +118,10 @@ func (a *api) withdrawRecommendationHandler(c echo.Context) error {
 		return accountProblem(c, &accounts.ValidationError{Field: "body", Message: "send an empty request body"})
 	}
 	id, err := savedEventID(c)
-	if err == nil {
+	if err == nil && p.Credential.Kind == "api" {
+		// Only what an agent or API client published without a reason.
+		err = a.recommendations.WithdrawForAgent(c.Request().Context(), p.Account.ID, id)
+	} else if err == nil {
 		err = a.recommendations.Remove(c.Request().Context(), p.Account.ID, id)
 	}
 	if err != nil {

@@ -272,9 +272,11 @@ roots/replies using durable account rate counters.
 PATCH replaces required `body`; DELETE and Helpful requests require empty bodies.
 Writes reject query parameters, unknown/repeated/null JSON fields, and JSON bodies
 over 16 KiB. Native URL-encoded forms allow 64 KiB so Unicode text fits. Cookie
-writes require CSRF and same-origin checks. Posting, editing, removal and
-reactions need a browser session: API tokens get 403 `token_cannot_publish` and
-draft questions, tips and replies through `/api/v1/me/drafts` instead (see
+writes require CSRF and same-origin checks. API tokens post and react
+only with `publish` (else 403 `token_cannot_publish`); their posts carry `via`
+"an API client" and an Agent label. Editing and removal stay with the author
+on the website (403 `browser_session_required` for tokens). Tokens without
+`publish` draft instead (see
 [accounts](accounts.md#community-activity-from-other-clients)).
 
 Collections return `items`, nullable `next_cursor`, and a separate `count` of

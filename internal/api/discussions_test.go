@@ -46,7 +46,7 @@ func (r *discussionStub) Retry(_ context.Context, who, key string, hash [32]byte
 func (r *discussionStub) Create(_ context.Context, c discussions.Create, d *models.EventDetail) (discussions.Post, bool, error) {
 	r.input = c
 	now := time.Now().UTC()
-	r.post = discussions.Post{ID: accounts.ID(), EventID: c.EventID, Body: c.Body, CreatedAt: now, UpdatedAt: now, Profile: &accounts.PublicProfile{ID: c.Owner, DisplayName: "Contributor"}}
+	r.post = discussions.Post{ID: accounts.ID(), EventID: c.EventID, Body: c.Body, CreatedAt: now, UpdatedAt: now, Profile: &accounts.PublicProfile{ID: c.Owner, DisplayName: "Contributor"}, Via: c.Via, ViaHost: c.ViaHost}
 	r.post.ThreadID = r.post.ID
 	if d != nil {
 		r.post.Event = d.Item
@@ -128,7 +128,7 @@ func discussionRequest(a *api, method, path, body, token, key string) *httptest.
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	// A browser session's token is sent as its cookie with its CSRF token, so
-	// tests can act publicly, which API tokens never do.
+	// tests can act publicly without a publishing token.
 	if p, err := a.accounts.Authenticate(r.Context(), token, "session"); err == nil {
 		r.AddCookie(&http.Cookie{Name: a.authConfig.CookieName("session"), Value: token})
 		r.Header.Set("X-CSRF-Token", p.CSRF)
@@ -195,10 +195,15 @@ func TestDiscussionAPIValidationCredentialsAndPublicProjection(t *testing.T) {
 			t.Fatal(w.Code, w.Body.String())
 		}
 	}
-	// API tokens never post, edit, remove or react; they draft text instead.
-	for _, tc := range []struct{ method, path, body string }{{"POST", path, `{"body":"Token question"}`}, {"POST", path + "/" + p.ID + "/replies", `{"body":"Token reply"}`}, {"PATCH", postPath, `{"body":"new"}`}, {"DELETE", postPath, ""}, {"PUT", postPath + "/reactions/helpful", ""}, {"PUT", postPath + "/reactions/same-question", ""}} {
+	// A token without publish never posts or reacts, and no token edits or
+	// removes the person's posts.
+	for _, tc := range []struct{ method, path, body, code string }{
+		{"POST", path, `{"body":"Token question"}`, "token_cannot_publish"}, {"POST", path + "/" + p.ID + "/replies", `{"body":"Token reply"}`, "token_cannot_publish"},
+		{"PATCH", postPath, `{"body":"new"}`, "browser_session_required"}, {"DELETE", postPath, "", "browser_session_required"},
+		{"PUT", postPath + "/reactions/helpful", "", "token_cannot_publish"}, {"PUT", postPath + "/reactions/same-question", "", "token_cannot_publish"},
+	} {
 		w = discussionRequest(a, tc.method, tc.path, tc.body, bearer, accounts.ID())
-		if w.Code != 403 || !strings.Contains(w.Body.String(), "token_cannot_publish") || repo.post.Body != "<script>question</script>" {
+		if w.Code != 403 || !strings.Contains(w.Body.String(), tc.code) || repo.post.Body != "<script>question</script>" {
 			t.Fatal(tc.method, tc.path, w.Code, w.Body.String())
 		}
 	}

@@ -326,7 +326,7 @@ templ Security(p Page) {
 			<summary>Create an API token</summary>
 			<form action="/me/tokens" method="post" class="account-form">
 				@CSRF(p.CSRF)
-				<p id="api-token-warning" class="field-note"><strong>Treat API tokens like passwords.</strong> A token can read your email and private data. It never acts publicly as you: text it writes waits in <a href="/me/drafts" class="text-link">Agent drafts</a> until you publish it. It expires after 30 days.</p>
+				<p id="api-token-warning" class="field-note"><strong>Treat API tokens like passwords.</strong> A token can read your email and private data. Unless you allow posting, text it writes waits in <a href="/me/drafts" class="text-link">Agent drafts</a> until you publish it. It expires after 30 days.</p>
 				@label.Label(label.Props{For:"token-name",Class:"field"}) {
 					Token name
 					@input.Input(input.Props{ID:"token-name",Name:"name",Value:p.TokenName,Required:true,Attributes:templ.Attributes{"maxlength":"80"}})
@@ -340,6 +340,14 @@ templ Security(p Page) {
 						<span class="notification-copy">
 							<span id="token-write-label" class="notification-title">Allow private changes</span>
 							<span id="token-write-help" class="field-note">Change preferences, saves, reminders, follows and reply updates; mark Interested privately, or make a choice private or remove it; report posts; create or discard drafts for your review.</span>
+						</span>
+					</label>
+					<label>
+						// Also unchecked by default; it includes private changes.
+						<input type="checkbox" name="publish" checked?={ p.TokenPublish } aria-labelledby="token-publish-label" aria-describedby="token-publish-help"/>
+						<span class="notification-copy">
+							<span id="token-publish-label" class="notification-title">Allow posting as { p.Account.DisplayName }</span>
+							<span id="token-publish-help" class="field-note">Includes private changes. Post questions, tips, replies and recommendations, publish drafts, mark Helpful and make Interested public, up to 20 public actions an hour. Everything it posts is labelled Agent. It can't edit or remove your posts or change your profile.</span>
 						</span>
 					</label>
 				</fieldset>

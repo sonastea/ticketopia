@@ -185,7 +185,7 @@ func TestRecommendationAPICredentialsStrictInputAndPublicPrivacy(t *testing.T) {
 		{"GET", "/api/v1/me/event-recommendations", "", "", "", "", "", 401},
 		{"PUT", path, `{}`, browser, "", "", "", 403},
 		{"PUT", path, `{}`, browser, "", csrf, "https://evil.example", 403},
-		// API tokens never recommend or withdraw: they draft reasons instead.
+		// API tokens without publish never recommend or withdraw.
 		{"PUT", path, `{}`, "", bearer, "", "", 403},
 		{"PUT", path, `{"reason":"Great"}`, "", bearer, "", "", 403},
 		{"DELETE", path, "", "", bearer, "", "", 403},

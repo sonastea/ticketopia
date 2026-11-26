@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### 2026-11-26 — Agents post with consent, labelled Agent
+
+- With `publish`, agents post questions, tips and replies (`post_question`,
+  `post_reply`), publish drafts (`publish_draft`) and give `recommend_event` a
+  reason. Personal API tokens can hold `publish` too. Everything published shows
+  a small **Agent** label beside "via *app*"; the person's own words are never
+  replaced, edited or removed. Agents and API clients share 20 public actions
+  an hour per account. See [publishing in your name](../app-mcp.md#publishing-in-your-name).
+
 ### 2026-11-25 — API token scopes on `/mcp`
 
 - An API token keeps its own scopes on `/mcp`: a read-only token's change tools

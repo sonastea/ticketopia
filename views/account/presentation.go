@@ -92,8 +92,10 @@ type Page struct {
 	// the submitted TokenName.
 	TokenFormOpen bool
 	TokenName     string
-	// TokenWrite keeps "Allow private changes" checked after a failed creation.
-	TokenWrite bool
+	// TokenWrite and TokenPublish keep "Allow private changes" and "Allow
+	// posting as you" checked after a failed creation.
+	TokenWrite   bool
+	TokenPublish bool
 }
 
 // PublicActivity is one public action shown on the owner's profile.
@@ -330,8 +332,21 @@ func (p Page) MissingCategories() []string {
 
 // tokenAccess summarizes an API token's scopes for its owner.
 func tokenAccess(scopes []string) string {
+	if slices.Contains(scopes, accounts.ScopePublish) {
+		return "Read, private changes and posting as you"
+	}
 	if slices.Contains(scopes, accounts.ScopeWrite) {
 		return "Read and private changes"
 	}
 	return "Read only"
+}
+
+// agentTextSince is when publish began to cover posting text; connections
+// approved earlier consented to public actions without words.
+var agentTextSince = time.Date(2026, 11, 26, 0, 0, 0, 0, time.UTC)
+
+// postsTextSinceConsent reports a connection whose publish consent predates
+// agents posting text, so the person is told its permission grew.
+func postsTextSinceConsent(g oauth.Grant) bool {
+	return g.Publish() && g.CreatedAt.Before(agentTextSince)
 }

@@ -27,7 +27,7 @@ type Reminders interface {
 }
 
 // OAuth scopes a signed-in tool can require, matching the oauth package's.
-// API tokens carry read and write, never publish.
+// API tokens carry the scopes the person chose: read, write and publish.
 const (
 	ScopeRead    = "read"
 	ScopeWrite   = "write"
@@ -50,6 +50,7 @@ var SignedInTools = map[string]string{
 	"draft_recommendation": ScopeWrite, "my_drafts": ScopeRead, "discard_draft": ScopeWrite,
 	"draft_question": ScopeWrite, "draft_reply": ScopeWrite, "mark_helpful": ScopePublish, "unmark_helpful": ScopePublish,
 	"mark_same_question": ScopePublish, "unmark_same_question": ScopePublish,
+	"publish_draft": ScopePublish, "post_question": ScopePublish, "post_reply": ScopePublish,
 	"my_followed_discussions": ScopeRead, "my_notifications": ScopeRead, "mark_notification_read": ScopeWrite,
 	"my_preferences": ScopeRead, "follow_discussion": ScopeWrite, "unfollow_discussion": ScopeWrite,
 }
@@ -59,7 +60,7 @@ var (
 	// A connection without write may still read, and may hold publish, so it
 	// is described by what it can't do rather than as read-only.
 	errReadOnly  = errors.New("this connection can't make changes: reconnect Ticketopia in your agent and allow changes to save, follow, mark Interested, set reminders or write drafts")
-	errNoPublish = errors.New("this connection can't post publicly: the person can reconnect Ticketopia in your agent and allow posting publicly, or act on the web; words always go through drafts (draft_recommendation, draft_question, draft_reply)")
+	errNoPublish = errors.New("this connection can't post publicly: the person can reconnect Ticketopia in your agent and allow public actions, or use an API token that allows posting; until then, write drafts (draft_recommendation, draft_question, draft_reply) for the person to publish")
 )
 
 // scopeError is the tool error for a connection lacking scope.

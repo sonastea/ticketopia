@@ -148,7 +148,7 @@ func (a *api) moderationDecisionHandler(c echo.Context) error {
 	if err == nil {
 		// Hiding or restoring changes what everyone sees: moderators decide
 		// in the browser, never through an API token.
-		err = checkPublic(p)
+		err = checkBrowser(p)
 	}
 	if err != nil {
 		return accountProblem(c, err)

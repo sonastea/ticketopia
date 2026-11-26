@@ -144,7 +144,7 @@ The [OpenAPI contract](openapi.md) is version **1.8.0**.
 
 Cookie/bearer credentials share current role checks for reading the queue and
 cases. Decisions need a browser session (API tokens get 403
-`token_cannot_publish`, since hiding or restoring changes what everyone sees);
+`browser_session_required`, since hiding or restoring changes what everyone sees);
 cookie writes require CSRF and same-origin checks. Strict JSON rejects
 unknown/repeated/null fields and bodies over 16 KiB. Writes accept no query parameters.
 Report and appeal attempts each allow 20/account/ten minutes, shared across web/API

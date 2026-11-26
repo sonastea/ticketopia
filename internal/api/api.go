@@ -73,6 +73,9 @@ type api struct {
 	reminders         *reminders.Service
 	mcp               appmcp.Config
 	oauth             *oauth.Service
+	// publishLimit bounds public actions by agents and API clients per
+	// account, across /api/v1 and /mcp.
+	publishLimit *appmcp.PublishLimiter
 	// runCtx is NewAPI's context; background loops such as MCP metrics stop with it.
 	runCtx context.Context
 }
@@ -223,6 +226,9 @@ func (a *api) Server(port int) *http.Server {
 }
 
 func (a *api) Routes() *echo.Echo {
+	if a.publishLimit == nil {
+		a.publishLimit = appmcp.NewPublishLimiter(appmcp.PublishesPerHour, a.clock)
+	}
 	e := echo.New()
 	e.HTTPErrorHandler = httpErrorHandler
 	e.IPExtractor = a.ipExtractor

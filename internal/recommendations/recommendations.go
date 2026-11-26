@@ -121,6 +121,11 @@ type Write struct {
 	// erases the person's words. It is checked under the row lock, so a
 	// concurrent edit cannot be overwritten either.
 	KeepExisting bool
+	// KeepPersonal refuses (ErrPersonal) to replace an active recommendation
+	// whose reason the person wrote themselves, checked under the row lock
+	// before any draft is consumed: an agent publishing a draft never
+	// replaces the person's words.
+	KeepPersonal bool
 }
 
 // Current is a recommendation's state as the person saw it: whether it was

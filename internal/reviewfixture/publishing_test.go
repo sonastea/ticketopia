@@ -131,7 +131,7 @@ func TestMariaDBAgentPublishing(t *testing.T) {
 	// Events without seeded interest or recommendations from the owner.
 	interestEvent, recommendEvent, draftEvent := m.EventIDs[3], m.EventIDs[4], m.EventIDs[5]
 
-	// API tokens never publish.
+	// The fixture's API tokens aren't allowed to post.
 	if r := mcpTool(t, base, owner.APIToken, "recommend_event", map[string]any{"event_id": recommendEvent}); r.Status != http.StatusForbidden {
 		t.Fatalf("API token published: %+v", r)
 	}

@@ -2,6 +2,8 @@ package appmcp
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -13,7 +15,6 @@ import (
 	"github.com/sonastea/ticketopia/internal/discussions"
 	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/recommendations"
-	"golang.org/x/time/rate"
 )
 
 // Recommendations are the caller's public event recommendations.
@@ -30,6 +31,46 @@ type Drafts interface {
 	CreateReply(ctx context.Context, account, eventID, threadID, parentID, body string, client drafts.Client) (drafts.Draft, error)
 	List(ctx context.Context, account string) ([]drafts.Draft, error)
 	Discard(ctx context.Context, account, id string) (bool, error)
+}
+
+// AgentPosts publishes in the person's name for connections holding
+// publish: questions, tips and replies posted directly, and the account's
+// drafts. The HTTP API shares the same methods.
+type AgentPosts interface {
+	Post(ctx context.Context, owner, event, thread, parent, body, key string, client drafts.Client) (discussions.Post, bool, error)
+	PublishDraft(ctx context.Context, owner, id string) (PublishedDraft, error)
+}
+
+// PublishedDraft is a draft an agent or API client published, and what it became.
+type PublishedDraft struct {
+	Draft          drafts.Draft          `json:"draft"`
+	Published      bool                  `json:"published"`
+	Recommendation *recommendations.Item `json:"recommendation,omitempty"`
+	Post           *discussions.Post     `json:"post,omitempty"`
+}
+
+// agentClient is the app behind a call; for a personal API token, which
+// identifies no app, publishing names it an API client.
+func agentClient(req *mcp.CallToolRequest) drafts.Client { return draftClient(req) }
+
+// agentVia is the attribution of an agent's public action.
+func agentVia(req *mcp.CallToolRequest) (string, string) {
+	if name := tokenExtra(req, ExtraClientName); name != "" {
+		return name, tokenExtra(req, ExtraClientHost)
+	}
+	return drafts.APIClientName, ""
+}
+
+// postKey makes posting retry-safe: the same text in the same place is the
+// same post, as a browser's retry key would make it. It hashes the text as
+// it is stored, so whitespace-only differences are retries too. The reserved
+// prefix keeps it apart from keys callers choose.
+func postKey(event, thread, parent, body string) string {
+	if stored, err := discussions.Body(body); err == nil {
+		body = stored
+	}
+	sum := sha256.Sum256([]byte(event + "\x00" + thread + "\x00" + parent + "\x00" + body))
+	return discussions.ReservedKeyPrefix + hex.EncodeToString(sum[:20])
 }
 
 // Helpful sets or clears the caller's Helpful mark on a post, as
@@ -63,56 +104,62 @@ func tokenExtra(req *mcp.CallToolRequest, key string) string {
 	return value
 }
 
-// PublishesPerHour bounds publishing tool calls per account per replica.
+// PublishesPerHour bounds public actions per account per replica, by agents
+// and API clients together.
 const PublishesPerHour = 20
 
-// PublishLimiter is a per-replica token bucket per account: PublishesPerHour
-// publishing calls an hour, refilling steadily. Accounts idle for an hour
-// hold a full bucket and are swept.
+// PublishLimiter allows each account at most perHour public actions in any
+// sliding hour, per replica: a hard cap, not a refilling bucket. Accounts
+// with nothing in the last hour are swept.
 type PublishLimiter struct {
 	mu       sync.Mutex
 	perHour  int
 	now      func() time.Time
-	accounts map[string]*publisher
+	accounts map[string][]time.Time
 	swept    time.Time
-}
-
-type publisher struct {
-	limiter *rate.Limiter
-	seen    time.Time
 }
 
 func NewPublishLimiter(perHour int, now func() time.Time) *PublishLimiter {
 	if now == nil {
 		now = time.Now
 	}
-	return &PublishLimiter{perHour: perHour, now: now, accounts: map[string]*publisher{}}
+	return &PublishLimiter{perHour: perHour, now: now, accounts: map[string][]time.Time{}}
 }
 
-// Allow takes one publish from account's allowance, or reports how long to wait.
+// Refund returns the most recent action Allow took for account, for an
+// action that then failed: only public actions that happened count.
+func (l *PublishLimiter) Refund(account string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if times := l.accounts[account]; len(times) > 0 {
+		l.accounts[account] = times[:len(times)-1]
+	}
+}
+
+// Allow takes one public action from account's allowance, or reports how
+// long until the oldest action in the last hour ages out.
 func (l *PublishLimiter) Allow(account string) (bool, time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
+	since := now.Add(-time.Hour)
 	if now.Sub(l.swept) > time.Hour {
-		for key, p := range l.accounts {
-			if now.Sub(p.seen) > time.Hour {
+		for key, times := range l.accounts {
+			if len(times) == 0 || !times[len(times)-1].After(since) {
 				delete(l.accounts, key)
 			}
 		}
 		l.swept = now
 	}
-	p, ok := l.accounts[account]
-	if !ok {
-		p = &publisher{limiter: rate.NewLimiter(rate.Limit(float64(l.perHour)/3600), l.perHour)}
-		l.accounts[account] = p
+	times := l.accounts[account]
+	for len(times) > 0 && !times[0].After(since) {
+		times = times[1:]
 	}
-	p.seen = now
-	reservation := p.limiter.ReserveN(now, 1)
-	if wait := reservation.DelayFrom(now); wait > 0 {
-		reservation.CancelAt(now)
-		return false, wait
+	if len(times) >= l.perHour {
+		l.accounts[account] = times
+		return false, times[0].Sub(since)
 	}
+	l.accounts[account] = append(times, now)
 	return true, 0
 }
 
@@ -155,12 +202,12 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 			}))
 		addTool(server, d, &mcp.Tool{Name: "recommend_event", Title: "Recommend event", OutputSchema: outputSchema[recommendationState](),
 			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
-			Description: "Publicly recommend an event as the signed-in user, without a reason. Their display name and profile link appear on the event, in Community and on their profile, " +
-				"marked as via this app with its host. An existing recommendation is returned unchanged, reason included. " +
-				"This tool never takes text: to recommend with a reason, use draft_recommendation, and the person reviews and publishes it on Ticketopia. " +
-				"Needs the connection's permission to post publicly. " + publicNote},
-			publishTool(d, func(ctx context.Context, owner string, req *mcp.CallToolRequest, in eventInput) (recommendationState, error) {
-				item, created, err := d.Recommendations.Publish(ctx, owner, in.EventID, recommendations.Write{Via: tokenExtra(req, ExtraClientName), ViaHost: tokenExtra(req, ExtraClientHost), KeepExisting: true})
+			Description: "Publicly recommend an event as the signed-in user, optionally with a reason (plain text, up to 500 characters). Their display name and profile link appear on the event, in Community and on their profile, " +
+				"labelled Agent and via this app. An existing recommendation is returned unchanged, reason included: this never replaces the person's words. " +
+				"To let the person review a reason first, use draft_recommendation instead. Needs the connection's permission to post publicly. " + publicNote},
+			publishTool(d, func(ctx context.Context, owner string, req *mcp.CallToolRequest, in recommendInput) (recommendationState, error) {
+				via, host := agentVia(req)
+				item, created, err := d.Recommendations.Publish(ctx, owner, in.EventID, recommendations.Write{Reason: in.Reason, Via: via, ViaHost: host, KeepExisting: true})
 				return recommendationState{EventID: in.EventID, Recommended: true, Created: created, Item: &item}, err
 			}))
 		addTool(server, d, &mcp.Tool{Name: "withdraw_recommendation", Title: "Withdraw recommendation", OutputSchema: outputSchema[recommendationState](),
@@ -199,6 +246,49 @@ func addPublishingTools(server *mcp.Server, d Deps) {
 			privateTool(d, func(ctx context.Context, owner string, in draftIDInput) (draftState, error) {
 				discarded, err := d.Drafts.Discard(ctx, owner, in.DraftID)
 				return draftState{DraftID: in.DraftID, Discarded: discarded}, err
+			}))
+	}
+	if d.AgentPosts != nil && d.Drafts != nil {
+		addTool(server, d, &mcp.Tool{Name: "publish_draft", Title: "Publish draft", OutputSchema: outputSchema[PublishedDraft](),
+			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: false, OpenWorldHint: &no},
+			Description: "Publish one of the signed-in user's pending drafts by its id from my_drafts, as the person would on review_url: a recommendation reason, question, tip or reply. " +
+				"It appears under their name, labelled Agent and via the app that wrote the draft. A recommendation draft never replaces a reason the person wrote themselves. " +
+				"Needs the connection's permission to post publicly. " + publicNote},
+			publishTool(d, func(ctx context.Context, owner string, _ *mcp.CallToolRequest, in draftIDInput) (PublishedDraft, error) {
+				out, err := d.AgentPosts.PublishDraft(ctx, owner, in.DraftID)
+				if errors.Is(err, drafts.ErrNotFound) {
+					return out, callMistake{errors.New("draft_id: no pending draft with this id; it may already be published, discarded or expired. Use an id from my_drafts")}
+				}
+				return out, err
+			}))
+	}
+	if d.AgentPosts != nil && d.Discussions != nil {
+		addTool(server, d, &mcp.Tool{Name: "post_question", Title: "Post question or tip", OutputSchema: outputSchema[postState](),
+			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
+			Description: "Post a new question or tip on an event as the signed-in user (plain text, up to 4000 characters). It appears in the event's questions and tips under their name, labelled Agent and via this app. " +
+				"Posting the same text on the same event again returns the same post. To let the person review it first, use draft_question. " +
+				"The person can edit or remove it on the web; agents can't. Needs the connection's permission to post publicly. " + publicNote},
+			publishTool(d, func(ctx context.Context, owner string, req *mcp.CallToolRequest, in questionPostInput) (postState, error) {
+				post, created, err := d.AgentPosts.Post(ctx, owner, in.EventID, "", "", in.Body, postKey(in.EventID, "", "", in.Body), agentClient(req))
+				return postState{Post: &post, Created: created}, err
+			}))
+		addTool(server, d, &mcp.Tool{Name: "post_reply", Title: "Post reply", OutputSchema: outputSchema[postState](),
+			Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
+			Description: "Reply in a question or tip's conversation as the signed-in user (plain text, up to 4000 characters), labelled Agent and via this app. Use the event_id and thread_id from event_discussions, " +
+				"community_discussions or discussion_thread; to answer a particular reply, pass its id as parent_id. It notifies the conversation's followers. " +
+				"Posting the same text in the same place again returns the same reply. To let the person review it first, use draft_reply. Needs the connection's permission to post publicly. " + publicNote},
+			publishTool(d, func(ctx context.Context, owner string, req *mcp.CallToolRequest, in replyPostInput) (postState, error) {
+				if err := threadTarget(in.ThreadID, nil); err != nil {
+					return postState{}, err
+				}
+				post, created, err := d.AgentPosts.Post(ctx, owner, in.EventID, in.ThreadID, in.ParentID, in.Body, postKey(in.EventID, in.ThreadID, in.ParentID, in.Body), agentClient(req))
+				if errors.Is(err, discussions.ErrNotFound) && in.ParentID != "" {
+					return postState{}, errParentNotFound
+				}
+				if err != nil {
+					return postState{}, threadTarget(in.ThreadID, err)
+				}
+				return postState{Post: &post, Created: created}, nil
 			}))
 	}
 	if d.Helpful != nil {
@@ -257,8 +347,9 @@ func (d Deps) sameQuestion(ctx context.Context, owner, id string, set bool) (sam
 var draftNote = fmt.Sprintf("Drafts expire after seven days, or when the user disconnects this app; an account holds at most %d.", drafts.MaxPending)
 
 // addDiscussionDraftTools registers drafting questions, tips and replies.
-// Agents never post words: each is a private draft the person reads and
-// publishes on the web, attributed to the app that wrote it.
+// Each is a private draft the person reads and publishes on the web, or an
+// agent allowed to post publishes with publish_draft; either way it is
+// attributed to the app that wrote it.
 func addDiscussionDraftTools(server *mcp.Server, d Deps) {
 	addTool(server, d, &mcp.Tool{Name: "draft_question", Title: "Draft question or tip", OutputSchema: outputSchema[draftResult](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
@@ -353,6 +444,9 @@ func publishTool[In, Out any](d Deps, call func(ctx context.Context, owner strin
 		out, err := call(ctx, owner, req, in)
 		if err == nil {
 			d.Logger.Info().Str("tool", req.Params.Name).Str("client_host", tokenExtra(req, ExtraClientHost)).Msg("Agent published")
+		} else if d.PublishLimit != nil {
+			// A refused or failed action published nothing.
+			d.PublishLimit.Refund(owner)
 		}
 		return out, err
 	})
@@ -362,7 +456,7 @@ func publishTool[In, Out any](d Deps, call func(ctx context.Context, owner strin
 type errPublishLimit struct{ wait time.Duration }
 
 func (e errPublishLimit) Error() string {
-	return fmt.Sprintf("this account has reached its limit of %d public actions an hour through agents. Retry after %d seconds.",
+	return fmt.Sprintf("this account has reached its limit of %d public actions an hour through agents and API clients. Retry after %d seconds.",
 		PublishesPerHour, max(1, int(math.Ceil(e.wait.Seconds()))))
 }
 
@@ -376,7 +470,7 @@ func (d Deps) describePrivate(err error) string {
 		return mistake.Error()
 	}
 	if errors.Is(err, recommendations.ErrPersonal) {
-		return "the person wrote or published this recommendation themselves, so only they can withdraw it, on the event's page"
+		return "the person wrote or published this recommendation themselves, so only they can change or withdraw it, on the event's page"
 	}
 	if errors.Is(err, drafts.ErrLimit) {
 		return fmt.Sprintf("this account already has %d drafts awaiting review. Ask the person to publish or discard some at %s, or discard one with discard_draft.", drafts.MaxPending, d.DraftsURL)
@@ -427,6 +521,30 @@ type sameQuestionState struct {
 	PostID       string            `json:"post_id"`
 	SameQuestion bool              `json:"same_question"`
 	Post         *discussions.Post `json:"post,omitempty"`
+}
+
+type questionPostInput struct {
+	EventID string `json:"event_id" jsonschema:"event ID from find_events, for example ticketmaster:G5v..."`
+	Body    string `json:"body" jsonschema:"the question or tip to post now under the user's name, plain text up to 4000 characters"`
+}
+
+type replyPostInput struct {
+	EventID  string `json:"event_id" jsonschema:"event ID the conversation belongs to"`
+	ThreadID string `json:"thread_id" jsonschema:"thread_id of the question or tip, from event_discussions, community_discussions or discussion_thread"`
+	ParentID string `json:"parent_id,omitempty" jsonschema:"id of the reply this answers, from discussion_thread; omit to answer the question or tip"`
+	Body     string `json:"body" jsonschema:"the reply to post now under the user's name, plain text up to 4000 characters"`
+}
+
+type recommendInput struct {
+	EventID string `json:"event_id" jsonschema:"event ID from find_events, for example ticketmaster:G5v..."`
+	Reason  string `json:"reason,omitempty" jsonschema:"optional public reason, plain text up to 500 characters"`
+}
+
+// postState is a post an agent published; created is false when the same
+// post already existed.
+type postState struct {
+	Post    *discussions.Post `json:"post,omitempty"`
+	Created bool              `json:"created"`
 }
 
 type draftIDInput struct {

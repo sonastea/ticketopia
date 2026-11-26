@@ -45,8 +45,9 @@ type Post struct {
 	ParentID   string                  `json:"parent_id,omitempty"`
 	ParentName string                  `json:"parent_name,omitempty"`
 	Profile    *accounts.PublicProfile `json:"profile,omitempty"`
-	// Via names the connected app whose draft the person published as this
-	// post; empty for a person's own writing. Agents never post directly.
+	// Via names the agent's app (or "an API client") that posted this or
+	// whose draft was published as it; empty for a person's own writing.
+	// Pages show it beside an Agent label.
 	Via string `json:"via,omitempty"`
 	// ViaHost is that app's verified metadata host, empty for API-token drafts.
 	ViaHost      string    `json:"via_host,omitempty"`
@@ -189,6 +190,25 @@ func Key(key string) error {
 	}
 	return nil
 }
+
+// ReservedKeyPrefix starts the retry keys Ticketopia derives itself for
+// drafts and agents' posts, so a caller's key can never name one of them.
+const ReservedKeyPrefix = "agent-"
+
+// CallerKey validates a retry key a person or client chose.
+func CallerKey(key string) error {
+	if strings.HasPrefix(key, ReservedKeyPrefix) {
+		return invalid("idempotency_key", "keys starting with "+ReservedKeyPrefix+" are reserved; use another unique key")
+	}
+	return Key(key)
+}
+
+func (s *Service) Create(ctx context.Context, who, event, thread, parent, body, key string) (Post, bool, error) {
+	if err := CallerKey(key); err != nil {
+		return Post{}, false, err
+	}
+	return s.Publish(ctx, who, event, thread, parent, body, key, Attribution{})
+}
 func PostID(id string) error {
 	if !accounts.ValidID(id) {
 		return invalid("post_id", "use a valid discussion post ID")
@@ -200,9 +220,6 @@ func owner(id string) error {
 		return accounts.ErrUnauthenticated
 	}
 	return nil
-}
-func (s *Service) Create(ctx context.Context, who, event, thread, parent, body, key string) (Post, bool, error) {
-	return s.Publish(ctx, who, event, thread, parent, body, key, Attribution{})
 }
 
 // Publish is Create for an agent's draft the person reviewed and chose to

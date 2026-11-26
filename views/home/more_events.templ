@@ -175,7 +175,14 @@ templ RowQuote(preview eventactivity.Preview, lead bool) {
 	if r := preview.Recommendation; r != nil && strings.TrimSpace(r.Body) != "" {
 		<figure class={ "pull-quote row-quote", templ.KV("lead-quote", lead) }>
 			<blockquote class="recommendation-reason">{ r.Body }</blockquote>
-			<figcaption>{ r.AuthorName } recommends this event</figcaption>
+			<figcaption>
+				{ r.AuthorName } recommends this event
+				if r.Via != "" {
+					{ " " }
+					@AgentLabel()
+					{ " " }<span class="recommendation-via">{ viaText(r.Via, "") }</span>
+				}
+			</figcaption>
 		</figure>
 	}
 }

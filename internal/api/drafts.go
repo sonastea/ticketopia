@@ -24,6 +24,7 @@ func (a *api) draftRoutes(e *echo.Echo) {
 	e.GET("/api/v1/me/drafts", a.draftsHandler)
 	e.POST("/api/v1/me/drafts", a.createDraftHandler)
 	e.DELETE("/api/v1/me/drafts/:draft_id", a.discardDraftHandler)
+	e.POST("/api/v1/me/drafts/:draft_id/publish", a.publishDraftHandler)
 }
 
 // draftList is the caller's pending drafts and the page that publishes them.
@@ -59,7 +60,7 @@ func (a *api) draftsHandler(c echo.Context) error {
 
 // createDraftHandler stores a recommendation reason, question or tip, or
 // reply for the person to review, as draft_recommendation, draft_question
-// and draft_reply do for agents. It never publishes. Only API tokens draft:
+// and draft_reply do for agents. It never publishes by itself. Only API tokens draft:
 // on the website the person publishes directly, and a browser's draft
 // would be labelled as an API client's.
 func (a *api) createDraftHandler(c echo.Context) error {
@@ -129,6 +130,33 @@ func draftInputError(err error) error {
 		message = "write the reason to review"
 	}
 	return &accounts.ValidationError{Field: "text", Message: message}
+}
+
+// publishDraftHandler publishes a pending draft for an API token allowed to
+// post as the person, as publish_draft does for agents. On the website the
+// person reviews and publishes drafts on /me/drafts instead.
+func (a *api) publishDraftHandler(c echo.Context) error {
+	p, err := a.draftPrincipal(c, false)
+	if err == nil && p.Credential.Kind != "api" {
+		err = &accounts.ValidationError{Field: "authorization", Message: "publish drafts on /me/drafts on the website"}
+	}
+	if err == nil {
+		err = a.checkWrite(c, p)
+	}
+	if err == nil {
+		err = emptyDiscussionBody(c)
+	}
+	if err == nil {
+		err = a.checkPublic(c, p)
+	}
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	out, err := a.agentPublishDraft(c.Request().Context(), p.Account.ID, c.Param("draft_id"))
+	if err != nil {
+		return accountProblem(c, draftInputError(err))
+	}
+	return c.JSON(200, out)
 }
 
 // discardDraftHandler deletes one of the caller's pending drafts; one that

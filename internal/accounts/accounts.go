@@ -98,17 +98,20 @@ type Credential struct {
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
-	// Scopes limit an API token: ScopeRead, optionally with ScopeWrite.
-	// Browser sessions carry none and are limited by CSRF checks instead.
+	// Scopes limit an API token: ScopeRead, optionally ScopeWrite, and
+	// ScopePublish on top of write. Browser sessions carry none and are
+	// limited by CSRF checks instead.
 	Scopes []string `json:"scopes,omitempty"`
 }
 
-// API token scopes. A token always reads; write allows private changes.
-// Tokens never publish: public actions and words need the website or an
-// OAuth connection's consent, and an agent's text waits as a draft.
+// API token scopes. A token always reads; write allows private changes;
+// publish, which the person opts into and which implies write, lets it post
+// and act publicly as them, always labelled as an agent's. Editing or
+// removing the person's posts, the profile and moderation stay on the web.
 const (
-	ScopeRead  = "read"
-	ScopeWrite = "write"
+	ScopeRead    = "read"
+	ScopeWrite   = "write"
+	ScopePublish = "publish"
 )
 
 // Can reports whether an API token holds scope. Browser sessions hold no
@@ -116,19 +119,24 @@ const (
 func (c Credential) Can(scope string) bool { return slices.Contains(c.Scopes, scope) }
 
 // TokenScopes validates requested API token scopes, returning them in
-// canonical order. Read is implied; publish is never granted.
+// canonical order. Read is implied, and publish implies write.
 func TokenScopes(requested []string) ([]string, error) {
-	write := false
+	write, publish := false, false
 	for _, s := range requested {
 		switch s {
 		case ScopeRead:
 		case ScopeWrite:
 			write = true
+		case ScopePublish:
+			publish = true
 		default:
-			return nil, &ValidationError{"scopes", "use read and optionally write; API tokens can't publish"}
+			return nil, &ValidationError{"scopes", "use read, write and publish"}
 		}
 	}
-	if write {
+	switch {
+	case publish:
+		return []string{ScopeRead, ScopeWrite, ScopePublish}, nil
+	case write:
 		return []string{ScopeRead, ScopeWrite}, nil
 	}
 	return []string{ScopeRead}, nil

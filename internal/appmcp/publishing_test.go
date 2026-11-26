@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -122,7 +123,38 @@ func (f fakeDrafts) Discard(_ context.Context, account, id string) (bool, error)
 	return id == strings.Repeat("a", 32), nil
 }
 
+type fakeAgentPosts struct{ *fakeAccount }
+
+// Post knows thread "1…1"; other threads are not found.
+func (f fakeAgentPosts) Post(_ context.Context, owner, event, thread, parent, body, key string, client drafts.Client) (discussions.Post, bool, error) {
+	f.record("agent.Post " + owner + " " + event + " " + thread + " " + parent + " client=" + client.Name + " key=" + key)
+	if thread != "" && thread != strings.Repeat("1", 32) {
+		return discussions.Post{}, false, discussions.ErrNotFound
+	}
+	if _, err := discussions.Body(body); err != nil {
+		return discussions.Post{}, false, err
+	}
+	via := client.Name
+	if via == "" {
+		via = drafts.APIClientName
+	}
+	return discussions.Post{ID: strings.Repeat("5", 32), EventID: event, ThreadID: thread, Body: body, Via: via, ViaHost: client.Host}, true, nil
+}
+
+// PublishDraft knows draft "a…a".
+func (f fakeAgentPosts) PublishDraft(_ context.Context, owner, id string) (PublishedDraft, error) {
+	f.record("agent.PublishDraft " + owner + " " + id)
+	if id != strings.Repeat("a", 32) {
+		return PublishedDraft{}, drafts.ErrNotFound
+	}
+	item := recommendations.Item{Reason: "Drafted", Via: "Test Agent"}
+	return PublishedDraft{Draft: drafts.Draft{ID: id}, Published: true, Recommendation: &item}, nil
+}
+
 var publishingTools = map[string]map[string]any{
+	"publish_draft":           {"draft_id": strings.Repeat("a", 32)},
+	"post_question":           {"event_id": "ticketmaster:x", "body": "Doors?"},
+	"post_reply":              {"event_id": "ticketmaster:x", "thread_id": strings.Repeat("1", 32), "body": "Seven"},
 	"make_interest_public":    {"event_id": "ticketmaster:x"},
 	"recommend_event":         {"event_id": "ticketmaster:x"},
 	"withdraw_recommendation": {"event_id": "ticketmaster:x"},
@@ -213,7 +245,7 @@ func TestPublishingToolsActForTheTokenAccount(t *testing.T) {
 	tool(t, base, "publisher-token", "withdraw_recommendation", event)
 	// A recommendation the person wrote is not the agent's to withdraw.
 	f.recommendation = &recommendations.Item{Event: models.Event{ID: "ticketmaster:x"}, Reason: "My own words"}
-	if reply := tool(t, base, "publisher-token", "withdraw_recommendation", event); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "only they can withdraw it") {
+	if reply := tool(t, base, "publisher-token", "withdraw_recommendation", event); !reply.Result.IsError || !strings.Contains(reply.Result.Content[0].Text, "only they can change or withdraw it") {
 		t.Fatalf("withdrew the person's recommendation: %+v", reply.Result)
 	}
 
@@ -381,6 +413,10 @@ func TestHelpfulToolsPublishForTheTokenAccount(t *testing.T) {
 
 	limited := &fakeAccount{limiter: NewPublishLimiter(1, nil)}
 	limitedBase := privateServer(t, limited).URL
+	// A failed call (an unknown post) publishes nothing and keeps the allowance.
+	if r := tool(t, limitedBase, "publisher-token", "mark_helpful", map[string]any{"post_id": strings.Repeat("9", 32)}); !r.Result.IsError {
+		t.Fatalf("unknown post marked: %+v", r.Result)
+	}
 	tool(t, limitedBase, "publisher-token", "mark_helpful", map[string]any{"post_id": post})
 	if r := tool(t, limitedBase, "publisher-token", "unmark_helpful", map[string]any{"post_id": post}); !r.Result.IsError || !strings.Contains(r.Result.Content[0].Text, "Retry after") {
 		t.Fatalf("Helpful not limited: %+v", r.Result)
@@ -401,7 +437,8 @@ func TestDiscardDraftReportsWhatChanged(t *testing.T) {
 	}
 }
 
-// The publish limit is per account and answers with a retry delay.
+// The publish limit is a hard cap per account in any sliding hour, and
+// answers with a retry delay until the oldest action ages out.
 func TestPublishLimitRefillsPerAccount(t *testing.T) {
 	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
 	l := NewPublishLimiter(2, func() time.Time { return now })
@@ -417,8 +454,12 @@ func TestPublishLimitRefillsPerAccount(t *testing.T) {
 		t.Fatal("another account was limited")
 	}
 	now = now.Add(30 * time.Minute)
+	if ok, wait := l.Allow("a"); ok || wait < 29*time.Minute {
+		t.Fatalf("refilled within the hour: ok=%v wait=%v", ok, wait)
+	}
+	now = now.Add(30 * time.Minute)
 	if ok, _ := l.Allow("a"); !ok {
-		t.Fatal("allowance did not refill")
+		t.Fatal("allowance did not return after an hour")
 	}
 }
 
@@ -478,5 +519,44 @@ func TestOpenQuestionsMineNeedsSignIn(t *testing.T) {
 	}
 	if r := tool(t, base, "reader-token", "open_questions", map[string]any{"mine": true}); r.Result.IsError || strings.Join(f.calls, "|") != "discussions.OpenQuestions owner-id connections=mine" {
 		t.Fatalf("signed-in mine: %+v %v", r.Result, f.calls)
+	}
+}
+
+// With publish, agents post questions and replies and publish drafts, each
+// attributed to the app or, for a personal token, to an API client; the same
+// text in the same place reuses one retry key. A reason given to
+// recommend_event is published with it.
+func TestAgentsPostAndPublishDrafts(t *testing.T) {
+	f := &fakeAccount{}
+	base := privateServer(t, f).URL
+	q := tool(t, base, "publisher-token", "post_question", map[string]any{"event_id": "ticketmaster:x", "body": "Doors?"})
+	if q.Result.IsError || !strings.Contains(string(q.Result.StructuredContent), `"via":"Test Agent"`) {
+		t.Fatalf("post_question: %+v", q.Result)
+	}
+	// A retry differing only in surrounding whitespace is the same post.
+	tool(t, base, "publisher-token", "post_question", map[string]any{"event_id": "ticketmaster:x", "body": "  Doors?\n"})
+	r := tool(t, base, "script-token", "post_reply", map[string]any{"event_id": "ticketmaster:x", "thread_id": strings.Repeat("1", 32), "body": "Seven"})
+	if r.Result.IsError || !strings.Contains(string(r.Result.StructuredContent), `"via":"an API client"`) {
+		t.Fatalf("post_reply with a personal token: %+v", r.Result)
+	}
+	if r := tool(t, base, "script-token", "post_reply", map[string]any{"event_id": "ticketmaster:x", "thread_id": strings.Repeat("9", 32), "body": "Seven"}); !r.Result.IsError {
+		t.Fatalf("reply to a missing thread: %+v", r.Result)
+	}
+	if d := tool(t, base, "publisher-token", "publish_draft", map[string]any{"draft_id": strings.Repeat("a", 32)}); d.Result.IsError || !strings.Contains(string(d.Result.StructuredContent), `"published":true`) {
+		t.Fatalf("publish_draft: %+v", d.Result)
+	}
+	if d := tool(t, base, "publisher-token", "publish_draft", map[string]any{"draft_id": strings.Repeat("e", 32)}); !d.Result.IsError || !strings.Contains(d.Result.Content[0].Text, "no pending draft") {
+		t.Fatalf("publish_draft of a missing draft: %+v", d.Result)
+	}
+	if rec := tool(t, base, "script-token", "recommend_event", map[string]any{"event_id": "ticketmaster:y", "reason": "Great room"}); rec.Result.IsError {
+		t.Fatalf("recommend_event with a reason: %+v", rec.Result)
+	}
+	calls := strings.Join(f.calls, "\n")
+	keys := regexp.MustCompile(`key=(agent-[0-9a-f]+)`).FindAllStringSubmatch(calls, -1)
+	if len(keys) < 2 || keys[0][1] != keys[1][1] {
+		t.Fatalf("repeated post used different retry keys:\n%s", calls)
+	}
+	if !strings.Contains(calls, "recommendations.Publish owner-id ticketmaster:y via=an API client host= reason=Great room") {
+		t.Fatalf("recommendation reason or attribution lost:\n%s", calls)
 	}
 }

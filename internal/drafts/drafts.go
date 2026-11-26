@@ -1,8 +1,9 @@
 // Package drafts holds free text an agent wrote for the person to review.
-// Agents never publish words: draft_recommendation, draft_question and
-// draft_reply store a private draft, and only the signed-in person publishes
-// it, on the web (/me/drafts), through a CSRF-protected form. Drafts expire
-// after Lifetime.
+// draft_recommendation, draft_question and draft_reply store a private
+// draft; the person publishes it on the web (/me/drafts) through a
+// CSRF-protected form, or an agent or API client the person allowed to post
+// publishes it (publish_draft, POST /api/v1/me/drafts/{id}/publish). Drafts
+// expire after Lifetime.
 package drafts
 
 import (
@@ -306,7 +307,7 @@ func (d Draft) Discussion() bool { return d.Kind == KindQuestion || d.Kind == Ki
 
 // PublishKey is the discussion idempotency key of the draft's post: one
 // draft is one contribution, so a repeated publication finds the same post.
-func (d Draft) PublishKey() string { return "agent-draft-" + d.ID }
+func (d Draft) PublishKey() string { return discussions.ReservedKeyPrefix + "draft-" + d.ID }
 
 func (s *Service) List(ctx context.Context, account string) ([]Draft, error) {
 	if err := owner(account); err != nil {

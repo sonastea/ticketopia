@@ -183,8 +183,16 @@ templ RecommendationList(list recommendations.List,c listContext,returnURL strin
 // never a link.
 templ RecommendationVia(item recommendations.Item) {
 	if item.Via != "" {
+		{ " " }
+		@AgentLabel()
 		{ " " }<span class="recommendation-via">{ viaLabel(item) }</span>
 	}
+}
+
+// AgentLabel marks words or actions an agent or API client wrote or
+// published for the person, beside its "via" attribution, so readers know.
+templ AgentLabel() {
+	<span class="agent-label">Agent</span>
 }
 
 // Happening Now lives inside Community rather than in main navigation: during

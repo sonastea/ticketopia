@@ -133,9 +133,12 @@ func (a *api) setInterestHandler(c echo.Context) error {
 	}
 	fallback := p.Account.InterestVisibility
 	if p.Credential.Kind == "api" {
-		// Tokens never name the person publicly, even by their default.
+		// A token names the person publicly only when asked to and allowed
+		// to post as them, never through their default.
 		if body.Visibility != nil && *body.Visibility == "public" {
-			return accountProblem(c, errTokenPublic)
+			if err := a.checkPublic(c, p); err != nil {
+				return accountProblem(c, err)
+			}
 		}
 		fallback = "private"
 	}

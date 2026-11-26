@@ -149,7 +149,7 @@ func AgentGuide(p AgentGuidePage) templ.Component {
 				}
 			}
 			if p.Drafts {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<section class=\"agent-guide-section\"><h2 id=\"drafts\">Review what an agent writes</h2><p>Through MCP, anything an agent writes for the community—a recommendation reason, question, tip or reply—waits privately in <strong>Agent drafts</strong>. You decide whether to publish or discard it. An agent using MCP can never edit or remove your posts.</p><a class=\"text-link\" href=\"/me/drafts\">Open Agent drafts</a></section>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<section class=\"agent-guide-section\"><h2 id=\"drafts\">Review what an agent writes</h2><p>Unless you allowed it to post publicly, anything an agent writes for the community—a recommendation reason, question, tip or reply—waits privately in <strong>Agent drafts</strong>, and you decide whether to publish or discard it. Whatever an agent writes or publishes is labelled <strong>Agent</strong> beside your name. An agent can never edit or remove your posts.</p><a class=\"text-link\" href=\"/me/drafts\">Open Agent drafts</a></section>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -235,7 +235,7 @@ func agentGuidePermissions(p AgentGuidePage) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if p.OAuth {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<dt>Also allow posting publicly <code>publish</code></dt><dd>Make your Interested choices public, recommend events without a reason, withdraw recommendations an app posted without a reason, and mark or unmark questions, tips and replies Helpful. An app’s recommendations show its name and host publicly.</dd>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<dt>Also allow posting publicly <code>publish</code></dt><dd>Post questions, tips, replies and recommendations (with or without a reason), publish its drafts, make your Interested choices public, withdraw recommendations an app posted without a reason, and mark or unmark posts Helpful, up to 20 public actions an hour. Everything it posts shows Agent and the app’s name and host.</dd>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -363,12 +363,12 @@ func agentGuideTokens(p AgentGuidePage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p><strong>On the JSON API (<code>/api/v1</code>):</strong> a token can read your email and private account data. With private changes allowed, it can also change your preferences, saved events, follows, reminders and private Interested choices, report posts, and write drafts. It never acts publicly as you: it can’t change your profile, make Interested public, recommend, post, edit, remove or react. A recommendation reason, question, tip or reply it writes waits in <strong>Agent drafts</strong> until you publish it. It can revoke itself, but can’t list tokens, create new ones or revoke any other token.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p><strong>On the JSON API (<code>/api/v1</code>):</strong> a token can read your email and private account data. With private changes allowed, it can also change your preferences, saved events, follows, reminders and private Interested choices, report posts, and write drafts, which wait in <strong>Agent drafts</strong> until you publish them. Only if you also allowed posting as you does it act publicly: post, recommend, publish drafts, react and make Interested public, labelled Agent, up to 20 public actions an hour. It never changes your profile or edits or removes your posts. It can revoke itself, but can’t list tokens, create new ones or revoke any other token.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if p.MCP {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p><strong>On <code>/mcp</code>:</strong> a client that supports custom headers can send the same Bearer header. The token keeps the same access there: <code>read</code>, plus <code>write</code> when you allowed private changes, never <code>publish</code>. ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p><strong>On <code>/mcp</code>:</strong> a client that supports custom headers can send the same Bearer header. The token keeps the same access there: <code>read</code>, plus <code>write</code> when you allowed private changes and <code>publish</code> when you allowed posting. ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

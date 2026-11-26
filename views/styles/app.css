@@ -4421,6 +4421,26 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   white-space: nowrap;
 }
 @media (forced-colors: active) { .first-post-label { border: 1px solid CanvasText; } }
+/* Words or actions an agent or API client wrote for the person: a small
+   neutral tag before "via app", quieter than the author's name; the same
+   size in threads, where attribution spans are otherwise larger. */
+.agent-label,
+.discussion-attribution > .agent-label {
+  display: inline-block;
+  padding-block: 0;
+  padding-inline: .375rem;
+  border: 1px solid color-mix(in oklch, var(--muted) 45%, transparent);
+  border-radius: .25rem;
+  color: var(--muted);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: .0625em;
+}
+@media (forced-colors: active) { .agent-label { border-color: CanvasText; color: CanvasText; } }
 :is(.note, .rec-card, .byline) .note-author {
   display: inline-flex;
   align-items: center;

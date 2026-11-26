@@ -213,6 +213,7 @@ templ PostAttribution(post discussions.Post) {
 			<a href={ templ.URL("/users/" + post.Profile.ID) } class="text-link note-author"><span>{ post.Profile.DisplayName }</span></a>
 		}
 		if post.Via!="" {
+			@AgentLabel()
 			<span class="post-via">{ postViaLabel(post) }</span>
 		}
 		if post.FirstPost {

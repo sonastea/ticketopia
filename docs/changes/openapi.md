@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-11-26 — Publishing API tokens, contract v1.31.0
+
+- `Credential.scopes` and token creation accept `publish` (implies `write`).
+  With it, tokens post, reply, recommend (never replacing the person's own),
+  react, make Interested public and publish drafts through the new
+  `POST /api/v1/me/drafts/{draft_id}/publish`, all carrying `via`. New problem
+  codes: `browser_session_required` (profile, post edits and removals,
+  moderation), `publish_limited` (429, 20 public actions an hour shared with
+  agents) and `recommendation_is_personal` (409).
+
 ### 2026-11-25 — API token scopes and drafts, contract v1.30.0
 
 - `Credential` gains required `scopes` (`[read]` or `[read, write]`), and

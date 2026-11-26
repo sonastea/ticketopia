@@ -61,11 +61,11 @@ func TestModerationDecisionsRequireModeratorCredentials(t *testing.T) {
 		want                     int
 		code                     string
 	}{
-		{"ordinary API token", false, false, false, nil, 403, "token_cannot_publish"},
+		{"ordinary API token", false, false, false, nil, 403, "browser_session_required"},
 		{"ordinary browser session", false, true, true, nil, 403, "moderator_access_required"},
 		{"moderator browser without CSRF", true, true, false, nil, 403, "csrf_failed"},
 		{"role lookup unavailable", true, true, true, moderation.ErrUnavailable, 503, "moderation_unavailable"},
-		{"moderator API token", true, false, false, nil, 403, "token_cannot_publish"},
+		{"moderator API token", true, false, false, nil, 403, "browser_session_required"},
 		{"moderator browser session", true, true, true, nil, 201, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

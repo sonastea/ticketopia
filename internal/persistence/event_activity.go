@@ -40,14 +40,14 @@ func (r *EventActivityRepository) Previews(ctx context.Context, ids []string) (m
 	// sort and probed accounts for rows the preview discards. The recommendation
 	// ranking reads only recommendations_active_event (a covering index).
 	queries := []string{
-		`SELECT k.event_id,p.post_id,p.body,a.account_id,a.display_name,k.total FROM (
+		`SELECT k.event_id,p.post_id,p.body,a.account_id,a.display_name,IFNULL(p.via_client_name,''),k.total FROM (
 		 SELECT p.event_id,p.post_id,
 		 COUNT(*) OVER (PARTITION BY p.event_id) AS total,
 		 ROW_NUMBER() OVER (PARTITION BY p.event_id ORDER BY p.created_at DESC,p.post_id DESC) AS row_position
 		 FROM discussion_posts p
 		 WHERE p.event_id IN (` + placeholders + `) AND p.root_id IS NULL AND p.removed_at IS NULL AND p.hidden_at IS NULL
 		) k JOIN discussion_posts p ON p.post_id=k.post_id JOIN accounts a ON a.account_id=p.account_id WHERE k.row_position=1`,
-		`SELECT k.event_id,'',r.reason,a.account_id,a.display_name,k.total FROM (
+		`SELECT k.event_id,'',r.reason,a.account_id,a.display_name,IFNULL(r.via_client_name,''),k.total FROM (
 		 SELECT r.event_id,r.account_id,
 		 COUNT(*) OVER (PARTITION BY r.event_id) AS total,
 		 ROW_NUMBER() OVER (PARTITION BY r.event_id ORDER BY r.recommended_at DESC,r.account_id DESC) AS row_position
@@ -64,7 +64,7 @@ func (r *EventActivityRepository) Previews(ctx context.Context, ids []string) (m
 			var id string
 			var contribution eventactivity.Contribution
 			var count int
-			if err := rows.Scan(&id, &contribution.ID, &contribution.Body, &contribution.AuthorID, &contribution.AuthorName, &count); err != nil {
+			if err := rows.Scan(&id, &contribution.ID, &contribution.Body, &contribution.AuthorID, &contribution.AuthorName, &contribution.Via, &count); err != nil {
 				rows.Close()
 				return nil, safeError("event activity previews", err)
 			}

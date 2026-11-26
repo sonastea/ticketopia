@@ -154,9 +154,9 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
   accounts and required for every `/mcp` request; verify with hosted clients on
   a public deployment).
 - [ ] Let agents act publicly only with explicit consent: a separate `publish`
-  scope for public Interested choices, reason-free recommendations and Helpful,
-  and agent-written reasons, questions, tips and replies as drafts the person
-  publishes on the web, attributed "via" the app
+  scope (OAuth consent, or an API token allowed to post) for posts, replies,
+  recommendations, drafts, Helpful and public Interested, each labelled Agent
+  "via" the app, with drafts for anything the person wants to review first
   ([implemented](docs/app-mcp.md#publishing-in-your-name); verify with a hosted
   client).
 

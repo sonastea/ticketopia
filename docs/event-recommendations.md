@@ -216,9 +216,12 @@ reason, and `{"reason":"Worth seeing live"}` replaces it. Null, unknown/repeated
 fields, owner/visibility/metadata injection, and query parameters are rejected.
 Creation/reactivation returns 201 with Location; active replacement/retry returns
 200. Missing own recommendations return 404. DELETE requires an empty body and
-returns retry-safe 204 even when absent. Writes need a browser session with
-same-origin and CSRF checks: API tokens get 403 `token_cannot_publish` and draft
-reasons through `/api/v1/me/drafts` instead. See
+returns retry-safe 204 even when absent. Cookie writes need same-origin and CSRF
+checks. API tokens need `publish` (else 403 `token_cannot_publish`): their
+recommendation carries `via` "an API client" and an Agent label, never replaces
+one the person wrote (that one is returned unchanged), and their `DELETE`
+withdraws only a recommendation an agent or API client published without a
+reason (409 `recommendation_is_personal` otherwise). See
 [accounts](accounts.md#sessions-and-api-clients).
 
 ## Verification

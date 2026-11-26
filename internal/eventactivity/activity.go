@@ -14,6 +14,9 @@ var ErrUnavailable = errors.New("event activity unavailable")
 
 type Contribution struct {
 	ID, Body, AuthorID, AuthorName string
+	// Via names the agent's app (or "an API client") that wrote or published
+	// it; empty for the person's own words. Previews show an Agent label.
+	Via string
 }
 
 type Preview struct {

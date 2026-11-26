@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
 	"github.com/sonastea/ticketopia/internal/discussions"
+	"github.com/sonastea/ticketopia/internal/drafts"
 	"github.com/sonastea/ticketopia/internal/models"
 	"github.com/sonastea/ticketopia/internal/saved"
 	"github.com/sonastea/ticketopia/views/home"
@@ -49,12 +50,25 @@ func (a *api) discussionViewer(c echo.Context, browser bool) (accounts.Principal
 	return p, err
 }
 
-// discussionWriter authorizes posting, editing, removal and reactions, all
-// public; API tokens draft questions, tips and replies instead.
+// discussionWriter authorizes posting and reactions: public, so an API token
+// needs publish. Editing and removal use discussionAuthor.
 func (a *api) discussionWriter(c echo.Context) (accounts.Principal, error) {
 	p, err := a.requireAPI(c, true, false)
+	if err == nil && !a.discussionsEnabled() {
+		err = discussions.ErrUnavailable
+	}
 	if err == nil {
-		err = checkPublic(p)
+		err = a.checkPublic(c, p)
+	}
+	return p, err
+}
+
+// discussionAuthor authorizes editing or removing the person's own posts,
+// which only they do, on the website.
+func (a *api) discussionAuthor(c echo.Context) (accounts.Principal, error) {
+	p, err := a.requireAPI(c, true, false)
+	if err == nil {
+		err = checkBrowser(p)
 	}
 	if err == nil && !a.discussionsEnabled() {
 		err = discussions.ErrUnavailable
@@ -116,10 +130,20 @@ func (a *api) createDiscussionHandler(c echo.Context) error {
 	if len(c.Request().Header.Values("Idempotency-Key")) != 1 {
 		return accountProblem(c, &accounts.ValidationError{Field: "idempotency_key", Message: "send one Idempotency-Key header"})
 	}
-	if err := a.accounts.Allow(c.Request().Context(), "discussion-create", p.Account.ID); err != nil {
-		return accountProblem(c, err)
+	var post discussions.Post
+	var created bool
+	if p.Credential.Kind == "api" {
+		// Labelled as an API client's, like every token's public action.
+		key := c.Request().Header.Get("Idempotency-Key")
+		if err = discussions.CallerKey(key); err == nil {
+			post, created, err = a.agentPost(c.Request().Context(), p.Account.ID, id, c.Param("discussion_id"), body.ParentID, body.Body, key, drafts.Client{})
+		}
+	} else {
+		if err := a.accounts.Allow(c.Request().Context(), "discussion-create", p.Account.ID); err != nil {
+			return accountProblem(c, err)
+		}
+		post, created, err = a.discussions.Create(c.Request().Context(), p.Account.ID, id, c.Param("discussion_id"), body.ParentID, body.Body, c.Request().Header.Get("Idempotency-Key"))
 	}
-	post, created, err := a.discussions.Create(c.Request().Context(), p.Account.ID, id, c.Param("discussion_id"), body.ParentID, body.Body, c.Request().Header.Get("Idempotency-Key"))
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -131,7 +155,7 @@ func (a *api) createDiscussionHandler(c echo.Context) error {
 	return c.JSON(status, post)
 }
 func (a *api) editPostHandler(c echo.Context) error {
-	p, err := a.discussionWriter(c)
+	p, err := a.discussionAuthor(c)
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -155,7 +179,7 @@ func emptyDiscussionBody(c echo.Context) error {
 	return nil
 }
 func (a *api) removePostHandler(c echo.Context) error {
-	p, err := a.discussionWriter(c)
+	p, err := a.discussionAuthor(c)
 	if err != nil {
 		return accountProblem(c, err)
 	}

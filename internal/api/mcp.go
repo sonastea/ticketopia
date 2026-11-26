@@ -99,7 +99,10 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 				deps.Drafts, deps.DraftsURL = a.drafts, strings.TrimRight(a.authConfig.BaseURL, "/")+"/me/drafts"
 			}
 		}
-		deps.PublishLimit = appmcp.NewPublishLimiter(appmcp.PublishesPerHour, a.clock)
+		// One hourly allowance of public actions per account, shared with
+		// API tokens on /api/v1.
+		deps.PublishLimit = a.publishLimit
+		deps.AgentPosts = agentPublishing{a}
 		// Community reads are public tools: they serve agents exactly what
 		// /api/v1/events/{id}/community and /users/{id}/activity serve.
 		if a.eventCommunityEnabled() {
@@ -142,13 +145,14 @@ type mcpCaller struct {
 	clientName string
 	clientID   string
 	grantID    string
-	// apiToken is set for account API tokens, which can never hold publish.
+	// apiToken is set for account API tokens, which identify no app.
 	apiToken bool
 }
 
 // apiTokenScopes are listed explicitly, never derived from oauth.Scopes, so
-// a new scope such as publish is never granted to API tokens by accident.
-var apiTokenScopes = []string{oauth.ScopeRead, oauth.ScopeWrite}
+// a new scope is never granted to API tokens by accident. A token holds the
+// ones the person chose when creating it.
+var apiTokenScopes = []string{oauth.ScopeRead, oauth.ScopeWrite, oauth.ScopePublish}
 
 func (c mcpCaller) can(scope string) bool { return slices.Contains(c.scopes, scope) }
 
@@ -227,8 +231,8 @@ func mcpError(c echo.Context, status int, retry int, message string) error {
 //     act with ambient sign-in;
 //   - with sign-in required, any request without a token gets a 401
 //     challenge; otherwise, with OAuth on, signed-in tool calls without one
-//     do; a tool needing a scope the token lacks (write, or publish, which
-//     API tokens never hold) gets a 403;
+//     do; a tool needing a scope the token lacks (write or publish) gets a
+//     403;
 //   - concurrent requests are bounded and excess is refused, not queued;
 //   - bodies are capped and responses kept out of caches.
 func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan struct{}, metrics *appmcp.Metrics) echo.MiddlewareFunc {
@@ -290,7 +294,7 @@ func (a *api) mcpBoundary(limiter, accountLimiter *ipLimiter, inFlight chan stru
 					return mcpError(c, http.StatusBadRequest, 0, "JSON-RPC batch requests are not supported; send one request per POST")
 				}
 				// Scope checks apply to API tokens too, with or without OAuth:
-				// API tokens never hold publish.
+				// they hold only the scopes the person chose.
 				if handled, err := a.mcpAuthorizeCall(c, body, caller, metrics); handled {
 					return err
 				}
@@ -400,8 +404,7 @@ func (a *api) mcpAuthorizeCall(c echo.Context, body []byte, caller *mcpCaller, m
 		if scope == oauth.ScopePublish {
 			message = "this connection can't post publicly; reconnect and allow posting publicly to use " + call.Params.Name
 			if caller.apiToken {
-				// Reconnecting cannot help: no API token is ever granted publish.
-				message = "API tokens can't post publicly; to use " + call.Params.Name + ", connect through OAuth sign-in and allow posting publicly, or act on the Ticketopia website"
+				message = "this API token can't post publicly; to use " + call.Params.Name + ", create a token that allows posting as you in Security & Apps, or connect through OAuth sign-in and allow public actions"
 			}
 		}
 		return true, mcpError(c, http.StatusForbidden, 0, message)

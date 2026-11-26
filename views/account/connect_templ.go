@@ -163,14 +163,14 @@ func Consent(p ConsentPage) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span> <span id=\"connect-publish-help\" class=\"field-note\">Make interest public, recommend without a reason, withdraw recommendations, or mark contributions Helpful. Recommendations show “via ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span> <span id=\"connect-publish-help\" class=\"field-note\">Post questions, tips, replies and recommendations, publish your drafts, make interest public and mark contributions Helpful, up to 20 public actions an hour. Everything it posts is labelled Agent, “via ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(p.ClientName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 39, Col: 210}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 39, Col: 279}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -183,13 +183,13 @@ func Consent(p ConsentPage) templ.Component {
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(p.ClientHost)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 39, Col: 228}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 39, Col: 297}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, ")”. Text it writes still needs your approval before posting.</span></span></label>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, ")”. It can't edit or remove your posts.</span></span></label>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -394,7 +394,7 @@ func Connections(p Page) templ.Component {
 			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<section id=\"connected-apps\" class=\"account-section\" aria-labelledby=\"connected-apps-heading\"><h2 id=\"connected-apps-heading\">Connected apps</h2><p>AI agents you connected. Each one can do only what you allowed. Text it writes, like reasons and replies, waits in <a href=\"/me/drafts\" class=\"text-link\">your drafts</a> until you publish it. Apps you allowed to post publicly can also act right away: make Interested choices public, recommend or withdraw recommendations without a reason, and mark posts Helpful.</p><a href=\"/agents#connect\" class=\"text-link\">How to connect an agent</a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<section id=\"connected-apps\" class=\"account-section\" aria-labelledby=\"connected-apps-heading\"><h2 id=\"connected-apps-heading\">Connected apps</h2><p>AI agents you connected. Each one can do only what you allowed. Unless you allowed public actions, text it writes, like reasons and replies, waits in <a href=\"/me/drafts\" class=\"text-link\">your drafts</a> until you publish it. Apps you allowed to post publicly can also post, publish your drafts and act right away, always labelled Agent.</p><a href=\"/agents#connect\" class=\"text-link\">How to connect an agent</a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -531,20 +531,30 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</time></p></div><form action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</time></p>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if postsTextSinceConsent(connection) {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<p class=\"field-note\">You allowed public actions before apps could post text. It can now post questions, replies and recommendations as you, labelled Agent. Disconnect and reconnect it if you’d rather keep its words to drafts.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</div><form action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 templ.SafeURL
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/me/connections/" + connection.ID + "/revoke"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 118, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/account/connect.templ`, Line: 121, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" method=\"post\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\" method=\"post\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -564,7 +574,7 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "Disconnect")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "Disconnect")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -574,7 +584,7 @@ func connectionItem(p Page, connection oauth.Grant) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</form></li>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</form></li>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

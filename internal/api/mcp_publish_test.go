@@ -141,27 +141,31 @@ func toolCall(name, args string) string {
 	return `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"` + name + `","arguments":` + args + `}}`
 }
 
-// API tokens carry read and write only, never publish, whether or not OAuth
-// is on: publishing tools get a 403 and reach no service.
-func TestMCPAPITokensCannotPublish(t *testing.T) {
-	if slices.Contains(apiTokenScopes, oauth.ScopePublish) {
-		t.Fatal("API tokens hold publish")
-	}
+// API tokens publish only when the person allowed posting, whether or not
+// OAuth is on: without publish, publishing tools get a 403 and reach no
+// service; with it, what they publish says "an API client".
+func TestMCPAPITokensPublishOnlyWhenAllowed(t *testing.T) {
 	for _, oauthOn := range []bool{true, false} {
 		f := newPublishFixture(t, oauthOn)
 		bearer := map[string]string{"Authorization": "Bearer " + f.apiToken}
 		for _, name := range []string{"make_interest_public", "recommend_event", "withdraw_recommendation"} {
 			r := mcpPost(t, f.routes, toolCall(name, `{"event_id":"`+f.savedEvent+`"}`), bearer)
 			if r.Code != http.StatusForbidden || !strings.Contains(r.Header().Get("WWW-Authenticate"), `error="insufficient_scope"`) ||
-				!strings.Contains(r.Body.String(), "API tokens can't post publicly") {
+				!strings.Contains(r.Body.String(), "this API token can't post publicly") {
 				t.Fatalf("oauth=%v %s: %d %v %s", oauthOn, name, r.Code, r.Header(), r.Body.String())
 			}
 		}
 		if len(f.recommendations.items) != 0 || len(f.interests.items) != 0 {
 			t.Fatalf("API token publish reached services: %+v %+v", f.recommendations.items, f.interests.items)
 		}
+		poster := map[string]string{"Authorization": "Bearer " + scopedToken(f, 5, accounts.ScopeRead, accounts.ScopeWrite, accounts.ScopePublish)}
+		r := mcpPost(t, f.routes, toolCall("recommend_event", `{"event_id":"`+f.savedEvent+`","reason":"Great room"}`), poster)
+		if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"via":"an API client"`) || !strings.Contains(r.Body.String(), "Great room") {
+			t.Fatalf("oauth=%v publishing token: %d %s", oauthOn, r.Code, r.Body.String())
+		}
+		delete(f.recommendations.items, f.accountStorage.account.ID)
 		// Drafting needs only write, which API tokens hold.
-		r := mcpPost(t, f.routes, toolCall("draft_recommendation", `{"event_id":"`+f.savedEvent+`","reason":"Great room"}`), bearer)
+		r = mcpPost(t, f.routes, toolCall("draft_recommendation", `{"event_id":"`+f.savedEvent+`","reason":"Great room"}`), bearer)
 		if r.Code != http.StatusOK || strings.Contains(r.Body.String(), `"isError":true`) || !strings.Contains(r.Body.String(), "https://events.example/me/drafts") {
 			t.Fatalf("oauth=%v API token draft: %d %s", oauthOn, r.Code, r.Body.String())
 		}

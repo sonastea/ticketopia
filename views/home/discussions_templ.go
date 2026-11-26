@@ -978,14 +978,18 @@ func PostAttribution(post discussions.Post) templ.Component {
 			}
 		}
 		if post.Via != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<span class=\"post-via\">")
+			templ_7745c5c3_Err = AgentLabel().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, " <span class=\"post-via\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(postViaLabel(post))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 216, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 217, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 			if templ_7745c5c3_Err != nil {
@@ -1052,7 +1056,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue("post-" + post.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 230, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 231, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 		if templ_7745c5c3_Err != nil {
@@ -1114,7 +1118,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 					var templ_7745c5c3_Var41 templ.SafeURL
 					templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(replyURL(returnURL, post.ParentID)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 247, Col: 61}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 248, Col: 61}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 					if templ_7745c5c3_Err != nil {
@@ -1135,7 +1139,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 					var templ_7745c5c3_Var42 string
 					templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(post.ParentName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 249, Col: 42}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 250, Col: 42}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 					if templ_7745c5c3_Err != nil {
@@ -1159,7 +1163,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 			var templ_7745c5c3_Var43 string
 			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(post.Body)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 253, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 254, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 			if templ_7745c5c3_Err != nil {
@@ -1172,7 +1176,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 			var templ_7745c5c3_Var44 templ.SafeURL
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(replyURL(returnURL, post.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 257, Col: 54}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 258, Col: 54}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -1222,7 +1226,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 					var templ_7745c5c3_Var46 string
 					templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(post.HelpfulCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 266, Col: 130}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 267, Col: 130}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 					if templ_7745c5c3_Err != nil {
@@ -1258,7 +1262,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(post.HelpfulCount))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 273, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 274, Col: 44}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -1290,7 +1294,7 @@ func DiscussionPost(post discussions.Post, v DiscussionView, returnURL string) t
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(wantToKnow(post.SameQuestionCount))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 281, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 282, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 				if templ_7745c5c3_Err != nil {
@@ -1377,7 +1381,7 @@ func DiscussionUtilityActions(post discussions.Post, v DiscussionView, returnURL
 			var templ_7745c5c3_Var50 string
 			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(" your contribution")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 305, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 306, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 			if templ_7745c5c3_Err != nil {
@@ -1406,7 +1410,7 @@ func DiscussionUtilityActions(post discussions.Post, v DiscussionView, returnURL
 			var templ_7745c5c3_Var51 string
 			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(" your contribution")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 312, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 313, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
@@ -1454,7 +1458,7 @@ func DiscussionUtilityActions(post discussions.Post, v DiscussionView, returnURL
 			var templ_7745c5c3_Var53 templ.SafeURL
 			templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/posts/" + post.ID + "/report"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 324, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 325, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 			if templ_7745c5c3_Err != nil {
@@ -1475,7 +1479,7 @@ func DiscussionUtilityActions(post discussions.Post, v DiscussionView, returnURL
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(" privately")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 326, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 327, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
@@ -1522,7 +1526,7 @@ func DiscussionMetadata(f DiscussionForm) templ.Component {
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.CSRF)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 333, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 334, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 		if templ_7745c5c3_Err != nil {
@@ -1535,7 +1539,7 @@ func DiscussionMetadata(f DiscussionForm) templ.Component {
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ReturnURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 334, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 335, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 		if templ_7745c5c3_Err != nil {
@@ -1548,7 +1552,7 @@ func DiscussionMetadata(f DiscussionForm) templ.Component {
 		var templ_7745c5c3_Var58 string
 		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.EventID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 335, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 336, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 		if templ_7745c5c3_Err != nil {
@@ -1561,7 +1565,7 @@ func DiscussionMetadata(f DiscussionForm) templ.Component {
 		var templ_7745c5c3_Var59 string
 		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ThreadID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 336, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 337, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 		if templ_7745c5c3_Err != nil {
@@ -1574,7 +1578,7 @@ func DiscussionMetadata(f DiscussionForm) templ.Component {
 		var templ_7745c5c3_Var60 string
 		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ParentID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 337, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 338, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
 		if templ_7745c5c3_Err != nil {
@@ -1587,7 +1591,7 @@ func DiscussionMetadata(f DiscussionForm) templ.Component {
 		var templ_7745c5c3_Var61 string
 		templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.PostID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 338, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 339, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 		if templ_7745c5c3_Err != nil {
@@ -1600,7 +1604,7 @@ func DiscussionMetadata(f DiscussionForm) templ.Component {
 		var templ_7745c5c3_Var62 string
 		templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.Key)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 339, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 340, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 		if templ_7745c5c3_Err != nil {
@@ -1642,7 +1646,7 @@ func DiscussionComposer(f DiscussionForm, fieldLabel, submitLabel string) templ.
 		var templ_7745c5c3_Var64 string
 		templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.draftScope())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 343, Col: 164}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 344, Col: 164}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 		if templ_7745c5c3_Err != nil {
@@ -1673,7 +1677,7 @@ func DiscussionComposer(f DiscussionForm, fieldLabel, submitLabel string) templ.
 		var templ_7745c5c3_Var65 string
 		templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(fieldLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 351, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 352, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 		if templ_7745c5c3_Err != nil {
@@ -1686,7 +1690,7 @@ func DiscussionComposer(f DiscussionForm, fieldLabel, submitLabel string) templ.
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(f.Body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 351, Col: 139}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 352, Col: 139}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 		if templ_7745c5c3_Err != nil {
@@ -1722,7 +1726,7 @@ func DiscussionComposer(f DiscussionForm, fieldLabel, submitLabel string) templ.
 				var templ_7745c5c3_Var68 string
 				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(submitLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 358, Col: 18}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 359, Col: 18}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 				if templ_7745c5c3_Err != nil {
@@ -1803,7 +1807,7 @@ func LiveReplies(p DiscussionPage, live string) templ.Component {
 		var templ_7745c5c3_Var71 string
 		templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.ResolveAttributeValue(live)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 381, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 382, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var71)
 		if templ_7745c5c3_Err != nil {
@@ -1816,7 +1820,7 @@ func LiveReplies(p DiscussionPage, live string) templ.Component {
 		var templ_7745c5c3_Var72 string
 		templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.liveSince())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 381, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 382, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var72)
 		if templ_7745c5c3_Err != nil {
@@ -1829,7 +1833,7 @@ func LiveReplies(p DiscussionPage, live string) templ.Component {
 		var templ_7745c5c3_Var73 string
 		templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.URL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 381, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 382, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 		if templ_7745c5c3_Err != nil {
@@ -1852,7 +1856,7 @@ func LiveReplies(p DiscussionPage, live string) templ.Component {
 		var templ_7745c5c3_Var74 templ.SafeURL
 		templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(p.URL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 383, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 384, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 		if templ_7745c5c3_Err != nil {
@@ -1918,7 +1922,7 @@ func ComposerStarters() templ.Component {
 				var templ_7745c5c3_Var77 string
 				templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(starter)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 398, Col: 13}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 399, Col: 13}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 				if templ_7745c5c3_Err != nil {
@@ -1938,7 +1942,7 @@ func ComposerStarters() templ.Component {
 		var templ_7745c5c3_Var78 string
 		templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(composerStarterExamples())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 402, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 403, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 		if templ_7745c5c3_Err != nil {
@@ -1992,7 +1996,7 @@ func Discussion(p DiscussionPage) templ.Component {
 			var templ_7745c5c3_Var81 string
 			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.ResolveAttributeValue(p.View.ViewerID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 407, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 408, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var81)
 			if templ_7745c5c3_Err != nil {
@@ -2013,7 +2017,7 @@ func Discussion(p DiscussionPage) templ.Component {
 			var templ_7745c5c3_Var82 string
 			templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(p.Event.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 409, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 410, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 			if templ_7745c5c3_Err != nil {
@@ -2026,7 +2030,7 @@ func Discussion(p DiscussionPage) templ.Component {
 			var templ_7745c5c3_Var83 string
 			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(startLabel(p.Event.Start))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 409, Col: 118}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 410, Col: 118}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 			if templ_7745c5c3_Err != nil {
@@ -2039,7 +2043,7 @@ func Discussion(p DiscussionPage) templ.Component {
 			var templ_7745c5c3_Var84 string
 			templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(venueLabel(p.Event))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 409, Col: 168}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 410, Col: 168}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 			if templ_7745c5c3_Err != nil {
@@ -2114,7 +2118,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 					var templ_7745c5c3_Var86 string
 					templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(p.FollowError)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 427, Col: 56}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 428, Col: 56}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 					if templ_7745c5c3_Err != nil {
@@ -2161,7 +2165,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 			var templ_7745c5c3_Var87 string
 			templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(p.Root.ReplyCount))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 440, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 441, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var87))
 			if templ_7745c5c3_Err != nil {
@@ -2179,7 +2183,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 				var templ_7745c5c3_Var88 templ.SafeURL
 				templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(earlier))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 442, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 443, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
 				if templ_7745c5c3_Err != nil {
@@ -2202,7 +2206,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 				var templ_7745c5c3_Var89 string
 				templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(p.View.Error)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 445, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 446, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 				if templ_7745c5c3_Err != nil {
@@ -2215,7 +2219,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 				var templ_7745c5c3_Var90 templ.SafeURL
 				templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(p.URL))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 446, Col: 29}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 447, Col: 29}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 				if templ_7745c5c3_Err != nil {
@@ -2245,7 +2249,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 						var templ_7745c5c3_Var91 templ.SafeURL
 						templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(first))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 455, Col: 32}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 456, Col: 32}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 						if templ_7745c5c3_Err != nil {
@@ -2274,7 +2278,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 					var templ_7745c5c3_Var92 templ.SafeURL
 					templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(CollectionNextURL(p.URL, p.View.List.NextCursor)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 462, Col: 73}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 463, Col: 73}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 					if templ_7745c5c3_Err != nil {
@@ -2304,7 +2308,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 					var templ_7745c5c3_Var93 string
 					templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(p.ReplyTo.Profile.DisplayName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 472, Col: 61}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 473, Col: 61}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 					if templ_7745c5c3_Err != nil {
@@ -2317,7 +2321,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 					var templ_7745c5c3_Var94 string
 					templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(p.ReplyTo.Body)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 473, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 474, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 					if templ_7745c5c3_Err != nil {
@@ -2342,7 +2346,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 				var templ_7745c5c3_Var95 templ.SafeURL
 				templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(signInURL(p.URL)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 480, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 481, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var95))
 				if templ_7745c5c3_Err != nil {
@@ -2384,7 +2388,7 @@ func DiscussionContent(p DiscussionPage) templ.Component {
 				var templ_7745c5c3_Var96 templ.SafeURL
 				templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(CollectionNextURL(p.URL, p.View.List.NextCursor)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 492, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 493, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 				if templ_7745c5c3_Err != nil {
@@ -2491,7 +2495,7 @@ func DiscussionCommunity(p DiscussionCommunityPage) templ.Component {
 					var templ_7745c5c3_Var100 string
 					templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(p.Error)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 511, Col: 30}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 512, Col: 30}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 					if templ_7745c5c3_Err != nil {
@@ -2598,7 +2602,7 @@ func DiscussionFailure(f DiscussionForm, message string, signIn bool) templ.Comp
 			var templ_7745c5c3_Var104 string
 			templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 532, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 533, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
 			if templ_7745c5c3_Err != nil {
@@ -2663,7 +2667,7 @@ func DiscussionFailure(f DiscussionForm, message string, signIn bool) templ.Comp
 				var templ_7745c5c3_Var106 templ.SafeURL
 				templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(signInURL(f.ReturnURL)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 547, Col: 167}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 548, Col: 167}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
 				if templ_7745c5c3_Err != nil {
@@ -2681,7 +2685,7 @@ func DiscussionFailure(f DiscussionForm, message string, signIn bool) templ.Comp
 			var templ_7745c5c3_Var107 templ.SafeURL
 			templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(f.ReturnURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 549, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 550, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 			if templ_7745c5c3_Err != nil {
@@ -2795,7 +2799,7 @@ func OpenQuestions(p OpenQuestionsPage) templ.Component {
 					var templ_7745c5c3_Var111 string
 					templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(p.Error)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 571, Col: 30}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 572, Col: 30}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
 					if templ_7745c5c3_Err != nil {
@@ -2918,7 +2922,7 @@ func OpenQuestionCards(p OpenQuestionsPage) templ.Component {
 				var templ_7745c5c3_Var114 string
 				templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.ResolveAttributeValue("question-" + post.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 602, Col: 81}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 603, Col: 81}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var114)
 				if templ_7745c5c3_Err != nil {
@@ -2948,7 +2952,7 @@ func OpenQuestionCards(p OpenQuestionsPage) templ.Component {
 					var templ_7745c5c3_Var115 string
 					templ_7745c5c3_Var115, templ_7745c5c3_Err = templ.JoinStringErrs(wantToKnow(post.SameQuestionCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 607, Col: 49}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 608, Col: 49}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var115))
 					if templ_7745c5c3_Err != nil {
@@ -2970,7 +2974,7 @@ func OpenQuestionCards(p OpenQuestionsPage) templ.Component {
 				var templ_7745c5c3_Var116 templ.SafeURL
 				templ_7745c5c3_Var116, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(answerURL(post, p.URL)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 612, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 613, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var116))
 				if templ_7745c5c3_Err != nil {
@@ -2991,7 +2995,7 @@ func OpenQuestionCards(p OpenQuestionsPage) templ.Component {
 				var templ_7745c5c3_Var117 string
 				templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(" this question")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 614, Col: 59}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 615, Col: 59}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
 				if templ_7745c5c3_Err != nil {
@@ -3022,7 +3026,7 @@ func OpenQuestionCards(p OpenQuestionsPage) templ.Component {
 				var templ_7745c5c3_Var118 templ.SafeURL
 				templ_7745c5c3_Var118, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(eventURL(post.EventID, "discussion", p.URL)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 620, Col: 70}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 621, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var118))
 				if templ_7745c5c3_Err != nil {
@@ -3115,7 +3119,7 @@ func SameQuestionControl(post discussions.Post, viewer, csrf, returnURL string, 
 			var templ_7745c5c3_Var121 string
 			templ_7745c5c3_Var121, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(post.SameQuestionCount))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 639, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/home/discussions.templ`, Line: 640, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var121))
 			if templ_7745c5c3_Err != nil {

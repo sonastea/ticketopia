@@ -36,10 +36,12 @@ var errCSRF = errors.New("refresh this page and try again")
 var errDisabled = errors.New("accounts are not enabled on this server")
 
 // API token limits: errTokenReadOnly for changes through a read-only token,
-// errTokenPublic for anything public, which tokens never do directly.
+// errTokenPublic for public actions without publish, and errBrowserOnly for
+// what only the person does on the web whatever the token holds.
 var (
 	errTokenReadOnly = errors.New("this API token can only read")
-	errTokenPublic   = errors.New("API tokens can't act publicly")
+	errTokenPublic   = errors.New("this API token can't act publicly")
+	errBrowserOnly   = errors.New("only the person can do this on the website")
 )
 
 func privateAccountResponse(c echo.Context) {
@@ -394,14 +396,35 @@ func (a *api) checkWrite(c echo.Context, p accounts.Principal) error {
 	return nil
 }
 
-// checkPublic refuses API tokens for public actions and public words:
-// visible names, recommendations, posts, edits, removals and reactions.
-// Tokens draft text instead (/api/v1/me/drafts), which the person
-// publishes on the web; agents with OAuth consent may take reason-free
-// public actions on /mcp.
-func checkPublic(p accounts.Principal) error {
-	if p.Credential.Kind == "api" {
+// checkPublic lets an API token act publicly (post, recommend, react, make
+// Interested public, publish drafts) only when the person allowed it to post
+// as them, within the account's hourly allowance. Browser sessions pass. A
+// request that then fails gets its allowance back (accountProblem).
+func (a *api) checkPublic(c echo.Context, p accounts.Principal) error {
+	if p.Credential.Kind != "api" {
+		return nil
+	}
+	if !p.Credential.Can(accounts.ScopePublish) {
 		return errTokenPublic
+	}
+	if err := a.allowPublish(p.Account.ID); err != nil {
+		return err
+	}
+	if a.publishLimit != nil {
+		owner := p.Account.ID
+		c.Set(publishRefundKey, func() { a.publishLimit.Refund(owner) })
+	}
+	return nil
+}
+
+// publishRefundKey holds the refund for a request's public action.
+const publishRefundKey = "ticketopia.publish.refund"
+
+// checkBrowser keeps editing or removing the person's posts, their profile
+// and moderation on the web: no API token does these.
+func checkBrowser(p accounts.Principal) error {
+	if p.Credential.Kind == "api" {
+		return errBrowserOnly
 	}
 	return nil
 }
@@ -436,7 +459,13 @@ func accountError(err error) (int, string, string, map[string]string) {
 	case errors.Is(err, errTokenReadOnly):
 		return 403, "insufficient_scope", "This API token can only read. Create a token that allows private changes in Security & Apps.", nil
 	case errors.Is(err, errTokenPublic):
-		return 403, "token_cannot_publish", "API tokens can't act publicly or post as you. Draft text with /api/v1/me/drafts and publish it on Ticketopia, or act on the website.", nil
+		return 403, "token_cannot_publish", "This API token can't act publicly. Create a token that allows posting as you in Security & Apps, or draft text with /api/v1/me/drafts for the person to publish.", nil
+	case errors.Is(err, errBrowserOnly):
+		return 403, "browser_session_required", "Only the person can do this on the Ticketopia website: changing the profile, editing or removing posts, withdrawing their own recommendation, and moderation.", nil
+	case errors.As(err, new(errPublishLimited)):
+		return 429, "publish_limited", "This account reached its hourly limit of public actions through agents and API clients. Try again later.", nil
+	case errors.Is(err, recommendations.ErrPersonal):
+		return 409, "recommendation_is_personal", "The person wrote this recommendation themselves, so only they can change or withdraw it, on the website.", nil
 	case errors.Is(err, accounts.ErrFlow):
 		return 400, "invalid_sign_in", "Sign-in expired or could not be verified. Please start again.", nil
 	case errors.Is(err, accounts.ErrNotFound):
@@ -495,9 +524,19 @@ func accountError(err error) (int, string, string, map[string]string) {
 }
 func accountProblem(c echo.Context, err error) error {
 	privateAccountResponse(c)
+	// A public action that failed published nothing: return its allowance.
+	if refund, ok := c.Get(publishRefundKey).(func()); ok {
+		c.Set(publishRefundKey, nil)
+		refund()
+	}
 	status, code, detail, fields := accountError(err)
 	if status == 429 {
-		c.Response().Header().Set("Retry-After", "600")
+		retry := "600"
+		var limited errPublishLimited
+		if errors.As(err, &limited) {
+			retry = strconv.Itoa(limited.retryAfter())
+		}
+		c.Response().Header().Set("Retry-After", retry)
 	}
 	if status == 401 {
 		c.Response().Header().Set("WWW-Authenticate", `Bearer realm="ticketopia"`)
@@ -622,8 +661,8 @@ func (a *api) preferencesHandler(c echo.Context) error {
 func (a *api) patchProfileHandler(c echo.Context) error {
 	p, err := a.requireAPI(c, true, false)
 	if err == nil {
-		// The profile's name and bio are public words.
-		err = checkPublic(p)
+		// The profile is the person's own words.
+		err = checkBrowser(p)
 	}
 	if err != nil {
 		return accountProblem(c, err)
@@ -765,6 +804,7 @@ type accountView struct {
 	TokenFormOpen bool
 	TokenName     string
 	TokenWrite    bool
+	TokenPublish  bool
 	// Live is an unsaved live-activity filter draft to show on Preferences.
 	Live *liveFilterDraft
 }
@@ -797,7 +837,7 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 		view = views[0]
 	}
 	ctx := c.Request().Context()
-	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NoticeFor: view.NoticeFor, NewToken: token, TokenFormOpen: view.TokenFormOpen, TokenName: view.TokenName, TokenWrite: view.TokenWrite}
+	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NoticeFor: view.NoticeFor, NewToken: token, TokenFormOpen: view.TokenFormOpen, TokenName: view.TokenName, TokenWrite: view.TokenWrite, TokenPublish: view.TokenPublish}
 	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	switch section {
 	case "profile":
@@ -1015,7 +1055,7 @@ func (a *api) logoutPage(all bool) echo.HandlerFunc {
 }
 func (a *api) createTokenPage(c echo.Context) error {
 	privateAccountResponse(c)
-	if err := parseAccountForm(c, "name", "write"); err != nil {
+	if err := parseAccountForm(c, "name", "write", "publish"); err != nil {
 		return a.accountPageError(c, err)
 	}
 	p, err := a.principal(c, true)
@@ -1032,10 +1072,13 @@ func (a *api) createTokenPage(c echo.Context) error {
 	if c.FormValue("write") == "on" {
 		scopes = append(scopes, accounts.ScopeWrite)
 	}
+	if c.FormValue("publish") == "on" {
+		scopes = append(scopes, accounts.ScopePublish)
+	}
 	_, raw, err := a.accounts.CreateToken(c.Request().Context(), p.Account.ID, c.FormValue("name"), scopes)
 	if err != nil {
 		status, _, message, _ := accountError(err)
-		return a.renderAccount(c, status, p, "security", message, "", "", accountView{TokenFormOpen: true, TokenName: c.FormValue("name"), TokenWrite: c.FormValue("write") == "on"})
+		return a.renderAccount(c, status, p, "security", message, "", "", accountView{TokenFormOpen: true, TokenName: c.FormValue("name"), TokenWrite: c.FormValue("write") == "on", TokenPublish: c.FormValue("publish") == "on"})
 	}
 	// Post/Redirect/Get: refreshing the result must not create another token.
 	// The secret travels once in a short-lived cookie, never in the URL.

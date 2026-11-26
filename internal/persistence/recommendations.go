@@ -88,7 +88,7 @@ func (r *RecommendationRepository) Write(ctx context.Context, owner string, deta
 		if err == nil {
 			return item, created, nil
 		}
-		if errors.Is(err, recommendations.ErrChanged) || errors.Is(err, recommendations.ErrDraftGone) {
+		if errors.Is(err, recommendations.ErrChanged) || errors.Is(err, recommendations.ErrDraftGone) || errors.Is(err, recommendations.ErrPersonal) {
 			return recommendations.Item{}, false, err
 		}
 		if !retry || attempt == 2 {
@@ -125,9 +125,9 @@ func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, de
 	if err := upsertSnapshotTx(ctx, tx, detail, args, data); err != nil {
 		return recommendations.Item{}, false, retryable(err), err
 	}
-	var active bool
+	var active, personal bool
 	var current string
-	err = tx.QueryRowContext(ctx, `SELECT withdrawn_at IS NULL,reason FROM event_recommendations WHERE account_id=? AND event_id=? FOR UPDATE`, owner, detail.Item.ID).Scan(&active, &current)
+	err = tx.QueryRowContext(ctx, `SELECT withdrawn_at IS NULL,reason,via_client_name IS NULL FROM event_recommendations WHERE account_id=? AND event_id=? FOR UPDATE`, owner, detail.Item.ID).Scan(&active, &current, &personal)
 	first := errors.Is(err, sql.ErrNoRows)
 	if err != nil && !first {
 		return recommendations.Item{}, false, retryable(err), err
@@ -136,6 +136,9 @@ func (r *RecommendationRepository) setOnce(ctx context.Context, owner string, de
 	// The person's review must still describe the row, checked under its lock.
 	if e := w.Expect; e != nil && !e.Matches(!created, current) {
 		return recommendations.Item{}, false, false, recommendations.ErrChanged
+	}
+	if w.KeepPersonal && !created && personal && current != "" {
+		return recommendations.Item{}, false, false, recommendations.ErrPersonal
 	}
 	// The draft is consumed with the publication, or nothing happens. Lock the
 	// account first, as sign-out-everywhere does before cascading into drafts,

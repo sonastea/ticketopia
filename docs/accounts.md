@@ -194,27 +194,30 @@ it was lost. Use `Authorization: Bearer TOKEN` for own account and preferences
 API reads/writes. A later GET/list never reveals the secret.
 
 A token holds `read`, plus `write` when **Allow private changes** was checked
-(unchecked by default; the JSON API's `scopes` defaults to `["read"]` and
-rejects `publish`). Tokens created before scopes keep `read write`. The token
-list shows each token's access.
+and `publish` when **Allow posting as *name*** was too (both unchecked by
+default; `publish` implies `write`). The JSON API's `scopes` defaults to
+`["read"]`. Tokens created before scopes keep `read write`. The token list
+shows each token's access.
 
 - `read` reads the account email and private data.
 - `write` adds private changes: preferences, saves, reminders, follows, reply
   updates, private Interested choices, reports, appeals and drafts. Without it,
   changes get **403** `insufficient_scope`.
-- **Tokens never act publicly**, so scripts and agents can't flood the community
-  as someone. Changing the profile, making Interested public, recommending or
-  withdrawing, posting, replying, editing, removing and Helpful or Same question
-  get **403** `token_cannot_publish`, as do moderation decisions. A new
-  Interested choice from a token is private whatever the account default. As a
-  privacy exception, `write` may still make a public choice private or remove
-  it, as the agent tools allow: that only takes the person's name away.
-  Drafts a token wrote stay until published, discarded or expired; revoking it
-  doesn't remove them. Text goes through
-  [drafts](#community-activity-from-other-clients) the person publishes on the web.
+- `publish` lets the token act publicly as the person, for scripts and agents
+  they trust: post questions, tips and replies, recommend (with a reason),
+  publish drafts, mark Helpful or Same question and make Interested public.
+  Everything it publishes carries `via` "an API client" and shows an **Agent**
+  label. Public actions share 20 in any rolling hour per account with agents
+  (only successful ones count; **429** `publish_limited` with `Retry-After`). Without `publish` they get **403** `token_cannot_publish`,
+  and a token's new Interested choice is private whatever the account default.
+- No token changes the profile, edits or removes posts, withdraws a
+  recommendation the person wrote, or records moderation decisions (**403**
+  `browser_session_required`); a token's recommendation never replaces the
+  person's. As a privacy exception, `write` may make a public Interested
+  choice private or remove it. Drafts a token wrote stay until published,
+  discarded or expired; revoking it doesn't remove them.
 
-The same scopes apply on [`/mcp`](app-mcp.md#signing-in), where API tokens also
-never hold `publish`. API tokens cannot manage credentials. Revoke individually or use **Sign out of
+The same scopes apply on [`/mcp`](app-mcp.md#signing-in). API tokens cannot manage credentials. Revoke individually or use **Sign out of
 all devices**, which revokes every session and token (and also disconnects apps when
 [OAuth sign-in](app-mcp.md#oauth-sign-in) is on); ordinary Sign out revokes only the current session
 and does not sign out of Google. Tokens can revoke themselves through
@@ -241,17 +244,18 @@ Personal tokens also search artists/venues and manage private follows through
 ### Community activity from other clients
 
 A script, CLI, native app or agent reads the whole community with a personal
-token, keeps private state, and proposes public words as drafts. It never posts
-as the person: public actions stay with the website and with
-[OAuth-connected agents](app-mcp.md#publishing-in-your-name) the person allowed.
+token and keeps private state. It proposes public words as drafts, or, with a
+token allowed to post, posts and publishes them itself, labelled as an
+agent's (see [publishing in your name](app-mcp.md#publishing-in-your-name)).
 
 - `POST /api/v1/me/drafts` (token with `write` only) stores a `recommendation`
   reason (up to 500 characters), a `question` or tip, or a `reply` (with
   `thread_id` and optional `parent_id`; up to 4000) and returns `review_url`,
   never publishing. `GET /api/v1/me/drafts` lists pending drafts and
   `DELETE /api/v1/me/drafts/{id}` discards one (idempotent 204). The person
-  reviews each at **Agent drafts** (`/me/drafts`); published drafts show "via an
-  API client". Browser sessions publish directly and get 400. These share the
+  reviews each at **Agent drafts** (`/me/drafts`), or a token with `publish`
+  publishes it with `POST /api/v1/me/drafts/{id}/publish`; published drafts show
+  "via an API client". Browser sessions publish on the web and get 400 here. These share the
   service behind the `draft_*`, `my_drafts` and `discard_draft`
   [agent tools](app-mcp.md#publishing-in-your-name).
 

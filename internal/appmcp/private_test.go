@@ -78,7 +78,7 @@ func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest
 	handler := Handler(Deps{Events: &f.events, Details: &f.events, Saved: f, Reminders: fakeReminders{f}, Metrics: metrics,
 		Radar: fakeRadar{f}, Follows: fakeFollows{f}, Catalog: fakeCatalog{f}, Interests: fakeInterests{f}, Accounts: fakeAccounts{f},
 		EventCommunity: fakeCommunity{f}, ProfileActivity: fakeCommunity{f}, EventRecommendations: fakeCommunity{f}, InterestedPeople: fakeCommunity{f}, Discussions: fakeCommunity{f}, CommunityRecommendations: fakeCommunity{f}, Profiles: fakeCommunity{f}, LiveActivity: fakeCommunity{f}, FollowedDiscussions: fakeFollowed{f},
-		Recommendations: fakeRecommendations{f}, Drafts: fakeDrafts{f}, Helpful: fakeCommunity{f}, SameQuestion: fakeCommunity{f}, OpenQuestions: fakeCommunity{f}, DraftsURL: "https://events.example/me/drafts", PublishLimit: f.limiter, Logger: f.logger,
+		Recommendations: fakeRecommendations{f}, Drafts: fakeDrafts{f}, Helpful: fakeCommunity{f}, SameQuestion: fakeCommunity{f}, OpenQuestions: fakeCommunity{f}, DraftsURL: "https://events.example/me/drafts", PublishLimit: f.limiter, Logger: f.logger, AgentPosts: fakeAgentPosts{f},
 		Describe:        func(err error) string { return "public: " + err.Error() },
 		DescribeCatalog: func(err error) string { return "catalog: " + err.Error() },
 		DescribePrivate: func(err error) string { return "private: " + err.Error() }})
@@ -91,6 +91,9 @@ func privateServerWith(t *testing.T, f *fakeAccount, metrics *Metrics) *httptest
 		case "publisher-token":
 			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read", "write", "publish"}, Expiration: time.Now().Add(time.Hour),
 				Extra: map[string]any{ExtraClientName: "Test Agent", ExtraClientHost: "agent.example", ExtraGrantID: "grant-1"}}, nil
+		case "script-token":
+			// A personal API token allowed to post: no app, so no client name.
+			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read", "write", "publish"}, Expiration: time.Now().Add(time.Hour)}, nil
 		case "poster-token":
 			// publish without write: public actions, but no private changes.
 			return &auth.TokenInfo{UserID: "owner-id", Scopes: []string{"read", "publish"}, Expiration: time.Now().Add(time.Hour),
