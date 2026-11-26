@@ -54,6 +54,8 @@
 .radar-reasons { padding-inline-start: 1.25rem; color: var(--brand); font-size: .9375rem; }
 .follow-search > summary { inline-size: fit-content; max-inline-size: 100%; min-block-size: 2.75rem; padding-block: .6rem; color: var(--brand); font-weight: 700; cursor: pointer; }
 .follow-search > :not(summary) { margin-block-start: 1rem; }
+.follow-search > .account-form { max-inline-size: 44rem; }
+#follow-search-results { scroll-margin-block-start: 5rem; }
 .follow-search > summary:active { background: var(--brand-soft); color: var(--brand-active); }
 @media (hover: hover) and (pointer: fine) {
   .follow-search > summary:hover { background: var(--nav-hover); }
@@ -240,6 +242,20 @@
 .reminders-page > h2 { margin-block-end: .75rem; }
 .reminders-page > .account-form { margin-block: 1.5rem 1rem; }
 .reminders-page > .field-note { margin-block-start: 1rem; }
+.reminder-times { margin-block: .75rem; }
+.reminder-times dt { font-weight: 750; }
+.reminder-times dd { margin-inline-start: 0; margin-block-end: .5rem; }
+.event-observations { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .25rem 1rem; }
+.event-observations dd { margin: 0; }
+.event-observations dd, .event-changes time { font-variant-numeric: tabular-nums; }
+.event-changes { padding-inline-start: 0; list-style: none; }
+.event-changes li {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: .25rem 1rem;
+  padding-block: .5rem;
+  border-block-start: 1px solid var(--line);
+}
 .reminder-detail, .reminder-preview, .reminder-list > li { display: grid; gap: .5rem; }
 .reminder-detail > .text-link { justify-self: start; }
 .reminder-preview { padding-block: 1rem; border-block: 1px solid var(--line); }

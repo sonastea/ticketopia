@@ -29,6 +29,9 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   its filters to a readable width. Followed discussions lead with the visible
   question, unread replies stand out, and Saved and Interests point to their
   respective next actions.
+- Artist and venue search returns directly to labeled results. Sign-in leads
+  with the task, the reminder editor pairs sale time with the saved target, and
+  event history separates timestamps from changes.
 
 - Discover, Saved, Interests, Radar, event details and previews, Community,
   and Happening Now use borders and flat fills instead of decorative shadows,

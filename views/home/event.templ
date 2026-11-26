@@ -194,8 +194,8 @@ templ EventProvenance(page EventPage) {
 			<p>{ sale }</p>
 		}
 		@Freshness(page.Detail.Meta)
-		@SourceFooter()
 		@EventHistory(page.Detail.History)
+		@SourceFooter()
 	</details>
 }
 
@@ -318,13 +318,16 @@ templ EventHistory(history *models.EventHistory) {
 	if history == nil {
 		<p>No dated observations have been collected for this event yet.</p>
 	} else {
-		<p>First seen { historyLabel(history.FirstSeen) }. Last seen { historyLabel(history.LastSeen) }.</p>
+		<dl class="event-observations">
+			<dt>First seen</dt><dd>{ historyLabel(history.FirstSeen) }</dd>
+			<dt>Last seen</dt><dd>{ historyLabel(history.LastSeen) }</dd>
+		</dl>
 		if len(history.Changes)==0 {
 			<p>No meaningful changes observed yet.</p>
 		} else {
-			<ul>
+			<ul class="event-changes">
 				for _,change:=range history.Changes {
-					<li><time datetime={ change.ObservedAt.Format("2006-01-02T15:04:05Z07:00") }>{ historyLabel(change.ObservedAt) }</time>: { change.Summary }</li>
+					<li><time datetime={ change.ObservedAt.Format("2006-01-02T15:04:05Z07:00") }>{ historyLabel(change.ObservedAt) }</time><span>{ change.Summary }</span></li>
 				}
 			</ul>
 		}

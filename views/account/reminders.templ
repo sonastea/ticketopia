@@ -36,12 +36,16 @@ templ Reminders(p ReminderPage) {
 							<a href="/me/reminders" class="text-link">All reminders</a>
 							<a href={ templ.URL("/events/"+p.Event.ID+"?section=overview") } class="text-link">Event Overview</a>
 						</nav>
-						<p class="tabular-nums"><strong>Public ticket sale:</strong> { p.SaleTime() }</p>
+						<dl class="reminder-times tabular-nums">
+							<dt>Public ticket sale</dt><dd>{ p.SaleTime() }</dd>
+							if p.Own != nil {
+								<dt>Saved reminder target</dt><dd>{ p.Time(p.Own.ScheduledAt) }</dd>
+							}
+						</dl>
 						<p class="field-note">This is the ticket-sale time, not the event date. Times below use your account time zone: { p.Zone() }.</p>
 						if p.Own != nil {
 							<p><strong>Saved timing:</strong> { reminderLead(p.Own.LeadMinutes) } before public sale.</p>
 							@ReminderReadiness(*p.Own)
-							<p class="tabular-nums"><strong>Reminder target:</strong> { p.Time(p.Own.ScheduledAt) }</p>
 						} else {
 							<p><strong>Not configured.</strong> Choose a lead time and save to set up this reminder.</p>
 						}
@@ -64,7 +68,7 @@ templ Reminders(p ReminderPage) {
 							Custom lead time in minutes
 							@input.Input(input.Props{ID:"reminder-lead",Name:"lead_minutes",Type:"number",Value:p.CustomValue(),Attributes:templ.Attributes{"min":"1","max":"10080","step":"1","aria-describedby":"reminder-help reminder-error"}})
 						}
-						<p id="reminder-help" class="field-note">Custom uses 1–10080 whole minutes (up to seven days), only when Custom is selected. Saving does not grant email permission or turn off global pause. No ticket reservation or availability is guaranteed.</p>
+						<p id="reminder-help" class="field-note">Custom: 1–10080 whole minutes (up to seven days). Saving timing doesn't enable email or reserve tickets.</p>
 						<p id="reminder-error" class="reminder-error" role="alert" hidden?={ p.Error == "" }>{ p.Error }</p>
 						<div class="reminder-preview"><strong>Timing preview</strong><p data-reminder-preview aria-live="polite" class="tabular-nums">{ p.Preview() }</p></div>
 						@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) { Save email reminder }

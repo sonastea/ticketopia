@@ -76,7 +76,7 @@ func TestReminderDetailPreservesCustomAndTruthfulOutcomes(t *testing.T) {
 	if err := Reminders(p).Render(t.Context(), &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`value="custom" selected`, `value="45"`, `Custom lead time in minutes`, `Event Overview`, `section=overview`, `&lt;long event&gt;`, `SES accepted`, `inbox delivery is not confirmed`, `Public ticket sale:`, `Time not announced`, `Reminder target:`, `Not scheduled`} {
+	for _, want := range []string{`value="custom" selected`, `value="45"`, `Custom lead time in minutes`, `Event Overview`, `section=overview`, `&lt;long event&gt;`, `SES accepted`, `inbox delivery is not confirmed`, `<dt>Public ticket sale</dt>`, `Time not announced`, `<dt>Saved reminder target</dt>`, `Not scheduled`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing %q", want)
 		}

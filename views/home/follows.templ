@@ -1,5 +1,6 @@
 package home
 
+import "strconv"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
@@ -19,9 +20,9 @@ templ Follows(page FollowsPage) {
 				}
 			} else {
 				<details class="follow-search" open?={ page.SearchOpen() }>
-					<summary>Find an artist or venue</summary>
+					<summary id="find-follow">Find an artist or venue</summary>
 					<p class="field-note">Search for a new follow. Manage your existing artists and venues below.</p>
-					<form method="get" action="/follows" class="account-form">
+					<form method="get" action="/follows#follow-search-results" class="account-form">
 						<div class="follow-search-fields">
 							@label.Label(label.Props{For: "follow-kind", Class: "field"}) {
 								Search for
@@ -36,7 +37,9 @@ templ Follows(page FollowsPage) {
 							}
 						</div>
 						if page.Kind == "venue" {
-							<div class="follow-search-fields">
+							<details class="account-more" open?={ (page.City != "" || page.Country != "") && page.Searched || page.SearchError != "" }>
+								<summary>Narrow by venue location</summary>
+								<div class="follow-search-fields">
 								@label.Label(label.Props{For: "follow-city", Class: "field"}) {
 									City (optional)
 									@input.Input(input.Props{ID: "follow-city", Name: "city", Value: page.City, Attributes: templ.Attributes{"maxlength": "120"}})
@@ -45,7 +48,8 @@ templ Follows(page FollowsPage) {
 									Country (optional, 2-letter code)
 									@input.Input(input.Props{ID: "follow-country", Name: "country", Value: page.Country, Attributes: templ.Attributes{"maxlength": "2", "placeholder": "US", "autocomplete": "country", "autocapitalize": "characters"}})
 								}
-							</div>
+								</div>
+							</details>
 						}
 						@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
 							Search
@@ -53,12 +57,13 @@ templ Follows(page FollowsPage) {
 					</form>
 					if page.SearchError != "" {
 						@alert.Alert(alert.Props{Class: "feedback error-state", Variant: alert.VariantDestructive}) {
-							<h3>Search couldn't load</h3><p>{ page.SearchError }</p>
+							<h2 id="follow-search-results">Search couldn't load</h2><p>{ page.SearchError }</p>
 							<a href={ templ.URL(page.ReturnURL) } class="text-link">Try search again</a>
 							<p>Your existing follows are unchanged.</p>
 						}
 					} else if page.Searched {
-						<h3>Search results</h3>
+						<h2 id="follow-search-results">Results for “{ page.Keyword }”</h2>
+						<p class="list-meta">{ strconv.Itoa(len(page.Search.Items)) } { ternary(len(page.Search.Items) == 1, "match", "matches") } on this page</p>
 						if page.Search.Meta.Stale {
 							<p class="field-note">These are last-known search results. Provider details couldn't be refreshed.</p>
 						}
@@ -95,7 +100,7 @@ templ Follows(page FollowsPage) {
 							<a href="/follows" class="text-link">Reload your follows</a>
 						}
 					} else if len(page.List.Items) == 0 {
-						<p>No follows on this page yet. Search above, then choose Follow beside an artist or venue.</p>
+						<p>No follows on this page yet. <a href="#find-follow" class="text-link">Search for an artist or venue</a>, then choose Follow beside a result.</p>
 						if page.ReturnURL != "/follows" {
 							<a href="/follows" class="text-link">Back to all follows</a>
 						}

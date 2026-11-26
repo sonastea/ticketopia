@@ -21,7 +21,7 @@ templ SignInContext(enabled bool, returnTo string, message string, eventName str
 	@layouts.App("profile", "Sign in") {
 		<main id="main" class="destination-page account-page">
 			<div class="account-sign-in">
-				<h1>Your event life, your space.</h1>
+				<h1>Sign in to Ticketopia</h1>
 				if message != "" {
 					<p role="status" class="account-notice">{ message }</p>
 				}
@@ -44,7 +44,9 @@ templ SignInContext(enabled bool, returnTo string, message string, eventName str
 					<p>An app wants to connect to your Ticketopia account. After sign-in, you'll see what it can do and choose whether to connect it.</p>
 				}
 				if enabled {
-					<p>Sign in to create your Ticketopia profile and keep your preferences across visits and devices.</p>
+					if signInSection(returnTo) == "" && !signInConnects(returnTo) {
+						<p>Keep your saved events and preferences across visits and devices.</p>
+					}
 					@button.Button(button.Props{Href: googleStartURL(returnTo, intent), Class: "google-sign-in"}) {
 						<span class="google-sign-in-logo" aria-hidden="true">
 							<img src="/assets/google-g.png" width="20" height="20" alt="" aria-hidden="true"/>

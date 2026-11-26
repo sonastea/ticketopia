@@ -267,7 +267,7 @@ func TestFollowSearchDisclosureStates(t *testing.T) {
 				t.Fatal("native disclosure disagrees")
 			}
 			forms := neighborElements(searches[0], "form")
-			if len(forms) == 0 || neighborAttributes(forms[0])["method"] != "get" || neighborAttributes(forms[0])["action"] != "/follows" || !strings.Contains(body, "Following doesn't publish interest") {
+			if len(forms) == 0 || neighborAttributes(forms[0])["method"] != "get" || neighborAttributes(forms[0])["action"] != "/follows#follow-search-results" || !strings.Contains(body, "Following doesn't publish interest") {
 				t.Fatal("lost search/private controls")
 			}
 		})
