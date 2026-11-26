@@ -7,7 +7,8 @@ with privacy controls/counts/public-opt-in activity, and public recommendations 
 implemented, along with event questions/replies/Helpful and conversation browsing.
 Basic private reporting/moderation and reliable scheduled event history are implemented;
 durable follows, radar, discussion notifications and on-sale reminders are also implemented.
-Cluster operation and populated-data backup/restore remain unverified.
+Cluster operation and populated-data backup/restore remain unverified and move to
+a later high-availability and failover goal.
 The [root goals](../../README.md#goals) track user outcomes; this checklist maps
 those outcomes to shared backend capabilities and their web UI. Check a task
 only when its behavior has been implemented and verified. API availability alone
@@ -34,8 +35,8 @@ email delivery and independently opt-in scheduled observation history.
 **Later, optional:** Going/Went and structured post-show prompts.
 Private conversation follows and in-app reply
 notifications with frequency controls are [implemented](../followed-discussions.md).
-Minimal durable events/accounts/community records and verified backup/restore
-are MVP foundations; the full ingestion scheduler is not a dependency of posting.
+Minimal durable events/accounts/community records are MVP foundations, and
+daily backups run; verified restoration moves to the later high-availability goal; the full ingestion scheduler is not a dependency of posting.
 
 **Future explorations:** direct messaging, real-time chat, advanced recommendation
 algorithms, personalized social activity feeds, managed groups/large-scale
@@ -61,10 +62,12 @@ Next verification priorities:
 - Three people in a well-covered city: find a relevant event, save and return;
   also try question → reply → Helpful and private reporting/moderation before a public pilot.
 - A live SES/inbox smoke test only if existing on-sale email delivery will be enabled.
-- **After Kubernetes deployment:** verify runner/GHCR publication, state shared across
-  app replicas, concurrent writes/read-after-write, pod restarts and same-schema rolls,
-  serialized schema upgrades and runtime-grant reconciliation, and restoration of
-  populated application data/jobs into a fresh database. Rehearse failover only if HA is configured.
+- Runner/GHCR publication is verified (2026-11-26).
+- **Later, with high availability and failover recovery** (outside the first
+  complete release): state shared across app replicas, concurrent
+  writes/read-after-write, pod restarts and same-schema rolls, serialized schema
+  upgrades and runtime-grant reconciliation, restoration of populated application
+  data/jobs into a fresh database, and a failover rehearsal once HA is configured.
 
 Keep those deployment checks open until exercised. Schema-changing upgrades currently
 require draining older apps, migrating and reconciling grants, then starting the new

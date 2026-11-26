@@ -175,14 +175,12 @@ current browser/tab; manual screen-reader and physical-device checks remain in t
 - [x] Persist private reports, moderation decisions, author review requests, and moderator roles/audits.
 - [x] Persist in-app discussion notification envelopes and reply references.
 - [x] Persist external on-sale reminder delivery jobs and SES receipts.
-- [ ] Share durable state across application replicas with operator-managed MariaDB.
-- [ ] Back up and successfully restore application data.
 
 The optional foundation uses MariaDB through `database/sql` and pinned
 `go-sql-driver/mysql`, with embedded Goose migrations and `mariadb-operator`
 deployment examples. Discovery stays database-free by default; broader durable
-features are implemented; exercised multi-pod deployment and populated-data
-backup/restore verification await Kubernetes deployment. Opt-in
+features are implemented. Shared state across replicas and restore verification
+belong to the later [high-availability goal](#later-high-availability-and-failover). Opt-in
 [Google accounts](docs/accounts.md) store profiles, preferences, and credentials;
 [private saves](docs/saved-events.md) retain bookmarks and last-known event details.
 [Private follows](docs/follows.md) add artist/venue search and owner-only collections.
@@ -204,8 +202,17 @@ immediate/daily/weekly or muted in-app replies, account-wide pause and exact rep
   graceful shutdown.
 - [x] Identify the deployed source revision in startup logs using runtime `SOURCE_COMMIT`.
 - [x] Publish a private amd64 app image to GHCR with authenticated pulls.
-- [ ] Verify automated GHCR publishing on the self-hosted GitHub Actions runner
+- [x] Verify automated GHCR publishing on the self-hosted GitHub Actions runner
   ([workflow setup](docs/deployment.md#github-actions-on-a-self-hosted-runner)).
+
+### Later: high availability and failover
+
+Not part of the first complete release. Production runs one app and one MariaDB
+on Coolify, with [daily backups](docs/backups.md).
+
+- [ ] Share durable state across application replicas with operator-managed MariaDB.
+- [ ] Back up and successfully restore populated application data.
+- [ ] Rehearse database failover once a high-availability topology is chosen.
 
 ### Optional explorations
 

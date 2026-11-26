@@ -2,6 +2,14 @@
 
 [Older history](archive/deployment/).
 
+## 2026-11-26 — Unreleased
+
+- Verified automated GHCR publishing from the self-hosted runner: the
+  `publish-image.yml` workflow pushes the private image, and production deploys
+  from it. Shared state across app replicas, backup restoration and failover
+  move to a later high-availability goal; see the
+  [delivery checklist](../goals/delivery.md#current-focus-use-refine-and-verify).
+
 ## 2026-11-11 — Unreleased
 
 - Add [backups and restore checks](../backups.md): Coolify's daily MariaDB
@@ -53,44 +61,3 @@
 - Update local/operator database images to MariaDB **13.0.2** stable, with warnings
   against treating a major-version image change as a verified existing-volume upgrade;
   see [server upgrades](../persistence.md#server-version-upgrades).
-
-## 2026-10-05 — Unreleased
-
-- Use `edge` with `imagePullPolicy: Always` in operator application/migration
-  manifests, with private GHCR pull-secret references and amd64 scheduling.
-  Document production-style staging, explicit rollout, and manual fix/rollback;
-  cluster rollout and production readiness remain unverified. See the
-  [rollout guide](../deployment.md#production-style-staging-rollout).
-- Run container build tools natively and cross-compile target Go binaries, enabling
-  amd64 images from ARM builders without emulated Go toolchain crashes. Document
-  private GHCR publishing, digest pinning, and separate Kubernetes pull credentials.
-- Publish the tested amd64 MariaDB-foundation image to private GHCR; verify non-root
-  migrations/outage recovery, authenticated pulling, and denied anonymous access.
-  Record its immutable reference in the [deployment guide](../deployment.md#amd64-images-and-private-github-container-registry).
-- Add the clearer app tag `test-amd64-20261005` for the same tested image. Add a
-  SHA-pinned self-hosted Linux/x64 workflow using Go 1.27 and Node 24 validation,
-  repository-token GHCR publishing, `edge`/commit/release tags, and fail-closed
-  private-package checks. Document runner/package access setup.
-  See [CI setup](../deployment.md#github-actions-on-a-self-hosted-runner).
-- Resolve disabled CGO, missing GCC, and password-required sudo failures by moving
-  asset builds and Go validation into the Dockerfile's Go/Node builder. Its separate
-  `validate` target enables CGO and uses included GCC/headers for race tests/vet,
-  with fresh tests on every CI run and no host package installation. Preserve the
-  full test suite by allowing root health-check tests into the build context, and
-  retain the CGO-disabled, compiler-free runtime image. Document validation in
-  [CI setup](../deployment.md#github-actions-on-a-self-hosted-runner).
-  Verify local container race tests/vet, workflow lint, and the amd64 runtime build.
-  Successful end-to-end GitHub Actions publication with this fix remains unverified.
-- Simplify publishing by initializing isolated Docker configuration in the preflight and using Buildx initialization,
-  removing the redundant preparation step and default Docker build inputs.
-- Document and supply standalone `mariadb-operator` examples for shared MariaDB persistence
-  across three stateless application replicas, with independent database topology,
-  primary routing, Secrets/TLS, migration sequencing, pool budgets, and recovery
-  checks; see [planned MariaDB persistence](../deployment.md#planned-mariadb-persistence).
-- Add shell-free migration execution in the existing non-root image and bounded
-  SQL readiness when persistence is enabled, preserving dependency-free liveness
-  and the disabled discovery mode. Drain HTTP before SQL pool cleanup.
-- Add local TLS MariaDB setup and image smoke checks for explicit migration,
-  outage/recovery probes, app restart, redaction, and graceful shutdown; see the
-  [foundation guide](../persistence.md). Operator examples have not been deployed;
-  three-pod operation, database HA, and backup/restore remain unverified.
