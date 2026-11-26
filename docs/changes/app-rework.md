@@ -32,6 +32,7 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 - Artist and venue search returns directly to labeled results. Sign-in leads
   with the task, the reminder editor pairs sale time with the saved target, and
   event history separates timestamps from changes.
+- First-time Discover puts city and search before optional filters.
 
 - Discover, Saved, Interests, Radar, event details and previews, Community,
   and Happening Now use borders and flat fills instead of decorative shadows,

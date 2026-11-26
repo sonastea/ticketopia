@@ -4776,6 +4776,14 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .date-chips a:active { background: color-mix(in oklch, var(--brand-soft), var(--brand) 12%); border-color: var(--brand); color: var(--brand-active); }
 .discovery-workspace.discovery-empty:not(.has-selection) { grid-template-columns: minmax(0, 48rem); }
 .discovery-empty:not(.has-selection) > .event-context { display: none; }
+.first-city-search { max-inline-size: 36rem; }
+.first-city-fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  column-gap: .75rem;
+}
+.first-city-search > .command-bar { margin-block-start: .75rem; }
+.first-city-search > .command-bar > .search-bar { flex: 1; }
+#location-feedback:empty { display: none; }
 @media (forced-colors: active) {
   .date-chips a[aria-current="true"] { border-color: Highlight; border-width: 3px; }
 }

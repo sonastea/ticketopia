@@ -223,6 +223,9 @@ func TestSearchComponentsKeepNativeFormContract(t *testing.T) {
 			t.Errorf("missing native search contract %q", want)
 		}
 	}
+	if strings.Count(html, `id="city"`) != 1 || strings.Index(html, `id="city"`) > strings.Index(html, `<details id="filters"`) {
+		t.Fatal("first visit must expose one city field ahead of the advanced filters")
+	}
 }
 
 func TestPartialStoredPaginationDoesNotClaimProviderCap(t *testing.T) {

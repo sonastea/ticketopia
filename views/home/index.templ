@@ -95,14 +95,23 @@ templ Index(page SearchPage) {
 
 // One command bar joins where (opening the city filter) and what (keyword).
 templ SearchControls(page SearchPage) {
-	<form action="/" method="get" class="search-form" aria-label="Search events">
+	{{ firstVisit := page.NeedsLocation && page.Error == "" }}
+	<form action="/" method="get" class={ "search-form", templ.KV("first-city-search", firstVisit) } aria-label="Search events">
+		if firstVisit {
+			<div class="field-grid first-city-fields">
+				@SearchCityFields(page)
+			</div>
+			@DetectSearchCity()
+		}
 		<div class="command-bar">
-			@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "command-location", Attributes: templ.Attributes{"data-open-filters": true}}) {
-				@layouts.Icon("location")
-				if page.Filters.City == "" {
-					<span>Choose your city</span>
-				} else {
-					<span>Events in <strong>{ cityLabel(page) }</strong><span class="sr-only">, change city</span></span>
+			if !firstVisit {
+				@button.Button(button.Props{Href: "#city", Variant: button.VariantLink, Class: "command-location", Attributes: templ.Attributes{"data-open-filters": true}}) {
+					@layouts.Icon("location")
+					if page.Filters.City == "" {
+						<span>Choose your city</span>
+					} else {
+						<span>Events in <strong>{ cityLabel(page) }</strong><span class="sr-only">, change city</span></span>
+					}
 				}
 			}
 			<div class="search-bar">
@@ -130,7 +139,7 @@ templ SearchControls(page SearchPage) {
 				}
 			</nav>
 		}
-		@collapsible.Native(collapsible.Props{ID: "filters", Class: "filter-disclosure", DefaultOpen: page.NeedsLocation || page.Error != ""}) {
+		@collapsible.Native(collapsible.Props{ID: "filters", Class: "filter-disclosure", DefaultOpen: page.Error != ""}) {
 			@collapsible.Summary() {
 				@layouts.Icon("filters")
 				<span>Filters</span><span class="filter-summary">{ categoryFilterLabel(page) }<span aria-hidden="true">{ " · " }</span>{ dateRangeLabel(page.Filters) }</span>@layouts.Icon("chevron")
@@ -147,13 +156,8 @@ templ SearchControls(page SearchPage) {
 				</div>
 				<div class="filter-fields">
 					<div class="field-grid">
-						@label.Label(label.Props{For: "city", Class: "field"}) {
-							City
-							@input.Input(input.Props{ID: "city", Name: "city", Value: page.Filters.City, Placeholder: "e.g. Chicago", Required: page.Filters.VenueID == "", Attributes: templ.Attributes{"maxlength": "120", "autocomplete": "address-level2"}})
-						}
-						@label.Label(label.Props{For: "country", Class: "field"}) {
-							Country <span>(optional, 2-letter code)</span>
-							@input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US, CA, GB", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country", "autocapitalize": "characters"}})
+						if !firstVisit {
+							@SearchCityFields(page)
 						}
 						@label.Label(label.Props{For: "start-date", Class: "field"}) {
 							From
@@ -219,19 +223,37 @@ templ SearchControls(page SearchPage) {
 						@button.Button(button.Props{Type: button.TypeSubmit, Class: "action"}) {
 							Apply filters
 						}
-						<span id="browser-location" hidden>@button.Button(button.Props{ID: "detect-city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"aria-describedby": "location-feedback"}}) {
-	Detect my city
-}
-</span>
+						if !firstVisit {
+							@DetectSearchCity()
+						}
 						@button.Button(button.Props{Href: "/", Variant: button.VariantLink, Class: "text-link"}) {
 							Reset filters
 						}
 					</div>
-					<p id="location-feedback" role="status" class="field-note"></p>
 				</div>
 			</dialog>
 		}
 	</form>
+}
+
+templ SearchCityFields(page SearchPage) {
+	@label.Label(label.Props{For: "city", Class: "field"}) {
+		City
+		@input.Input(input.Props{ID: "city", Name: "city", Value: page.Filters.City, Placeholder: "e.g. Chicago", Required: page.Filters.VenueID == "", Attributes: templ.Attributes{"maxlength": "120", "autocomplete": "address-level2"}})
+	}
+	@label.Label(label.Props{For: "country", Class: "field"}) {
+		Country <span>(optional, 2-letter code)</span>
+		@input.Input(input.Props{ID: "country", Name: "country", Value: page.Filters.Country, Placeholder: "e.g. US", Attributes: templ.Attributes{"maxlength": "2", "pattern": "[A-Za-z]{2}", "autocomplete": "country", "autocapitalize": "characters"}})
+	}
+}
+
+templ DetectSearchCity() {
+	<div id="browser-location" hidden>
+		@button.Button(button.Props{ID: "detect-city", Variant: button.VariantLink, Class: "text-link", Attributes: templ.Attributes{"aria-describedby": "location-feedback"}}) {
+			Detect my city
+		}
+		<p id="location-feedback" role="status" class="field-note"></p>
+	</div>
 }
 
 templ GenreOptions(genres []models.Genre, selected string) {

@@ -232,7 +232,9 @@
   // focus to whatever opened it and collapses the disclosure again.
   const sheet = filters?.querySelector('[data-filter-sheet]');
   const compact = matchMedia('(max-width: 61.999rem)');
-  const useSheet = () => Boolean(sheet?.showModal) && compact.matches;
+  // On first visit the required city lives above the advanced filters and
+  // must remain available for validation when that disclosure is open.
+  const useSheet = () => Boolean(sheet?.showModal) && compact.matches && !sheet.closest('.first-city-search');
   let sheetOpener = null;
   // showModal needs the in-flow dialog closed first; that close's (queued)
   // event is not the reader closing the sheet.
