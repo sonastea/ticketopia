@@ -133,7 +133,8 @@ func (a *api) mcpRoutes(e *echo.Echo) {
 type mcpCallerKey struct{}
 
 // mcpCaller is the account behind a verified API token or OAuth access token.
-// API tokens carry read and write (apiTokenScopes); OAuth connections carry
+// API tokens carry the scopes they were created with, at most apiTokenScopes;
+// OAuth connections carry
 // what the person allowed, plus the app's name and client ID.
 type mcpCaller struct {
 	account    string
@@ -326,7 +327,14 @@ func (a *api) mcpCaller(c echo.Context, header string) (mcpCaller, error) {
 	if err != nil {
 		return mcpCaller{}, err
 	}
-	return mcpCaller{account: p.Account.ID, scopes: slices.Clone(apiTokenScopes), apiToken: true}, nil
+	// Only scopes listed in apiTokenScopes count, whatever is stored.
+	var scopes []string
+	for _, scope := range apiTokenScopes {
+		if p.Credential.Can(scope) {
+			scopes = append(scopes, scope)
+		}
+	}
+	return mcpCaller{account: p.Account.ID, scopes: scopes, apiToken: true}, nil
 }
 
 // mcpChallenge is the WWW-Authenticate value for /mcp. With OAuth on it
@@ -386,6 +394,9 @@ func (a *api) mcpAuthorizeCall(c echo.Context, body []byte, caller *mcpCaller, m
 		metrics.Refuse(appmcp.RefusedInsufficientScope)
 		// Not "read-only": a connection without write may still post publicly.
 		message := "this connection can't make changes; reconnect and allow changes to use " + call.Params.Name
+		if caller.apiToken && scope != oauth.ScopePublish {
+			message = "this API token can only read; to use " + call.Params.Name + ", create a token that allows private changes in Security & Apps, or connect through OAuth sign-in"
+		}
 		if scope == oauth.ScopePublish {
 			message = "this connection can't post publicly; reconnect and allow posting publicly to use " + call.Params.Name
 			if caller.apiToken {

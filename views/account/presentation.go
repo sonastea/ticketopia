@@ -92,6 +92,8 @@ type Page struct {
 	// the submitted TokenName.
 	TokenFormOpen bool
 	TokenName     string
+	// TokenWrite keeps "Allow private changes" checked after a failed creation.
+	TokenWrite bool
 }
 
 // PublicActivity is one public action shown on the owner's profile.
@@ -324,4 +326,12 @@ func (p Page) MissingCategories() []string {
 		}
 	}
 	return result
+}
+
+// tokenAccess summarizes an API token's scopes for its owner.
+func tokenAccess(scopes []string) string {
+	if slices.Contains(scopes, accounts.ScopeWrite) {
+		return "Read and private changes"
+	}
+	return "Read only"
 }

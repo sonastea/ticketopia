@@ -205,7 +205,11 @@ func accountAPI(t *testing.T) (*api, *accountStub, string, string, string) {
 	r := &accountStub{account: accounts.Account{ID: owner, DisplayName: "Event explorer", Email: "private@example.com", InterestVisibility: "private", Preferences: accounts.Preferences{City: "Secret city", Timezone: "UTC", CategoryIDs: []string{}, NotificationsPaused: true}}, credentials: make(map[[32]byte]accounts.Credential)}
 	for raw, kind := range map[string]string{browser: "session", bearer: "api"} {
 		hash := accounts.Hash(raw)
-		r.credentials[hash] = accounts.Credential{ID: accounts.ID(), AccountID: owner, Hash: hash, Kind: kind, Name: kind, CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(time.Hour)}
+		c := accounts.Credential{ID: accounts.ID(), AccountID: owner, Hash: hash, Kind: kind, Name: kind, CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(time.Hour)}
+		if kind == "api" {
+			c.Scopes = []string{accounts.ScopeRead, accounts.ScopeWrite}
+		}
+		r.credentials[hash] = c
 	}
 	s := accounts.New(r, nil)
 	a := &api{accounts: s, authConfig: accounts.Config{Enabled: true, BaseURL: "https://events.example", ClientID: "test", ClientSecret: "test"}}

@@ -157,7 +157,11 @@ func TestInterestAPIPrivacyDefaultsOwnershipAndValidation(t *testing.T) {
 	if json.Unmarshal(w.Body.Bytes(), &count) != nil || count["count"] != 1 || len(count) != 1 {
 		t.Fatal("public count leaked viewer fields or omitted private interest", w.Body.String())
 	}
-	w = accountRequest(a, "PUT", path, `{"visibility":"public"}`, "", bearer, "", "", "")
+	// API tokens never name the person publicly.
+	if w = accountRequest(a, "PUT", path, `{"visibility":"public"}`, "", bearer, "", "", ""); w.Code != 403 || repo.items[owner][id].Visibility != "private" {
+		t.Fatal("API token made interest public", w.Code, w.Body.String())
+	}
+	w = accountRequest(a, "PUT", path, `{"visibility":"public"}`, browser, "", csrf, "", "")
 	if w.Code != 200 || !repo.items[owner][id].InterestedAt.Equal(first.InterestedAt) {
 		t.Fatal("visibility update reset choice")
 	}

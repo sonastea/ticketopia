@@ -311,7 +311,7 @@ templ Security(p Page) {
 		} else {
 			<ul class="account-token-list">
 				for _, token := range p.Tokens {
-					<li><div><strong>{ token.Name }</strong><p class="field-note">Expires <time datetime={ token.ExpiresAt.Format("2006-01-02T15:04:05Z07:00") }>{ token.ExpiresAt.Format("2 Jan 2006, 15:04 MST") }</time></p></div>
+					<li><div><strong>{ token.Name }</strong><p class="field-note">{ tokenAccess(token.Scopes) } · Expires <time datetime={ token.ExpiresAt.Format("2006-01-02T15:04:05Z07:00") }>{ token.ExpiresAt.Format("2 Jan 2006, 15:04 MST") }</time></p></div>
 						<form action={ templ.URL("/me/tokens/" + token.ID + "/revoke") } method="post">
 							@CSRF(p.CSRF)
 							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"aria-label":"Revoke " + token.Name}}) {
@@ -326,11 +326,23 @@ templ Security(p Page) {
 			<summary>Create an API token</summary>
 			<form action="/me/tokens" method="post" class="account-form">
 				@CSRF(p.CSRF)
-				<p id="api-token-warning" class="field-note"><strong>Treat API tokens like passwords.</strong> A token can read your email and private data, change your profile and preferences, make your Interested choices public, and publish, edit or remove posts as you. It expires after 30 days.</p>
+				<p id="api-token-warning" class="field-note"><strong>Treat API tokens like passwords.</strong> A token can read your email and private data. It never acts publicly as you: text it writes waits in <a href="/me/drafts" class="text-link">Agent drafts</a> until you publish it. It expires after 30 days.</p>
 				@label.Label(label.Props{For:"token-name",Class:"field"}) {
 					Token name
 					@input.Input(input.Props{ID:"token-name",Name:"name",Value:p.TokenName,Required:true,Attributes:templ.Attributes{"maxlength":"80"}})
 				}
+				<fieldset class="account-checkboxes connect-permissions">
+					<legend>What this token can do</legend>
+					<p><strong>Read account data</strong> <span class="field-note">Included</span></p>
+					<label>
+						// Unchecked by default, like an app's consent: read-only unless chosen.
+						<input type="checkbox" name="write" checked?={ p.TokenWrite } aria-labelledby="token-write-label" aria-describedby="token-write-help"/>
+						<span class="notification-copy">
+							<span id="token-write-label" class="notification-title">Allow private changes</span>
+							<span id="token-write-help" class="field-note">Change preferences, saves, reminders, follows and reply updates; mark Interested privately, or make a choice private or remove it; report posts; create or discard drafts for your review.</span>
+						</span>
+					</label>
+				</fieldset>
 				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary",Attributes:templ.Attributes{"aria-describedby":"api-token-warning"}}) {
 					Create API token
 				}

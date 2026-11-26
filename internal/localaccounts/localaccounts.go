@@ -114,7 +114,7 @@ func Create(ctx context.Context, p *persistence.Pool, baseURL string) (Result, e
 				return Result{}, err
 			}
 		}
-		_, token, err := auth.CreateToken(ctx, a.ID, "local agent testing")
+		_, token, err := auth.CreateToken(ctx, a.ID, "local agent testing", []string{accounts.ScopeRead, accounts.ScopeWrite})
 		if err != nil {
 			return Result{}, err
 		}

@@ -48,8 +48,14 @@ func (a *api) discussionViewer(c echo.Context, browser bool) (accounts.Principal
 	}
 	return p, err
 }
+
+// discussionWriter authorizes posting, editing, removal and reactions, all
+// public; API tokens draft questions, tips and replies instead.
 func (a *api) discussionWriter(c echo.Context) (accounts.Principal, error) {
 	p, err := a.requireAPI(c, true, false)
+	if err == nil {
+		err = checkPublic(p)
+	}
 	if err == nil && !a.discussionsEnabled() {
 		err = discussions.ErrUnavailable
 	}

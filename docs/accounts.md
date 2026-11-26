@@ -190,12 +190,31 @@ apps page shows once, with a
 **Copy** button when the Clipboard API exists, and clears immediately. The page
 shows it only while it still authenticates as the signed-in account. Refreshing
 neither shows the secret again nor creates another token; create a new token if
-it was lost. Use `Authorization: Bearer TOKEN` for own account/profile/preferences
-API reads/writes. A later GET/list never reveals the secret. A token can read the
-account email, make Interested choices public, and publish, edit or remove the
-owner’s posts through the JSON API. The token form warns about this access before
-creation. These abilities are distinct from the [MCP scopes](app-mcp.md#signing-in).
-API tokens cannot manage credentials. Revoke individually or use **Sign out of
+it was lost. Use `Authorization: Bearer TOKEN` for own account and preferences
+API reads/writes. A later GET/list never reveals the secret.
+
+A token holds `read`, plus `write` when **Allow private changes** was checked
+(unchecked by default; the JSON API's `scopes` defaults to `["read"]` and
+rejects `publish`). Tokens created before scopes keep `read write`. The token
+list shows each token's access.
+
+- `read` reads the account email and private data.
+- `write` adds private changes: preferences, saves, reminders, follows, reply
+  updates, private Interested choices, reports, appeals and drafts. Without it,
+  changes get **403** `insufficient_scope`.
+- **Tokens never act publicly**, so scripts and agents can't flood the community
+  as someone. Changing the profile, making Interested public, recommending or
+  withdrawing, posting, replying, editing, removing and Helpful or Same question
+  get **403** `token_cannot_publish`, as do moderation decisions. A new
+  Interested choice from a token is private whatever the account default. As a
+  privacy exception, `write` may still make a public choice private or remove
+  it, as the agent tools allow: that only takes the person's name away.
+  Drafts a token wrote stay until published, discarded or expired; revoking it
+  doesn't remove them. Text goes through
+  [drafts](#community-activity-from-other-clients) the person publishes on the web.
+
+The same scopes apply on [`/mcp`](app-mcp.md#signing-in), where API tokens also
+never hold `publish`. API tokens cannot manage credentials. Revoke individually or use **Sign out of
 all devices**, which revokes every session and token (and also disconnects apps when
 [OAuth sign-in](app-mcp.md#oauth-sign-in) is on); ordinary Sign out revokes only the current session
 and does not sign out of Google. Tokens can revoke themselves through
@@ -221,11 +240,22 @@ Personal tokens also search artists/venues and manage private follows through
 
 ### Community activity from other clients
 
-A script, CLI, native app or agent can do everything the web community does
-with a personal token: mark Interested, recommend, post, reply and react
-(see [interest](event-interest.md#api), [recommendations](event-recommendations.md#api)
-and [discussions](event-discussions.md#api)). Two reads save such a client from
-combining several calls:
+A script, CLI, native app or agent reads the whole community with a personal
+token, keeps private state, and proposes public words as drafts. It never posts
+as the person: public actions stay with the website and with
+[OAuth-connected agents](app-mcp.md#publishing-in-your-name) the person allowed.
+
+- `POST /api/v1/me/drafts` (token with `write` only) stores a `recommendation`
+  reason (up to 500 characters), a `question` or tip, or a `reply` (with
+  `thread_id` and optional `parent_id`; up to 4000) and returns `review_url`,
+  never publishing. `GET /api/v1/me/drafts` lists pending drafts and
+  `DELETE /api/v1/me/drafts/{id}` discards one (idempotent 204). The person
+  reviews each at **Agent drafts** (`/me/drafts`); published drafts show "via an
+  API client". Browser sessions publish directly and get 400. These share the
+  service behind the `draft_*`, `my_drafts` and `discard_draft`
+  [agent tools](app-mcp.md#publishing-in-your-name).
+
+Two reads save such a client from combining several calls:
 
 - `GET /api/v1/events/{id}/community` returns an event's public `counts`
   (`interested`, including private choices without identities; active

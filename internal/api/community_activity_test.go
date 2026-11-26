@@ -177,7 +177,7 @@ func TestUserActivityPaginatesPublicTimeline(t *testing.T) {
 // Agents get exactly what the HTTP routes return, including the token
 // account's own state, through the same shared reads.
 func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
-	a, account, recs, _, bearer, _, id := recommendationAPI(t)
+	a, account, recs, browser, bearer, csrf, id := recommendationAPI(t)
 	WithEventActivity(&eventActivityStub{})(a)
 	WithUserActivity(&userActivityStub{items: []useractivity.Item{{Type: useractivity.TypeInterest, At: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), Event: models.Event{ID: id}}}})(a)
 	at := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
@@ -241,7 +241,7 @@ func TestCommunityToolsMatchHTTPRoutes(t *testing.T) {
 			t.Fatalf("discussion_thread differs from its routes: %s", response.Body.String())
 		}
 	}
-	if w := accountRequest(a, "PUT", "/api/v1/me/event-interests/"+id, `{"visibility":"public"}`, "", bearer, "", "", ""); w.Code != 201 {
+	if w := accountRequest(a, "PUT", "/api/v1/me/event-interests/"+id, `{"visibility":"public"}`, browser, "", csrf, "", ""); w.Code != 201 {
 		t.Fatal("public interest fixture", w.Code, w.Body.String())
 	}
 	for _, tc := range []struct {

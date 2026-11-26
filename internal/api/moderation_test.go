@@ -61,11 +61,11 @@ func TestModerationDecisionsRequireModeratorCredentials(t *testing.T) {
 		want                     int
 		code                     string
 	}{
-		{"ordinary API token", false, false, false, nil, 403, "moderator_access_required"},
+		{"ordinary API token", false, false, false, nil, 403, "token_cannot_publish"},
 		{"ordinary browser session", false, true, true, nil, 403, "moderator_access_required"},
 		{"moderator browser without CSRF", true, true, false, nil, 403, "csrf_failed"},
-		{"role lookup unavailable", true, false, false, moderation.ErrUnavailable, 503, "moderation_unavailable"},
-		{"moderator API token", true, false, false, nil, 201, ""},
+		{"role lookup unavailable", true, true, true, moderation.ErrUnavailable, 503, "moderation_unavailable"},
+		{"moderator API token", true, false, false, nil, 403, "token_cannot_publish"},
 		{"moderator browser session", true, true, true, nil, 201, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -109,7 +109,7 @@ func TestModerationDecisionsRequireModeratorCredentials(t *testing.T) {
 }
 func TestPrivateReportsHTTPValidationAndDraftRecovery(t *testing.T) {
 	a, posts, browser, bearer, csrf, event := discussionAPI(t)
-	root := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Fixture post"}`, bearer, accounts.ID())
+	root := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Fixture post"}`, browser, accounts.ID())
 	if root.Code != 201 {
 		t.Fatal(root.Body.String())
 	}

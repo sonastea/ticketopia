@@ -98,7 +98,42 @@ type Credential struct {
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
+	// Scopes limit an API token: ScopeRead, optionally with ScopeWrite.
+	// Browser sessions carry none and are limited by CSRF checks instead.
+	Scopes []string `json:"scopes,omitempty"`
 }
+
+// API token scopes. A token always reads; write allows private changes.
+// Tokens never publish: public actions and words need the website or an
+// OAuth connection's consent, and an agent's text waits as a draft.
+const (
+	ScopeRead  = "read"
+	ScopeWrite = "write"
+)
+
+// Can reports whether an API token holds scope. Browser sessions hold no
+// scopes; callers check their kind first.
+func (c Credential) Can(scope string) bool { return slices.Contains(c.Scopes, scope) }
+
+// TokenScopes validates requested API token scopes, returning them in
+// canonical order. Read is implied; publish is never granted.
+func TokenScopes(requested []string) ([]string, error) {
+	write := false
+	for _, s := range requested {
+		switch s {
+		case ScopeRead:
+		case ScopeWrite:
+			write = true
+		default:
+			return nil, &ValidationError{"scopes", "use read and optionally write; API tokens can't publish"}
+		}
+	}
+	if write {
+		return []string{ScopeRead, ScopeWrite}, nil
+	}
+	return []string{ScopeRead}, nil
+}
+
 type Principal struct {
 	Account    Account
 	Credential Credential
@@ -199,7 +234,7 @@ func (s *Service) Cancel(ctx context.Context, state, browser string) (string, er
 }
 func (s *Service) credential(owner, kind, name, raw string) Credential {
 	now := s.now()
-	return Credential{ID(), owner, Hash(raw), kind, name, now, now.Add(CredentialLifetime)}
+	return Credential{ID: ID(), AccountID: owner, Hash: Hash(raw), Kind: kind, Name: name, CreatedAt: now, ExpiresAt: now.Add(CredentialLifetime)}
 }
 func (s *Service) Authenticate(ctx context.Context, raw, kind string) (Principal, error) {
 	if !validSecret(raw) || (kind != "session" && kind != "api") {
@@ -363,13 +398,20 @@ func (s *Service) UpdatePreferences(ctx context.Context, owner string, p Prefere
 func (s *Service) Tokens(ctx context.Context, owner string) ([]Credential, error) {
 	return s.repo.ListTokens(ctx, owner, s.now())
 }
-func (s *Service) CreateToken(ctx context.Context, owner, name string) (Credential, string, error) {
+
+// CreateToken creates an API token holding scopes (see TokenScopes).
+func (s *Service) CreateToken(ctx context.Context, owner, name string, scopes []string) (Credential, string, error) {
 	name = strings.TrimSpace(name)
 	if err := validateText("name", name, 1, 80, false); err != nil {
 		return Credential{}, "", err
 	}
+	scopes, err := TokenScopes(scopes)
+	if err != nil {
+		return Credential{}, "", err
+	}
 	raw := secret()
 	c := s.credential(owner, "api", name, raw)
+	c.Scopes = scopes
 	if err := s.repo.CreateToken(ctx, c, s.now()); err != nil {
 		return Credential{}, "", err
 	}

@@ -256,7 +256,7 @@ func TestMariaDBAgentPublishing(t *testing.T) {
 	if err := json.Unmarshal([]byte(get(t, m, "owner", "/api/v1/me")), &me); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range regexp.MustCompile(`/me/connections/([0-9a-f]+)/revoke`).FindAllStringSubmatch(get(t, m, "owner", "/me"), -1) {
+	for _, id := range regexp.MustCompile(`/me/connections/([0-9a-f]+)/revoke`).FindAllStringSubmatch(get(t, m, "owner", "/me/security"), -1) {
 		b.do(http.MethodPost, "/me/connections/"+id[1]+"/revoke", url.Values{"csrf_token": {me.CSRF}})
 	}
 	if page := get(t, m, "owner", "/me/drafts"); strings.Contains(page, "Pending when disconnected") || strings.Contains(page, "Small room, big sound") {

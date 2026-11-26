@@ -93,8 +93,8 @@ func TestAccountFamilyNavigationRoutesAndRoles(t *testing.T) {
 }
 
 func TestEventSectionFragments(t *testing.T) {
-	a, posts, browser, bearer, _, id := discussionAPI(t)
-	if w := discussionRequest(a, "POST", "/api/v1/events/"+id+"/discussions", `{"body":"Section question"}`, bearer, accounts.ID()); w.Code != 201 {
+	a, posts, browser, _, _, id := discussionAPI(t)
+	if w := discussionRequest(a, "POST", "/api/v1/events/"+id+"/discussions", `{"body":"Section question"}`, browser, accounts.ID()); w.Code != 201 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	recs := &recommendationStub{items: map[string]map[string]recommendations.Item{}, profiles: map[string]accounts.PublicProfile{}}

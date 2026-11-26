@@ -31,7 +31,7 @@ func TestMariaDBFollowsBrowserReview(t *testing.T) {
 	auth := accounts.New(pool.Accounts(), accountProviderFixture{})
 	owner, session := loginAccount(t, auth, "follows-browser")
 	_, otherSession := loginAccount(t, auth, "follows-browser-other")
-	_, token, err := auth.CreateToken(t.Context(), owner.ID, "fixture client")
+	_, token, err := auth.CreateToken(t.Context(), owner.ID, "fixture client", readWrite)
 	if err != nil {
 		t.Fatal(err)
 	}

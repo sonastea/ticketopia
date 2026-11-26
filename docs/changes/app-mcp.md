@@ -4,6 +4,14 @@
 
 ## Unreleased
 
+### 2026-11-25 — API token scopes on `/mcp`
+
+- An API token keeps its own scopes on `/mcp`: a read-only token's change tools
+  get 403 `insufficient_scope` with a message to create a token that allows
+  private changes. Tokens still never hold `publish`. Scripts draft through
+  `/api/v1/me/drafts`, sharing the drafting tools' service. See
+  [Signing in](../app-mcp.md#signing-in).
+
 ### 2026-11-22 — Open questions and Same question tools
 
 - `open_questions` (public) lists questions nobody has answered yet on upcoming

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-11-25 — API tokens never act publicly
+
+- New tokens are read-only unless **Allow private changes** is checked; existing
+  tokens keep `read write`. The token list shows each token's access.
+- Tokens can no longer change the profile, make Interested public, recommend,
+  post, edit, remove, react or record moderation decisions. They propose reasons, questions, tips and replies
+  through `/api/v1/me/drafts`, which the person publishes at **Agent drafts**, so
+  scripts and agents can't post as people. See
+  [sessions and API clients](../accounts.md#sessions-and-api-clients).
+
 ### 2026-11-18 — One job per account page
 
 - Split the cluttered profile into **Profile** (`/me`), **Privacy**

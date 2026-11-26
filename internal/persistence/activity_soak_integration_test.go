@@ -102,7 +102,7 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	p := f.open(t)
 	auth := accounts.New(p.Accounts(), accountProviderFixture{})
 	owner, _ := loginAccount(t, auth, "soak-owner")
-	_, token, err := auth.CreateToken(t.Context(), owner.ID, "soak")
+	_, token, err := auth.CreateToken(t.Context(), owner.ID, "soak", readWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestMariaDBActivityDeploymentSoak(t *testing.T) {
 	privateIDs := []string{}
 	for i := range 64 {
 		account, _ := loginAccount(t, auth, fmt.Sprintf("soak-private-%d", i))
-		_, raw, err := auth.CreateToken(t.Context(), account.ID, "soak")
+		_, raw, err := auth.CreateToken(t.Context(), account.ID, "soak", readWrite)
 		if err != nil {
 			t.Fatal(err)
 		}

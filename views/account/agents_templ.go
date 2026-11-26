@@ -355,7 +355,7 @@ func agentGuideTokens(p AgentGuidePage) templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<section class=\"agent-guide-section\"><h2 id=\"api-tokens\">Use an API token</h2><p>In <strong>Security &amp; Apps</strong>, open <strong>Create an API token</strong>, name your token, and choose <strong>Create API token</strong>. Copy it when it appears: you won’t see it again. It expires 30 days after you create it. <strong>Treat API tokens like passwords.</strong></p><a class=\"text-link\" href=\"/me/security#api-access\">Go to API tokens in Security &amp; Apps</a><p>Store the token in an environment variable named <code>TICKETOPIA_TOKEN</code> and send it as <code>Authorization: Bearer TOKEN</code>. This example reads your profile without changing it or putting the header on the command line:</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<section class=\"agent-guide-section\"><h2 id=\"api-tokens\">Use an API token</h2><p>In <strong>Security &amp; Apps</strong>, open <strong>Create an API token</strong>, name your token, check <strong>Allow private changes</strong> when it should change anything, and choose <strong>Create API token</strong>. Copy it when it appears: you won’t see it again. It expires 30 days after you create it. <strong>Treat API tokens like passwords.</strong></p><a class=\"text-link\" href=\"/me/security#api-access\">Go to API tokens in Security &amp; Apps</a><p>Store the token in an environment variable named <code>TICKETOPIA_TOKEN</code> and send it as <code>Authorization: Bearer TOKEN</code>. This example reads your profile without changing it or putting the header on the command line:</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -363,12 +363,12 @@ func agentGuideTokens(p AgentGuidePage) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p><strong>On the JSON API (<code>/api/v1</code>):</strong> a token can read your email and private account data, and change your profile, preferences, saved events, follows and reminders. It can make your Interested choices public, publish recommendations and posts, edit or remove your own posts, and react. It can revoke itself, but can’t list tokens, create new ones or revoke any other token.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p><strong>On the JSON API (<code>/api/v1</code>):</strong> a token can read your email and private account data. With private changes allowed, it can also change your preferences, saved events, follows, reminders and private Interested choices, report posts, and write drafts. It never acts publicly as you: it can’t change your profile, make Interested public, recommend, post, edit, remove or react. A recommendation reason, question, tip or reply it writes waits in <strong>Agent drafts</strong> until you publish it. It can revoke itself, but can’t list tokens, create new ones or revoke any other token.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if p.MCP {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p><strong>On <code>/mcp</code>:</strong> a client that supports custom headers can send the same Bearer header. An API token gets <code>read</code> and <code>write</code>, never <code>publish</code>. These limits don’t apply on the JSON API. ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p><strong>On <code>/mcp</code>:</strong> a client that supports custom headers can send the same Bearer header. The token keeps the same access there: <code>read</code>, plus <code>write</code> when you allowed private changes, never <code>publish</code>. ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

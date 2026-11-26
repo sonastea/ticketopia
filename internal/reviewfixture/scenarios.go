@@ -172,7 +172,7 @@ func (f *fixture) seed(sc scenario) error {
 		}
 		a.DisplayName = who.name
 		// An API token, as a user creates under API tokens in Security & Apps, for /mcp and /api/v1.
-		_, token, err := f.auth.CreateToken(ctx, a.ID, "review fixture")
+		_, token, err := f.auth.CreateToken(ctx, a.ID, "review fixture", []string{accounts.ScopeRead, accounts.ScopeWrite})
 		if err != nil {
 			return fmt.Errorf("fixture API token: %w", err)
 		}

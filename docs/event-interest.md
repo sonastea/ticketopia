@@ -78,7 +78,9 @@ storage failures show unavailable state rather than inventing zero counts.
 
 Own resources accept browser sessions or personal bearer tokens. Cookie writes
 require same-origin checks and `X-CSRF-Token` from `GET /api/v1/me`; bearer writes
-do not use ambient cookies or CSRF. All interest responses are `private, no-store`.
+do not use ambient cookies or CSRF and need the token's `write` scope. Tokens
+choose only private interest: `{"visibility":"public"}` gets 403
+`token_cannot_publish`, and a token's new choice is private whatever the default. All interest responses are `private, no-store`.
 
 | Method | Route | Meaning |
 | --- | --- | --- |

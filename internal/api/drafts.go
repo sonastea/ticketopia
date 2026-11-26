@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sonastea/ticketopia/internal/accounts"
@@ -20,6 +21,130 @@ import (
 func (a *api) draftRoutes(e *echo.Echo) {
 	e.GET("/me/drafts", a.draftsPage)
 	e.POST("/me/drafts/:draft_id", a.draftDecisionPage)
+	e.GET("/api/v1/me/drafts", a.draftsHandler)
+	e.POST("/api/v1/me/drafts", a.createDraftHandler)
+	e.DELETE("/api/v1/me/drafts/:draft_id", a.discardDraftHandler)
+}
+
+// draftList is the caller's pending drafts and the page that publishes them.
+type draftList struct {
+	Items     []drafts.Draft `json:"items"`
+	ReviewURL string         `json:"review_url"`
+}
+
+func (a *api) draftsURL() string { return strings.TrimRight(a.authConfig.BaseURL, "/") + "/me/drafts" }
+
+// draftPrincipal authorizes the JSON draft routes. They are how API tokens,
+// which never act publicly, propose public text: the person reads and
+// publishes each draft on the web.
+func (a *api) draftPrincipal(c echo.Context, write bool) (accounts.Principal, error) {
+	p, err := a.requireAPI(c, write, false)
+	if err == nil && !a.draftsEnabled() {
+		err = drafts.ErrUnavailable
+	}
+	return p, err
+}
+
+func (a *api) draftsHandler(c echo.Context) error {
+	p, err := a.draftPrincipal(c, false)
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	items, err := a.drafts.List(c.Request().Context(), p.Account.ID)
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	return c.JSON(200, draftList{Items: items, ReviewURL: a.draftsURL()})
+}
+
+// createDraftHandler stores a recommendation reason, question or tip, or
+// reply for the person to review, as draft_recommendation, draft_question
+// and draft_reply do for agents. It never publishes. Only API tokens draft:
+// on the website the person publishes directly, and a browser's draft
+// would be labelled as an API client's.
+func (a *api) createDraftHandler(c echo.Context) error {
+	p, err := a.draftPrincipal(c, false)
+	if err == nil && p.Credential.Kind != "api" {
+		err = &accounts.ValidationError{Field: "authorization", Message: "drafts are for API clients; on the website, publish directly"}
+	}
+	if err == nil {
+		err = a.checkWrite(c, p)
+	}
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	var body struct {
+		Kind     string `json:"kind"`
+		EventID  string `json:"event_id"`
+		Text     string `json:"text"`
+		ThreadID string `json:"thread_id"`
+		ParentID string `json:"parent_id"`
+	}
+	if err = decodeAccountJSON(c, &body); err != nil {
+		return accountProblem(c, err)
+	}
+	if body.Kind != drafts.KindReply {
+		for field, value := range map[string]string{"thread_id": body.ThreadID, "parent_id": body.ParentID} {
+			if value != "" {
+				return accountProblem(c, &accounts.ValidationError{Field: field, Message: "only reply drafts name a thread or parent"})
+			}
+		}
+	}
+	ctx, client := c.Request().Context(), drafts.Client{}
+	var draft drafts.Draft
+	switch body.Kind {
+	case drafts.KindRecommendation:
+		draft, err = a.drafts.CreateRecommendation(ctx, p.Account.ID, body.EventID, body.Text, client)
+	case drafts.KindQuestion, drafts.KindReply:
+		if !a.discussionsEnabled() {
+			return accountProblem(c, discussions.ErrUnavailable)
+		}
+		if body.Kind == drafts.KindQuestion {
+			draft, err = a.drafts.CreateQuestion(ctx, p.Account.ID, body.EventID, body.Text, client)
+		} else {
+			draft, err = a.drafts.CreateReply(ctx, p.Account.ID, body.EventID, body.ThreadID, body.ParentID, body.Text, client)
+		}
+	default:
+		return accountProblem(c, &accounts.ValidationError{Field: "kind", Message: "use recommendation, question or reply"})
+	}
+	if err != nil {
+		return accountProblem(c, draftInputError(err))
+	}
+	return c.JSON(201, struct {
+		Item      drafts.Draft `json:"item"`
+		Published bool         `json:"published"`
+		ReviewURL string       `json:"review_url"`
+	}{draft, false, a.draftsURL()})
+}
+
+// draftInputError names this route's text field: the drafts service shares
+// discussion and agent-tool wording ("body", recommend_event).
+func draftInputError(err error) error {
+	var invalid *accounts.ValidationError
+	if !errors.As(err, &invalid) || (invalid.Field != "body" && invalid.Field != "text") {
+		return err
+	}
+	message := invalid.Message
+	if strings.Contains(message, "recommend_event") {
+		message = "write the reason to review"
+	}
+	return &accounts.ValidationError{Field: "text", Message: message}
+}
+
+// discardDraftHandler deletes one of the caller's pending drafts; one that
+// is already gone, or another account's, is an idempotent 204.
+func (a *api) discardDraftHandler(c echo.Context) error {
+	p, err := a.draftPrincipal(c, true)
+	if err != nil {
+		return accountProblem(c, err)
+	}
+	if err = emptyDiscussionBody(c); err != nil {
+		return accountProblem(c, err)
+	}
+	if _, err = a.drafts.Discard(c.Request().Context(), p.Account.ID, c.Param("draft_id")); err != nil {
+		return accountProblem(c, err)
+	}
+	return c.NoContent(204)
 }
 
 // draftsEnabled reports whether drafts can be stored and published.

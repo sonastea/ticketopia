@@ -11,7 +11,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/persistence/dberr"
 )
 
-const SupportedSchemaVersion = 27
+const SupportedSchemaVersion = 28
 
 // ErrUnavailable is dberr.ErrUnavailable, so callers that cannot import this
 // package (the API, whose tests this package imports) recognize it too.

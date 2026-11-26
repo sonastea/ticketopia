@@ -35,6 +35,13 @@ import (
 var errCSRF = errors.New("refresh this page and try again")
 var errDisabled = errors.New("accounts are not enabled on this server")
 
+// API token limits: errTokenReadOnly for changes through a read-only token,
+// errTokenPublic for anything public, which tokens never do directly.
+var (
+	errTokenReadOnly = errors.New("this API token can only read")
+	errTokenPublic   = errors.New("API tokens can't act publicly")
+)
+
 func privateAccountResponse(c echo.Context) {
 	c.Response().Header().Set("Cache-Control", "private, no-store")
 	// Retain a same-origin form's Origin header while withholding cross-origin
@@ -360,6 +367,9 @@ func (a *api) principal(c echo.Context, browserOnly bool) (accounts.Principal, e
 }
 func (a *api) checkWrite(c echo.Context, p accounts.Principal) error {
 	if p.Credential.Kind == "api" {
+		if !p.Credential.Can(accounts.ScopeWrite) {
+			return errTokenReadOnly
+		}
 		return nil
 	}
 	if c.Request().Header.Get("Sec-Fetch-Site") == "cross-site" {
@@ -380,6 +390,18 @@ func (a *api) checkWrite(c echo.Context, p accounts.Principal) error {
 	}
 	if subtle.ConstantTimeCompare([]byte(provided), []byte(p.CSRF)) != 1 {
 		return errCSRF
+	}
+	return nil
+}
+
+// checkPublic refuses API tokens for public actions and public words:
+// visible names, recommendations, posts, edits, removals and reactions.
+// Tokens draft text instead (/api/v1/me/drafts), which the person
+// publishes on the web; agents with OAuth consent may take reason-free
+// public actions on /mcp.
+func checkPublic(p accounts.Principal) error {
+	if p.Credential.Kind == "api" {
+		return errTokenPublic
 	}
 	return nil
 }
@@ -411,6 +433,10 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 401, "unauthenticated", "Sign in to continue.", nil
 	case errors.Is(err, errCSRF):
 		return 403, "csrf_failed", "Refresh this page and try again.", nil
+	case errors.Is(err, errTokenReadOnly):
+		return 403, "insufficient_scope", "This API token can only read. Create a token that allows private changes in Security & Apps.", nil
+	case errors.Is(err, errTokenPublic):
+		return 403, "token_cannot_publish", "API tokens can't act publicly or post as you. Draft text with /api/v1/me/drafts and publish it on Ticketopia, or act on the website.", nil
 	case errors.Is(err, accounts.ErrFlow):
 		return 400, "invalid_sign_in", "Sign-in expired or could not be verified. Please start again.", nil
 	case errors.Is(err, accounts.ErrNotFound):
@@ -595,6 +621,10 @@ func (a *api) preferencesHandler(c echo.Context) error {
 }
 func (a *api) patchProfileHandler(c echo.Context) error {
 	p, err := a.requireAPI(c, true, false)
+	if err == nil {
+		// The profile's name and bio are public words.
+		err = checkPublic(p)
+	}
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -659,12 +689,13 @@ func (a *api) createTokenHandler(c echo.Context) error {
 		return accountProblem(c, err)
 	}
 	var body struct {
-		Name string `json:"name"`
+		Name   string   `json:"name"`
+		Scopes []string `json:"scopes"`
 	}
 	if err = decodeAccountJSON(c, &body); err != nil {
 		return accountProblem(c, err)
 	}
-	item, raw, err := a.accounts.CreateToken(c.Request().Context(), p.Account.ID, body.Name)
+	item, raw, err := a.accounts.CreateToken(c.Request().Context(), p.Account.ID, body.Name, body.Scopes)
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -686,7 +717,11 @@ func (a *api) revokeTokenHandler(c echo.Context) error {
 	return c.NoContent(204)
 }
 func (a *api) deleteSessionHandler(c echo.Context) error {
-	p, err := a.requireAPI(c, true, false)
+	// Any token may revoke itself, including a read-only one.
+	p, err := a.requireAPI(c, false, false)
+	if err == nil && p.Credential.Kind != "api" {
+		err = a.checkWrite(c, p)
+	}
 	if err != nil {
 		return accountProblem(c, err)
 	}
@@ -721,6 +756,7 @@ func (a *api) accountPage(section string) echo.HandlerFunc {
 		return a.renderAccount(c, 200, p, section, "", notice, token, accountView{NoticeFor: area})
 	}
 }
+
 // accountView carries optional presentation state into renderAccount.
 type accountView struct {
 	// NoticeFor places the notice beside the section it confirms.
@@ -728,6 +764,7 @@ type accountView struct {
 	// TokenFormOpen keeps the token form open, with TokenName, after a failed creation.
 	TokenFormOpen bool
 	TokenName     string
+	TokenWrite    bool
 	// Live is an unsaved live-activity filter draft to show on Preferences.
 	Live *liveFilterDraft
 }
@@ -760,7 +797,7 @@ func (a *api) renderAccount(c echo.Context, status int, p accounts.Principal, se
 		view = views[0]
 	}
 	ctx := c.Request().Context()
-	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NoticeFor: view.NoticeFor, NewToken: token, TokenFormOpen: view.TokenFormOpen, TokenName: view.TokenName}
+	page := account.Page{Account: p.Account, CSRF: p.CSRF, Section: section, Error: message, Notice: notice, NoticeFor: view.NoticeFor, NewToken: token, TokenFormOpen: view.TokenFormOpen, TokenName: view.TokenName, TokenWrite: view.TokenWrite}
 	page.Navigation = a.accountNavigation(c, p.Account.ID)
 	switch section {
 	case "profile":
@@ -883,6 +920,7 @@ func parseBoundedAccountForm(c echo.Context, maxBytes int64, allowed ...string) 
 	}
 	return nil
 }
+
 // updateAccountPage saves one account form: "profile" (name and bio),
 // "privacy" (interest default and live activity name) or "preferences"
 // (location and notifications, or categories when section=categories).
@@ -977,7 +1015,7 @@ func (a *api) logoutPage(all bool) echo.HandlerFunc {
 }
 func (a *api) createTokenPage(c echo.Context) error {
 	privateAccountResponse(c)
-	if err := parseAccountForm(c, "name"); err != nil {
+	if err := parseAccountForm(c, "name", "write"); err != nil {
 		return a.accountPageError(c, err)
 	}
 	p, err := a.principal(c, true)
@@ -990,10 +1028,14 @@ func (a *api) createTokenPage(c echo.Context) error {
 	if err = a.accounts.Allow(c.Request().Context(), "tokens", p.Account.ID); err != nil {
 		return a.accountPageError(c, err)
 	}
-	_, raw, err := a.accounts.CreateToken(c.Request().Context(), p.Account.ID, c.FormValue("name"))
+	scopes := []string{accounts.ScopeRead}
+	if c.FormValue("write") == "on" {
+		scopes = append(scopes, accounts.ScopeWrite)
+	}
+	_, raw, err := a.accounts.CreateToken(c.Request().Context(), p.Account.ID, c.FormValue("name"), scopes)
 	if err != nil {
 		status, _, message, _ := accountError(err)
-		return a.renderAccount(c, status, p, "security", message, "", "", accountView{TokenFormOpen: true, TokenName: c.FormValue("name")})
+		return a.renderAccount(c, status, p, "security", message, "", "", accountView{TokenFormOpen: true, TokenName: c.FormValue("name"), TokenWrite: c.FormValue("write") == "on"})
 	}
 	// Post/Redirect/Get: refreshing the result must not create another token.
 	// The secret travels once in a short-lived cookie, never in the URL.

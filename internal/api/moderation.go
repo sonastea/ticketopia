@@ -145,6 +145,11 @@ func (a *api) moderationCaseHandler(c echo.Context) error {
 }
 func (a *api) moderationDecisionHandler(c echo.Context) error {
 	p, err := a.moderationWriter(c)
+	if err == nil {
+		// Hiding or restoring changes what everyone sees: moderators decide
+		// in the browser, never through an API token.
+		err = checkPublic(p)
+	}
 	if err != nil {
 		return accountProblem(c, err)
 	}

@@ -185,21 +185,25 @@ func TestRecommendationAPICredentialsStrictInputAndPublicPrivacy(t *testing.T) {
 		{"GET", "/api/v1/me/event-recommendations", "", "", "", "", "", 401},
 		{"PUT", path, `{}`, browser, "", "", "", 403},
 		{"PUT", path, `{}`, browser, "", csrf, "https://evil.example", 403},
-		{"PUT", path, `{"account_id":"other"}`, "", bearer, "", "", 400},
-		{"PUT", path, `{"visibility":"private"}`, "", bearer, "", "", 400},
-		{"PUT", path, `{"reason":null}`, "", bearer, "", "", 400},
-		{"PUT", path, `{"reason":"a","reason":"b"}`, "", bearer, "", "", 400},
-		{"PUT", path, `{"reason":2}`, "", bearer, "", "", 400},
-		{"PUT", path, `{"reason":"` + strings.Repeat("a", 501) + `"}`, "", bearer, "", "", 400},
-		{"PUT", path, `[]`, "", bearer, "", "", 400},
-		{"DELETE", path, `{}`, "", bearer, "", "", 400},
+		// API tokens never recommend or withdraw: they draft reasons instead.
+		{"PUT", path, `{}`, "", bearer, "", "", 403},
+		{"PUT", path, `{"reason":"Great"}`, "", bearer, "", "", 403},
+		{"DELETE", path, "", "", bearer, "", "", 403},
+		{"PUT", path, `{"account_id":"other"}`, browser, "", csrf, "", 400},
+		{"PUT", path, `{"visibility":"private"}`, browser, "", csrf, "", 400},
+		{"PUT", path, `{"reason":null}`, browser, "", csrf, "", 400},
+		{"PUT", path, `{"reason":"a","reason":"b"}`, browser, "", csrf, "", 400},
+		{"PUT", path, `{"reason":2}`, browser, "", csrf, "", 400},
+		{"PUT", path, `{"reason":"` + strings.Repeat("a", 501) + `"}`, browser, "", csrf, "", 400},
+		{"PUT", path, `[]`, browser, "", csrf, "", 400},
+		{"DELETE", path, `{}`, browser, "", csrf, "", 400},
 	} {
 		response := accountRequest(a, tc.method, tc.path, tc.body, tc.cookie, tc.token, tc.csrf, tc.origin, "")
 		if response.Code != tc.status {
 			t.Fatalf("%s %s: %d %s", tc.method, tc.path, response.Code, response.Body.String())
 		}
 	}
-	response := accountRequest(a, "PUT", path, `{"reason":"<script>alert(1)</script>"}`, "", bearer, "", "", "")
+	response := accountRequest(a, "PUT", path, `{"reason":"<script>alert(1)</script>"}`, browser, "", csrf, "", "")
 	if response.Code != 201 || response.Header().Get("Location") != path {
 		t.Fatal(response.Code, response.Body.String())
 	}
@@ -227,7 +231,7 @@ func TestRecommendationAPICredentialsStrictInputAndPublicPrivacy(t *testing.T) {
 	other := accounts.ID()
 	repo.items[other] = map[string]recommendations.Item{id: first}
 	for range 2 {
-		if response := accountRequest(a, "DELETE", path, "", "", bearer, "", "", ""); response.Code != 204 {
+		if response := accountRequest(a, "DELETE", path, "", browser, "", csrf, "", ""); response.Code != 204 {
 			t.Fatal(response.Code)
 		}
 	}
@@ -297,7 +301,7 @@ func TestGroupedRecommendationsAPIAndWebCompatibility(t *testing.T) {
 func TestRecommendationObservationLoggingOnlyConfirmedTransitions(t *testing.T) {
 	for _, native := range []bool{false, true} {
 		t.Run(fmt.Sprint("native=", native), func(t *testing.T) {
-			a, account, repo, browser, bearer, csrf, id := recommendationAPI(t)
+			a, account, repo, browser, _, csrf, id := recommendationAPI(t)
 			a.recommendations = recommendations.New(observedRecommendationStub{repo}, a.saved)
 			var logs bytes.Buffer
 			a.logger = zerolog.New(&logs)
@@ -310,7 +314,7 @@ func TestRecommendationObservationLoggingOnlyConfirmedTransitions(t *testing.T) 
 					}
 				} else {
 					data, _ := json.Marshal(map[string]string{"reason": reason})
-					response := accountRequest(a, "PUT", "/api/v1/me/event-recommendations/"+id, string(data), "", bearer, "", "", "")
+					response := accountRequest(a, "PUT", "/api/v1/me/event-recommendations/"+id, string(data), browser, "", csrf, "", "")
 					if response.Code != 201 && response.Code != 200 {
 						t.Fatal(response.Code, response.Body.String())
 					}

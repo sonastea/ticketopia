@@ -48,6 +48,10 @@ func (a *api) recommendationPrincipal(c echo.Context, write bool) (accounts.Prin
 			return p, &accounts.ValidationError{Field: "query", Message: "this route does not accept query parameters"}
 		}
 		err = a.checkWrite(c, p)
+		if err == nil {
+			// Publishing and withdrawing are public; tokens draft reasons.
+			err = checkPublic(p)
+		}
 	}
 	return p, err
 }

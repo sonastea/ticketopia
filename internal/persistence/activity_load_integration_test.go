@@ -33,7 +33,7 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 	p := f.open(t)
 	auth := accounts.New(p.Accounts(), accountProviderFixture{})
 	owner, _ := loginAccount(t, auth, "load-owner")
-	_, token, err := auth.CreateToken(t.Context(), owner.ID, "load")
+	_, token, err := auth.CreateToken(t.Context(), owner.ID, "load", readWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 	}
 	// A private view whose membership can be changed through production HTTP.
 	recipient, _ := loginAccount(t, auth, "load-recipient")
-	_, privateToken, err := auth.CreateToken(t.Context(), recipient.ID, "load")
+	_, privateToken, err := auth.CreateToken(t.Context(), recipient.ID, "load", readWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestMariaDBActivityDeploymentLoad(t *testing.T) {
 	if distinct {
 		for i := range privateTokens {
 			account, _ := loginAccount(t, auth, fmt.Sprintf("load-recipient-%d", i))
-			_, raw, err := auth.CreateToken(t.Context(), account.ID, "load")
+			_, raw, err := auth.CreateToken(t.Context(), account.ID, "load", readWrite)
 			if err != nil {
 				t.Fatal(err)
 			}

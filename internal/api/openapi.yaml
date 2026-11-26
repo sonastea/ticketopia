@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.29.0
+  version: 1.30.0
   license:
     name: MIT
     identifier: MIT
@@ -18,7 +18,12 @@ info:
     Interest identity is private by default; counts include private choices but
     participant lists and profile activity include only explicitly public choices.
     Account APIs use a browser session or a user-scoped API token;
-    discovery remains public. Account APIs return 503 when accounts are disabled.
+    discovery remains public. API tokens hold `read` or `read write` and never
+    act publicly: they get 403 `token_cannot_publish` for recommendations,
+    posts, edits, removals, reactions, public interest and profile changes,
+    and propose text as drafts (`/api/v1/me/drafts`) that the person reviews
+    and publishes on the web. A read-only token's changes get 403
+    `insufficient_scope`. Account APIs return 503 when accounts are disabled.
 servers:
   - url: /
 security: []
@@ -576,8 +581,8 @@ paths:
     patch:
       operationId: updateOwnProfile
       summary: Update your profile and interest privacy default
-      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes do not need CSRF. Changing this default affects new interest choices only and does not publish private preferences or hide public recommendations.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Browser sessions only; cookie writes require X-CSRF-Token and a same-origin request. The name and bio are public words, so API tokens get 403 `token_cannot_publish`. Changing this default affects new interest choices only and does not publish private preferences or hide public recommendations.
+      security: [{sessionCookie: []}]
       parameters: [{$ref: '#/components/parameters/CSRFToken'}]
       requestBody:
         required: true
@@ -689,7 +694,7 @@ paths:
     post:
       operationId: createOwnAPIToken
       summary: Create a 30-day user-scoped API token
-      description: Requires a browser session and CSRF token. The secret is returned only once and only its SHA-256 hash is stored. Token can read/update own profile/preferences and revoke itself, but cannot manage other credentials. At most ten active tokens; creations are limited to 20 per ten minutes per account across replicas.
+      description: Requires a browser session and CSRF token. The secret is returned only once and only its SHA-256 hash is stored. The token always reads and can revoke itself; with `write` it can make private changes (preferences, saves, reminders, follows, private interest, reports, drafts). It never acts publicly or changes the profile, and cannot manage other credentials. At most ten active tokens; creations are limited to 20 per ten minutes per account across replicas.
       security: [{sessionCookie: []}]
       parameters: [{$ref: '#/components/parameters/CSRFToken'}]
       requestBody:
@@ -702,6 +707,7 @@ paths:
               required: [name]
               properties:
                 name: {type: string, minLength: 1, maxLength: 80}
+                scopes: {type: array, items: {type: string, enum: [read, write]}, description: 'Read is always included; repeats are ignored. Omitted or `[read]` creates a read-only token; include `write` to allow private changes. `publish` is rejected.'}
       responses:
         '201':
           description: New credential metadata and one-time secret.
@@ -744,11 +750,115 @@ paths:
     delete:
       operationId: revokeCurrentCredential
       summary: Revoke the current browser session or API token
-      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes revoke that API token without CSRF. Subsequent requests using a revoked credential return 401.
+      description: Cookie writes require X-CSRF-Token and a same-origin request. Bearer writes revoke that API token without CSRF, even a read-only one. Subsequent requests using a revoked credential return 401.
       security: [{sessionCookie: []}, {bearerToken: []}]
       parameters: [{$ref: '#/components/parameters/CSRFToken'}]
       responses:
         '204': {description: Current credential revoked. Browser session cookie is also cleared.}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/drafts:
+    get:
+      operationId: listOwnDrafts
+      summary: List your drafts awaiting review
+      description: Owner-only, private, no-store. Unexpired drafts from agents and API clients, newest first; at most 20 at once. No query parameters. The person publishes or discards each at review_url.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      responses:
+        '200':
+          description: Pending drafts and the page that publishes them.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items, review_url]
+                properties:
+                  items: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/Draft'}}
+                  review_url: {type: string, format: uri}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+    post:
+      operationId: createOwnDraft
+      summary: Draft a recommendation reason, question or tip, or reply for review
+      description: |
+        API tokens with `write` only; browser sessions publish directly and get 400.
+        Never publishes: the person reads the draft at review_url and chooses
+        Publish or Discard. A recommendation draft needs a reason (plain text, up to
+        500 characters); a question, tip or reply up to 4000. A reply names its
+        question or tip as thread_id and, to answer a reply in that thread,
+        parent_id. Drafts expire after seven days; an account holds at most 20
+        (409 `draft_limit`). Published drafts show "via an API client".
+      security: [{bearerToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [kind, event_id, text]
+                  properties:
+                    kind: {type: string, const: recommendation}
+                    event_id: {$ref: '#/components/schemas/ResourceID'}
+                    text: {type: string, minLength: 1, maxLength: 500}
+                - type: object
+                  additionalProperties: false
+                  required: [kind, event_id, text]
+                  properties:
+                    kind: {type: string, const: question}
+                    event_id: {$ref: '#/components/schemas/ResourceID'}
+                    text: {type: string, minLength: 1, maxLength: 4000}
+                - type: object
+                  additionalProperties: false
+                  required: [kind, event_id, text, thread_id]
+                  properties:
+                    kind: {type: string, const: reply}
+                    event_id: {$ref: '#/components/schemas/ResourceID'}
+                    text: {type: string, minLength: 1, maxLength: 4000}
+                    thread_id: {$ref: '#/components/schemas/AccountID'}
+                    parent_id: {$ref: '#/components/schemas/AccountID'}
+      responses:
+        '201':
+          description: The stored, unpublished draft.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [item, published, review_url]
+                properties:
+                  item: {$ref: '#/components/schemas/Draft'}
+                  published: {type: boolean, const: false}
+                  review_url: {type: string, format: uri}
+        '400': {$ref: '#/components/responses/AccountBadRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/CSRFRejected'}
+        '404':
+          description: The event, or the reply's question, tip or parent, couldn't be found.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '409':
+          description: 20 drafts already await review.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '503': {$ref: '#/components/responses/AccountsUnavailable'}
+  /api/v1/me/drafts/{draft_id}:
+    delete:
+      operationId: discardOwnDraft
+      summary: Discard one of your pending drafts
+      description: Empty body. A draft that is already gone, or another account's, is an idempotent 204. Cookie writes require X-CSRF-Token and a same-origin request.
+      security: [{sessionCookie: []}, {bearerToken: []}]
+      parameters:
+        - {name: draft_id, in: path, required: true, schema: {$ref: '#/components/schemas/AccountID'}}
+        - {$ref: '#/components/parameters/CSRFToken'}
+      responses:
+        '204': {description: Draft discarded or already absent.}
         '400': {$ref: '#/components/responses/AccountBadRequest'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/CSRFRejected'}
@@ -1257,6 +1367,7 @@ paths:
       operationId: setOwnEventInterest
       summary: Mark Interested or change the visibility of your choice
       description: |
+        API tokens may mark Interested privately only, so `{"visibility":"public"}` gets 403 `token_cannot_publish`, and a new choice from a token is private whatever the account default.
         A JSON object is required; send {} or {"visibility":"private"} or
         {"visibility":"public"}. Omission preserves an existing choice, or uses
         the account's private-by-default profile setting for a new choice.
@@ -1507,6 +1618,7 @@ paths:
       operationId: setOwnEventRecommendation
       summary: Publish a public recommendation or replace its optional reason
       description: |
+        API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
         Explicitly publishes your display name/profile and optional reason on the
         event, community collection and public profile. Does not change Save,
         Interested, attendance or posts. Omitted reason or an empty string clears
@@ -1520,7 +1632,7 @@ paths:
         retries and impose no recommendation-specific quotas or cooldowns. Existing edits
         need no provider call. Cookie writes require CSRF and same-origin checks;
         bearer writes do not use ambient cookies. All responses are private, no-store.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       requestBody:
@@ -1553,8 +1665,8 @@ paths:
     delete:
       operationId: withdrawOwnEventRecommendation
       summary: Withdraw your recommendation without changing other activity
-      description: Empty body and no query parameters. Owner-only, idempotent 204 even when absent. Clears the reason and excludes the endorsement from all reads/counts, retaining only its private account/event publication marker to prevent republication bumping. Retains shared metadata and other accounts' recommendations, saves and interest. Cookie writes require CSRF and same-origin checks. All responses are private, no-store.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Empty body and no query parameters. Owner-only, idempotent 204 even when absent. Clears the reason and excludes the endorsement from all reads/counts, retaining only its private account/event publication marker to prevent republication bumping. Retains shared metadata and other accounts' recommendations, saves and interest. Cookie writes require CSRF and same-origin checks. All responses are private, no-store. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       responses:
@@ -1662,6 +1774,7 @@ paths:
       operationId: createEventDiscussion
       summary: Publish a public event question or tip
       description: |
+        API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
         Public display name/profile attribution must be disclosed by clients.
         Plain text, trimmed, 1–4000 Unicode characters; controls other than line
         breaks/tabs are rejected. Strict JSON object, 16 KiB body limit, no query.
@@ -1671,7 +1784,7 @@ paths:
         New roots atomically retain event identity/snapshot. Creation is limited to
         20 attempts per account per ten minutes, shared across roots and replies.
         Cookie writes require CSRF/same-origin checks; bearer identity takes precedence.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
         - {$ref: '#/components/parameters/IdempotencyKey'}
@@ -1730,8 +1843,8 @@ paths:
     post:
       operationId: createDiscussionReply
       summary: Publish a public reply, optionally targeting another contribution
-      description: Same creation limits, public attribution, CSRF, and durable idempotency rules as root posts. parent_id must name a contribution in this event/root thread. Replies to replies use a target reference, not arbitrary nesting. Replies require no provider calls and remain available after root removal.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Same creation limits, public attribution, CSRF, and durable idempotency rules as root posts. parent_id must name a contribution in this event/root thread. Replies to replies use a target reference, not arbitrary nesting. Replies require no provider calls and remain available after root removal. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
         - {$ref: '#/components/parameters/IdempotencyKey'}
@@ -1898,8 +2011,8 @@ paths:
     patch:
       operationId: editDiscussionPost
       summary: Replace your contribution's text
-      description: Author-only plain-text replacement, preserving creation/order and unchanged retry timestamps. Removed content cannot be restored. No query parameters. Cookie writes require CSRF and same-origin checks.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Author-only plain-text replacement, preserving creation/order and unchanged retry timestamps. Removed content cannot be restored. No query parameters. Cookie writes require CSRF and same-origin checks. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       requestBody:
@@ -1922,8 +2035,8 @@ paths:
     delete:
       operationId: removeDiscussionPost
       summary: Remove your contribution without erasing replies
-      description: Empty body, no query. Author-only; retry returns 204 for an already removed owned post. Unknown/not-owned posts return 404. Clears body and reactions atomically, withholds attribution, retains parent/root identity and retry fingerprint. Cookie writes require CSRF and same-origin checks.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Empty body, no query. Author-only; retry returns 204 for an already removed owned post. Unknown/not-owned posts return 404. Clears body and reactions atomically, withholds attribution, retains parent/root identity and retry fingerprint. Cookie writes require CSRF and same-origin checks. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       responses:
@@ -1939,8 +2052,8 @@ paths:
     put:
       operationId: setPostHelpful
       summary: Acknowledge a useful contribution
-      description: Empty body, no query. Unique user/post positive reaction; retries cannot double-count. Removed posts cannot receive reactions. Does not affect event saves, interest or recommendations. Cookie writes require CSRF and same-origin checks.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Empty body, no query. Unique user/post positive reaction; retries cannot double-count. Removed posts cannot receive reactions. Does not affect event saves, interest or recommendations. Cookie writes require CSRF and same-origin checks. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       responses:
@@ -1953,8 +2066,8 @@ paths:
     delete:
       operationId: removePostHelpful
       summary: Remove your Helpful acknowledgment
-      description: Empty body, no query. Idempotent; returns authoritative count and viewer state, including a placeholder if the post was removed. Cookie writes require CSRF and same-origin checks.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Empty body, no query. Idempotent; returns authoritative count and viewer state, including a placeholder if the post was removed. Cookie writes require CSRF and same-origin checks. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       responses:
@@ -1970,8 +2083,8 @@ paths:
     put:
       operationId: setPostSameQuestion
       summary: Mark someone else's question as yours too
-      description: Empty body, no query. One mark per user and question or tip (root post); retries cannot double-count. Replies, removed or hidden posts are 404; your own post is 400 (post_id). Marks annotate open questions and never reorder any list. Cookie writes require CSRF and same-origin checks.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Empty body, no query. One mark per user and question or tip (root post); retries cannot double-count. Replies, removed or hidden posts are 404; your own post is 400 (post_id). Marks annotate open questions and never reorder any list. Cookie writes require CSRF and same-origin checks. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       responses:
@@ -1984,8 +2097,8 @@ paths:
     delete:
       operationId: removePostSameQuestion
       summary: Remove your Same question mark
-      description: Empty body, no query. Idempotent; returns the authoritative count and viewer state, including for a removed post. Cookie writes require CSRF and same-origin checks.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      description: Empty body, no query. Idempotent; returns the authoritative count and viewer state, including for a removed post. Cookie writes require CSRF and same-origin checks. API tokens get 403 `token_cannot_publish` and instead draft text with /api/v1/me/drafts for the person to publish.
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/CSRFToken'}
       responses:
@@ -2227,6 +2340,8 @@ paths:
       operationId: recordModerationDecision
       summary: Keep, hide, or restore a contribution with an accountable reason
       description: |
+        Browser sessions only; API tokens get 403 `token_cannot_publish`, since
+        decisions change what everyone sees.
         Requires a current moderator role, also rechecked transactionally. Cannot
         review your own contribution. Send expected_version and expected_updated_at
         from the current case; stale context returns 409, including duplicate
@@ -2237,7 +2352,7 @@ paths:
         unhides retained text/reactions, never author-removed text. Keep requires a
         nonhidden contribution; removed contributions permit keep only. No query
         parameters, unknown/repeated/null fields, or JSON bodies over 16 KiB.
-      security: [{sessionCookie: []}, {bearerToken: []}]
+      security: [{sessionCookie: []}]
       parameters:
         - {$ref: '#/components/parameters/PostID'}
         - {$ref: '#/components/parameters/CSRFToken'}
@@ -2290,7 +2405,7 @@ components:
     bearerToken:
       type: http
       scheme: bearer
-      description: Opaque, expiring user-scoped API credential created in an authenticated browser. Not a Google access token or ID token.
+      description: 'Opaque, expiring user-scoped API credential created in an authenticated browser, holding `read` or `read write` (never publish). Not a Google access token or ID token.'
   parameters:
     LivePublicFilter:
       name: filter
@@ -2564,7 +2679,7 @@ components:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
     CSRFRejected:
-      description: Invalid or missing CSRF token, or a cross-origin cookie write.
+      description: 'Invalid or missing CSRF token, or a cross-origin cookie write (`csrf_failed`); or an API token without `write` (`insufficient_scope`), or attempting a public action (`token_cannot_publish`).'
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
@@ -3053,11 +3168,29 @@ components:
     Credential:
       type: object
       additionalProperties: false
-      required: [id, kind, name, created_at, expires_at]
+      required: [id, kind, name, created_at, expires_at, scopes]
       properties:
         id: {$ref: '#/components/schemas/AccountID'}
         kind: {type: string, const: api}
         name: {type: string, maxLength: 80}
+        scopes: {type: array, items: {type: string, enum: [read, write]}, minItems: 1, maxItems: 2, description: '`[read]` or `[read, write]`. Write allows private changes; API tokens never publish.'}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+    Draft:
+      type: object
+      additionalProperties: false
+      required: [id, event_id, event, kind, text, client_name, created_at, expires_at]
+      description: Private text awaiting the person's review; never public until they publish it on the web.
+      properties:
+        id: {$ref: '#/components/schemas/AccountID'}
+        event_id: {$ref: '#/components/schemas/ResourceID'}
+        event: {$ref: '#/components/schemas/Event'}
+        kind: {type: string, enum: [recommendation, question, reply]}
+        thread_id: {$ref: '#/components/schemas/AccountID'}
+        parent_id: {$ref: '#/components/schemas/AccountID'}
+        text: {type: string, maxLength: 4000}
+        client_name: {type: string, maxLength: 80, description: 'The connected app that wrote it, as it named itself, or `an API client`.'}
+        client_host: {type: string, maxLength: 253, description: "Verified host of the app's metadata; omitted for API clients."}
         created_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
     ResourceID:
@@ -3306,6 +3439,6 @@ components:
         code:
           type: string
           description: Stable machine-readable cause. `provider_unavailable` means the event provider could not answer; `temporarily_unavailable` means Ticketopia itself is busy (for example its database did not answer in time) and should be retried after `Retry-After`.
-          enum: [invalid_query, event_not_found, event_not_saved, date_not_announced, provider_unavailable, temporarily_unavailable, invalid_input, unauthenticated, csrf_failed, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable, saved_events_unavailable, reminder_not_found, reminders_unavailable, event_interests_unavailable, event_recommendations_unavailable, draft_not_found, draft_limit, drafts_unavailable, recommendation_changed, follow_not_found, follows_unavailable, radar_changed, radar_unavailable, post_not_found, idempotency_conflict, discussions_unavailable, notification_not_found, community_activity_unavailable, moderation_record_not_found, moderation_unavailable, moderator_access_required, review_changed, route_not_found, method_not_allowed, activity_unavailable, settings_changed, invalid_preferences, precondition_required, precondition_failed]
+          enum: [invalid_query, event_not_found, event_not_saved, date_not_announced, provider_unavailable, temporarily_unavailable, invalid_input, unauthenticated, csrf_failed, insufficient_scope, token_cannot_publish, invalid_sign_in, account_not_found, rate_limited, credential_limit, accounts_disabled, accounts_unavailable, saved_events_unavailable, reminder_not_found, reminders_unavailable, event_interests_unavailable, event_recommendations_unavailable, draft_not_found, draft_limit, drafts_unavailable, recommendation_changed, follow_not_found, follows_unavailable, radar_changed, radar_unavailable, post_not_found, idempotency_conflict, discussions_unavailable, notification_not_found, community_activity_unavailable, moderation_record_not_found, moderation_unavailable, moderator_access_required, review_changed, route_not_found, method_not_allowed, activity_unavailable, settings_changed, invalid_preferences, precondition_required, precondition_failed]
         detail: {type: string}
         fields: {type: object, additionalProperties: {type: string}}

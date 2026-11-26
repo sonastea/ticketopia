@@ -131,7 +131,15 @@ func (a *api) setInterestHandler(c echo.Context) error {
 	if err := decodeAccountJSON(c, &body); err != nil {
 		return accountProblem(c, err)
 	}
-	item, created, err := a.interests.Set(c.Request().Context(), p.Account.ID, id, body.Visibility, p.Account.InterestVisibility)
+	fallback := p.Account.InterestVisibility
+	if p.Credential.Kind == "api" {
+		// Tokens never name the person publicly, even by their default.
+		if body.Visibility != nil && *body.Visibility == "public" {
+			return accountProblem(c, errTokenPublic)
+		}
+		fallback = "private"
+	}
+	item, created, err := a.interests.Set(c.Request().Context(), p.Account.ID, id, body.Visibility, fallback)
 	if err != nil {
 		return accountProblem(c, err)
 	}

@@ -127,7 +127,12 @@ func discussionAPI(t *testing.T) (*api, *discussionStub, string, string, string,
 func discussionRequest(a *api, method, path, body, token, key string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
-	if token != "" {
+	// A browser session's token is sent as its cookie with its CSRF token, so
+	// tests can act publicly, which API tokens never do.
+	if p, err := a.accounts.Authenticate(r.Context(), token, "session"); err == nil {
+		r.AddCookie(&http.Cookie{Name: a.authConfig.CookieName("session"), Value: token})
+		r.Header.Set("X-CSRF-Token", p.CSRF)
+	} else if token != "" {
 		r.Header.Set("Authorization", "Bearer "+token)
 	}
 	if key != "" {
@@ -142,7 +147,7 @@ func TestDiscussionAPIValidationCredentialsAndPublicProjection(t *testing.T) {
 	path := "/api/v1/events/" + event + "/discussions"
 	key := accounts.ID()
 	for _, tc := range []struct{ body, key string }{{`{}`, key}, {`{"body":null}`, key}, {`{"body":"a","body":"b"}`, key}, {`{"body":"a","account_id":"other"}`, key}, {`{"body":"a","parent_id":"` + accounts.ID() + `"}`, key}, {`{"body":"a"}`, ""}, {`{"body":"a"}`, "short"}} {
-		w := discussionRequest(a, "POST", path, tc.body, bearer, tc.key)
+		w := discussionRequest(a, "POST", path, tc.body, browser, tc.key)
 		if w.Code != 400 {
 			t.Fatal(w.Code, w.Body.String())
 		}
@@ -156,7 +161,7 @@ func TestDiscussionAPIValidationCredentialsAndPublicProjection(t *testing.T) {
 			t.Fatal(w.Code, w.Body.String())
 		}
 	}
-	w := discussionRequest(a, "POST", path, `{"body":"<script>question</script>"}`, bearer, key)
+	w := discussionRequest(a, "POST", path, `{"body":"<script>question</script>"}`, browser, key)
 	if w.Code != 201 || w.Header().Get("Location") == "" {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -164,11 +169,11 @@ func TestDiscussionAPIValidationCredentialsAndPublicProjection(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil {
 		t.Fatal(err)
 	}
-	w = discussionRequest(a, "POST", path, `{"body":"<script>question</script>"}`, bearer, key)
+	w = discussionRequest(a, "POST", path, `{"body":"<script>question</script>"}`, browser, key)
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	w = discussionRequest(a, "POST", path, `{"body":"Changed"}`, bearer, key)
+	w = discussionRequest(a, "POST", path, `{"body":"Changed"}`, browser, key)
 	if w.Code != 409 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -185,21 +190,28 @@ func TestDiscussionAPIValidationCredentialsAndPublicProjection(t *testing.T) {
 	}
 	postPath := "/api/v1/posts/" + p.ID
 	for _, tc := range []struct{ method, path, body string }{{"PATCH", postPath, `{"body":"new","parent_id":"x"}`}, {"DELETE", postPath, `{}`}, {"PUT", postPath + "/reactions/helpful", `{}`}} {
-		w = discussionRequest(a, tc.method, tc.path, tc.body, bearer, "")
+		w = discussionRequest(a, tc.method, tc.path, tc.body, browser, "")
 		if w.Code != 400 {
 			t.Fatal(w.Code, w.Body.String())
 		}
 	}
-	w = discussionRequest(a, "PATCH", postPath, `{"body":"new"}`, bearer, "")
+	// API tokens never post, edit, remove or react; they draft text instead.
+	for _, tc := range []struct{ method, path, body string }{{"POST", path, `{"body":"Token question"}`}, {"POST", path + "/" + p.ID + "/replies", `{"body":"Token reply"}`}, {"PATCH", postPath, `{"body":"new"}`}, {"DELETE", postPath, ""}, {"PUT", postPath + "/reactions/helpful", ""}, {"PUT", postPath + "/reactions/same-question", ""}} {
+		w = discussionRequest(a, tc.method, tc.path, tc.body, bearer, accounts.ID())
+		if w.Code != 403 || !strings.Contains(w.Body.String(), "token_cannot_publish") || repo.post.Body != "<script>question</script>" {
+			t.Fatal(tc.method, tc.path, w.Code, w.Body.String())
+		}
+	}
+	w = discussionRequest(a, "PATCH", postPath, `{"body":"new"}`, browser, "")
 	if w.Code != 200 || repo.post.Body != "new" {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	w = discussionRequest(a, "PUT", postPath+"/reactions/helpful", "", bearer, "")
+	w = discussionRequest(a, "PUT", postPath+"/reactions/helpful", "", browser, "")
 	if w.Code != 200 || !repo.post.Helpful {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	for range 2 {
-		w = discussionRequest(a, "DELETE", postPath, "", bearer, "")
+		w = discussionRequest(a, "DELETE", postPath, "", browser, "")
 		if w.Code != 204 {
 			t.Fatal(w.Code, w.Body.String())
 		}
@@ -269,8 +281,8 @@ func TestDiscussionNativeRetryDoesNotTurnConflictIntoNewPost(t *testing.T) {
 }
 
 func TestContextThreadUsesRetainedEventAndIsolatesReplyFailure(t *testing.T) {
-	a, repo, browser, bearer, _, event := discussionAPI(t)
-	w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"A retained question"}`, bearer, accounts.ID())
+	a, repo, browser, _, _, event := discussionAPI(t)
+	w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"A retained question"}`, browser, accounts.ID())
 	if w.Code != 201 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -324,11 +336,11 @@ func TestContextThreadParametersDoNotBecomeDiscoveryFilters(t *testing.T) {
 }
 
 func TestEventContextShowsDiscussionAndCommunityAcrossEntryPoints(t *testing.T) {
-	a, posts, browser, bearer, _, event := discussionAPI(t)
-	if w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Is there a coat check?"}`, bearer, accounts.ID()); w.Code != 201 {
+	a, posts, browser, _, _, event := discussionAPI(t)
+	if w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Is there a coat check?"}`, browser, accounts.ID()); w.Code != 201 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	if w := discussionRequest(a, "PUT", "/api/v1/me/event-recommendations/"+event, `{"reason":"A great neighborhood venue"}`, bearer, ""); w.Code != 201 {
+	if w := discussionRequest(a, "PUT", "/api/v1/me/event-recommendations/"+event, `{"reason":"A great neighborhood venue"}`, browser, ""); w.Code != 201 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	public, private := accounts.ID(), accounts.ID()
@@ -416,7 +428,7 @@ func TestEventContextShowsDiscussionAndCommunityAcrossEntryPoints(t *testing.T) 
 // post and returns native forms to their card.
 func TestOpenQuestionsRoutesAndSameQuestion(t *testing.T) {
 	a, repo, browser, bearer, csrf, event := discussionAPI(t)
-	w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Is there a cloakroom?"}`, bearer, accounts.ID())
+	w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Is there a cloakroom?"}`, browser, accounts.ID())
 	if w.Code != 201 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -433,10 +445,10 @@ func TestOpenQuestionsRoutesAndSameQuestion(t *testing.T) {
 	if w = discussionRequest(a, "GET", "/api/v1/community/questions?connections=friends", "", bearer, ""); w.Code != 400 {
 		t.Fatal("unknown connections", w.Code)
 	}
-	if w = discussionRequest(a, "PUT", "/api/v1/posts/"+post.ID+"/reactions/same-question", "", bearer, ""); w.Code != 400 || !strings.Contains(w.Body.String(), "someone else") {
+	if w = discussionRequest(a, "PUT", "/api/v1/posts/"+post.ID+"/reactions/same-question", "", browser, ""); w.Code != 400 || !strings.Contains(w.Body.String(), "someone else") {
 		t.Fatal("own question marked", w.Code, w.Body.String())
 	}
-	if w = discussionRequest(a, "DELETE", "/api/v1/posts/"+post.ID+"/reactions/same-question", "", bearer, ""); w.Code != 200 {
+	if w = discussionRequest(a, "DELETE", "/api/v1/posts/"+post.ID+"/reactions/same-question", "", browser, ""); w.Code != 200 {
 		t.Fatal("clearing a mark", w.Code, w.Body.String())
 	}
 
@@ -467,9 +479,9 @@ func TestOpenQuestionsRoutesAndSameQuestion(t *testing.T) {
 // The live check is a signed-in browser read with a strict since, limited
 // per account, and conversations offer it only when it is on.
 func TestLiveReplyChecks(t *testing.T) {
-	a, repo, browser, bearer, _, event := discussionAPI(t)
+	a, repo, browser, _, _, event := discussionAPI(t)
 	WithLiveReplyChecks(1)(a)
-	if w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Doors?"}`, bearer, accounts.ID()); w.Code != 201 {
+	if w := discussionRequest(a, "POST", "/api/v1/events/"+event+"/discussions", `{"body":"Doors?"}`, browser, accounts.ID()); w.Code != 201 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	thread := "/events/" + event + "/discussions/" + repo.post.ID

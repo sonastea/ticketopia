@@ -23,7 +23,7 @@ type AccountRepository struct {
 func (p *Pool) Accounts() *AccountRepository { return &AccountRepository{p.db, p.config.QueryTimeout} }
 
 const accountColumns = `account_id, email, display_name, bio, interest_visibility, city, country, timezone, category_ids, email_reminders, weekly_digest, notifications_paused, created_at, activity_first_name`
-const credentialColumns = `credential_id, account_id, token_hash, kind, name, created_at, expires_at`
+const credentialColumns = `credential_id, account_id, token_hash, kind, name, created_at, expires_at, scopes`
 
 type rowScanner interface{ Scan(...any) error }
 
@@ -48,11 +48,13 @@ func scanAccount(row rowScanner) (accounts.Account, error) {
 func scanCredential(row rowScanner) (accounts.Credential, error) {
 	var c accounts.Credential
 	var hash []byte
-	err := row.Scan(&c.ID, &c.AccountID, &hash, &c.Kind, &c.Name, &c.CreatedAt, &c.ExpiresAt)
+	var scopes string
+	err := row.Scan(&c.ID, &c.AccountID, &hash, &c.Kind, &c.Name, &c.CreatedAt, &c.ExpiresAt, &scopes)
 	if err != nil {
 		return c, err
 	}
 	copy(c.Hash[:], hash)
+	c.Scopes = strings.Fields(scopes)
 	return c, nil
 }
 func (r *AccountRepository) Get(ctx context.Context, id string) (accounts.Account, error) {
@@ -164,7 +166,7 @@ func (r *AccountRepository) loginOnce(ctx context.Context, identity accounts.Ide
 	return a, false, tx.Commit()
 }
 func insertCredential(ctx context.Context, tx *sql.Tx, c accounts.Credential) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO account_credentials (`+credentialColumns+`) VALUES (?,?,?,?,?,?,?)`, c.ID, c.AccountID, c.Hash[:], c.Kind, c.Name, c.CreatedAt, c.ExpiresAt)
+	_, err := tx.ExecContext(ctx, `INSERT INTO account_credentials (`+credentialColumns+`) VALUES (?,?,?,?,?,?,?,?)`, c.ID, c.AccountID, c.Hash[:], c.Kind, c.Name, c.CreatedAt, c.ExpiresAt, strings.Join(c.Scopes, " "))
 	return err
 }
 func (r *AccountRepository) Authenticate(ctx context.Context, hash [32]byte, kind string, now time.Time) (accounts.Account, accounts.Credential, error) {
@@ -173,10 +175,11 @@ func (r *AccountRepository) Authenticate(ctx context.Context, hash [32]byte, kin
 	var a accounts.Account
 	var c accounts.Credential
 	var categories, storedHash []byte
-	err := r.db.QueryRowContext(ctx, `SELECT c.credential_id,c.account_id,c.token_hash,c.kind,c.name,c.created_at,c.expires_at,
+	var scopes string
+	err := r.db.QueryRowContext(ctx, `SELECT c.credential_id,c.account_id,c.token_hash,c.kind,c.name,c.created_at,c.expires_at,c.scopes,
 	 a.account_id,a.email,a.display_name,a.bio,a.interest_visibility,a.city,a.country,a.timezone,a.category_ids,a.email_reminders,a.weekly_digest,a.notifications_paused,a.created_at,a.activity_first_name
 	 FROM account_credentials c JOIN accounts a ON a.account_id=c.account_id WHERE c.token_hash=? AND c.kind=? AND c.expires_at>?`, hash[:], kind, now).Scan(
-		&c.ID, &c.AccountID, &storedHash, &c.Kind, &c.Name, &c.CreatedAt, &c.ExpiresAt,
+		&c.ID, &c.AccountID, &storedHash, &c.Kind, &c.Name, &c.CreatedAt, &c.ExpiresAt, &scopes,
 		&a.ID, &a.Email, &a.DisplayName, &a.Bio, &a.InterestVisibility, &a.Preferences.City, &a.Preferences.Country, &a.Preferences.Timezone, &categories, &a.Preferences.EmailReminders, &a.Preferences.WeeklyDigest, &a.Preferences.NotificationsPaused, &a.CreatedAt, &a.ActivityFirstName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accounts.Account{}, c, accounts.ErrUnauthenticated
@@ -185,6 +188,7 @@ func (r *AccountRepository) Authenticate(ctx context.Context, hash [32]byte, kin
 		return accounts.Account{}, c, safeError("credential read", err)
 	}
 	copy(c.Hash[:], storedHash)
+	c.Scopes = strings.Fields(scopes)
 	if err := json.Unmarshal(categories, &a.Preferences.CategoryIDs); err != nil {
 		return accounts.Account{}, c, safeError("account preferences", err)
 	}

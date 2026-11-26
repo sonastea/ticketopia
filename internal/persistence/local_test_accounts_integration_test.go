@@ -75,7 +75,7 @@ func TestMariaDBRemoveLocalTestAccounts(t *testing.T) {
 	// Marked by subject alone, or email alone, is not a test account.
 	halfSubject := login("half@example.com", LocalTestSubjectPrefix+"half")
 	halfEmail := login("half"+LocalTestEmailDomain, "2345678901")
-	if _, _, err := auth.CreateToken(ctx, test.ID, "local"); err != nil {
+	if _, _, err := auth.CreateToken(ctx, test.ID, "local", readWrite); err != nil {
 		t.Fatal(err)
 	}
 

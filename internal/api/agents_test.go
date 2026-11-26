@@ -75,8 +75,8 @@ func TestAgentGuideReflectsAvailableFeatures(t *testing.T) {
 			check(tc.mcp && tc.accounts && !tc.oauth, "Set up an API token")
 			check(tc.accounts && !tc.oauth, "and revoke every token")
 			check(tc.accounts, `id="api-tokens"`, `href="#api-tokens"`, `href="#revoke"`, authBase+"/api/v1/me/profile",
-				"curl --header @-", "can read your email", "make your Interested choices public",
-				"publish recommendations and posts, edit or remove your own posts")
+				"curl --header @-", "can read your email", "It never acts publicly as you",
+				"waits in <strong>Agent drafts</strong> until you publish it")
 			check(tc.drafts, `href="#drafts"`, `href="/me/drafts"`)
 		})
 	}

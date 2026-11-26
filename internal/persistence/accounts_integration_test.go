@@ -63,6 +63,9 @@ func seedLegacyAccount(t testing.TB, db *sql.DB, subject string) (accounts.Accou
 	return a, raw
 }
 
+// readWrite is the scope set of a token allowed private changes.
+var readWrite = []string{accounts.ScopeRead, accounts.ScopeWrite}
+
 func TestMariaDBAccountIdentityConcurrencyAndRestart(t *testing.T) {
 	f := newMaria(t)
 	f.migrate(t)
@@ -119,7 +122,7 @@ func TestMariaDBAccountIdentityConcurrencyAndRestart(t *testing.T) {
 	if _, err := services[1].UpdatePreferences(t.Context(), a.ID, accounts.PreferencesPatch{City: pointer("Berlin"), Country: pointer("de"), Timezone: pointer("Europe/Berlin"), CategoryIDs: pointer([]string{"sports", "music"})}); err != nil {
 		t.Fatal(err)
 	}
-	_, apiToken, err := services[0].CreateToken(t.Context(), a.ID, "Personal client")
+	_, apiToken, err := services[0].CreateToken(t.Context(), a.ID, "Personal client", readWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,11 +227,11 @@ func TestMariaDBOneTimeBrowserBoundFlowsAndSharedLimits(t *testing.T) {
 	}
 	a, _ := loginAccount(t, s, "limit-owner")
 	for i := range 10 {
-		if _, _, err := s.CreateToken(t.Context(), a.ID, "Client"); err != nil {
+		if _, _, err := s.CreateToken(t.Context(), a.ID, "Client", readWrite); err != nil {
 			t.Fatal(i, err)
 		}
 	}
-	if _, _, err := accounts.New(p2.Accounts(), accountProviderFixture{}).CreateToken(t.Context(), a.ID, "Too many"); !errors.Is(err, accounts.ErrCredentialLimit) {
+	if _, _, err := accounts.New(p2.Accounts(), accountProviderFixture{}).CreateToken(t.Context(), a.ID, "Too many", readWrite); !errors.Is(err, accounts.ErrCredentialLimit) {
 		t.Fatal("API credential cap not shared", err)
 	}
 	tokens, err := p2.Accounts().ListTokens(t.Context(), a.ID, time.Now().Add(accounts.CredentialLifetime+time.Second))

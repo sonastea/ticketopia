@@ -386,8 +386,11 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 27 only**. Versions 0–26 and 28+ are rejected.
-Partial schemas/missing columns or non-InnoDB tables fail startup. The v26-to-v27
+This binary supports **clean schema version 28 only**. Versions 0–27 and 29+ are rejected.
+Partial schemas/missing columns or non-InnoDB tables fail startup. The v27-to-v28
+upgrade adds `account_credentials.scopes` and gives existing API tokens
+`read write`; drain v27 replicas, migrate, then start v28; existing runtime grants
+suffice. The v26-to-v27
 upgrade adds a table and backfills it from scheduled collection receipts. Drain
 v26 replicas, migrate, reconcile the new runtime `INSERT` grant, and start v27.
 See [deployment](deployment.md) for the rollout. The v25-to-v26

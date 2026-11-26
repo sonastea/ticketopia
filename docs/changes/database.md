@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### 2026-11-25 — API token scopes, schema v28
+
+- Schema 28 adds `account_credentials.scopes` (`read` or `read write`; empty for
+  browser sessions) and gives existing API tokens `read write`. No grant changes.
+  See [token access](../accounts.md#sessions-and-api-clients) and
+  [persistence](../persistence.md#rolling-update-compatibility).
+
 ### 2026-11-24 — Scheduled collection claims and exact discussion counts
 
 - Bind active task IDs as one JSON array instead of expanding the claim SQL.
@@ -86,14 +93,3 @@
   See [moderation](../moderation.md) and [upgrade/grants](../persistence.md).
 - Verify v7 preservation, races/rollback, privacy/restart and immediate role revocation;
   require drained old traffic. Leave the running database and real role grants unchanged.
-
-### 2026-10-07 — Recommendation feed and observation schema v7
-
-- Retain private withdrawn publication markers with cleared reasons; backfill
-  immutable event feed positions from earliest surviving endorsements.
-- Add one observe-only window/totals row per account, committed with publication
-  or reactivation, plus runtime/operator grants and schema validation/probes.
-- Require drained old traffic and clean schema 7; leave the development database
-  unchanged. See [recommendations](../event-recommendations.md) and [persistence](../persistence.md).
-- Verify schema-6 backfill, original positions across restart/reactivation, bounded
-  counters/reset, concurrent cross-pool increments and atomic rollback in real MariaDB.

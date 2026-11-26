@@ -225,7 +225,7 @@
 .connect-permissions legend { font-size: 1.125rem; font-weight: 750; }
 .connect-permissions > p,
 .account-connect .connect-permissions > label { padding-block: .75rem; border-block-end: 1px solid var(--line); }
-.account-connect .connect-permissions > label { align-items: start; }
+fieldset.connect-permissions > label { align-items: start; }
 .connect-permissions input { flex: none; margin-block-start: .2em; }
 .connect-grant { padding-block-start: .75rem; border-block-start: 1px solid var(--line); }
 .connect-grant-read, .connect-grant-base, .connect-grant-write, .connect-grant-publish { display: none; }

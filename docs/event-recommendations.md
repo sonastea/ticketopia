@@ -216,8 +216,9 @@ reason, and `{"reason":"Worth seeing live"}` replaces it. Null, unknown/repeated
 fields, owner/visibility/metadata injection, and query parameters are rejected.
 Creation/reactivation returns 201 with Location; active replacement/retry returns
 200. Missing own recommendations return 404. DELETE requires an empty body and
-returns retry-safe 204 even when absent. Cookie writes require same-origin and CSRF checks; bearer
-writes use the token's owner, not ambient cookies. See
+returns retry-safe 204 even when absent. Writes need a browser session with
+same-origin and CSRF checks: API tokens get 403 `token_cannot_publish` and draft
+reasons through `/api/v1/me/drafts` instead. See
 [accounts](accounts.md#sessions-and-api-clients).
 
 ## Verification

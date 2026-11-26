@@ -4,6 +4,17 @@
 
 ## Unreleased
 
+### 2026-11-25 — API token scopes and drafts, contract v1.30.0
+
+- `Credential` gains required `scopes` (`[read]` or `[read, write]`), and
+  `POST /api/v1/me/tokens` accepts `scopes` (default `[read]`; `publish` is 400).
+- API tokens never act publicly: profile changes, public Interested,
+  recommendations, posts, edits, removals, reactions and moderation decisions
+  are session-only and answer tokens 403 `token_cannot_publish`; read-only
+  tokens' changes get 403 `insufficient_scope`. Adds `GET`/`POST /api/v1/me/drafts`,
+  `DELETE /api/v1/me/drafts/{draft_id}` and `Draft`. See
+  [accounts](../accounts.md#sessions-and-api-clients).
+
 ### 2026-11-22 — Open questions and Same question, contract v1.29.0
 
 - Adds `GET /api/v1/community/questions` (Community filters plus
@@ -77,17 +88,3 @@
   404 `event_not_found`.
 - The `Problem.code` enum lists every code the API sends (21 were missing); a
   test keeps it in step with the handlers.
-
-### 2026-11-08 — Per-event freshness on stored lists, contract v1.21.0
-
-- Add optional `Event.meta` (`Freshness`) to stored (MariaDB) event list items;
-  `stale` marks older or omitted events awaiting verification. Fresh complete
-  coverage no longer makes the list `meta` stale for them. See
-  [event history](../event-history.md#stored-discover-and-coverage-aware-reads).
-
-### 2026-10-26 — Event calendar file, contract v1.20.0
-
-- Add `GET /api/v1/events/{event_id}/calendar.ics`: one public `text/calendar`
-  VEVENT with event-detail cache semantics and no query parameters. A date that is
-  still TBA/TBD returns 404 with the new `date_not_announced` problem code. See
-  [discovery](../discovery.md#json-api).

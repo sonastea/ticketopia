@@ -142,8 +142,10 @@ The [OpenAPI contract](openapi.md) is version **1.8.0**.
 | GET | `/api/v1/moderation/posts/{post_id}` | Private case/evidence/histories |
 | POST | `/api/v1/moderation/posts/{post_id}/decisions` | Authorized keep/hide/restore |
 
-Cookie/bearer credentials share current role checks. Cookie writes require CSRF
-and same-origin checks; bearer identity takes precedence. Strict JSON rejects
+Cookie/bearer credentials share current role checks for reading the queue and
+cases. Decisions need a browser session (API tokens get 403
+`token_cannot_publish`, since hiding or restoring changes what everyone sees);
+cookie writes require CSRF and same-origin checks. Strict JSON rejects
 unknown/repeated/null fields and bodies over 16 KiB. Writes accept no query parameters.
 Report and appeal attempts each allow 20/account/ten minutes, shared across web/API
 through durable account counters. Native report/appeal forms allow 32 KiB; decisions

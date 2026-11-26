@@ -272,7 +272,10 @@ roots/replies using durable account rate counters.
 PATCH replaces required `body`; DELETE and Helpful requests require empty bodies.
 Writes reject query parameters, unknown/repeated/null JSON fields, and JSON bodies
 over 16 KiB. Native URL-encoded forms allow 64 KiB so Unicode text fits. Cookie
-writes require CSRF and same-origin checks; bearer identity takes precedence.
+writes require CSRF and same-origin checks. Posting, editing, removal and
+reactions need a browser session: API tokens get 403 `token_cannot_publish` and
+draft questions, tips and replies through `/api/v1/me/drafts` instead (see
+[accounts](accounts.md#community-activity-from-other-clients)).
 
 Collections return `items`, nullable `next_cursor`, and a separate `count` of
 nonremoved roots/replies. Removed roots with visible replies remain navigable but

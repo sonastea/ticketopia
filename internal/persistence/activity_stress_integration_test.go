@@ -264,7 +264,7 @@ func TestMariaDBLiveActivityResilienceStress(t *testing.T) {
 		truth.names[account.ID] = []stressState{{value: name, after: dbNow()}}
 	}
 	recipient, _ := loginAccount(t, authA, "stress-recipient")
-	_, recipientToken, err := authA.CreateToken(t.Context(), recipient.ID, "stress")
+	_, recipientToken, err := authA.CreateToken(t.Context(), recipient.ID, "stress", readWrite)
 	if err != nil {
 		t.Fatal(err)
 	}

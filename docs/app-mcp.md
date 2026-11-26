@@ -132,12 +132,13 @@ Sign in with either:
   apps without custom headers connect. See [OAuth sign-in](#oauth-sign-in).
 - **An API token**: create one under **API tokens** in Security & Apps (`/me/security`;
   see [accounts](accounts.md#sessions-and-api-clients)) and configure your client
-  to send `Authorization: Bearer <token>`. API tokens carry read and write
-  access on `/mcp`, never `publish`: an agent using one can draft but not post
-  publicly through the agent tools. They are still full account credentials on
-  `/api/v1`, where they can publish recommendations with any reason, so give
-  agents OAuth instead wherever the client supports it. Revoking the token cuts
-  the agent off.
+  to send `Authorization: Bearer <token>`. A token holds `read`, plus `write`
+  when the person allowed private changes, never `publish`, on `/mcp` and
+  `/api/v1` alike: an agent using one can draft but never act publicly, and a
+  read-only token's change tools get **403** `insufficient_scope`. See
+  [API token access](accounts.md#sessions-and-api-clients). Prefer OAuth
+  wherever the client supports it, since it names the app. Revoking the token
+  cuts the agent off.
 
 A token that is sent must be valid: invalid, expired or revoked tokens get
 **401** with `WWW-Authenticate: Bearer`. Browser session cookies are never
@@ -274,9 +275,12 @@ choices, recommendations, discussion questions, tips and replies, and Helpful
   leaves it in place. Published replies notify the conversation's followers as
   any reply does. Drafts are private to their account, at most 20 at once of
   every kind, expire after seven days, and are deleted with their connection
-  (Disconnect, **Sign out of all devices**, token revocation or eviction). Drafts
+  (Disconnect, **Sign out of all devices**, OAuth token revocation or eviction). Drafts
   made with an API token, which identifies no app, say "App unidentified;
-  created using an API token".
+  created using an API token". Scripts using an API token draft the same way
+  through `/api/v1/me/drafts`, which shares these tools' service. Their drafts
+  belong to no connection, so revoking the token leaves them for review until
+  discarded or expired.
 - **Attribution.** A recommendation an agent published, or whose drafted reason
   the person published, shows "via *app name* (*host*)" beside the author on the
   event, profile and Community, and carries `via` and `via_host` in the API. So
