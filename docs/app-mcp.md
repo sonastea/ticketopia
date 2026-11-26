@@ -260,8 +260,8 @@ discussion questions, tips and replies, drafts, Helpful and Same question
   an app published without a reason, posting questions, tips and replies
   (`post_question`, `post_reply`), publishing drafts (`publish_draft`), and
   marking Helpful or Same question. Each account may take 20 public actions in
-  any rolling hour per replica (only successful ones count) through agents and
-  API clients together (`/mcp` and
+  any rolling hour per replica (`AGENT_PUBLISHES_PER_HOUR`; only successful
+  ones count) through agents and API clients together (`/mcp` and
   `/api/v1` share the allowance); more get a tool error with `Retry after N
   seconds.`, or **429** `publish_limited` on `/api/v1`. Posts also keep the
   discussion limit of 20 per ten minutes. Each MCP success logs one

@@ -21,11 +21,14 @@ import (
 // the web. Each action takes one of the account's PublishesPerHour.
 
 // errPublishLimited is an account out of public actions for the hour.
-type errPublishLimited struct{ wait time.Duration }
+type errPublishLimited struct {
+	wait  time.Duration
+	limit int
+}
 
 func (e errPublishLimited) Error() string {
 	return fmt.Sprintf("this account has reached its limit of %d public actions an hour through agents and API clients; retry after %d seconds",
-		appmcp.PublishesPerHour, e.retryAfter())
+		e.limit, e.retryAfter())
 }
 
 func (e errPublishLimited) retryAfter() int { return max(1, int(math.Ceil(e.wait.Seconds()))) }
@@ -37,7 +40,7 @@ func (a *api) allowPublish(owner string) error {
 		return nil
 	}
 	if ok, wait := a.publishLimit.Allow(owner); !ok {
-		return errPublishLimited{wait}
+		return errPublishLimited{wait, a.publishLimit.Limit()}
 	}
 	return nil
 }

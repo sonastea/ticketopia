@@ -183,7 +183,10 @@ production, use runtime secret/environment storage, not build arguments:
    requires sign-in by default; **`MCP_OAUTH_ENABLED=false`** and
    **`MCP_REQUIRE_SIGN_IN=false`** turn these off (both require accounts when
    true). OAuth uses `AUTH_BASE_URL` as the issuer and must reach client metadata
-   documents over outbound HTTPS.
+   documents over outbound HTTPS. **`AGENT_PUBLISHES_PER_HOUR`** (default 20,
+   0–10000) bounds each account's public actions by agents and API tokens in
+   any rolling hour per replica, with or without MCP; `0` lifts the limit for a
+   test window only.
 7. Optionally set **`KV_URL`** to one shared cache endpoint; URL credentials are
    secrets. An empty value uses memory without losing user-facing features. See
    [cache configuration](cache.md) for backend requirements and fallback behavior.

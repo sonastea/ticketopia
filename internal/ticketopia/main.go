@@ -113,9 +113,9 @@ func Execute(ctx context.Context) int {
 		logger.Error().Err(err).Msg("Invalid MCP configuration")
 		return 1
 	}
-	if mcpConfig.Enabled {
-		options = append(options, api.WithMCP(mcpConfig))
-	}
+	// Always applied: /mcp is served only when enabled, but the agent publish
+	// limit applies to API tokens either way.
+	options = append(options, api.WithMCP(mcpConfig))
 	if reminderConfig.Enabled && (!config.Enabled || !authConfig.Enabled || providerConfig.APIKey == "") {
 		logger.Error().Msg("Email reminders require MariaDB, accounts, and a Ticketmaster key")
 		return 1

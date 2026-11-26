@@ -126,6 +126,9 @@ func NewPublishLimiter(perHour int, now func() time.Time) *PublishLimiter {
 	return &PublishLimiter{perHour: perHour, now: now, accounts: map[string][]time.Time{}}
 }
 
+// Limit is the number of public actions allowed in any rolling hour.
+func (l *PublishLimiter) Limit() int { return l.perHour }
+
 // Refund returns the most recent action Allow took for account, for an
 // action that then failed: only public actions that happened count.
 func (l *PublishLimiter) Refund(account string) {
@@ -438,7 +441,7 @@ func publishTool[In, Out any](d Deps, call func(ctx context.Context, owner strin
 		var zero Out
 		if d.PublishLimit != nil {
 			if ok, wait := d.PublishLimit.Allow(owner); !ok {
-				return zero, errPublishLimit{wait}
+				return zero, errPublishLimit{wait, d.PublishLimit.Limit()}
 			}
 		}
 		out, err := call(ctx, owner, req, in)
@@ -453,11 +456,14 @@ func publishTool[In, Out any](d Deps, call func(ctx context.Context, owner strin
 }
 
 // errPublishLimit is worded for the agent, not the account API.
-type errPublishLimit struct{ wait time.Duration }
+type errPublishLimit struct {
+	wait  time.Duration
+	limit int
+}
 
 func (e errPublishLimit) Error() string {
 	return fmt.Sprintf("this account has reached its limit of %d public actions an hour through agents and API clients. Retry after %d seconds.",
-		PublishesPerHour, max(1, int(math.Ceil(e.wait.Seconds()))))
+		e.limit, max(1, int(math.Ceil(e.wait.Seconds()))))
 }
 
 func (d Deps) describePrivate(err error) string {

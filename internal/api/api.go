@@ -226,8 +226,12 @@ func (a *api) Server(port int) *http.Server {
 }
 
 func (a *api) Routes() *echo.Echo {
-	if a.publishLimit == nil {
-		a.publishLimit = appmcp.NewPublishLimiter(appmcp.PublishesPerHour, a.clock)
+	if a.publishLimit == nil && !a.mcp.UnlimitedPublishes {
+		perHour := a.mcp.PublishesPerHour
+		if perHour == 0 {
+			perHour = appmcp.PublishesPerHour
+		}
+		a.publishLimit = appmcp.NewPublishLimiter(perHour, a.clock)
 	}
 	e := echo.New()
 	e.HTTPErrorHandler = httpErrorHandler

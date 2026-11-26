@@ -317,3 +317,40 @@ func TestDescribeCatalogForAgents(t *testing.T) {
 		t.Fatalf("invalid %q, busy %q", invalid, busy)
 	}
 }
+
+// AGENT_PUBLISHES_PER_HOUR sets the agent publish limit even with MCP off;
+// 0 lifts it for testing, and nonsense stops startup.
+func TestAgentPublishLimitFromEnv(t *testing.T) {
+	t.Setenv("MCP_ENABLED", "")
+	for value, want := range map[string]appmcp.Config{"": {}, "5": {PublishesPerHour: 5}, "0": {UnlimitedPublishes: true}} {
+		t.Setenv("AGENT_PUBLISHES_PER_HOUR", value)
+		c, err := appmcp.ConfigFromEnv()
+		if err != nil || c.PublishesPerHour != want.PublishesPerHour || c.UnlimitedPublishes != want.UnlimitedPublishes {
+			t.Fatalf("%q: %+v %v", value, c, err)
+		}
+	}
+	for _, bad := range []string{"-1", "lots", "10001"} {
+		t.Setenv("AGENT_PUBLISHES_PER_HOUR", bad)
+		if _, err := appmcp.ConfigFromEnv(); err == nil {
+			t.Fatalf("%q accepted", bad)
+		}
+	}
+	// The configured limit applies; unlimited configures none.
+	limited := &api{mcp: appmcp.Config{PublishesPerHour: 2}}
+	limited.Routes()
+	for i, want := range []bool{true, true, false} {
+		if err := limited.allowPublish("owner"); (err == nil) != want {
+			t.Fatalf("action %d: %v", i+1, err)
+		}
+	}
+	if err := limited.allowPublish("owner"); !strings.Contains(fmt.Sprint(err), "limit of 2") {
+		t.Fatalf("message names the configured limit: %v", err)
+	}
+	open := &api{mcp: appmcp.Config{UnlimitedPublishes: true}}
+	open.Routes()
+	for range 50 {
+		if err := open.allowPublish("owner"); err != nil {
+			t.Fatal("unlimited refused", err)
+		}
+	}
+}

@@ -26,6 +26,11 @@ type Config struct {
 	// sign-in challenge, so all agent traffic is attributed to an account and
 	// limited per account. It needs accounts.
 	RequireSignIn bool
+	// PublishesPerHour bounds each account's public actions by agents and API
+	// clients in any rolling hour (0 means PublishesPerHour, the default);
+	// UnlimitedPublishes lifts the bound, for testing.
+	PublishesPerHour   int
+	UnlimitedPublishes bool
 
 	// Whether MCP_OAUTH_ENABLED and MCP_REQUIRE_SIGN_IN were set; Resolve
 	// applies the defaults to the rest.
@@ -64,8 +69,18 @@ const (
 // defaults to AUTH_BASE_URL, read directly so it applies without accounts and
 // trimmed of trailing slashes as accounts do. Nothing else is read or
 // validated while MCP is disabled, so it cannot affect startup.
+//
+// AGENT_PUBLISHES_PER_HOUR (default 20, up to 10000; 0 lifts the limit, for
+// testing) is read even with MCP off, since API tokens publish too.
 func ConfigFromEnv() (Config, error) {
 	c := Config{RatePerMinute: DefaultRatePerMinute, MaxInFlight: DefaultMaxInFlight}
+	if raw := os.Getenv("AGENT_PUBLISHES_PER_HOUR"); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil || v < 0 || v > 10000 {
+			return c, fmt.Errorf("AGENT_PUBLISHES_PER_HOUR must be between 0 (no limit) and 10000")
+		}
+		c.PublishesPerHour, c.UnlimitedPublishes = v, v == 0
+	}
 	if raw := os.Getenv("MCP_ENABLED"); raw != "" {
 		v, err := strconv.ParseBool(raw)
 		if err != nil {
