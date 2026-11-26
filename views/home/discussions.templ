@@ -1,6 +1,7 @@
 package home
 
 import "fmt"
+import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/internal/discussions"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
@@ -117,57 +118,89 @@ templ DiscussionRoots(list discussions.List, c listContext, returnURL string) {
 			}
 		</ul>
 	} else {
-		<ul class={ "discussion-list recommendation-list", templ.KV("community-cards",c.Place==inCommunity) }>
-			for _,post:=range list.Items {
-				<li class={ templ.KV("recommendation-event", c.showsEvent()) }>
-					if c.showsEvent() {
-						@CollectionEventArt(post.Event, returnURL)
-					}
-					<div class="recommendation-copy">
-						if c.Place == inCommunity && c.showsEvent() {
-							@CommunityCardIdentity(post.Event, returnURL)
-						} else if c.showsEvent() {
-							@CollectionEventHeading(post.Event, returnURL)
-						}
-						if post.Removed {
-							<p class="field-note">This contribution was removed. Replies are still available.</p>
-						} else if post.Hidden {
-							<p class="field-note">This contribution was hidden by a moderator. Replies are still available.</p>
-						} else if c.Place==inCommunity {
-							<figure class="pull-quote">
-								<blockquote class="discussion-body">{ post.Body }</blockquote>
-								<figcaption class="byline">
-									if post.Profile!=nil {
-										@Avatar(initials(post.Profile.DisplayName))
-									}
-									@PostAttribution(post)
-								</figcaption>
-							</figure>
-						} else {
-							@PostAttribution(post)
-							<p class="discussion-body">{ post.Body }</p>
-						}
-						if c.Place==inCommunity {
-							@EventFacts(post.Event)
-						}
+		if c.Place == inCommunity {
+			// Community conversations lead with the question; the event is
+			// the context beneath it, then the way into the thread.
+			<ul class="discussion-list conversation-feed">
+				for _,post:=range list.Items {
+					<li class="recommendation-event conversation-item">
+						@ConversationQuestion(post)
+						@ConversationEvent(post.Event, returnURL)
 						<div class="card-actions">
 							<a href={ templ.URL(ThreadURL(post.EventID, post.ID, DiscussionOrigin(returnURL))) } class="card-action-primary" data-thread-link>
 								@layouts.Icon("message-circle")
 								<span>Open conversation<span class="card-action-count">{ " · " }{ fmt.Sprint(post.ReplyCount) } { ternary(post.ReplyCount == 1, "reply", "replies") }</span></span>
 								@layouts.IconClass("arrow", "icon card-action-arrow")
 							</a>
-							if c.showsEvent() {
+							<a href={ templ.URL(eventURL(post.EventID, "discussion", returnURL)) } class="card-action-secondary">
+								@layouts.Icon("community")
+								<span>Questions &amp; tips</span>
+							</a>
+						</div>
+					</li>
+				}
+			</ul>
+		} else {
+			<ul class="discussion-list recommendation-list">
+				for _,post:=range list.Items {
+					<li class="recommendation-event">
+						@CollectionEventArt(post.Event, returnURL)
+						<div class="recommendation-copy">
+							@CollectionEventHeading(post.Event, returnURL)
+							if post.Removed {
+								<p class="field-note">This contribution was removed. Replies are still available.</p>
+							} else if post.Hidden {
+								<p class="field-note">This contribution was hidden by a moderator. Replies are still available.</p>
+							} else {
+								@PostAttribution(post)
+								<p class="discussion-body">{ post.Body }</p>
+							}
+							<div class="card-actions">
+								<a href={ templ.URL(ThreadURL(post.EventID, post.ID, DiscussionOrigin(returnURL))) } class="card-action-primary" data-thread-link>
+									@layouts.Icon("message-circle")
+									<span>Open conversation<span class="card-action-count">{ " · " }{ fmt.Sprint(post.ReplyCount) } { ternary(post.ReplyCount == 1, "reply", "replies") }</span></span>
+									@layouts.IconClass("arrow", "icon card-action-arrow")
+								</a>
 								<a href={ templ.URL(eventURL(post.EventID, "discussion", returnURL)) } class="card-action-secondary">
 									@layouts.Icon("community")
 									<span>Questions &amp; tips</span>
 								</a>
-							}
+							</div>
 						</div>
-					</div>
-				</li>
-			}
-		</ul>
+					</li>
+				}
+			</ul>
+		}
 	}
+}
+
+// ConversationQuestion is a community conversation's opening words and author,
+// or the placeholder for a contribution that is no longer visible.
+templ ConversationQuestion(post discussions.Post) {
+	if post.Removed {
+		<p class="field-note conversation-question">This contribution was removed. Replies are still available.</p>
+	} else if post.Hidden {
+		<p class="field-note conversation-question">This contribution was hidden by a moderator. Replies are still available.</p>
+	} else {
+		<figure class="pull-quote conversation-question">
+			<blockquote class="discussion-body">{ post.Body }</blockquote>
+			<figcaption class="byline">
+				if post.Profile!=nil {
+					@Avatar(initials(post.Profile.DisplayName))
+				}
+				@PostAttribution(post)
+			</figcaption>
+		</figure>
+	}
+}
+
+// ConversationEvent names the event a conversation belongs to: a small
+// thumbnail beside its title, date and venue, all linking to Overview.
+templ ConversationEvent(event models.Event, returnURL string) {
+	<div class="conversation-event">
+		@CollectionEventArt(event, returnURL)
+		@CommunityCardIdentity(event, returnURL)
+	</div>
 }
 
 // PostAttribution names the author and, when the person published an app's
@@ -564,40 +597,30 @@ templ OpenQuestionCards(p OpenQuestionsPage) {
 			@CommunityEmpty("Every question has an answer.", "When someone asks about an upcoming event and nobody has replied yet, it shows up here.", "/community/discussions", "Browse conversations")
 		}
 	} else {
-		<ul class="discussion-list recommendation-list community-cards open-questions">
+		<ul class="discussion-list conversation-feed open-questions">
 			for _,post:=range p.List.Items {
-				<li class="recommendation-event" id={ "question-" + post.ID }>
-					@CollectionEventArt(post.Event, p.URL)
-					<div class="recommendation-copy">
-						@CommunityCardIdentity(post.Event, p.URL)
-						<figure class="pull-quote">
-							<blockquote class="discussion-body">{ post.Body }</blockquote>
-							<figcaption class="byline">
-								if post.Profile!=nil {
-									@Avatar(initials(post.Profile.DisplayName))
-								}
-								@PostAttribution(post)
-							</figcaption>
-						</figure>
-						if wantToKnow(post.SameQuestionCount)!="" {
-							<p class="want-to-know">@layouts.Icon("users")
-<span>{ wantToKnow(post.SameQuestionCount) }</span></p>
+				<li class="recommendation-event conversation-item" id={ "question-" + post.ID }>
+					@ConversationQuestion(post)
+					if wantToKnow(post.SameQuestionCount)!="" {
+						<p class="want-to-know">
+							@layouts.Icon("users")
+							<span>{ wantToKnow(post.SameQuestionCount) }</span>
+						</p>
+					}
+					@ConversationEvent(post.Event, p.URL)
+					<div class="card-actions">
+						<a href={ templ.URL(answerURL(post, p.URL)) } class="card-action-primary">
+							@layouts.Icon("reply")
+							<span>Answer<span class="sr-only">{ " this question" }</span></span>
+							@layouts.IconClass("arrow", "icon card-action-arrow")
+						</a>
+						if canMarkSame(post,p.ViewerID) {
+							@SameQuestionControl(post, p.ViewerID, p.CSRF, p.URL, false)
 						}
-						@EventFacts(post.Event)
-						<div class="card-actions">
-							<a href={ templ.URL(answerURL(post, p.URL)) } class="card-action-primary">
-								@layouts.Icon("reply")
-								<span>Answer<span class="sr-only">{ " this question" }</span></span>
-								@layouts.IconClass("arrow", "icon card-action-arrow")
-							</a>
-							if canMarkSame(post,p.ViewerID) {
-								@SameQuestionControl(post, p.ViewerID, p.CSRF, p.URL, false)
-							}
-							<a href={ templ.URL(eventURL(post.EventID, "discussion", p.URL)) } class="card-action-secondary">
-								@layouts.Icon("community")
-								<span>Questions &amp; tips</span>
-							</a>
-						</div>
+						<a href={ templ.URL(eventURL(post.EventID, "discussion", p.URL)) } class="card-action-secondary">
+							@layouts.Icon("community")
+							<span>Questions &amp; tips</span>
+						</a>
 					</div>
 				</li>
 			}

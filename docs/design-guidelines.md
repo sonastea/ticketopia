@@ -58,9 +58,11 @@ collapse button switches between labels and a compact icon rail; destination
 labels remain accessible and appear on hover or keyboard focus. Expanded is the
 default. Sidebar ordering never changes the homepage or event/filter state.
 
-**Customize sidebar** reveals handles for dragging whole sections or links within
-their section, plus keyboard-accessible Move up / Move down buttons. Section
-membership stays fixed. Done saves the draft, Cancel (or Escape) restores the
+**Customize sidebar** widens the sidebar and shows a **Reorder navigation** heading
+(focused on entry) with a "saved in this browser only" note. Every section heading
+and link becomes one row: drag handle, name, Move up / Move down buttons. Section
+membership stays fixed. **Done** and **Cancel** sit together below the list,
+outside its scrolling region; **Reset to default** is a quieter link. Done saves the draft, Cancel (or Escape) restores the
 previous order, and Reset to default changes the draft without committing it.
 Collapse is unavailable during editing; resizing below the desktop threshold
 cancels an unfinished draft rather than leaving hidden editing controls active.

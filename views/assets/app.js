@@ -897,6 +897,9 @@
           if (customizing) return;
           snapshot = currentOrder();
           setCustomizing(true);
+          // The Customize control hides while editing; the mode's heading
+          // takes focus so keyboard and screen reader users land in it.
+          sidebar.querySelector('.nav-edit-title')?.focus();
           announce('Customizing navigation. Use the move buttons or drag items to reorder.');
         });
         actions.querySelector('[data-nav-customize-done]').addEventListener('click', () => {

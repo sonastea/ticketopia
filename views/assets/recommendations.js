@@ -52,8 +52,20 @@
   window.addEventListener('pagehide', persist);
   document.addEventListener('ticketopia:remember-drafts', () => forms().forEach(form => remember(form)));
   document.addEventListener('ticketopia:section-loaded', initialize);
+  // Keep recommendation is a JavaScript convenience; without it the
+  // Withdraw summary closes the confirmation the same way.
+  const keepButtons = () => document.querySelectorAll('[data-recommendation-keep]').forEach(button => { button.hidden = false; });
+  document.addEventListener('click', event => {
+    const keep = event.target.closest('[data-recommendation-keep]'); if (!keep) return;
+    const confirm = keep.closest('[data-recommendation-withdraw]');
+    confirm.open = false;
+    confirm.querySelector('summary').focus();
+  });
   document.addEventListener('toggle', event => {
-    if (!event.target.matches('[data-recommendation-editor]') || !event.target.open) return;
+    if (event.target.matches('[data-recommendation-withdraw]') && event.target.open) keepButtons();
+    if (!event.target.matches('[data-recommendation-editor]')) return;
+    // A reopened editor starts from writing, not a pending withdrawal.
+    if (!event.target.open) { event.target.querySelectorAll('[data-recommendation-withdraw][open]').forEach(confirm => { confirm.open = false; }); return; }
     document.querySelectorAll('[data-recommendation-editor][open]').forEach(editor => { if (editor !== event.target) editor.open = false; });
   }, true);
   document.addEventListener('submit', async event => {

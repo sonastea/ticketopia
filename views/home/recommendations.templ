@@ -16,58 +16,22 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 		if !v.Enabled {
 			<p class="field-note">Recommendations require accounts to be enabled on this server.</p>
 		} else {
-			if v.Error != "" {
-				<p class="field-note" role="status">{ v.Error }</p>
-			} else if !v.SignedIn {
-				<div class="composer-card composer-invite">
-					@ComposerBadge("community")
-					<p class="composer-prompt"><strong>Recommend this event</strong><span>Recommendations are public, with your display name and profile link.</span></p>
-					@button.Button(button.Props{Href:signInURL(recommendationSignInReturn(id, returnURL)),Variant:button.VariantOutline,Class:"action action-secondary"}) {
-						Sign in to recommend
-					}
-				</div>
-			} else {
-				<details class="composer-card" data-recommendation-editor open?={ v.Open }>
-					<summary aria-labelledby={ "recommend-composer-title-" + id } aria-describedby={ "recommend-composer-note-" + id }>
-						@ComposerBadge("community")
-						<span class="composer-prompt">
-							if v.Own != nil {
-								<strong id={ "recommend-composer-title-" + id }>Edit your recommendation</strong><span id={ "recommend-composer-note-" + id }>Change your reason or withdraw it.</span>
-							} else {
-								<strong id={ "recommend-composer-title-" + id }>Recommend this event</strong><span id={ "recommend-composer-note-" + id }>Tell others why it's worth going. A reason is optional.</span>
-							}
-						</span>
-						@layouts.IconClass("chevron", "icon composer-chevron")
-					</summary>
-					<form action={ recommendationAction(id) } method="post" class="account-form composer-form" data-recommendation-form data-recommendation-id={ id } data-sign-in-url={ signInURL(recommendationSignInReturn(id, returnURL)) }>
-						<input type="hidden" name="csrf_token" value={ v.CSRF }/>
-						<input type="hidden" name="return_to" value={ returnURL }/>
-						<label class="field">Why do you recommend it? <span>(optional, up to 500 characters)</span>
-							<textarea name="reason" rows="3" maxlength="500" data-recommendation-reason autofocus?={ v.Open }>{ v.reason() }</textarea>
-						</label>
-						<p class="field-note composer-audience">Your reason, display name and profile link will be public on this event, in Community and on your profile; live activity shows your chosen first name or Someone. Interest privacy does not hide recommendations.</p>
-						<div class="composer-actions">
-							@button.Button(button.Props{Type:button.TypeSubmit,Class:"action composer-submit",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
-								if v.Own != nil {
-									Save recommendation
-								} else {
-									Publish recommendation
-								}
-							}
-							if v.Own != nil {
-								@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantLink,Class:"text-link composer-utility",Attributes:templ.Attributes{"name":"action","value":"remove","formnovalidate":true}}) {
-									Withdraw recommendation
-								}
-							}
-						</div>
-						<p class="field-note" role="alert" data-recommendation-error hidden></p>
-					</form>
-				</details>
-			}
-			<div class="note-list-head">
+			// People's reasons lead; writing your own is one compact action
+			// beside the list heading that opens the editor beneath it.
+			<div class="note-list-head rec-list-head">
 				<h3>Public recommendations</h3>
 				if v.List.Count != nil {
 					<p class="list-meta" data-live-total={ id } data-live-hide-zero hidden?={ *v.List.Count == 0 }><strong>{ fmt.Sprint(*v.List.Count) }</strong> { recommendationCountLabel(*v.List.Count) }</p>
+				}
+				if v.Error != "" {
+					<p class="field-note" role="status">{ v.Error }</p>
+				} else if !v.SignedIn {
+					<a href={ templ.URL(signInURL(recommendationSignInReturn(id, returnURL))) } class="rec-write-trigger">
+						@layouts.Icon("community")
+						<span>Sign in to recommend</span>
+					</a>
+				} else {
+					@RecommendationEditor(id, v, returnURL)
 				}
 			</div>
 			if v.ListError != "" {
@@ -80,6 +44,54 @@ templ RecommendationPanel(id string,v RecommendationView,returnURL string) {
 			}
 		}
 	</div>
+}
+
+templ RecommendationEditor(id string, v RecommendationView, returnURL string) {
+	<details class="rec-editor" data-recommendation-editor open?={ v.Open }>
+		<summary class="rec-write-trigger" id={ "recommend-composer-title-" + id }>
+			@layouts.Icon(ternary(v.Own != nil, "pencil", "community"))
+			if v.Own != nil {
+				<span>Edit your recommendation</span>
+			} else {
+				<span>Write a recommendation</span>
+			}
+		</summary>
+		<form action={ recommendationAction(id) } method="post" class="account-form composer-form" data-recommendation-form data-recommendation-id={ id } data-sign-in-url={ signInURL(recommendationSignInReturn(id, returnURL)) } aria-labelledby={ "recommend-composer-title-" + id }>
+			<input type="hidden" name="csrf_token" value={ v.CSRF }/>
+			<input type="hidden" name="return_to" value={ returnURL }/>
+			<label class="field">Why is it worth going? <span>(optional, up to 500 characters)</span>
+				<textarea name="reason" rows="3" maxlength="500" data-recommendation-reason autofocus?={ v.Open } aria-describedby={ "recommend-audience-" + id }>{ v.reason() }</textarea>
+			</label>
+			<div class="composer-actions">
+				@button.Button(button.Props{Type:button.TypeSubmit,Class:"action composer-submit",Attributes:templ.Attributes{"name":"action","value":"set"}}) {
+					if v.Own != nil {
+						Save recommendation
+					} else {
+						Publish recommendation
+					}
+				}
+				<p id={ "recommend-audience-" + id } class="field-note composer-audience">Public, with your name and profile link.</p>
+			</div>
+			<details class="account-more rec-audience-more">
+				<summary>Where it appears</summary>
+				<p>On this event, in Community and on your profile. Live activity shows your chosen first name or Someone. Keeping your interest private doesn't hide a recommendation.</p>
+			</details>
+			if v.Own != nil {
+				// Withdrawal is deliberate: a second step names the consequence.
+				<details class="discussion-removal rec-withdraw" data-recommendation-withdraw>
+					<summary>Withdraw</summary>
+					<p>Removes your recommendation and reason from this event, Community and your profile.</p>
+					<div class="composer-actions">
+						@button.Button(button.Props{Type:button.TypeSubmit,Variant:button.VariantOutline,Class:"action action-secondary",Attributes:templ.Attributes{"name":"action","value":"remove","formnovalidate":true}}) {
+							Withdraw recommendation
+						}
+						<button type="button" class="text-link" data-recommendation-keep hidden>Keep recommendation</button>
+					</div>
+				</details>
+			}
+			<p class="field-note" role="alert" data-recommendation-error hidden></p>
+		</form>
+	</details>
 }
 
 // ComposerBadge marks a community composer or sign-in invitation with the

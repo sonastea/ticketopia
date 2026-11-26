@@ -79,6 +79,11 @@ templ App(active string, title string) {
 						@IconClass("sidebar-expand", "icon icon-expand")
 					</button>
 				</div>
+				// Shown only while reordering: what the mode is and where it's kept.
+				<div class="nav-edit-head" data-nav-edit-head>
+					<h2 class="nav-edit-title" tabindex="-1">Reorder navigation</h2>
+					<p>Drag a handle or use the arrows. Saved in this browser only.</p>
+				</div>
 				<nav class="desktop-nav" id="desktop-nav" aria-label="Main navigation" data-nav-order>
 					@NavGroup("browse", "Browse") {
 						@NavItem("/", "Discover", "discover", active == "discover")
@@ -97,10 +102,11 @@ templ App(active string, title string) {
 						<span>Customize sidebar</span>
 					</button>
 					<div class="sidebar-customize-actions" data-nav-customize-actions hidden>
-						<p class="sidebar-preference-note">Saved only in this browser.</p>
-						<button type="button" data-nav-customize-done>Done</button>
-						<button type="button" data-nav-customize-cancel>Cancel</button>
-						<button type="button" data-nav-customize-reset>Reset to default</button>
+						<div class="nav-edit-commit">
+							<button type="button" class="nav-edit-done" data-nav-customize-done>Done</button>
+							<button type="button" class="nav-edit-cancel" data-nav-customize-cancel>Cancel</button>
+						</div>
+						<button type="button" class="nav-edit-reset" data-nav-customize-reset>Reset to default</button>
 					</div>
 					@NavLink("/me", "Profile", "profile", active == "profile")
 				</div>

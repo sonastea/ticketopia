@@ -4,6 +4,18 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
 
 ## Unreleased
 
+### 2026-11-25 — Reading-first recommendations, reordering and conversation feeds
+
+- Event Recommendations lead with people's reasons; writing or editing your own
+  is a compact action beside the list heading. A short public notice sits beside
+  Publish, the full visibility note is on demand, and withdrawal asks first.
+- On phones, Tickets/Save stick above the navigation on Overview only. In the
+  desktop split view the selected row no longer repeats them beside the preview.
+- Reordering the sidebar widens it, names the mode, keeps each row on one line
+  and pairs Done with Cancel beneath the list.
+- Community Conversations and Open questions lead with the question, then a
+  compact event row; phones use flat, full-width rows.
+
 ### 2026-11-25 — Flat, event-first discovery and community surfaces
 
 - Canceled and postponed events direct people to event updates instead of
@@ -56,36 +68,6 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   Threads lead with the post before follow settings, keep Reply and Helpful
   visible, and group edit, remove, and report under a native More disclosure.
   See [conversation ergonomics](../event-discussions.md#conversation-ergonomics-and-draft-safety).
-
-### 2026-11-20 — Follow-up: error pages, consent, and the browser journeys
-
-- One error layout, `layouts.ErrorPage`, for the 404/405 page and the account,
-  event task, app connection and follow failures; the offline page repeats its
-  shape. The moderation case page uses `PageHeader`.
-- The consent page states what an app can and can't do in a "What it can do"
-  card; the publishing line still follows its checkbox. Tests hold consent to
-  the notes budget.
-- Fixes found by the journeys: removing a Saved or Interested row keeps the
-  next action above the phone navigation (stale row placeholder sizes, and a
-  WebKit scroll shift as rows land, unless the person scrolls first); closing a
-  compact preview brings the focused title clear of the header and navigation
-  when its old offset no longer fits; Recommend focuses the composer once its
-  disclosure opens, unless focus has moved on; the phone navigation's columns fit
-  "Community" whole at enlarged text (wrapping to more rows instead).
-- Journeys updated for current behavior: Sign in to save completes the Save;
-  accounts no longer start with notifications paused; the service worker is
-  blocked where `page.route` must see navigations; checks wait for disclosures,
-  transitions and focus instead of sampling at once; and axe scans share
-  `scripts/axe-scan.cjs`, which waits for animations and re-checks a target
-  covered by the fixed navigation after scrolling it clear, dropping it only if
-  it then passes. A paused account stays paused through a reminder save. Playwright's WebKit with
-  JavaScript off leaves some collection loads at "interactive" (cached font
-  preloads), so those loads wait for the DOM.
-- `TestCappedRebuildHoldsQueuedAccounts` lengthens the rebuild hold for its run:
-  convergence takes several 2s sweeps, which a loaded race build can push past
-  the 10s production hold.
-- Discover's height target stays a deliberate departure: the cards keep their
-  artwork.
 
 ### 2026-11-19 — Phase 7: moderation
 

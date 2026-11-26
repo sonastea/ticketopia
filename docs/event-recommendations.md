@@ -31,12 +31,13 @@ and does not migrate the running development database.
 ## Publish, edit, and withdraw
 
 - Open an event or preview, then **Recommend** to open the native composer directly.
-  The Recommendations section also leads with a **Recommend this event** composer
-  card (a native disclosure; **Edit your recommendation** once you have one), and
-  marks your own recommendation in the list with **You**.
-- Before **Publish recommendation**, the form explains that your display name,
-  profile link, and reason appear publicly on the event, in Community, and on your
-  profile. Private interest visibility does **not** hide recommendations.
+  The Recommendations section leads with the public recommendations; **Write a
+  recommendation** (**Edit your recommendation** once you have one) sits beside
+  the list heading as a native disclosure. Your own recommendation is marked **You**.
+- Beside **Publish recommendation** the form says it is public with your name and
+  profile link; **Where it appears** adds that it shows on the event, in Community
+  and on your profile, and that private interest does **not** hide it.
+- **Withdraw** asks for confirmation first; closing it keeps any unsaved edit.
 - A reason is optional, plain text, up to 500 characters. Surrounding whitespace
   is trimmed; invalid encoding/control characters and overlong reasons are
   rejected, not truncated. Reasons are escaped in HTML, never rendered as markup.

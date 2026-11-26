@@ -19,7 +19,8 @@ fs.mkdirSync(out, {recursive: true});
     const me = await (await owner.request.get(base + '/api/v1/me')).json();
     const otherMe = await (await other.request.get(base + '/api/v1/me')).json();
     const page = await owner.newPage();
-    page.on('pageerror', e => report.errors.push(e.message));
+    // Chromium aborts a cross-document view transition the next page doesn't opt into; benign.
+    page.on('pageerror', e => { if (!/ViewTransition opt-in disabled/.test(e.message)) report.errors.push(e.message); });
     const id = 'ticketmaster:Browser_0';
     const endpoint = '/api/v1/events/' + id + '/discussions';
     await page.goto(base + process.env.SAVED_SEARCH_PATH);
@@ -127,7 +128,7 @@ fs.mkdirSync(out, {recursive: true});
     check('Rejected cross-origin writes remain protected', (await owner.request.post(base + endpoint, {data:{body:'Rejected'},headers:{'X-CSRF-Token':me.csrf_token,'Idempotency-Key':'bad-origin-request-key','Origin':'https://evil.example'}})).status() === 403);
     const disabled = await guest.request.get(process.env.SAVED_DISABLED_URL + '/api/v1/community/discussions');
     check('Disabled discussions report unavailable, not zero', disabled.status() === 503);
-    check('No browser runtime errors', !report.errors.length);
+    check('No browser runtime errors: ' + report.errors.join('; '), !report.errors.length);
     fs.writeFileSync(path.join(out, 'discussion-checks.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify({checks:report.checks.length,screenshots:report.screenshots.length,accessibility:report.accessibility.length}));
   } finally { await browser.close(); }
