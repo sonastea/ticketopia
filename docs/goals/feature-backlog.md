@@ -45,9 +45,11 @@ than in editors, and those apps connect only through OAuth. See the
   real client.
 - [ ] Connect Claude (web and Code), ChatGPT, VS Code, Cursor and OpenCode to a
   public HTTPS deployment before calling agent sign-in done.
-- [ ] Close the "manage personal and community activity from another client" goal:
-  `/events/{id}/community` and `/users/{id}/activity` are implemented; exercise
-  the community API end to end from a second client with an API token.
+- [x] Close the "manage personal and community activity from another client" goal:
+  verified on production on 2026-11-26 with an API token alone: saves, follows,
+  private Interested, refused public actions without `publish`, drafts published
+  through the API and `publish_draft`, and read-back through
+  `/events/{id}/community`, `/users/{id}/activity` and the agent tools.
 
 ## 2. Community (optional, wait for a need)
 
