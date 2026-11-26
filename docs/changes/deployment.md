@@ -4,6 +4,9 @@
 
 ## 2026-11-26 — Unreleased
 
+- `AGENT_PUBLISHES_PER_HOUR` (default 20, 0–10000) sets the per-account limit
+  on public actions by agents and API tokens; `0` lifts it for a test window.
+  See [deployment](../deployment.md).
 - Verified automated GHCR publishing from the self-hosted runner: the
   `publish-image.yml` workflow pushes the private image, and production deploys
   from it. Shared state across app replicas, backup restoration and failover

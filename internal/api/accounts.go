@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -442,6 +443,10 @@ func (a *api) requireAPI(c echo.Context, write, browserOnly bool) (accounts.Prin
 	return p, err
 }
 func accountError(err error) (int, string, string, map[string]string) {
+	var limited errPublishLimited
+	if errors.As(err, &limited) {
+		return 429, "publish_limited", fmt.Sprintf("This account reached its limit of %d public actions an hour through agents and API clients. Try again later.", limited.limit), nil
+	}
 	var invalid *accounts.ValidationError
 	switch {
 	case errors.Is(err, reminders.ErrNotSaved):
@@ -462,8 +467,6 @@ func accountError(err error) (int, string, string, map[string]string) {
 		return 403, "token_cannot_publish", "This API token can't act publicly. Create a token that allows posting as you in Security & Apps, or draft text with /api/v1/me/drafts for the person to publish.", nil
 	case errors.Is(err, errBrowserOnly):
 		return 403, "browser_session_required", "Only the person can do this on the Ticketopia website: changing the profile, editing or removing posts, withdrawing their own recommendation, and moderation.", nil
-	case errors.As(err, new(errPublishLimited)):
-		return 429, "publish_limited", "This account reached its hourly limit of public actions through agents and API clients. Try again later.", nil
 	case errors.Is(err, recommendations.ErrPersonal):
 		return 409, "recommendation_is_personal", "The person wrote this recommendation themselves, so only they can change or withdraw it, on the website.", nil
 	case errors.Is(err, accounts.ErrFlow):

@@ -267,7 +267,7 @@ func TestPublishingAPIToken(t *testing.T) {
 		t.Fatal("agents were never limited")
 	}
 	w = accountRequest(f.app, "PUT", "/api/v1/me/event-interests/"+event, `{"visibility":"public"}`, "", token, "", "", "")
-	if w.Code != 429 || problemCode(t, w.Body.Bytes()) != "publish_limited" || w.Header().Get("Retry-After") == "" || w.Header().Get("Retry-After") == "600" {
+	if w.Code != 429 || problemCode(t, w.Body.Bytes()) != "publish_limited" || w.Header().Get("Retry-After") == "" || w.Header().Get("Retry-After") == "600" || !strings.Contains(w.Body.String(), "limit of 20 public actions") {
 		t.Fatal("hourly allowance", w.Code, w.Header(), w.Body.String())
 	}
 }
