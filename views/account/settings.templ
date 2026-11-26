@@ -468,7 +468,6 @@ templ Preferences(p Page) {
 
 templ Interests(p Page) {
 	@home.InterestCollection(p.EventInterests)
-	<p class="field-note account-aside-note">Choose the event categories you enjoy in <a href="/me/preferences#categories" class="text-link">Preferences</a>.</p>
 }
 
 templ Public(p accounts.PublicProfile, list interests.List, returnURL string, message string, recommended recommendations.List, recommendationError string) {

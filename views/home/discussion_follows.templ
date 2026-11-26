@@ -67,7 +67,11 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 				<p role="alert">{ p.Error }</p><a href={ templ.URL(p.URL) } class="text-link">Retry this page</a>
 			} else if p.Notifications {
 				if len(p.Inbox.Items)==0 {
-					<p>No reply updates on this page. Follow a conversation and choose a frequency to receive future replies.</p>
+					<div class="destination-state">
+						<h2>No reply updates on this page</h2>
+						<p>Follow a conversation and choose a frequency to receive future replies.</p>
+						<a class="text-link" href="/me/discussions">See followed discussions</a>
+					</div>
 				}
 				<ul class="discussion-list">
 					for _,n:=range p.Inbox.Items {
@@ -110,12 +114,13 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 				<ul class="discussion-list">
 					for _,f:=range p.Follows.Items {
 						<li class="discussion-post conversation-record">
+							if !f.Root.Hidden && !f.Root.Removed {
+								<p class="conversation-excerpt discussion-body">{ f.Root.Body }</p>
+							}
 							<h2>{ f.Root.Event.Name }</h2><p class="event-date">{ startLabel(f.Root.Event.Start) }</p><p class="event-venue">{ venueLabel(f.Root.Event) }</p>
 							<p class="conversation-meta"><strong>{ fmt.Sprint(f.Root.ReplyCount) }</strong> { ternary(f.Root.ReplyCount==1,"reply","replies") } · Reply updates: { conversationFrequency(f.Frequency) }</p>
 							if f.Root.Hidden || f.Root.Removed {
 								<p class="field-note">This conversation's original contribution is no longer visible. Notifications are withheld; remaining replies can still be read.</p>
-							} else {
-								<p class="discussion-body">{ f.Root.Body }</p>
 							}
 							@button.Button(button.Props{Href:ThreadURL(f.EventID,f.ThreadID,p.URL),Variant:button.VariantOutline,Class:"action action-secondary"}) { Open conversation }
 							@ConversationFollow(f.EventID,f.ThreadID,f.Frequency,p.CSRF,p.URL,p.Paused)

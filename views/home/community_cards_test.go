@@ -136,8 +136,8 @@ func TestHappeningNowCardsUseStoredArtwork(t *testing.T) {
 	if strings.Count(markup, `class="date-marker"`) != 1 {
 		t.Error("an event without a stored snapshot showed a date chip")
 	}
-	if !strings.Contains(markup, `data-stamp>Oct 23, 2026 · 12:00 UTC</time><span>. Refresh for the latest; live updates appear when connected.</span>`) {
-		t.Error("the snapshot line lost its time or its refresh guidance")
+	if !strings.Contains(markup, `Page snapshot: <time`) || !strings.Contains(markup, `data-stamp>Oct 23, 2026 · 12:00 UTC</time>`) || !strings.Contains(markup, `data-live-refresh`) {
+		t.Error("the initial snapshot and refresh control must remain distinguishable from live updates")
 	}
 	if !strings.Contains(markup, `data-live-empty-state hidden`) {
 		t.Error("the empty display line showed beside activity")

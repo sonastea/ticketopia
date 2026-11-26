@@ -185,10 +185,12 @@
     node('badge').textContent = pending.size ? `${pending.size} new` : '';
     updates.hidden = !pending.size;
     updates.textContent = `Show ${pending.size} new updates`;
-    node('connection').textContent = current.length ? 'Recent public recommendations' : (restricted() ? 'No recent recommendations match these filters. Use Reset filters to see all events.' : 'Nothing in the last 10 minutes. New public recommendations appear here as people share them.');
+    node('connection').textContent = current.length ? 'Recent public recommendations' : (restricted() ? 'Clear the filters to see all recent recommendations.' : 'New public recommendations appear here as people share them.');
     node('empty-reset').hidden = !!current.length || !restricted();
     node('empty-community').hidden = !!current.length || restricted();
-    node('empty-state').hidden = !!current.length;
+    const empty = node('empty-state');
+    empty.textContent = restricted() ? 'No recent recommendations match these filters' : 'No recommendations in the last 10 minutes';
+    empty.hidden = !!current.length;
   };
   const receive = data => {
     if (!Array.isArray(data.items) || !Number.isFinite(Date.parse(data.as_of))) throw new Error();

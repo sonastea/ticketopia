@@ -145,7 +145,7 @@ func Saved(page SavedPage) templ.Component {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2>Keep something worth coming back to.</h2><p>Save an event while discovering. You'll find it here on your next visit, on any device you sign into.</p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2>Keep something worth coming back to.</h2><p>Choose <strong>Save</strong> beside an event in Discover. It will appear here on any device where you're signed in.</p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

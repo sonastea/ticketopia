@@ -73,6 +73,7 @@ templ InterestCollection(page InterestCollectionPage) {
 	<section class="account-section" aria-labelledby="event-interests-heading">
 		<h2 id="event-interests-heading">Events you're interested in</h2>
 		<p>Interest is separate from Saved and category preferences. Only choices marked Public name you on event pages and your profile.</p>
+		<a href="/me/preferences#categories" class="text-link interests-preferences-link">Choose event categories</a>
 		<p class="field-note" role="status" data-interest-notice></p>
 		if page.Error != "" {
 			<p class="field-note" role="status">{ page.Error }</p>

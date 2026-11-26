@@ -25,6 +25,10 @@ Phases of the [one job per screen](../design/app-rework.md) rework.
   immediately before the shared decision reason.
 - Temporary event lookup failures offer retry without leaving the event.
   An invalid reminder link explains that nothing changed and points to reminders.
+- Happening Now distinguishes a quiet feed from a filtered empty state and keeps
+  its filters to a readable width. Followed discussions lead with the visible
+  question, unread replies stand out, and Saved and Interests point to their
+  respective next actions.
 
 - Discover, Saved, Interests, Radar, event details and previews, Community,
   and Happening Now use borders and flat fills instead of decorative shadows,

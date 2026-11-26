@@ -26,7 +26,7 @@ templ Saved(page SavedPage) {
 						<p>Earlier saves may still be in your collection. Return to the newest saves to check.</p>
 					} else {
 						<h2>Keep something worth coming back to.</h2>
-						<p>Save an event while discovering. You'll find it here on your next visit, on any device you sign into.</p>
+						<p>Choose <strong>Save</strong> beside an event in Discover. It will appear here on any device where you're signed in.</p>
 					}
 					@button.Button(button.Props{Href: "/", Class: "action"}) { Discover events }
 					if page.ReturnURL != "/saved" {

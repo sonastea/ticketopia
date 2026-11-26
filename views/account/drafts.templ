@@ -28,7 +28,7 @@ templ Drafts(p DraftsPage) {
 				if len(p.Drafts) == 0 {
 					<h2>No drafts waiting.</h2>
 					<p>When an app you connected drafts a recommendation reason, a question, a tip or a reply, it waits here for you to read before anything is posted.</p>
-					@button.Button(button.Props{Href: "/me", Variant: button.VariantOutline, Class: "action action-secondary"}) {
+					@button.Button(button.Props{Href: "/me/security#connected-apps", Variant: button.VariantOutline, Class: "action action-secondary"}) {
 						Manage connected apps
 					}
 				} else {
@@ -57,7 +57,7 @@ templ draftItem(p DraftsPage, draft drafts.Draft, id string) {
 			{ " · " }@layouts.StampDate(draft.CreatedAt)
 			{ " · not published, expires " }@layouts.StampDate(draft.ExpiresAt)
 		</p>
-		<blockquote class="recommendation-reason draft-text">{ draft.Text }</blockquote>
+		<blockquote class="recommendation-reason draft-text draft-proposed">{ draft.Text }</blockquote>
 		{{ publishable := p.publishable(draft) }}
 		switch draft.Kind {
 			case drafts.KindQuestion:
