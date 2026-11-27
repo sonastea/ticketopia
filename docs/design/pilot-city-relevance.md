@@ -1,13 +1,13 @@
 # Pilot-city relevance check: Los Angeles
 
-**Status: Parts 1 and 2 implemented locally (2026-11-27), not yet deployed;
+**Status: Parts 1 and 2 deployed and verified in production (2026-11-27);
 Part 3 (the pilot) not started.** Orange County is included (open decision 2),
 and the web turns on areas and runs while the API and agents keep them opt-in
 (decision 3). Check a part only when its behavior is deployed and verified.
 Current behavior lives in [metro areas and runs](../discovery.md#metro-areas-and-runs).
 
-- [ ] Part 1 — Los Angeles area: include nearby venue cities
-- [ ] Part 2 — Quieter lists: one row per run, hide non-events
+- [x] Part 1 — Los Angeles area: include nearby venue cities
+- [x] Part 2 — Quieter lists: one row per run, hide non-events
 - [ ] Part 3 — Run the pilot with three people and record the outcome
 
 This closes the open checkpoint in the [delivery checklist](../goals/delivery.md)
@@ -183,15 +183,50 @@ Parts 1–2 are deployed.
 
 ### Before the sessions
 
-- [ ] Deploy Parts 1–2 and repeat the audit above; record the new first-page view.
+- [x] Deploy Parts 1–2 and repeat the audit above (2026-11-27: the folded LA
+      area lists 657 rows from 18 member cities, coverage complete, no add-ons).
 - [ ] Add each participant's Google account as a test user in Google Auth
       Platform (the production OAuth app is in Testing mode). Sign in fails
-      otherwise.
+      otherwise. If that isn't possible, use the
+      [local fallback](#fallback-sessions-on-your-laptop).
 - [ ] The day before each session, open Discover for Los Angeles once so the
       data is fresh (no scheduled collection runs in production).
 - [ ] Confirm your moderator role works on production: open the review queue.
 - [ ] Line up a second person to reply to questions during the session (another
       participant, or you on a separate account).
+
+### Fallback: sessions on your laptop
+
+Use this only if participants can't sign in to production. It needs no code
+changes: the participant uses your laptop, already signed in as a throwaway
+local account. Production stays the preferred setup, because the fallback
+changes what the pilot measures (below). Do not build a pilot sign-in route for
+participants' own phones; that would be a new way to authenticate, for three
+people.
+
+1. Run the usual local setup (`make local-setup` once, then `air`) and open
+   `http://localhost:3000`. Your `.env` must point `AUTH_BASE_URL` at that same
+   address: account forms reject any other origin.
+2. Before each participant, run `make local-test-accounts`. It replaces the
+   throwaway accounts, so each participant starts with an empty account and the
+   previous participant's saves are gone.
+3. In a fresh browser profile, open DevTools → Application → Cookies →
+   `http://localhost:3000` and add a cookie named `ticketopia_session` (HttpOnly)
+   whose value is `accounts.other.session` from `.local/local-test-accounts.json`.
+   Use `other`: `owner` has Chicago as its account city, which would change
+   where Discover starts. Don't show the file on screen.
+4. Open Discover for Los Angeles once before the participant arrives so the area
+   is collected and fresh (about ten seconds the first time).
+5. Afterwards, run `make local-test-accounts-clean`.
+
+Checked 2026-11-27 against the `air` setup: a browser with `other`'s cookie
+opened the Los Angeles area, saved an event, and found it under Saved.
+
+What changes: participants don't use their own device or sign in themselves,
+and the next-day return (step 6) becomes a return later in the same session,
+after closing the tab. Record that in the results. Production sign-in, their own
+devices and a real next-day return then remain unverified, so the delivery
+checklist item stays open until one production session covers them.
 
 ### Who
 
