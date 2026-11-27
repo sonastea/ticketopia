@@ -4,6 +4,26 @@
 
 ## Unreleased
 
+### 2026-11-27 — Los Angeles area, one row per run, no ticket add-ons
+
+- Pre-pilot fixes from the [pilot-city plan](../design/pilot-city-relevance.md).
+  A Los Angeles search on the web now covers the Los Angeles area (34 venue
+  cities from Hollywood and Inglewood to Long Beach and Orange County), with
+  **Only Los Angeles** to narrow it. Each member is collected as its own city
+  scope; the area is covered only when every member is. Radar reads the same area.
+- The web lists each run (the same name at the same venue, such as a theatre
+  run or 15-minute entry slots) once, at its first date in the range, with
+  "Also on 11 more dates, through …". The event page lists **All dates**, each its
+  own event. In production LA data this turns 862 listings in a month into 280 rows.
+- Ticketmaster's Upsell listings (seat upgrades, viewing decks) no longer list
+  in stored Discover, including the JSON API and agents, or Radar.
+- The JSON API and `find_events` keep exact cities and unfolded listings unless
+  asked (`area=metro`, `fold=run`); see [discovery](../discovery.md#metro-areas-and-runs).
+- Review fixes: only due members refresh, a cold area answers once any member has
+  results, runs compare titles exactly, placeholder times never show as
+  showtimes, started dates drop from **All dates**, and database-free Discover
+  hides the area choice.
+
 ### 2026-11-23 — Discover holds up under load as the catalog grows
 
 - Production overloaded between 100 and 150 Discover pages a second (480 on
@@ -74,26 +94,3 @@
   responsive, moderation, saved, interests and action feedback. Conversation
   ergonomics passes apart from an intermittent view-transition abort that also
   occurs on unchanged code. WebKit: action feedback, sign-in, drill-down pass.
-
-### 2026-10-29 — Shared event-detail refreshes
-
-- Concurrent readers of an expired or missing stored event share one provider
-  read and one durable observation instead of each writing it (16 readers: 16
-  write transactions -> 1). A write failure reaches every waiting reader and is
-  never replayed. See [discovery](../discovery.md#loading-performance).
-
-### 2026-10-27 — Touch-safe preview prefetch and clearer partial results
-
-- A touch press starts its preview request only after a 100ms hold or on
-  release (still before the click), so scrolls that begin on a result no longer
-  reach the server: 12 of 12 sampled touch scrolls started one before, none
-  after. Mouse and pen presses still start it at once.
-- Uncollected dates summarize as **Results may be incomplete** rather than
-  **Not collected yet**, which read as "nothing here" above shown results.
-  See [discovery](../discovery.md#loading-performance).
-
-### 2026-10-27 — Calendar downloads keep announced local times
-
-- Calendar downloads preserve announced local times when the provider omits the
-  UTC instant but supplies a valid local date, time and zone; invalid time/zone
-  values keep the all-day fallback. See [discovery](../discovery.md#responsive-navigation-and-event-details).

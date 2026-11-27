@@ -126,6 +126,9 @@ func NewServer(d Deps) *mcp.Server {
 		Description: "Search events by city and country (ISO code such as US), dates, category, or keyword. " +
 			"Dates are YYYY-MM-DD and match each event's local date; start_date defaults to today in UTC and end_date to 90 days after it, at most 366 days. " +
 			"When signed in, a search without city, country or keyword uses the city saved in the user's account, reported as default_location. " +
+			"area=metro widens a city in a known metro area (currently Los Angeles, with Inglewood, Hollywood, Anaheim and other nearby cities) and reports it as area; other cities are searched exactly. " +
+			"fold=run lists each run (the same event name at the same venue, such as a theatre run or timed entry slots) once, as its earliest listing with a run summary whose count includes that listing; total then counts runs. " +
+			"Ticket add-ons such as seat upgrades are not listed. " +
 			"For the next page, pass next_cursor as cursor with exactly the same other arguments."},
 		func(ctx context.Context, req *mcp.CallToolRequest, in findInput) (*mcp.CallToolResult, eventSearch, error) {
 			var out eventSearch
@@ -150,7 +153,8 @@ func NewServer(d Deps) *mcp.Server {
 			return d.Events.Categories(ctx)
 		}))
 	addTool(server, d, &mcp.Tool{Name: "event_details", Title: "Event details", OutputSchema: outputSchema[models.EventDetail](), Annotations: readOnly,
-		Description: "Details for one event by its ID from find_events (for example ticketmaster:G5v...), including prices, sale dates, venue, freshness and recent changes."},
+		Description: "Details for one event by its ID from find_events (for example ticketmaster:G5v...), including prices, sale dates, venue, freshness and recent changes. " +
+			"For a repeated event, dates lists its upcoming showings at the same venue (up to 100, including this one unless it has started); dates_more means more follow, so open the last date's event_details for the next ones."},
 		toolErrors(d, func(ctx context.Context, in detailsInput) (models.EventDetail, error) {
 			return d.Details.Detail(ctx, in.EventID)
 		}))
@@ -182,6 +186,8 @@ type findInput struct {
 	EndDate    string `json:"end_date,omitempty" jsonschema:"last event-local date, YYYY-MM-DD, default 90 days after start_date, at most 366 days after it"`
 	Sort       string `json:"sort,omitempty" jsonschema:"date_asc (default), date_desc, or name_asc"`
 	Limit      *int   `json:"limit,omitempty" jsonschema:"results per page, 1 to 100, default 20"`
+	Area       string `json:"area,omitempty" jsonschema:"metro to include the city's nearby cities, or city (default) for the city only"`
+	Fold       string `json:"fold,omitempty" jsonschema:"run to list each run of same-named listings at one venue once; omit for every listing"`
 	Cursor     string `json:"cursor,omitempty" jsonschema:"next_cursor from the previous page; repeat the same other arguments"`
 }
 
@@ -190,7 +196,8 @@ type findInput struct {
 func (in findInput) values() url.Values {
 	v := url.Values{}
 	for key, value := range map[string]string{"city": in.City, "country": in.Country, "keyword": in.Keyword,
-		"category_id": in.CategoryID, "start_date": in.StartDate, "end_date": in.EndDate, "sort": in.Sort, "cursor": in.Cursor} {
+		"category_id": in.CategoryID, "start_date": in.StartDate, "end_date": in.EndDate, "sort": in.Sort, "cursor": in.Cursor,
+		"area": in.Area, "fold": in.Fold} {
 		if value != "" {
 			v.Set(key, value)
 		}

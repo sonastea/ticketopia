@@ -1,6 +1,7 @@
 package home
 
 import "fmt"
+import "github.com/sonastea/ticketopia/internal/discovery"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
@@ -132,6 +133,18 @@ templ SearchControls(page SearchPage) {
 		} else if page.LocationSource == "account" {
 			<p class="location-source">Your account's default city</p>
 		}
+		if page.Areas && !page.NeedsLocation && page.Filters.HasMetro() {
+			// Ordinary links, so the choice works without JavaScript.
+			<p class="location-source location-area">
+				if page.Filters.Area == discovery.AreaMetro {
+					<span>Includes nearby cities.</span>
+					<a class="text-link" href={ templ.URL(areaURL(page.Filters, discovery.AreaCity)) }>Only { page.Filters.City }</a>
+				} else {
+					<span>Only { page.Filters.City }.</span>
+					<a class="text-link" href={ templ.URL(areaURL(page.Filters, discovery.AreaMetro)) }>Include nearby cities</a>
+				}
+			</p>
+		}
 		if !page.NeedsLocation && page.Error == "" {
 			<nav class="date-chips" aria-label="Date shortcuts">
 				for _, chip := range dateChips(page) {
@@ -210,6 +223,10 @@ templ SearchControls(page SearchPage) {
 					}
 					if page.Filters.VenueID != "" {
 						<input type="hidden" name="venue_id" value={ page.Filters.VenueID }/>
+					}
+					if page.Filters.Area == discovery.AreaCity {
+						// Keeps "only this city" when filters are applied.
+						<input type="hidden" name="area" value={ discovery.AreaCity }/>
 					}
 					if page.Filters.Limit > 0 {
 						<input type="hidden" name="limit" value={ fmt.Sprint(page.Filters.Limit) }/>

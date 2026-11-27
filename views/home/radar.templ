@@ -25,7 +25,7 @@ templ Radar(page RadarPage) {
 					@button.Button(button.Props{Href: "/me/preferences", Class: "action"}) { Choose your city }
 				}
 			} else {
-				@layouts.ResultsMeta(page.List.Scope.City + ", " + page.List.Scope.Country + " · " + scopeDates(page.List.Scope.StartDate, page.List.Scope.EndDate), "")
+				@layouts.ResultsMeta(radarPlace(page.List.Scope) + " · " + scopeDates(page.List.Scope.StartDate, page.List.Scope.EndDate), "")
 				if page.List.Mode == "nearby" {
 					<p class="participation-note">These are nearby suggestions, not personalized matches yet. Follow an artist or venue, or choose categories to make Radar yours.</p>
 				} else {

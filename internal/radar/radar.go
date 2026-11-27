@@ -66,8 +66,10 @@ type Item struct {
 	Meta    models.Freshness `json:"meta"`
 }
 type Scope struct {
-	City      string `json:"city"`
-	Country   string `json:"country"`
+	City    string `json:"city"`
+	Country string `json:"country"`
+	// Area names the metro Radar reads for City, if any.
+	Area      string `json:"area,omitempty"`
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 }
@@ -145,7 +147,7 @@ func DateScope(p accounts.Preferences, at time.Time) Scope {
 	}
 	date := at.In(loc).Format(time.DateOnly)
 	start, _ := time.Parse(time.DateOnly, date)
-	return Scope{p.City, p.Country, date, start.AddDate(0, 0, HorizonDays-1).Format(time.DateOnly)}
+	return Scope{City: p.City, Country: p.Country, StartDate: date, EndDate: start.AddDate(0, 0, HorizonDays-1).Format(time.DateOnly)}
 }
 func (s *Service) List(ctx context.Context, owner string, values url.Values) (List, error) {
 	if !accounts.ValidID(owner) {
@@ -171,12 +173,15 @@ func (s *Service) List(ctx context.Context, owner string, values url.Values) (Li
 	if q.Cursor == nil && d.Refresh && scope.City != "" && scope.Country != "" && s.discovery != nil {
 		// Broad public collection is shared across users, not one provider call per
 		// follow or per event. Failure preserves the last successful local records.
-		_, _ = s.discovery.Events(ctx, discovery.Query{City: scope.City, Country: scope.Country, StartDate: scope.StartDate, EndDate: scope.EndDate, Limit: 1, Sort: "date_asc"})
+		_, _ = s.discovery.Events(ctx, discovery.Query{City: scope.City, Country: scope.Country, StartDate: scope.StartDate, EndDate: scope.EndDate, Limit: 1, Sort: "date_asc"}.WithArea(discovery.AreaMetro))
 		d, err = s.repo.Read(ctx, owner, at, s.freshFor, q)
 		if err != nil {
 			return List{}, ErrUnavailable
 		}
 		scope = DateScope(d.Preferences, at)
+	}
+	if m, ok := discovery.MetroFor(scope.City, scope.Country); ok && scope.City != "" && scope.Country != "" {
+		scope.Area = m.Name
 	}
 	list := List{Items: []Item{}, Scope: scope, Meta: d.Meta, Mode: "personalized"}
 	if scope.City == "" || scope.Country == "" {
@@ -208,6 +213,9 @@ func (s *Service) List(ctx context.Context, owner string, values url.Values) (Li
 		reasons := match(e, followed, preferred)
 		if list.Mode == "nearby" {
 			reasons = []Reason{{Code: "nearby", Text: "In your chosen city: " + scope.City}}
+			if scope.Area != "" {
+				reasons[0].Text = "In the " + scope.Area + ", around your chosen city"
+			}
 		}
 		meta := models.Freshness{DataAsOf: c.DataAsOf, Stale: c.Unconfirmed || c.DataAsOf.IsZero() || now.Sub(c.DataAsOf) >= s.freshFor}
 		list.Items = append(list.Items, Item{e, reasons, meta})

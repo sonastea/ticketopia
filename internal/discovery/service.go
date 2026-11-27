@@ -136,8 +136,12 @@ func (s *Service) events(ctx context.Context, q Query) (models.EventList, error)
 	}
 	validated.Page = q.Page
 	q = validated
-	page, meta, err := cached(ctx, s, q.cacheKey(), eventPolicy, func(ctx context.Context) (eventPage, error) {
-		return s.fetchPage(ctx, q)
+	// Areas and runs need the stored catalog. Without it they change nothing,
+	// so they share the plain search's provider page; cursors still bind them.
+	plain := q
+	plain.Area, plain.Fold = "", ""
+	page, meta, err := cached(ctx, s, plain.cacheKey(), eventPolicy, func(ctx context.Context) (eventPage, error) {
+		return s.fetchPage(ctx, plain)
 	})
 	if err != nil {
 		return models.EventList{}, err

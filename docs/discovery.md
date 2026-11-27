@@ -58,9 +58,11 @@ cursor is never moved, and the JSON API keeps its UTC default. The web page uses
 IP-based city, in that order. When none is available it asks for a city before
 fetching events. Use both city and country to narrow ambiguous place names.
 See [location-aware discovery](location.md) for lookup caching, editable defaults,
-and reverse-proxy configuration. Filtering is city-based, rather than a GPS radius.
+and reverse-proxy configuration. Filtering is city-based, rather than a GPS radius;
+in MariaDB mode a city in a [metro area](#metro-areas-and-runs) reads the whole area.
 
-Each occurrence has its own image-led row, even when titles match. Show dates and public
+Each row is one occurrence. In MariaDB mode a run of same-named listings at one
+venue folds into its earliest row ([runs](#metro-areas-and-runs)). Show dates and public
 sale dates are labeled separately; ticket links use the event URL. Missing dates,
 venues, classifications, and prices have explicit fallback labels. Category and
 genre labels prefer the primary classification; missing classifications never
@@ -99,6 +101,65 @@ includes loading, empty, error, and stale-result messages. Event results are rea
 before optional metadata so a catalog failure cannot replace successful results.
 Unavailable catalogs retain selected filter IDs and offer all-category search;
 retained catalogs show their stale state.
+
+### Metro areas and runs
+
+These apply in MariaDB mode. The web turns both on; the JSON API and the
+`find_events` agent tool take them as opt-in `area=metro` and `fold=run`.
+
+**Metro areas.** `internal/discovery/metros.go` defines fixed sets of venue
+cities, spelled as Ticketmaster spells them. The only one so far is the
+**Los Angeles area**: 34 cities from Hollywood, Inglewood and Pasadena to Long
+Beach and Orange County (Anaheim, Santa Ana, Costa Mesa, Irvine), but not the
+Inland Empire. Searching any member city, in any case and with or without
+country `US`, reads every member. The location line says **Includes nearby
+cities** with an **Only {city}** link; **Include nearby cities** links back. Both
+are ordinary links, and a hidden `area=city` field keeps the narrower choice when
+filters are applied. The remembered-city cookie stores only the city, so a later
+visit starts with the area again.
+
+Each member is collected as its own on-demand city scope, with the usual durable
+claims, budget and cooldowns; a read refreshes only the members whose coverage is
+due. The area's coverage is `complete` only when every member is complete and
+fresh, `stale` if any member is stale, and `partial` otherwise; `data_as_of` is
+the oldest member's and `collected_days` the least-collected member's. A cold area
+takes about ten seconds to collect fully (34 or more requests at four a second);
+a first visitor sees results as soon as any finished member has some, within the
+12-second wait, and later visits serve last-good results while members refresh.
+Each read checks every member's coverage (two or three small statements per
+member), shared for ten seconds per replica. Radar reads the preferred city's area
+the same way and names it. Community, Happening Now and recommendation city
+filters still match the exact city. Database-free discovery ignores areas and runs.
+
+**Runs.** A run is every listing with exactly the same name (case and accents
+included) at the same first venue
+within the searched dates: timed entry slots, a theatre run, a residency or
+daily tours. The web shows a run once, as its earliest listing in the range, with
+a note such as "Also 18 more times that day, until 9:30 PM", "Also on 11 more
+dates, through Sun, Dec 27" or "412 times over 27 days, through Sat, Dec 26",
+plus "Some dates changed" when another listing is cancelled, postponed or
+rescheduled. The row's date, price, status, Save and Interested stay those of the
+listing it opens. A narrower date search finds a run at its first date in that
+range. `total` counts runs. The query computes runs over all matching rows with
+window functions; city and date filters bound that set.
+
+Run times shown are announced times only; time-TBA and no-specific-time listings
+show their date alone.
+
+The event page's **All dates** lists the run's upcoming listings that have not
+started (up to 100), each linking to its own event, the current one marked and
+changed statuses shown; more than ten collapse behind a native disclosure. When
+the opened listing is the last of the first 100 or falls after them, the list
+starts at its date, and a note says more follow, so opening the last listed date
+pages forward through the run. The event
+JSON returns the same list as `dates`, with `dates_more`.
+
+**Ticket add-ons.** Ticketmaster classifies seat upgrades and similar add-ons as
+listing type **Upsell** (`KZAyXgnZfZ7v7nJ`). Stored Discover (web, JSON API and
+agents alike), Radar and event dates omit them. Snapshots are tagged as they are collected or refreshed,
+so an older add-on can show until its city's next collection. Ticketmaster's own
+test entities are already excluded because `includeTest` is never sent;
+test-named listings that are not flagged still show.
 
 ### Restoring loaded pages
 
@@ -380,7 +441,7 @@ See the [OpenAPI guide](openapi.md) for what the contract describes, how it is
 embedded and served, and how to validate and keep it aligned with the handlers.
 
 Event filters: `city`, `country`, `keyword`, `category_id`, `genre_id`, `artist_id`, `venue_id`,
-`start_date`, `end_date`, `sort`, `limit`, and `cursor`. Empty filters are treated as
+`start_date`, `end_date`, `sort`, `area`, `fold`, `limit`, and `cursor`. Empty filters are treated as
 omitted. Unknown/repeated parameters are rejected. The catalog and contract routes
 accept no query parameters.
 JSON reads use the supplied filters; browser location defaults are applied by
@@ -408,6 +469,11 @@ return 400 and cache keys stay canonical.
 - `sort` accepts `date_asc` (default), `date_desc`, or `name_asc`, with identity
   tie-breaks in SQL. Cursors bind the sort too. Result sets can shift between
   refreshes; pagination does not pin a snapshot.
+- `area=metro` reads a member city's whole [metro area](#metro-areas-and-runs) and
+  adds `area` (name, country, cities) to the list; `area=city` or omitting it keeps
+  the exact city. `fold=run` lists each run once with a `run` summary (`count`,
+  `days`, `last_date`, one-day `first_time`/`last_time`, `changed`), and `total`
+  counts runs. Both bind cursors and cache keys and need MariaDB mode.
 - Ticketmaster requires `size * page < 1000`. `next_cursor` is `null` at the end;
   `limited: true` means the cap prevented another page. `total` is the provider's
   total, which can exceed the accessible results. Narrow filters to continue.

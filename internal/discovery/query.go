@@ -39,14 +39,23 @@ type Query struct {
 	StartDate, EndDate                                 string
 	Limit, Page                                        int
 	Sort                                               string
-	Stored                                             bool
-	Cursor                                             *Cursor
+	// Area widens a city search to its metro (AreaMetro), or records an
+	// explicit choice of only the city (AreaCity); see metros.go.
+	Area string
+	// Fold lists each run (same name at the same venue) once (FoldRun).
+	Fold   string
+	Stored bool
+	Cursor *Cursor
 }
+
+// FoldRun lists a run of same-named listings at one venue as one row.
+const FoldRun = "run"
 
 var queryParams = map[string]bool{
 	"city": true, "country": true, "keyword": true, "category_id": true, "genre_id": true,
 	"artist_id": true, "venue_id": true, "start_date": true,
 	"end_date": true, "limit": true, "cursor": true, "sort": true,
+	"area": true, "fold": true,
 }
 
 // QueryParam reports whether key is a supported discovery filter.
@@ -82,6 +91,18 @@ func ParseQuery(values url.Values, now time.Time) (Query, error) {
 	}
 	if q.Country != "" && (len(q.Country) != 2 || q.Country[0] < 'A' || q.Country[0] > 'Z' || q.Country[1] < 'A' || q.Country[1] > 'Z') {
 		return q, &ValidationError{"country", "use a two-letter country code, such as US"}
+	}
+	switch area := text("area"); area {
+	case "", AreaCity, AreaMetro:
+		q = q.normalizeArea(area)
+	default:
+		return q, &ValidationError{"area", "use city or metro"}
+	}
+	switch fold := text("fold"); fold {
+	case "", FoldRun:
+		q.Fold = fold
+	default:
+		return q, &ValidationError{"fold", "use run, or omit it for every listing"}
 	}
 	for name, value := range map[string]string{"artist_id": q.ArtistID, "venue_id": q.VenueID} {
 		if value != "" {
@@ -196,6 +217,7 @@ func (q Query) Values() url.Values {
 	for key, value := range map[string]string{
 		"city": q.City, "country": q.Country, "keyword": q.Keyword,
 		"genre_id": q.GenreID, "artist_id": q.ArtistID, "venue_id": q.VenueID,
+		"area": q.Area, "fold": q.Fold,
 	} {
 		if value != "" {
 			values.Set(key, value)
@@ -279,7 +301,9 @@ func (q Query) NextCursor(c Cursor) string {
 // CollectionScope collects broadly once, then filters locally. A city search
 // never stores a user's keyword or their private participation/preferences.
 func (q Query) CollectionScope() Query {
-	q.Keyword, q.CategoryID, q.GenreID, q.Sort = "", "", "", "date_asc"
+	// A metro is collected as its member cities (MemberQueries), and folding
+	// changes only how stored results are listed.
+	q.Keyword, q.CategoryID, q.GenreID, q.Sort, q.Area, q.Fold = "", "", "", "date_asc", "", ""
 	if q.City != "" {
 		q.ArtistID, q.VenueID = "", ""
 	}

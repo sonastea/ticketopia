@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/sonastea/ticketopia/internal/models"
@@ -10,12 +11,16 @@ import (
 
 const (
 	storedColdWait    = 12 * time.Second
+	storedColdTick    = 250 * time.Millisecond
 	storedPageTimeout = 20 * time.Second
 )
 
 type CatalogRead struct {
 	List    models.EventList
 	Refresh bool
+	// RefreshScopes are a metro's members due for refresh. Empty means the
+	// search itself is the one scope to refresh.
+	RefreshScopes []Query
 }
 
 type Catalog interface {
@@ -37,23 +42,56 @@ func (s *Service) storedEvents(ctx context.Context, q Query) (models.EventList, 
 		return models.EventList{}, err
 	}
 	if read.Refresh {
-		done := s.startRefresh(q)
+		// A metro refreshes only its members whose coverage is due; durable
+		// claims still skip any being collected elsewhere.
+		scopes := read.RefreshScopes
+		if len(scopes) == 0 {
+			scopes = q.MemberQueries()
+		}
+		dones := make([]<-chan struct{}, 0, len(scopes))
+		for _, scope := range scopes {
+			dones = append(dones, s.startRefresh(scope))
+		}
 		// Serve last-good results (including previously collected empty searches)
 		// immediately, preserving their freshness/coverage labels.
 		if len(read.List.Items) > 0 || !read.List.Meta.DataAsOf.IsZero() {
-			return read.List, nil
+			return withArea(q, read.List), nil
 		}
-		// A cold visitor waits briefly for useful results, not for every page.
-		// Expiring this wait must not cancel shared collection or its SQL writes.
+		// A cold visitor waits briefly for useful results, not for every page or
+		// member: a finished member's results end the wait. Completion is checked
+		// on a short tick, so visitors sharing a refresh add no goroutines.
+		// Expiring the wait must not cancel shared collection or its SQL writes.
 		timer := time.NewTimer(storedColdWait)
 		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return models.EventList{}, ctx.Err()
-		case <-done:
-		case <-timer.C:
+		tick := time.NewTicker(storedColdTick)
+		defer tick.Stop()
+	wait:
+		for len(dones) > 0 {
+			select {
+			case <-ctx.Done():
+				return models.EventList{}, ctx.Err()
+			case <-timer.C:
+				break wait
+			case <-dones[0]:
+			case <-tick.C:
+			}
+			pending := dones[:0]
+			for _, done := range dones {
+				select {
+				case <-done:
+				default:
+					pending = append(pending, done)
+				}
+			}
+			finished := len(pending) < len(dones)
+			dones = pending
+			// Read past the shared window: collection may have just stored results.
+			if finished && len(dones) > 0 {
+				if updated, err := s.readCatalog(ctx, storedReadKey(q), q); err == nil && len(updated.List.Items) > 0 {
+					return withArea(q, shareRead(updated).List), nil
+				}
+			}
 		}
-		// Read past the shared window: collection may have just stored results.
 		updated, readErr := s.readCatalog(ctx, storedReadKey(q), q)
 		if readErr == nil {
 			read = shareRead(updated)
@@ -61,7 +99,20 @@ func (s *Service) storedEvents(ctx context.Context, q Query) (models.EventList, 
 			return models.EventList{}, readErr
 		}
 	}
-	return read.List, nil
+	return withArea(q, read.List), nil
+}
+
+// Stored reports whether searches read the durable catalog, where metro areas
+// and folded runs apply. Database-free discovery ignores both.
+func (s *Service) Stored() bool { return s != nil && s.catalog != nil }
+
+// withArea names a metro search's area on its list. Lists can be shared
+// reads, so the area is set on this copy of the list value only.
+func withArea(q Query, list models.EventList) models.EventList {
+	if m, ok := q.Metro(); ok {
+		list.Area = &models.Area{Name: m.Name, Country: m.Country, Cities: m.Cities}
+	}
+	return list
 }
 
 // startRefresh returns a channel closed when the scope's in-process refresh
@@ -181,7 +232,50 @@ func (s *Service) storedEvent(ctx context.Context, id string) (models.EventDetai
 		return models.EventDetail{}, err
 	}
 	detail.History = h
+	detail.Dates, detail.DatesMore = s.eventDates(ctx, detail.Item)
 	return detail, nil
+}
+
+// DateLister is an optional Catalog capability: the stored listings of one
+// event's name at its venue, as Discover folds them into a run.
+type DateLister interface {
+	Dates(ctx context.Context, e models.Event, from, to string, notBefore time.Time, limit int) ([]models.EventDate, error)
+}
+
+// eventDates lists an event's upcoming run, including the event itself unless
+// it has started, or nil when there is nothing else to list. It reports whether
+// more listings exist beyond MaxEventDates. The run is optional enrichment: a
+// failed read leaves the event page usable.
+func (s *Service) eventDates(ctx context.Context, e models.Event) ([]models.EventDate, bool) {
+	lister, ok := s.catalog.(DateLister)
+	if !ok || e.Upsell() {
+		return nil, false
+	}
+	now := s.now().UTC()
+	// Yesterday in UTC keeps today's listings in every venue time zone; the
+	// instant filter then drops listings that have already started.
+	from := now.AddDate(0, 0, -1)
+	dates, err := lister.Dates(ctx, e, from.Format(time.DateOnly), from.AddDate(0, 0, 367).Format(time.DateOnly), now, models.MaxEventDates+1)
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("Could not read an event's other dates")
+		return nil, false
+	}
+	more := len(dates) > models.MaxEventDates
+	dates = dates[:min(len(dates), models.MaxEventDates)]
+	// A long run's later listing starts its own list, so it is always marked
+	// and opening the last listed date moves on to the dates after it.
+	at := slices.IndexFunc(dates, func(d models.EventDate) bool { return d.ID == e.ID })
+	if more && e.Start.LocalDate != nil && (at < 0 || at == len(dates)-1) {
+		later, err := lister.Dates(ctx, e, *e.Start.LocalDate, from.AddDate(0, 0, 367).Format(time.DateOnly), now, models.MaxEventDates+1)
+		if err == nil && len(later) > 0 {
+			more = len(later) > models.MaxEventDates
+			dates = later[:min(len(later), models.MaxEventDates)]
+		}
+	}
+	if len(dates) < 2 && !(len(dates) == 1 && dates[0].ID != e.ID) {
+		return nil, false
+	}
+	return dates, more
 }
 
 type storedRefresh struct {

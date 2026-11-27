@@ -36,6 +36,9 @@ their status; they describe intended work rather than available features.
   question, and benchmarked live replies for people taking part); Helpful
   acknowledgments, event-phase prompts and venue tips are proposed, within
   existing privacy and no-bumping guardrails.
+- [Pilot-city relevance check: Los Angeles](design/pilot-city-relevance.md):
+  pre-pilot fixes **implemented, not yet deployed** (Los Angeles area venues, one row per run,
+  hidden ticket add-ons) and the three-person moderated pilot run sheet.
 - [Backend and frontend delivery checklist](goals/delivery.md): current focus on
   everyday use, small flow fixes, manual/pilot verification, and post-deployment Kubernetes checks.
 - [Feature backlog](goals/feature-backlog.md): ordered candidate features for when

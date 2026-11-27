@@ -1,5 +1,6 @@
 package home
 
+import "fmt"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/internal/calendar"
 import "github.com/sonastea/ticketopia/views/layouts"
@@ -282,6 +283,10 @@ templ EventSectionContent(page EventPage) {
 						</a>
 					}
 				}
+				if len(page.Detail.Dates) > 1 {
+					<h3>All dates</h3>
+					@EventDates(page)
+				}
 				if featuringLabel(page.Detail.Item) != "" {
 					<h3>Featuring</h3>
 					<p>{ featuringLabel(page.Detail.Item) }</p>
@@ -311,6 +316,45 @@ templ EventSectionContent(page EventPage) {
 				}
 		}
 	</section>
+}
+
+// EventDates lists the event's run at this venue. Each date is its own event,
+// so people save, mark Interested or ask about the exact date they open. Long
+// runs keep the first dates visible and the rest behind a native disclosure.
+templ EventDates(page EventPage) {
+	{{ dates := page.Detail.Dates }}
+	{{ shown := min(len(dates), eventDatesShown) }}
+	<ul class="event-dates">
+		for _, d := range dates[:shown] {
+			@EventDateItem(page, d)
+		}
+	</ul>
+	if len(dates) > shown {
+		<details class="event-dates-more">
+			<summary>{ fmt.Sprintf("%d more dates", len(dates)-shown) }</summary>
+			<ul class="event-dates">
+				for _, d := range dates[shown:] {
+					@EventDateItem(page, d)
+				}
+			</ul>
+		</details>
+	}
+	if page.Detail.DatesMore {
+		<p class="field-note">More dates follow. Open the last date here to see the ones after it.</p>
+	}
+}
+
+templ EventDateItem(page EventPage, d models.EventDate) {
+	<li>
+		if d.ID == page.Detail.Item.ID {
+			<span class="event-date-current" aria-current="true">{ otherDateLabel(d) }<span class="event-date-note">{ " (this date)" }</span></span>
+		} else {
+			<a href={ templ.URL(eventURL(d.ID, "overview", page.ReturnURL)) } class="text-link">{ otherDateLabel(d) }</a>
+		}
+		if saleWithdrawn(d.Status) || d.Status == "rescheduled" {
+			@EventStatus(d.Status)
+		}
+	</li>
 }
 
 templ EventHistory(history *models.EventHistory) {

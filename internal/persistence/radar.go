@@ -63,8 +63,9 @@ func (r *RadarRepository) readAt(ctx context.Context, owner string, at time.Time
 	if scope.City == "" || scope.Country == "" {
 		return d, nil
 	}
-	q := discovery.Query{City: scope.City, Country: scope.Country, StartDate: scope.StartDate, EndDate: scope.EndDate}
-	d.Meta, d.Refresh, _, err = coverageStampAtTx(ctx, tx, q, freshFor, now)
+	// Radar reads the preferred city's metro, as Discover does on the web.
+	q := discovery.Query{City: scope.City, Country: scope.Country, StartDate: scope.StartDate, EndDate: scope.EndDate}.WithArea(discovery.AreaMetro)
+	d.Meta, d.Refresh, _, _, err = areaCoverageAtTx(ctx, tx, q, freshFor, now)
 	if err != nil {
 		return d, safeError("radar coverage", err)
 	}

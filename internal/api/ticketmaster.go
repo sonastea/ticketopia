@@ -125,14 +125,31 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 		}
 		delete(filters, "through")
 	}
+	// The web reads a city's metro and lists each run once unless the visitor
+	// chose only the city. The JSON API and agent tools keep both opt-in, and
+	// database-free discovery has neither, so its cache keys stay shared.
+	area := ""
 	if err == nil {
+		area = filters.Get("area")
+		if a.events.Stored() {
+			if !filters.Has("area") {
+				area = discovery.AreaMetro
+				filters.Set("area", area)
+			}
+			if !filters.Has("fold") {
+				filters.Set("fold", discovery.FoldRun)
+			}
+		}
 		page.Filters, err = discovery.ParseQuery(filters, now)
 	}
 	page.PageCursor = filters.Get("cursor")
 	if err == nil {
 		page.LocationSource, err = a.locateSearch(c, &page.Filters)
 		page.NeedsLocation = page.Filters.City == "" && page.Filters.VenueID == ""
+		// A remembered, account or detected city fills the search after parsing.
+		page.Filters = page.Filters.WithArea(area)
 	}
+	page.Areas = a.events.Stored()
 	// Without start_date the range starts today in the browsed city, not on the
 	// UTC date, which is already tomorrow during a US evening. A city's zone is
 	// learned from its results, so its first search may be corrected once.

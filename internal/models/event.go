@@ -28,6 +28,32 @@ type Event struct {
 	// Meta is a stored list read's per-event freshness. It is attached at read
 	// time and never persisted with the snapshot.
 	Meta *Freshness `json:"meta,omitempty"`
+	// Run summarizes the other listings this item stands for in a folded list
+	// read (fold=run). Like Meta, it is attached at read time only.
+	Run *Run `json:"run,omitempty"`
+}
+
+// Run describes a folded list item: same-named listings at the same venue
+// within the searched dates, which the item (the earliest) represents.
+type Run struct {
+	// Count includes the item itself, so it is at least 2.
+	Count int `json:"count"`
+	// Days is the number of distinct local dates.
+	Days     int    `json:"days"`
+	LastDate string `json:"last_date"`
+	// FirstTime and LastTime span a one-day run's local times when known.
+	FirstTime *string `json:"first_time,omitempty"`
+	LastTime  *string `json:"last_time,omitempty"`
+	// Changed counts other listings that are cancelled, postponed or rescheduled.
+	Changed int `json:"changed"`
+}
+
+// EventDate is one listing of the same event at the same venue.
+type EventDate struct {
+	ID        string  `json:"id"`
+	LocalDate string  `json:"local_date"`
+	LocalTime *string `json:"local_time"`
+	Status    string  `json:"status"`
 }
 
 type Source struct {
@@ -112,6 +138,22 @@ type Classification struct {
 	Segment  *NamedID `json:"segment"`
 	Genre    *NamedID `json:"genre"`
 	Subgenre *NamedID `json:"subgenre"`
+	// Type is Ticketmaster's listing type, such as Upsell for ticket add-ons.
+	Type *NamedID `json:"type,omitempty"`
+}
+
+// UpsellType is Ticketmaster's classification type for ticket add-ons (seat
+// upgrades, viewing decks), which are listed like events but are not events.
+const UpsellType = "KZAyXgnZfZ7v7nJ"
+
+// Upsell reports whether the provider marks this listing as a ticket add-on.
+func (e Event) Upsell() bool {
+	for _, c := range e.Classifications {
+		if c.Type != nil && c.Type.ID == UpsellType {
+			return true
+		}
+	}
+	return false
 }
 
 type Genre struct {
@@ -181,13 +223,29 @@ type EventList struct {
 	Total      int       `json:"total"`
 	Limited    bool      `json:"limited"`
 	Meta       Freshness `json:"meta"`
+	// Area names a metro search and the venue cities it read.
+	Area *Area `json:"area,omitempty"`
+}
+
+type Area struct {
+	Name    string   `json:"name"`
+	Country string   `json:"country"`
+	Cities  []string `json:"cities"`
 }
 
 type EventDetail struct {
 	Item    Event         `json:"item"`
 	Meta    Freshness     `json:"meta"`
 	History *EventHistory `json:"history,omitempty"`
+	// Dates lists upcoming listings with the same name at the same venue,
+	// including this one, when there are others; at most MaxEventDates.
+	Dates []EventDate `json:"dates,omitempty"`
+	// DatesMore reports more upcoming listings beyond Dates.
+	DatesMore bool `json:"dates_more,omitempty"`
 }
+
+// MaxEventDates bounds EventDetail.Dates.
+const MaxEventDates = 100
 
 type GenreList struct {
 	Items []Genre   `json:"items"`

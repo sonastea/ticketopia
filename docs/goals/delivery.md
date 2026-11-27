@@ -61,6 +61,8 @@ Next verification priorities:
   fixtures already cover the implemented journeys, but do not replace these checks.
 - Three people in a well-covered city: find a relevant event, save and return;
   also try question → reply → Helpful and private reporting/moderation before a public pilot.
+  Los Angeles is the chosen city; see the [pilot plan](../design/pilot-city-relevance.md)
+  for its proposed pre-pilot fixes and session script.
 - A live SES/inbox smoke test only if existing on-sale email delivery will be enabled.
 - Runner/GHCR publication is verified (2026-11-26).
 - **Later, with high availability and failover recovery** (outside the first

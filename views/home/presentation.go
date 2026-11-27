@@ -19,6 +19,7 @@ import (
 	"github.com/sonastea/ticketopia/internal/eventactivity"
 	"github.com/sonastea/ticketopia/internal/interests"
 	"github.com/sonastea/ticketopia/internal/models"
+	"github.com/sonastea/ticketopia/internal/radar"
 	"github.com/sonastea/ticketopia/internal/recommendations"
 	"github.com/sonastea/ticketopia/internal/saved"
 )
@@ -29,23 +30,25 @@ type SearchPage struct {
 	Categories            models.CategoryList
 	CategoriesUnavailable bool
 	LocationSource        string
-	NeedsLocation         bool
-	Error                 string
-	ReturnURL             string
-	SelectedID            string
-	Selected              *models.EventDetail
-	SelectionError        string
-	Section               string
-	Saves                 SaveView
-	Interests             InterestView
-	Participants          interests.Participants
-	ParticipantsError     string
-	Recommendations       RecommendationView
-	Discussions           DiscussionView
-	Thread                *DiscussionPage
-	ActionReturnURL       string
-	Activity              map[string]eventactivity.Preview
-	ActivityError         string
+	// Areas reports that metro areas apply (stored discovery only).
+	Areas             bool
+	NeedsLocation     bool
+	Error             string
+	ReturnURL         string
+	SelectedID        string
+	Selected          *models.EventDetail
+	SelectionError    string
+	Section           string
+	Saves             SaveView
+	Interests         InterestView
+	Participants      interests.Participants
+	ParticipantsError string
+	Recommendations   RecommendationView
+	Discussions       DiscussionView
+	Thread            *DiscussionPage
+	ActionReturnURL   string
+	Activity          map[string]eventactivity.Preview
+	ActivityError     string
 	// PageCursor read the last rendered page; empty for the first page.
 	PageCursor string
 	// Today is the browsed city's calendar day (YYYY-MM-DD) once its time
@@ -728,10 +731,24 @@ func dateChips(page SearchPage) []dateChip { return dateChipsAt(page, time.Now()
 func searchResultsHeading(page SearchPage) string {
 	for _, chip := range dateChips(page) {
 		if chip.Current && page.Filters.City != "" {
-			return chip.Label + " in " + page.Filters.City
+			return chip.Label + " in " + placeName(page)
 		}
 	}
 	return "Upcoming events"
+}
+
+// placeName is the searched place in a sentence: a metro reads as "the Los
+// Angeles area", any other search as its city.
+func placeName(page SearchPage) string {
+	if m, ok := page.Filters.Metro(); ok && page.Areas {
+		return "the " + m.Name
+	}
+	return page.Filters.City
+}
+
+// areaURL is this search widened to its metro, or narrowed to its city.
+func areaURL(q discovery.Query, area string) string {
+	return "/?" + q.WithArea(area).Values().Encode()
 }
 
 func clearSearchKeyword(page SearchPage) string {
@@ -768,6 +785,9 @@ func searchToday(events []models.Event, now time.Time) time.Time {
 }
 
 func cityLabel(page SearchPage) string {
+	if _, ok := page.Filters.Metro(); ok && page.Areas {
+		return placeName(page)
+	}
 	if page.Filters.Country != "" {
 		return page.Filters.City + ", " + page.Filters.Country
 	}
@@ -812,6 +832,49 @@ func agendaStartLabel(start models.EventStart, kind string) string {
 		return withTime(date.Format("Mon, Jan 2"), start)
 	}
 	return ""
+}
+
+// runLabel describes the other listings a folded row stands for. The row's
+// own date and time stay those of the listing it opens, so this says what
+// else there is rather than restating a range.
+func runLabel(run *models.Run) string {
+	if run == nil || run.Count < 2 {
+		return ""
+	}
+	var label string
+	switch {
+	case run.Days <= 1:
+		more := run.Count - 1
+		label = fmt.Sprintf("Also %d more %s that day", more, ternary(more == 1, "time", "times"))
+		if run.LastTime != nil {
+			if clock, err := time.Parse(time.TimeOnly, *run.LastTime); err == nil {
+				label += ", until " + clock.Format("3:04 PM")
+			}
+		}
+	case run.Count == run.Days:
+		more := run.Days - 1
+		label = fmt.Sprintf("Also on %d more %s", more, ternary(more == 1, "date", "dates"))
+	default:
+		label = fmt.Sprintf("%d times over %d days", run.Count, run.Days)
+	}
+	if run.Days > 1 {
+		if last, err := time.Parse(time.DateOnly, run.LastDate); err == nil {
+			label += ", through " + last.Format("Mon, Jan 2")
+		}
+	}
+	if run.Changed > 0 {
+		label += ". Some dates changed"
+	}
+	return label
+}
+
+// eventDatesShown is how many of an event's dates show before a disclosure.
+const eventDatesShown = 10
+
+// otherDateLabel is one listing in an event page's run.
+func otherDateLabel(d models.EventDate) string {
+	start := models.EventStart{LocalDate: &d.LocalDate, LocalTime: d.LocalTime, NoSpecificTime: d.LocalTime == nil}
+	return startLabel(start)
 }
 
 func withTime(label string, start models.EventStart) string {
@@ -1261,6 +1324,14 @@ func anyStale(feed recommendations.Feed) bool {
 
 // scopeDates shows a Radar date range ("2026-11-19", "2027-02-16") as
 // "Nov 19, 2026 – Feb 16, 2027", leaving unparseable values as they came.
+// radarPlace names where Radar looks: the city's metro area when it has one.
+func radarPlace(scope radar.Scope) string {
+	if scope.Area != "" {
+		return scope.Area + " (around " + scope.City + "), " + scope.Country
+	}
+	return scope.City + ", " + scope.Country
+}
+
 func scopeDates(start, end string) string {
 	label := func(raw string) string {
 		if day, err := time.Parse("2006-01-02", raw); err == nil {

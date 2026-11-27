@@ -26,7 +26,9 @@ import (
 	"golang.org/x/net/html"
 )
 
-const historyQuery = "city=Boston&country=US&start_date=2026-10-02&end_date=2026-10-31"
+// fold=run is explicit: stored web searches default to it, and the JSON API
+// requests that mint these cursors must share the web's filters.
+const historyQuery = "city=Boston&country=US&start_date=2026-10-02&end_date=2026-10-31&fold=run"
 
 // Exercise the HTML handler through the real discovery service, with a narrow
 // catalog fake for keyset pages. No collection, account, or provider writes run.

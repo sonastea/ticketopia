@@ -79,6 +79,9 @@ templ EventRow(event models.Event, returnURL string, selectedID string, saves Sa
 			</p>
 			<h3 style={ transitionStyle("title", event.ID) }><a href={ overviewURL } class="event-link" data-event-link data-id={ event.ID } aria-current={ selected }>{ event.Name }</a></h3>
 			<p class="event-venue">{ venueLabel(event) }</p>
+			if run := runLabel(event.Run); run != "" {
+				<p class="event-run">{ run }</p>
+			}
 			// The lowest known price leads the facts, in ink; an unknown price
 			// keeps its explicit label.
 			{{ from := fromPriceLabel(event.PriceRanges) }}

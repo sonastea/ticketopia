@@ -185,7 +185,7 @@ func Radar(page RadarPage) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = layouts.ResultsMeta(page.List.Scope.City+", "+page.List.Scope.Country+" · "+scopeDates(page.List.Scope.StartDate, page.List.Scope.EndDate), "").Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = layouts.ResultsMeta(radarPlace(page.List.Scope)+" · "+scopeDates(page.List.Scope.StartDate, page.List.Scope.EndDate), "").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -22,6 +22,9 @@ The page labels a detected city as estimated from the IP address and a remembere
 city as remembered. **Change city** focuses the editable field. IP location can
 reflect a VPN, mobile carrier, or network gateway; it is an approximate city hint.
 Event filtering is city-based, rather than a distance radius around GPS coordinates.
+A city in a [metro area](discovery.md#metro-areas-and-runs), such as Los Angeles,
+reads the whole area on the web unless the visitor chooses only the city. The
+remembered city does not store that choice.
 
 With no usable city or venue, the page fetches neither events nor genres from
 Ticketmaster. Entering a city starts normal discovery. Localhost and private-network

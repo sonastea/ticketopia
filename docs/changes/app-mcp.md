@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### 2026-11-27 — `find_events` metro areas and runs
+
+- `find_events` takes opt-in `area=metro` (for example the Los Angeles area) and
+  `fold=run` (each run of same-named listings at one venue once), matching the
+  web's Discover. `event_details` returns the event's other `dates`. See
+  [metro areas and runs](../discovery.md#metro-areas-and-runs).
+
 ### 2026-11-26 — Agents post with consent, labelled Agent
 
 - With `publish`, agents post questions, tips and replies (`post_question`,
@@ -85,11 +92,3 @@
   (a thread with a page of its replies), `community_recommendations`,
   `community_discussions`, `user_profile` and `happening_now`. Their profile IDs feed `profile_activity`. See
   [tools](../app-mcp.md#tools).
-
-### 2026-11-14 — Event community and profile activity tools
-
-- Add public, read-only `event_community` and `profile_activity`, sharing the
-  code behind `GET /api/v1/events/{id}/community` and `/users/{id}/activity`,
-  so agents and API clients get identical results. Signed in with `read`,
-  `event_community` adds the caller's own state, and `profile_activity` without
-  `user_id` reads the caller's own timeline. See [tools](../app-mcp.md#tools).

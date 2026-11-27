@@ -20,7 +20,7 @@ use their browser’s address.
 
 | Tool | Behavior |
 |---|---|
-| `find_events` | Search by city, country, dates, category, keyword, sort and limit, with `cursor` paging. Same validation, defaults, caching and results as Discover and `GET /api/v1/events`. Signed in, a search without city, country or keyword uses the account's saved city, as Discover does, and reports it as `default_location`; keyword searches (an artist's tour) stay unrestricted. |
+| `find_events` | Search by city, country, dates, category, keyword, sort and limit, with `cursor` paging. Same validation, defaults, caching and results as `GET /api/v1/events`; opt-in `area=metro` (a city's [metro area](discovery.md#metro-areas-and-runs)) and `fold=run` (each run once) match what Discover shows on the web. Signed in, a search without city, country or keyword uses the account's saved city, as Discover does, and reports it as `default_location`; keyword searches (an artist's tour) stay unrestricted. |
 | `list_categories` | Categories and their IDs for `find_events` `category_id`, as `GET /api/v1/categories`. |
 | `event_details` | One event by ID, as `GET /api/v1/events/{event_id}`, including the durable last-known fallback. |
 | `event_community` | An event's public totals (interested including private choices, active recommendations, visible questions and tips), as `GET /api/v1/events/{event_id}/community`. Signed in with `read`, `viewer` adds the caller's own saved, Interested and recommended state; otherwise it is `null`. An ID that names no event is not found; zeros mean the event is quiet, or that it couldn't be checked while the provider is unavailable. |

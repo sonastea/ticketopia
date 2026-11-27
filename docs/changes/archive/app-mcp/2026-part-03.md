@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 2026-11-14 — Event community and profile activity tools
+
+- Add public, read-only `event_community` and `profile_activity`, sharing the
+  code behind `GET /api/v1/events/{id}/community` and `/users/{id}/activity`,
+  so agents and API clients get identical results. Signed in with `read`,
+  `event_community` adds the caller's own state, and `profile_activity` without
+  `user_id` reads the caller's own timeline. See [tools](../app-mcp.md#tools).
+
 ### 2026-11-14 — Agent publishing, phase 1
 
 - Add a third OAuth scope, `publish`: never implied by `write`, never requested

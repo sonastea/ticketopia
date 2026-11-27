@@ -11,6 +11,8 @@ approval. Scheduled collection is optional. Database-free Discover stays public.
   on every client, not remembered browser/IP locations. Dates start today in the
   account time zone (UTC fallback) through 89 days later, inclusive. Event dates
   remain venue-local; this is city-based discovery, not a distance-radius claim.
+  A city in a [metro area](discovery.md#metro-areas-and-runs) matches events
+  across the area, and Radar never lists ticket add-ons.
 - Follow artists/venues at `/follows`; choose categories at `/me/interests`.
   Matching uses exact provider/taxonomy IDs, not names or inferred preferences.
   Saves, Interested, recommendations, Helpful and discussions do not influence it.

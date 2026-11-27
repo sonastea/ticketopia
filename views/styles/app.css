@@ -913,6 +913,16 @@ h3 {
   font-size: .75rem;
 }
 
+/* The metro choice: a sentence and one ordinary link, wrapping as needed. */
+.location-area {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: .5rem;
+  margin-block-start: 0;
+}
+.location-area .text-link { font-size: .8125rem; }
+
 .intro {
   color: var(--muted-warm);
   margin-block-start: .6rem;
@@ -1168,10 +1178,10 @@ summary::-webkit-details-marker {
 /* Text disclosures share one chevron in every browser instead of the UA marker
    (drawn by Chromium and Firefox, hidden in WebKit). Borders survive forced
    colours; the drawn geometry is physical. */
-:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal) > summary {
+:is(.account-more, .follow-search, .event-provenance, .event-dates-more, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal) > summary {
   list-style: none;
 }
-:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal) > summary::after {
+:is(.account-more, .follow-search, .event-provenance, .event-dates-more, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal) > summary::after {
   content: "";
   display: inline-block;
   inline-size: .45em;
@@ -1182,7 +1192,7 @@ summary::-webkit-details-marker {
   border-bottom: 2px solid currentColor;
   rotate: 45deg;
 }
-:is(.account-more, .follow-search, .event-provenance, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal)[open] > summary::after {
+:is(.account-more, .follow-search, .event-provenance, .event-dates-more, .account-token-details, .freshness-notice, .discussion-owner-editor, .discussion-removal)[open] > summary::after {
   rotate: 225deg;
   vertical-align: -.05em;
 }
@@ -2012,6 +2022,47 @@ html:has(.filter-sheet:modal) {
 .event-venue {
   font-size: .875rem;
   color: var(--muted-warm);
+}
+
+/* A folded row's other listings, read with the date rather than as body text. */
+.event-run {
+  margin-block-start: .25rem;
+  font-size: .8125rem;
+  color: var(--brand-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An event page's run: one date per line, each a link to that listing. */
+.event-dates {
+  display: grid;
+  gap: .25rem;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.event-dates > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .75rem;
+}
+.event-date-current {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .35rem;
+  min-block-size: 2.75rem;
+  padding-block-start: .7rem;
+  font-weight: 700;
+}
+.event-date-note { color: var(--muted-warm); font-weight: 400; }
+.event-dates-more > summary {
+  display: block;
+  padding-block: .7rem;
+  min-block-size: 2.75rem;
+  color: var(--brand);
+  font-size: .875rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 :is(.event-metadata, .event-summary, .ticket-price) {

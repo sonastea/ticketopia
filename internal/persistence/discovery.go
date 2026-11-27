@@ -141,15 +141,41 @@ func searchFacets(e models.Event) []searchFacet {
 		if c.Genre != nil {
 			facets = append(facets, searchFacet{"genre", c.Genre.ID})
 		}
+		// Only the listing type Discover excludes is projected; other types
+		// (Undefined on nearly every event) would only add rows.
+		if c.Type != nil && c.Type.ID == models.UpsellType {
+			facets = append(facets, searchFacet{"type", c.Type.ID})
+		}
 	}
 	return facets
 }
+
+// runVenue keys a run by its first venue. A listing without one never folds.
+// runName compares titles exactly: the column's collation would also join
+// differently cased or accented titles ("Cafe" and "Café").
+const (
+	runVenue = `COALESCE(JSON_VALUE(e.venues,'$[0].id'),e.event_id)`
+	runName  = `BINARY e.name`
+	// runClock is a listing's announced local time, never a placeholder.
+	runClock = `CASE WHEN e.time_tba=0 AND e.no_specific_time=0 AND e.local_time<>'' THEN e.local_time END`
+)
 
 // searchFrom returns the FROM and WHERE of a stored search over events e and
 // event_snapshots s. A city and country search starts from that place's rows:
 // otherwise MariaDB may read every snapshot in every city, then discard all
 // but this one. The place key (event_id, city, country) keeps one row per event.
 func searchFrom(q discovery.Query) (string, []any) {
+	// A metro reads each member's place rows. An event can have places in two
+	// members (venue and event place), so its IDs are made distinct first.
+	if m, ok := q.Metro(); ok {
+		where, args := searchWhere(q, false)
+		head := make([]any, 0, len(m.Cities)+1+len(args))
+		for _, city := range m.Cities {
+			head = append(head, city)
+		}
+		head = append(head, m.Country)
+		return ` FROM (SELECT DISTINCT event_id FROM event_search_places WHERE city IN (` + placeholders(len(m.Cities)) + `) AND country=?) p STRAIGHT_JOIN events e ON e.event_id=p.event_id STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id WHERE ` + where, append(head, args...)
+	}
 	if q.City != "" && q.Country != "" {
 		where, args := searchWhere(q, false)
 		return ` FROM event_search_places p STRAIGHT_JOIN events e ON e.event_id=p.event_id STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id WHERE p.city=? AND p.country=? AND ` + where, append([]any{q.City, q.Country}, args...)
@@ -185,39 +211,100 @@ func searchWhere(q discovery.Query, place bool) (string, []any) {
 		where += ` AND (e.name LIKE ? ESCAPE '=' OR EXISTS (SELECT 1 FROM JSON_TABLE(e.artists,'$[*]' COLUMNS(name VARCHAR(1024) PATH '$.name')) a WHERE a.name LIKE ? ESCAPE '=') OR EXISTS (SELECT 1 FROM JSON_TABLE(e.venues,'$[*]' COLUMNS(name VARCHAR(1024) PATH '$.name')) v WHERE v.name LIKE ? ESCAPE '='))`
 		args = append(args, pattern, pattern, pattern)
 	}
+	// Ticket add-ons are listed like events but are not events. The probe is a
+	// primary-key lookup per candidate row.
+	where += ` AND NOT EXISTS (SELECT 1 FROM event_search_facets x WHERE x.event_id=e.event_id AND x.kind='type' AND x.value=?)`
+	args = append(args, models.UpsellType)
 	return where, args
 }
 
 func discoverCountQuery(q discovery.Query) (string, []any) {
 	from, args := searchFrom(q)
+	if q.Fold == discovery.FoldRun {
+		return `SELECT COUNT(DISTINCT ` + runName + `,` + runVenue + `)` + from, args
+	}
 	return `SELECT COUNT(*)` + from, args
 }
 
+func discoverOrder(q discovery.Query, a string) string {
+	switch q.Sort {
+	case "date_desc":
+		return a + `.local_date DESC,` + a + `.local_time DESC,` + a + `.name,` + a + `.event_id`
+	case "name_asc":
+		return a + `.name,` + a + `.local_date,` + a + `.local_time,` + a + `.event_id`
+	}
+	return a + `.local_date,` + a + `.local_time,` + a + `.name,` + a + `.event_id`
+}
+
+// discoverAfter is the keyset condition for rows after cursor, on alias a.
+func discoverAfter(q discovery.Query, cursor *discovery.Cursor, a string) (string, []any) {
+	if cursor == nil {
+		return "", nil
+	}
+	clock := `COALESCE(` + a + `.local_time,'')`
+	switch q.Sort {
+	case "date_desc":
+		return ` AND ` + a + `.local_date<=? AND (` + a + `.local_date<? OR (` + a + `.local_date=? AND (` + clock + `<? OR (` + clock + `=? AND (` + a + `.name,` + a + `.event_id)>(?,?)))))`,
+			[]any{cursor.Date, cursor.Date, cursor.Date, cursor.Time, cursor.Time, cursor.Name, cursor.ID}
+	case "name_asc":
+		return ` AND ` + a + `.name>=? AND (` + a + `.name,` + a + `.local_date,` + clock + `,` + a + `.event_id)>(?,?,?,?)`,
+			[]any{cursor.Name, cursor.Name, cursor.Date, cursor.Time, cursor.ID}
+	}
+	return ` AND ` + a + `.local_date>=? AND (` + a + `.local_date,` + clock + `,` + a + `.name,` + a + `.event_id)>(?,?,?,?)`,
+		[]any{cursor.Date, cursor.Date, cursor.Time, cursor.Name, cursor.ID}
+}
+
 func discoverPageQuery(q discovery.Query, cursor *discovery.Cursor) (string, []any) {
+	if q.Fold == discovery.FoldRun {
+		return discoverRunPageQuery(q, cursor)
+	}
 	from, args := searchFrom(q)
-	order := `e.local_date,e.local_time,e.name,e.event_id`
-	if q.Sort == "date_desc" {
-		order = `e.local_date DESC,e.local_time DESC,e.name,e.event_id`
-	}
-	if q.Sort == "name_asc" {
-		order = `e.name,e.local_date,e.local_time,e.event_id`
-	}
-	if cursor != nil {
-		switch q.Sort {
-		case "date_desc":
-			from += ` AND e.local_date<=? AND (e.local_date<? OR (e.local_date=? AND (COALESCE(e.local_time,'')<? OR (COALESCE(e.local_time,'')=? AND (e.name,e.event_id)>(?,?)))))`
-			args = append(args, cursor.Date, cursor.Date, cursor.Date, cursor.Time, cursor.Time, cursor.Name, cursor.ID)
-		case "name_asc":
-			from += ` AND e.name>=? AND (e.name,e.local_date,COALESCE(e.local_time,''),e.event_id)>(?,?,?,?)`
-			args = append(args, cursor.Name, cursor.Name, cursor.Date, cursor.Time, cursor.ID)
-		default:
-			from += ` AND e.local_date>=? AND (e.local_date,COALESCE(e.local_time,''),e.name,e.event_id)>(?,?,?,?)`
-			args = append(args, cursor.Date, cursor.Date, cursor.Time, cursor.Name, cursor.ID)
-		}
-	}
+	order := discoverOrder(q, "e")
+	after, afterArgs := discoverAfter(q, cursor, "e")
+	from += after
+	args = append(args, afterArgs...)
 	// The derived table's ORDER BY only selects the page; join strategies such as
 	// batched key access may return it in another order, so order the outer rows.
 	return `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id) FROM (SELECT e.event_id,e.local_date,e.local_time,e.name` + from + ` ORDER BY ` + order + ` LIMIT ?) e STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id ORDER BY ` + order, append(args, q.Limit+1)
+}
+
+// discoverRunPageQuery pages over runs: listings with the same name at the
+// same first venue, among the rows the filters match. Each run is listed as
+// its earliest listing, so the keyset cursor keeps its ordinary shape. Runs
+// are computed over every matching row, which the city and date filters bound.
+func discoverRunPageQuery(q discovery.Query, cursor *discovery.Cursor) (string, []any) {
+	from, args := searchFrom(q)
+	// day_rn marks each run's first listing on a date, so run_days counts dates.
+	listings := `SELECT e.event_id,e.local_date,e.local_time,e.name,e.status,` + runName + ` AS run_name,` + runVenue + ` AS run_venue,` + runClock + ` AS run_clock,
+ ROW_NUMBER() OVER (PARTITION BY ` + runName + `,` + runVenue + `,e.local_date ORDER BY COALESCE(e.local_time,''),e.event_id) AS day_rn` + from
+	runs := `SELECT r.*,ROW_NUMBER() OVER (PARTITION BY r.run_name,r.run_venue ORDER BY r.local_date,COALESCE(r.local_time,''),r.event_id) AS rn,
+ COUNT(*) OVER g AS run_count,SUM(r.day_rn=1) OVER g AS run_days,MAX(r.local_date) OVER g AS run_last,
+ MIN(r.run_clock) OVER g AS run_first_time,MAX(r.run_clock) OVER g AS run_last_time,
+ SUM(BINARY r.status IN ('cancelled','canceled','postponed','rescheduled')) OVER g AS run_changed
+ FROM (` + listings + `) r WINDOW g AS (PARTITION BY r.run_name,r.run_venue)`
+	after, afterArgs := discoverAfter(q, cursor, "x")
+	args = append(args, afterArgs...)
+	page := `SELECT x.event_id,x.local_date,x.local_time,x.name,x.status,x.run_count,x.run_days,x.run_last,x.run_first_time,x.run_last_time,x.run_changed
+ FROM (` + runs + `) x WHERE x.rn=1` + after + ` ORDER BY ` + discoverOrder(q, "x") + ` LIMIT ?`
+	return `SELECT s.snapshot,s.data_as_of,EXISTS(SELECT 1 FROM event_detail_tasks d WHERE d.event_id=e.event_id),
+ e.status,e.run_count,e.run_days,e.run_last,e.run_first_time,e.run_last_time,e.run_changed
+ FROM (` + page + `) e STRAIGHT_JOIN event_snapshots s ON s.event_id=e.event_id ORDER BY ` + discoverOrder(q, "e"), append(args, q.Limit+1)
+}
+
+// runSummary is a folded row's Run, or nil for a run of one listing.
+func runSummary(status string, count, days int, last string, first, lastTime sql.NullString, changed int) *models.Run {
+	if count < 2 {
+		return nil
+	}
+	run := &models.Run{Count: count, Days: days, LastDate: last, Changed: changed}
+	switch status {
+	case "cancelled", "canceled", "postponed", "rescheduled":
+		run.Changed-- // the listed item shows its own status
+	}
+	if days == 1 && first.Valid && lastTime.Valid {
+		run.FirstTime, run.LastTime = &first.String, &lastTime.String
+	}
+	return run
 }
 
 // A zero reference retains the database clock used by live coverage/leases.
@@ -286,11 +373,11 @@ func (r *DiscoveryRepository) searchAt(ctx context.Context, q discovery.Query, f
 		}
 		cursor = &c
 	}
-	meta, refresh, stamp, err := coverageStampAtTx(ctx, tx, q, freshFor, coverageNow)
+	meta, refresh, stamp, due, err := areaCoverageAtTx(ctx, tx, q, freshFor, coverageNow)
 	if err != nil {
 		return read, safeError("discover coverage", err)
 	}
-	read.List.Meta, read.Refresh = meta, refresh
+	read.List.Meta, read.Refresh, read.RefreshScopes = meta, refresh, due
 	// Fresh complete coverage dates the list itself. Retained events it omitted
 	// (cancelled, moved or removed upstream) carry their own last-known meta
 	// instead, so one unverifiable event cannot mark every page stale.
@@ -310,11 +397,25 @@ func (r *DiscoveryRepository) searchAt(ctx context.Context, q discovery.Query, f
 		var at time.Time
 		var unconfirmed bool
 		var event models.Event
-		if err = rows.Scan(&data, &at, &unconfirmed); err != nil {
+		var run struct {
+			status              string
+			count, days, change int
+			last                string
+			first, lastTime     sql.NullString
+		}
+		if q.Fold == discovery.FoldRun {
+			err = rows.Scan(&data, &at, &unconfirmed, &run.status, &run.count, &run.days, &run.last, &run.first, &run.lastTime, &run.change)
+		} else {
+			err = rows.Scan(&data, &at, &unconfirmed)
+		}
+		if err != nil {
 			break
 		}
 		if err = json.Unmarshal(data, &event); err != nil {
 			break
+		}
+		if q.Fold == discovery.FoldRun {
+			event.Run = runSummary(run.status, run.count, run.days, run.last, run.first, run.lastTime, run.change)
 		}
 		item := models.Freshness{DataAsOf: at, Stale: now.Sub(at) > freshFor || unconfirmed}
 		event.Meta = &item
@@ -377,6 +478,61 @@ func (r *DiscoveryRepository) searchAt(ctx context.Context, q discovery.Query, f
 	}
 	read.List.Limited = read.List.Meta.Coverage.Status == "partial"
 	return read, nil
+}
+
+// areaCoverageAtTx is coverageStampAtTx for a city or a metro. A metro is as
+// covered as its least-covered member: complete only when every member is,
+// dated by its oldest member's data, and in need of refresh if any member is.
+// Its stamp changes whenever any member's receipts change.
+// It also returns the members due for refresh; only those are collected.
+func areaCoverageAtTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor time.Duration, now time.Time) (models.Freshness, bool, coverageStamp, []discovery.Query, error) {
+	if _, ok := q.Metro(); !ok {
+		meta, refresh, stamp, err := coverageStampAtTx(ctx, tx, q, freshFor, now)
+		return meta, refresh, stamp, nil, err
+	}
+	var meta models.Freshness
+	var stamp coverageStamp
+	var due []discovery.Query
+	refresh := false
+	counts := map[string]int{}
+	members := q.MemberQueries()
+	for i, member := range members {
+		m, r, s, err := coverageStampAtTx(ctx, tx, member, freshFor, now)
+		if err != nil {
+			return meta, false, stamp, nil, err
+		}
+		refresh = refresh || r
+		if r {
+			due = append(due, member)
+		}
+		counts[m.Coverage.Status]++
+		if i == 0 || m.Coverage.CollectedDays < meta.Coverage.CollectedDays {
+			meta.Coverage = &models.Coverage{Status: "", CollectedDays: m.Coverage.CollectedDays, TotalDays: m.Coverage.TotalDays}
+		}
+		if !m.DataAsOf.IsZero() && (meta.DataAsOf.IsZero() || m.DataAsOf.Before(meta.DataAsOf)) {
+			meta.DataAsOf = m.DataAsOf
+		}
+		meta.Stale = meta.Stale || m.Stale
+		stamp.newestSuccess += s.newestSuccess
+		stamp.newestAttempt += s.newestAttempt
+		stamp.scopes += s.scopes
+		stamp.freshDays += s.freshDays
+	}
+	switch {
+	case counts["complete"] == len(members):
+		meta.Coverage.Status = "complete"
+	case counts["not_collected"] == len(members):
+		meta.Coverage.Status = "not_collected"
+	case counts["partial"]+counts["not_collected"] > 0:
+		meta.Coverage.Status = "partial"
+	default:
+		meta.Coverage.Status = "stale"
+	}
+	stamp.status, stamp.collectedDays, stamp.stale, stamp.refresh = meta.Coverage.Status, meta.Coverage.CollectedDays, meta.Stale, refresh
+	if !meta.DataAsOf.IsZero() {
+		stamp.dataAsOf = meta.DataAsOf.UTC().UnixMicro()
+	}
+	return meta, refresh, stamp, due, nil
 }
 
 func coverageTx(ctx context.Context, tx *sql.Tx, q discovery.Query, freshFor time.Duration) (models.Freshness, bool, error) {
@@ -679,6 +835,42 @@ func (r *DiscoveryRepository) Snapshots(ctx context.Context, ids []string) (map[
 		return events, safeError("event snapshots", err)
 	}
 	return events, nil
+}
+
+// Dates lists stored listings with e's name at e's first venue on local dates
+// from through to, soonest first, at most limit. It is the run Discover folds,
+// read for one event page; ticket add-ons, undated listings and listings that
+// started before notBefore are omitted (a listing without an instant stays).
+func (r *DiscoveryRepository) Dates(ctx context.Context, e models.Event, from, to string, notBefore time.Time, limit int) ([]models.EventDate, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	venue := e.ID
+	if len(e.Venues) > 0 && e.Venues[0].ID != "" {
+		venue = e.Venues[0].ID
+	}
+	dates := []models.EventDate{}
+	// e.name=? uses the name index; the binary comparison keeps the run exact.
+	err := queryRowsTx(ctx, r.db, `SELECT e.event_id,e.local_date,`+runClock+`,e.status FROM events e
+ WHERE e.name=? AND `+runName+`=? AND `+runVenue+`=? AND e.local_date BETWEEN ? AND ? AND e.date_tba=0 AND e.date_tbd=0
+ AND (e.start_utc IS NULL OR e.start_utc>=?)
+ AND NOT EXISTS (SELECT 1 FROM event_search_facets x WHERE x.event_id=e.event_id AND x.kind='type' AND x.value=?)
+ ORDER BY e.local_date,COALESCE(e.local_time,''),e.event_id LIMIT ?`,
+		[]any{e.Name, e.Name, venue, from, to, notBefore.UTC(), models.UpsellType, limit}, func(rows *sql.Rows) error {
+			var d models.EventDate
+			var clock sql.NullString
+			if err := rows.Scan(&d.ID, &d.LocalDate, &clock, &d.Status); err != nil {
+				return err
+			}
+			if clock.Valid && clock.String != "" {
+				d.LocalTime = &clock.String
+			}
+			dates = append(dates, d)
+			return nil
+		})
+	if err != nil {
+		return nil, safeError("event dates", err)
+	}
+	return dates, nil
 }
 
 func (r *DiscoveryRepository) Observe(ctx context.Context, d models.EventDetail) error {

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.31.0
+  version: 1.32.0
   license:
     name: MIT
     identifier: MIT
@@ -357,6 +357,10 @@ paths:
         Unknown filters, repeated parameters, and invalid cursors return 400.
         Searches default to all categories. Legacy genre-only searches imply Music.
         Cursors issued before category support must be replaced by a new search.
+        MariaDB mode omits ticket add-ons (Ticketmaster's Upsell listing type) once
+        their snapshots are tagged, which happens when they are next collected.
+        area=metro and fold=run are opt-in and apply in MariaDB mode; database-free
+        mode ignores them (cursors still bind them). The web UI uses both.
       parameters:
         - {$ref: '#/components/parameters/IfNoneMatch'}
         - {name: city, in: query, schema: {type: string, maxLength: 120}}
@@ -374,6 +378,14 @@ paths:
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
         - {name: cursor, in: query, schema: {type: string, maxLength: 512}}
         - {name: sort, in: query, schema: {type: string, enum: [date_asc, date_desc, name_asc], default: date_asc}}
+        - name: area
+          in: query
+          description: 'metro widens a city that belongs to a metro (such as Los Angeles, including Inglewood, Hollywood and Anaheim) to all its venue cities, reported as area; the metro''s members are read in the metro''s country, with or without country. city keeps the exact city, like omitting it. Either is ignored for a city without a metro. Coverage is complete only when every member city is collected; meta.coverage.collected_days is then the least-collected member''s count.'
+          schema: {type: string, enum: [city, metro]}
+        - name: fold
+          in: query
+          description: 'run lists each run (listings with the same name at the same first venue within the dates, such as a theatre run or timed entry slots) once, as its earliest listing with a run summary. total then counts runs.'
+          schema: {type: string, enum: [run]}
       responses:
         '200':
           description: Events and source freshness. Empty results are cached too.
@@ -391,6 +403,14 @@ paths:
                   total: {type: integer, minimum: 0, description: 'MariaDB mode counts matching stored events; database-free mode reports the provider total.'}
                   limited: {type: boolean, description: 'Collection is partial, or database-free provider paging is capped. SQL pagination itself is not capped at 1000.'}
                   meta: {$ref: '#/components/schemas/Freshness'}
+                  area:
+                    description: Present for a metro search.
+                    type: object
+                    required: [name, country, cities]
+                    properties:
+                      name: {type: string, examples: [Los Angeles area]}
+                      country: {type: string}
+                      cities: {type: array, items: {type: string}, description: Venue cities the search read.}
         '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '503': {$ref: '#/components/responses/Unavailable'}
@@ -420,6 +440,12 @@ paths:
                   item: {$ref: '#/components/schemas/Event'}
                   meta: {$ref: '#/components/schemas/Freshness'}
                   history: {$ref: '#/components/schemas/EventHistory'}
+                  dates:
+                    type: array
+                    maxItems: 100
+                    items: {$ref: '#/components/schemas/EventDate'}
+                    description: 'MariaDB mode: upcoming stored listings with exactly the same name at the same first venue, soonest first, omitting listings that have started. Includes this one unless it has started; when this one is the last of the first 100 or falls after them, the list starts at its date, so opening the last listed date pages forward. Omitted when there is nothing else to list.'
+                  dates_more: {type: boolean, description: 'More upcoming listings follow the last entry in dates. Omitted when false.'}
         '304': {$ref: '#/components/responses/PublicNotModified'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '404':
@@ -989,6 +1015,8 @@ paths:
         Repeated classifications/lineups do not multiply weights. Cancelled,
         postponed, undated/TBA/TBD and already elapsed known instants are excluded.
         Missing metadata is not invented; known IDs still match without labels.
+        A preferred city in a metro area (such as Los Angeles) matches events across
+        the area, named in scope.area. Ticket add-ons are never listed.
         No city or country returns mode needs_location and no items. Without
         follows/categories, mode nearby returns dated city suggestions with a
         nearby reason, not claimed personalized matches. Otherwise mode personalized
@@ -3324,6 +3352,7 @@ components:
           properties:
             city: {type: string}
             country: {type: string}
+            area: {type: string, description: 'The metro area Radar reads for this city, such as Los Angeles area. Omitted for a city without one.'}
             start_date: {type: string, format: date}
             end_date: {type: string, format: date}
         meta: {$ref: '#/components/schemas/Freshness'}
@@ -3465,6 +3494,28 @@ components:
         segment: {anyOf: [{$ref: '#/components/schemas/NamedID'}, {type: 'null'}]}
         genre: {anyOf: [{$ref: '#/components/schemas/NamedID'}, {type: 'null'}]}
         subgenre: {anyOf: [{$ref: '#/components/schemas/NamedID'}, {type: 'null'}]}
+        type:
+          allOf: [{$ref: '#/components/schemas/NamedID'}]
+          description: 'Ticketmaster listing type when supplied, such as Upsell (ID KZAyXgnZfZ7v7nJ) for ticket add-ons. Snapshots stored before this field omit it until refreshed.'
+    EventRun:
+      type: object
+      description: The other listings a fold=run item stands for. Omitted for a run of one listing.
+      required: [count, days, last_date, changed]
+      properties:
+        count: {type: integer, minimum: 2, description: 'Listings in the run within the searched dates, including this item.'}
+        days: {type: integer, minimum: 1, description: Distinct venue-local dates.}
+        last_date: {type: string, format: date}
+        first_time: {type: string, description: 'First venue-local time of a one-day run, when known.'}
+        last_time: {type: string, description: 'Last venue-local time of a one-day run, when known.'}
+        changed: {type: integer, minimum: 0, description: 'Other listings that are cancelled, postponed or rescheduled.'}
+    EventDate:
+      type: object
+      required: [id, local_date, local_time, status]
+      properties:
+        id: {$ref: '#/components/schemas/ResourceID'}
+        local_date: {type: string, format: date}
+        local_time: {type: [string, 'null']}
+        status: {type: string}
     Event:
       type: object
       required: [id, name, source, start, status, public_sale, presales, price_ranges, images, artists, venues, place, classifications, info, please_note]
@@ -3488,6 +3539,7 @@ components:
         meta:
           allOf: [{$ref: '#/components/schemas/Freshness'}]
           description: 'Per-event freshness on stored (MariaDB) event list items; omitted elsewhere. stale marks an older snapshot or one omitted by the latest complete collection and awaiting verification (for example cancelled, moved or removed upstream), even when the list meta is fresh.'
+        run: {$ref: '#/components/schemas/EventRun'}
     Problem:
       type: object
       required: [type, title, status, code, detail]
