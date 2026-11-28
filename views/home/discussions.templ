@@ -1,6 +1,7 @@
 package home
 
 import "fmt"
+import "strings"
 import "github.com/sonastea/ticketopia/internal/models"
 import "github.com/sonastea/ticketopia/internal/discussions"
 import "github.com/sonastea/ticketopia/views/layouts"
@@ -30,7 +31,7 @@ templ discussionPanelContent(event string, v DiscussionView, returnURL string) {
 					</span>
 					@layouts.IconClass("chevron", "icon composer-chevron")
 				</summary>
-				@DiscussionComposer(DiscussionForm{EventID: event, Action: "create", Key: v.Key, ReturnURL: returnURL, CSRF: v.CSRF, ViewerID: v.ViewerID}, "Your question or tip", "Post question or tip")
+				@DiscussionComposer(DiscussionForm{EventID: event, Action: "create", Key: v.Key, ReturnURL: returnURL, CSRF: v.CSRF, ViewerID: v.ViewerID, Phase: v.Phase}, "Your question or tip", "Post question or tip")
 			</details>
 		} else {
 			<div class="composer-card composer-invite">
@@ -62,10 +63,11 @@ templ discussionPanelContent(event string, v DiscussionView, returnURL string) {
 					<p class="list-meta"><strong>{ fmt.Sprint(v.List.Count) }</strong> visible</p>
 				</div>
 			}
-			@DiscussionRoots(v.List, listContext{Place: inEvent, EventID: event, FirstPage: discussionLaterPage(returnURL)}, returnURL)
+			@DiscussionRoots(v.List, listContext{Place: inEvent, EventID: event, FirstPage: discussionLaterPage(returnURL), Phase: v.Phase}, returnURL)
 			if v.List.NextCursor!=nil {
 				<a href={ templ.URL(ThreadURL(event, "", DiscussionOrigin(returnURL))) } class="text-link" data-thread-link>See all conversations</a>
 			}
+			@VenueTips(event, v.VenueTips)
 		}
 	}
 }
@@ -84,7 +86,7 @@ templ DiscussionRoots(list discussions.List, c listContext, returnURL string) {
 			<p class="field-note">No more conversations on this page.</p>
 			<a href={ templ.URL(c.FirstPage) } class="text-link" data-thread-link>Back to the newest conversations</a>
 		} else {
-			<p>No questions or tips yet. Ask what you'd like to know before you go, or share something that would help others.</p>
+			<p>{ phaseEmpty(c.Phase) }</p>
 		}
 	} else if !c.showsEvent() {
 		// On the event itself, each question or tip is a note whose replies
@@ -357,7 +359,7 @@ templ DiscussionComposer(f DiscussionForm, fieldLabel, submitLabel string) {
 		</p>
 		<label class="field">{ fieldLabel } <span>(up to 4000 characters)</span><textarea name="body" rows="4" maxlength="4000" required>{ f.Body }</textarea></label>
 		if f.startsThread() {
-			@ComposerStarters()
+			@ComposerStarters(f.Phase)
 		}
 		<div class="discussion-composer-actions composer-actions">
 			if f.CSRF!="" && !f.Conflict {
@@ -397,16 +399,50 @@ templ LiveReplies(p DiscussionPage, live string) {
 // ComposerStarters offers a few ways into an empty question or tip. Script
 // reveals them as buttons that fill the field with editable text; they never
 // publish. Without script they are plain examples.
-templ ComposerStarters() {
+templ ComposerStarters(phase EventPhase) {
 	<div class="composer-starters" hidden data-composer-starters role="group" aria-label="Start with">
 		<span class="composer-starters-label" aria-hidden="true">Start with</span>
-		for _, starter := range composerStarters {
+		for _, starter := range composerStarters[phase] {
 			@button.Button(button.Props{Type: button.TypeButton, Variant: button.VariantOutline, Class: "composer-starter", Attributes: templ.Attributes{"data-composer-starter": starter}}) {
-				{ starter }
+				{ strings.TrimSpace(starter) }
 			}
 		}
 	</div>
-	<noscript><p class="composer-starters-examples">For example: { composerStarterExamples() }</p></noscript>
+	<noscript><p class="composer-starters-examples">For example: { composerStarterExamples(phase) }</p></noscript>
+}
+
+// VenueTips shows contributions from past shows at the event's venue, apart
+// from the event's own conversations and never counted with them. Each links
+// to its own conversation, naming that event.
+templ VenueTips(event string, tips []discussions.Post) {
+	if len(tips)>0 {
+		<section class="venue-tips" aria-labelledby={ "venue-tips-" + event }>
+			<div class="note-list-head">
+				<h3 id={ "venue-tips-" + event }>From past shows at this venue</h3>
+				<p class="list-meta">Not part of this event's conversations</p>
+			</div>
+			<ul class="venue-tip-list" role="list">
+				for _,tip:=range tips {
+					<li class="venue-tip">
+						@PostAttribution(venueTip(tip)) {
+							if tip.HelpfulCount>0 {
+								<span class="venue-tip-helpful">{ fmt.Sprint(tip.HelpfulCount) } Helpful</span>
+							}
+						}
+						<p class="note-body discussion-body">{ venueTipExcerpt(tip.Body) }</p>
+						<p class="venue-tip-source">
+							<a href={ templ.URL(ContributionURL(tip.EventID, tip.ThreadID, tip.ID)) } class="text-link venue-tip-link">{ venueTipLink(tip) }
+								if tip.Profile!=nil {
+									<span class="sr-only">{ " by " + tip.Profile.DisplayName }</span>
+								}
+							</a>
+							<span class="venue-tip-date">{ startLabel(tip.Event.Start) }</span>
+						</p>
+					</li>
+				}
+			</ul>
+		</section>
+	}
 }
 
 templ Discussion(p DiscussionPage) {

@@ -1,6 +1,6 @@
 # Community list revamp: making participation feel alive
 
-**Status: Phases 0–3 shipped (2026-11-22); Phases 4–6 proposed.** Each phase
+**Status: Phases 0–3 shipped (2026-11-22), Phase 5 shipped (2026-11-28); Phases 4 and 6 proposed.** Each phase
 can ship on its own and lists what it needs, what success looks like and what
 it leaves out. Shipped phases end with a **Shipped** note recording departures
 from the plan. Check a phase only when its user-facing behavior ships and is
@@ -11,7 +11,7 @@ verified.
 - [x] Phase 2 — "Can you help?"
 - [x] Phase 3 — Threads that update while you read
 - [ ] Phase 4 — "Your answer helped"
-- [ ] Phase 5 — Conversations that fit the moment
+- [x] Phase 5 — Conversations that fit the moment
 - [ ] Phase 6, optional — Anonymous signs of others
 
 ## Why
@@ -310,6 +310,19 @@ notifications stops these updates along with reply updates.
 
 **Done when** new events at well-covered venues stop opening to an empty section,
 and no withheld post appears as a venue tip.
+
+**Shipped (2026-11-28).** See the
+[guide](../event-discussions.md#event-phase-prompts-and-venue-tips).
+
+- **Venue match:** venues are matched through the existing venue search facets,
+  so no new index was needed. The plan starts from the venue index.
+- **Excerpts:** tips show an excerpt of up to 280 characters and link to the
+  full post.
+- **Ranking:** only the event's first venue, the one its pages name, is
+  matched. Ranking covers the venue's 200 newest eligible contributions, not
+  its whole history.
+- **Web only:** the section has no API field or agent tool yet.
+- **Not yet measured:** the "well-covered venues" outcome needs production data.
 
 ## Phase 6, optional — Anonymous signs of others
 

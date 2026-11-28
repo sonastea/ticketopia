@@ -202,11 +202,52 @@ while they have fewer than three visible contributions, so others can welcome
 them. It is derived from visible post history, never stored, and never shown on
 replies or on removed or hidden posts.
 
-The empty question composer offers starters ("First time at this venue. Any tips
-for getting in?", "What time should I arrive?", "Has anyone been to one of these
-before?"). They fill the field with editable text, move focus there and never
-publish. Without JavaScript they show as examples. See the
-[community list revamp](design/community-list-revamp.md).
+The empty question composer offers starters. They fill the field with editable
+text, move focus there and never publish. Without JavaScript they show as
+examples. See the [community list revamp](design/community-list-revamp.md).
+
+## Event-phase prompts and venue tips
+
+The starters and the empty **Questions & tips** line follow the event's date in
+its own time zone. That is the event's zone, or its first venue's when the
+event's is blank or unknown. The server's own `Local` zone never counts.
+
+- **Before**, or when the date is unknown or unannounced: "First time at this
+  venue?", with starters about getting in, arrival time and the kind of show.
+- **On the day:** "Heading there tonight? Share a tip", with starters about the
+  entrance, arrival and a tip for tonight.
+- **After:** "How was it? Share something that helps the next visitor", with
+  starters for a tip, getting in and out, and what to do differently.
+
+Without a usable time zone, the day counts from one day before to one day after
+UTC's date, so no event switches early. These are prompts only: nothing records
+attendance.
+
+**From past shows at this venue** shows up to three visible questions, tips or
+replies from earlier events at the venue the page names (the event's first
+venue), below the event's own conversations on the first page. Most Helpful
+come first, then the newest. Each
+shows its author, Helpful count and an excerpt of up to 280 characters, and
+links to the contribution in its own conversation, naming that event and its
+date. They never count toward this event or appear in its list, and a hidden or
+removed post disappears from them on the next read.
+
+- **Venue match:** venues are matched through the stored venue search facets
+  (`event_search_facets`, kind `venue`), which collection and the Discover
+  catalog keep. An earlier event that was never stored that way contributes no
+  tips.
+- **Past events:** an event is past once it has started. An event whose date is
+  to be announced or decided never counts. A date-only event is past once its
+  local day ends, using the same rule as open questions. That rule needs
+  MariaDB's named time zone tables; without them, it waits until a day after
+  UTC's date, so no event counts early.
+- **Query:** one lookup starts from the venue index. It ranks only the venue's
+  200 newest eligible contributions, so the work stays fixed as a venue's
+  history grows, then reads the chosen posts in one statement. The section has
+  its own 750 ms budget, and a failed or slow lookup leaves it out without
+  failing the page.
+- **API and agent tools:** the section is web-only for now. No `/api/v1`
+  endpoint or agent tool returns it.
 
 ## Live replies
 

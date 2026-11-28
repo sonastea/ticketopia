@@ -147,8 +147,9 @@ type listContext struct {
 	// FirstPage links back to the newest items from a later cursor page; it is
 	// empty on the first page, which reserves "on this page" copy for later ones.
 	FirstPage string
-	Filtered  bool   // collection filters narrowed the results
-	ViewerID  string // the signed-in viewer, whose own entry is marked on the event
+	Filtered  bool       // collection filters narrowed the results
+	ViewerID  string     // the signed-in viewer, whose own entry is marked on the event
+	Phase     EventPhase // the single event's date phase, for its empty line
 }
 
 type listPlace int

@@ -489,6 +489,62 @@ func (r *DiscussionRepository) List(ctx context.Context, viewer, event, thread s
 	return items, count, nil
 }
 
+// venueTipCandidates bounds how many of a venue's most recent eligible
+// contributions are ranked by Helpful, so ranking work stays fixed however
+// long the venue's history grows. Older posts beyond it are not considered.
+const venueTipCandidates = 200
+
+// venueTipTimeout is the optional section's own budget; the page doesn't wait
+// the full query timeout for it.
+const venueTipTimeout = 750 * time.Millisecond
+
+// VenueTips reads visible contributions on past events at the given venues
+// (through the venue search facets), other than event itself: among the
+// venueTipCandidates newest, most Helpful first, then newest. Events with an
+// unannounced date never count as past. A date-only event is past once its
+// local day ends; without a usable time zone, a day later than UTC's, as for
+// open questions.
+func (r *DiscussionRepository) VenueTips(ctx context.Context, viewer, event string, venues []string, limit int) ([]discussions.Post, error) {
+	if len(venues) == 0 || limit < 1 {
+		return []discussions.Post{}, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, min(r.timeout, venueTipTimeout))
+	defer cancel()
+	args := []any{event}
+	for _, v := range venues {
+		args = append(args, v)
+	}
+	args = append(args, venueTipCandidates, limit)
+	ids := []any{}
+	err := queryRowsTx(ctx, r.db, `SELECT c.post_id FROM (SELECT p.post_id,p.created_at FROM discussion_posts p JOIN events ev ON ev.event_id=p.event_id
+ WHERE p.removed_at IS NULL AND p.hidden_at IS NULL AND p.event_id<>?
+ AND p.event_id IN (SELECT f.event_id FROM event_search_facets f WHERE f.kind='venue' AND f.value IN (`+placeholders(len(venues))+`))
+ AND NOT ev.date_tba AND NOT ev.date_tbd
+ AND (ev.start_utc<UTC_TIMESTAMP(6) OR (ev.start_utc IS NULL AND ev.local_date IS NOT NULL
+  AND ev.local_date<COALESCE(DATE(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00',ev.timezone)),UTC_DATE()-INTERVAL 1 DAY)))
+ ORDER BY p.created_at DESC,p.post_id DESC LIMIT ?) c
+ ORDER BY (SELECT COUNT(*) FROM post_helpful h WHERE h.post_id=c.post_id) DESC,c.created_at DESC,c.post_id DESC LIMIT ?`, args, func(rows *sql.Rows) error {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+		return nil
+	})
+	if err != nil {
+		return nil, safeError("venue tips", err)
+	}
+	posts, err := readPosts(ctx, r.db, viewer, ids)
+	if err != nil {
+		return nil, err
+	}
+	tips := make([]discussions.Post, 0, len(ids))
+	for _, id := range ids {
+		tips = append(tips, posts[id.(string)])
+	}
+	return tips, nil
+}
+
 // NewReplies lists other people's visible replies in a root thread: up to
 // MaxNewReplies created after since, and up to MaxNewReplies in the overlap
 // before it. The overlap is the longer of LiveReplyOverlap and this

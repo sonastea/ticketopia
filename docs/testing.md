@@ -142,6 +142,10 @@ make review-server scenario=event-edge-cases
   event page shows none. `other` has notifications paused, so its reminder shows
   Paused. The real worker produces these states without a clock override; a
   fixture sender returns each outcome, and no email is sent.
+- `venue-tips`: two past shows at the first baseline event's venue, kept out of
+  Discover, with tips, a reply and Helpful marks. That event's **Questions &
+  tips** (`venue_tips_event`) shows "From past shows at this venue", and a past
+  show (`past_show`) offers after-show prompts.
 - `reminder-email`: sends one real on-sale reminder for the owner through the
   production SES sender in local emulator mode (MiniStack from `make ses-setup`;
   dummy credentials, never the AWS credential chain). The reminder shows SES

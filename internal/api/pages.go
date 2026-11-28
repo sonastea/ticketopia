@@ -217,7 +217,7 @@ func (a *api) eventPageHandler(c echo.Context) error {
 				a.loadEventCommunity(c, &page)
 			}
 			if page.Section == "discussion" {
-				page.Discussions = a.discussionView(c, id)
+				page.Discussions = a.discussionView(c, page.Detail.Item)
 			}
 		}
 	}

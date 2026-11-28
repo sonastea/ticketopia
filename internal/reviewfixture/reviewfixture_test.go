@@ -150,6 +150,21 @@ func TestMariaDBScenarios(t *testing.T) {
 					t.Error("owner reminder is not shown as SES accepted")
 				}
 			}
+			if name == "venue-tips" {
+				// The upcoming event shows past shows' tips, most Helpful first,
+				// apart from its own conversations; a past show prompts after it.
+				body := get(t, m, "owner", m.ScenarioPaths["venue_tips_event"])
+				first, second := strings.Index(body, "Use the side entrance"), strings.Index(body, "Bag check is strict")
+				if !strings.Contains(body, "From past shows at this venue") || first < 0 || second < first || !strings.Contains(body, "Spring showcase at the hall") {
+					t.Error("upcoming event lacks ordered venue tips")
+				}
+				if body := get(t, m, "owner", m.ScenarioPaths["venue_tips_preview"]); !strings.Contains(body, "From past shows at this venue") {
+					t.Error("Discover's event preview lacks venue tips")
+				}
+				if body := get(t, m, "owner", m.ScenarioPaths["past_show"]); !strings.Contains(body, "Tip for the next visitor") {
+					t.Error("past show lacks after-show starters")
+				}
+			}
 			if name == "reminder-states" {
 				// Every state the worker can reach is visible to the owner.
 				body := get(t, m, "owner", "/me/reminders")

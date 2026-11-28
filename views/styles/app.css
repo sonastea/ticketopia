@@ -4411,6 +4411,35 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   background: var(--surface);
 }
 .note-list > .note + .note { border-block-start: 1px solid color-mix(in oklch, var(--ink) 8%, transparent); }
+/* Venue tips belong to other events: a quieter, dashed panel set apart from
+   this event's own conversations, with a plain note instead of a count pill. */
+.venue-tips .note-list-head > .list-meta {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: .8125rem;
+  font-weight: 500;
+}
+.venue-tip-list {
+  list-style: none;
+  margin-block: 0 1.75rem;
+  margin-inline: 0;
+  padding-block: 0;
+  padding-inline: 1.125rem;
+  border: 1px dashed var(--control-line);
+  border-radius: calc(var(--radius) + .25rem);
+  background: color-mix(in oklch, var(--surface) 55%, transparent);
+}
+.venue-tip { padding-block: 1rem; }
+.venue-tip + .venue-tip { border-block-start: 1px solid color-mix(in oklch, var(--ink) 8%, transparent); }
+.venue-tip > .note-body { margin-block: .25rem .375rem; }
+.venue-tip-helpful { font-variant-numeric: tabular-nums; }
+/* The link stays inline so a long event name wraps as text; padding keeps a
+   44px target without pushing the date onto a line of its own. */
+.venue-tip-source { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .625rem; margin: 0; }
+.venue-tip-link { display: inline-block; padding-block: .6875rem; line-height: 1.4; }
+.venue-tip-date { color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
 /* Enlarged text on a narrow phone drops the words below the avatar rather than
    squeezing them into a sliver beside it. */
 .note {
@@ -4492,7 +4521,7 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   vertical-align: .0625em;
 }
 @media (forced-colors: active) { .agent-label { border-color: CanvasText; color: CanvasText; } }
-:is(.note, .rec-card, .byline) .note-author {
+:is(.note, .rec-card, .byline, .venue-tip) .note-author {
   display: inline-flex;
   align-items: center;
   min-inline-size: 2.75rem;
@@ -4506,11 +4535,11 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   text-underline-offset: .2em;
 }
 @media (hover: hover) and (pointer: fine) {
-  :is(.note, .rec-card, .byline) .note-author:hover { color: var(--brand); text-decoration-color: currentColor; }
+  :is(.note, .rec-card, .byline, .venue-tip) .note-author:hover { color: var(--brand); text-decoration-color: currentColor; }
 }
-:is(.note, .rec-card, .byline) .note-author:active { color: var(--brand-active); }
+:is(.note, .rec-card, .byline, .venue-tip) .note-author:active { color: var(--brand-active); }
 /* A real (shrinkable) flex item, so an unbroken long name wraps inside the note. */
-:is(.note, .rec-card, .byline) .note-author > span { min-inline-size: 0; overflow-wrap: anywhere; }
+:is(.note, .rec-card, .byline, .venue-tip) .note-author > span { min-inline-size: 0; overflow-wrap: anywhere; }
 .note-tag {
   padding-block: .0625rem;
   padding-inline: .5rem;

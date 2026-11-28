@@ -162,6 +162,43 @@ type Repository interface {
 type Details interface {
 	Detail(context.Context, string) (models.EventDetail, error)
 }
+
+// MaxVenueTips bounds an event's "From past shows at this venue" section.
+const MaxVenueTips = 3
+
+// VenueTipReader is an optional Repository capability: visible questions,
+// tips and replies on past events at any of the given venues, other than the
+// event itself, most Helpful first and then newest, up to limit.
+type VenueTipReader interface {
+	VenueTips(ctx context.Context, viewer, event string, venues []string, limit int) ([]Post, error)
+}
+
+// VenueTips lists up to MaxVenueTips visible contributions from past shows at
+// the event's first venue, the one its pages name, so advice never comes from a
+// secondary venue the reader can't see. They belong to those other events and
+// never count toward this one. Without a venue ID or the capability, none.
+func (s *Service) VenueTips(ctx context.Context, viewer string, event models.Event) ([]Post, error) {
+	r, ok := s.repo.(VenueTipReader)
+	if !ok {
+		return []Post{}, nil
+	}
+	if len(event.Venues) == 0 || event.Venues[0].ID == "" || len(event.Venues[0].ID) > 300 || event.ID == "" {
+		return []Post{}, nil
+	}
+	venues := []string{event.Venues[0].ID}
+	tips, err := r.VenueTips(ctx, viewer, event.ID, venues, MaxVenueTips)
+	if err != nil {
+		return nil, err
+	}
+	visible := tips[:0]
+	for _, p := range tips {
+		if !p.Removed && !p.Hidden && p.Profile != nil && p.EventID != event.ID {
+			visible = append(visible, p)
+		}
+	}
+	return visible, nil
+}
+
 type Service struct {
 	repo    Repository
 	details Details

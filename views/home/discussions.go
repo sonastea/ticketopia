@@ -16,6 +16,11 @@ type DiscussionView struct {
 	ModerationEnabled          bool
 	ViewerID, CSRF, Key, Error string
 	List                       discussions.List
+	// Phase is where the event's date falls, for prompts only.
+	Phase EventPhase
+	// VenueTips are contributions from past shows at the event's venue,
+	// shown apart and never counted toward this event.
+	VenueTips []discussions.Post
 }
 type DiscussionPage struct {
 	Event                              models.Event
@@ -113,6 +118,8 @@ func wantToKnow(n int) string {
 type DiscussionForm struct {
 	EventID, ThreadID, ParentID, PostID, Body, Key, Action, ReturnURL, CSRF, ViewerID string
 	Conflict                                                                          bool
+	// Phase picks the starters a new question or tip offers.
+	Phase EventPhase
 }
 
 func contextThreadID(p EventPage) string {
@@ -230,20 +237,39 @@ func (f DiscussionForm) startsThread() bool {
 	return f.Action == "create" && f.ThreadID == "" && f.PostID == ""
 }
 
-// composerStarters work for any event category: they ask about going, not
-// about a particular kind of performer.
-var composerStarters = []string{
-	"First time at this venue. Any tips for getting in?",
-	"What time should I arrive?",
-	"Has anyone been to one of these before?",
-}
-
-func composerStarterExamples() string {
-	quoted := make([]string, len(composerStarters))
-	for i, s := range composerStarters {
-		quoted[i] = "“" + s + "”"
+func composerStarterExamples(phase EventPhase) string {
+	starters := composerStarters[phase]
+	quoted := make([]string, len(starters))
+	for i, s := range starters {
+		quoted[i] = "“" + strings.TrimSpace(s) + "”"
 	}
 	return strings.Join(quoted, ", ")
+}
+
+// venueTip drops the First post welcome, which belongs to the post's own
+// event; a venue tip is read as advice, not as someone's first question.
+func venueTip(p discussions.Post) discussions.Post {
+	p.FirstPost = false
+	return p
+}
+
+func venueTipLink(p discussions.Post) string {
+	return ternary(p.ID == p.ThreadID, "Read the conversation on ", "Read the reply on ") + p.Event.Name
+}
+
+// venueTipExcerpt shortens a venue tip at a word boundary; the full text is
+// one link away in its own conversation.
+func venueTipExcerpt(body string) string {
+	const max = 280
+	runes := []rune(body)
+	if len(runes) <= max {
+		return body
+	}
+	cut := string(runes[:max])
+	if i := strings.LastIndexAny(cut, " \n\t"); i > max/2 {
+		cut = cut[:i]
+	}
+	return strings.TrimRight(cut, " \n\t.,;:") + "…"
 }
 
 func (f DiscussionForm) draftScope() string {

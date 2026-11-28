@@ -231,8 +231,9 @@ func (a *api) sameQuestionHandler(c echo.Context) error {
 	}
 	return c.JSON(200, post)
 }
-func (a *api) discussionView(c echo.Context, id string) home.DiscussionView {
-	v := home.DiscussionView{Enabled: a.discussionsEnabled(), ModerationEnabled: a.moderationEnabled(), Key: accounts.ID()}
+func (a *api) discussionView(c echo.Context, event models.Event) home.DiscussionView {
+	id := event.ID
+	v := home.DiscussionView{Enabled: a.discussionsEnabled(), ModerationEnabled: a.moderationEnabled(), Key: accounts.ID(), Phase: home.PhaseOf(event, a.clock())}
 	if !v.Enabled {
 		return v
 	}
@@ -245,8 +246,20 @@ func (a *api) discussionView(c echo.Context, id string) home.DiscussionView {
 	v.List, err = a.discussions.List(c.Request().Context(), v.ViewerID, id, "", nil)
 	if err != nil {
 		v.Error = "Discussions couldn't load. Refresh to try again."
+		return v
 	}
+	v.VenueTips = a.venueTips(c, v.ViewerID, event)
 	return v
+}
+
+// venueTips is optional context: a failed read leaves the section out rather
+// than failing the event's own conversations.
+func (a *api) venueTips(c echo.Context, viewer string, event models.Event) []discussions.Post {
+	tips, err := a.discussions.VenueTips(c.Request().Context(), viewer, event)
+	if err != nil {
+		return nil
+	}
+	return tips
 }
 func (a *api) discussionCollectionPage(c echo.Context) error {
 	privateAccountResponse(c)
@@ -371,9 +384,12 @@ func (a *api) loadDiscussionPage(c echo.Context, id, thread string, query url.Va
 	} else {
 		p.View.List, err = a.discussions.List(c.Request().Context(), principal.Account.ID, id, thread, values)
 	}
+	p.View.Phase = home.PhaseOf(p.Event, a.clock())
 	status := 200
 	if err != nil {
 		status, _, p.View.Error, _ = accountError(err)
+	} else if thread == "" && !values.Has("cursor") {
+		p.View.VenueTips = a.venueTips(c, principal.Account.ID, p.Event)
 	}
 	if p.Root != nil && err == nil && principal.Account.ID != "" && a.liveRepliesEnabled() {
 		// Engagement read from what the page already holds: no extra query.

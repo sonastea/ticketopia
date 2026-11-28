@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-11-28 — Prompts that follow the event, and venue tips
+
+- The question composer's starters and the empty **Questions & tips** line now
+  follow the event's date in its own time zone: before the show, on the day,
+  and after it. They are prompts only and record no attendance.
+- **From past shows at this venue** shows up to three visible questions, tips
+  or replies from earlier events at the same venue, most Helpful first, with
+  links to their own conversations. They never count toward this event. See
+  [event-phase prompts and venue tips](../event-discussions.md#event-phase-prompts-and-venue-tips).
+
 ### 2026-11-28 — A separate moderator workspace
 
 - The review queue leaves the personal Safety tabs, which now hold only your own
@@ -79,19 +89,3 @@
 - Community card bylines follow the event's quote cards: the ink name link, then
   a muted "recommends this event" line with any app. Community, conversation and
   profile event titles are ink like Discover's (plum and underlined on hover).
-
-### 2026-11-20 — Community depth: quote cards and raised panels
-
-- The event's community sections and threads gain the depth layer (raised by
-  hierarchy alongside Discover and the event page): hairline-ringed, plum-tinted
-  elevation, the brand gradient and a corner glow, as documented tokens in [DESIGN.md](../../DESIGN.md#public-recommendations).
-- Recommendations become quote cards in an auto-fit grid, with the reason as the
-  headline and a gradient frame on your own. Questions, the thread's opening post
-  and its replies sit on raised panels; composers get a gradient icon tile, a
-  glowing field and a gradient publish action. Titles use the display face.
-- One motion moment: cards rise into place as they scroll in (position only,
-  motion-allowed browsers with scroll timelines). No behaviour or copy change.
-- Chromium journeys pass with zero axe violations: recommendations (126 checks/22
-  views), responsive (150/5), discussions (69/14), conversation ergonomics (now on
-  the shared `axe-scan.cjs`, which discounts fixed-navigation overlap) and moderation.
-  WebKit iPhone emulation shows no overflow; real phones/screen readers remain open.

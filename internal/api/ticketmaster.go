@@ -270,7 +270,7 @@ func (a *api) retrieveEventsHandler(c echo.Context) error {
 			page.Participants = community.Participants
 			page.ParticipantsError = community.ParticipantsError
 			if page.Thread == nil && page.Section == "discussion" {
-				page.Discussions = a.discussionView(c, selectedID)
+				page.Discussions = a.discussionView(c, detail.Item)
 			}
 		}
 	}

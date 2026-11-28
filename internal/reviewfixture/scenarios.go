@@ -60,6 +60,8 @@ var scenarios = map[string]scenario{
 		events: reminderEmailEvents, seed: seedReminderEmail},
 	"populated": {description: "Adds 40 signed-in members with browser sessions (manifest members) over stored Discover, for simulated-user load (make simulate-users). Their actions write to this disposable schema only.",
 		stored: true, seed: seedPopulated},
+	"venue-tips": {description: "Adds two past shows at the first event's venue with Helpful tips and a reply, so that event's Questions & tips shows \"From past shows at this venue\" and the past shows use after-show prompts.",
+		seed: seedVenueTips},
 	"reminder-states": {description: "Adds owner reminders in every state (scheduled, sending, pending, accepted, failed, uncertain, expired, pending date, cancelled, refresh failed), a stopped reminder, and a paused reminder for other. A fixture sender returns outcomes; no email is sent.",
 		events: reminderEvents, seed: seedReminderStates},
 }
@@ -549,6 +551,60 @@ func seedEdgeCases(f *fixture, events []models.EventDetail) (map[string]string, 
 		"edge_event":      eventPath(busy),
 		"canceled_event":  eventPath(canceled),
 		"busy_discussion": eventPath(busy) + "/discussions/" + root.ID,
+	}, errors.Join(errs...)
+}
+
+// seedVenueTips adds two past shows at the first baseline event's venue,
+// outside Discover, with tips, a reply and Helpful marks, and records their
+// venue search facets as collection would.
+func seedVenueTips(f *fixture, _ []models.EventDetail) (map[string]string, error) {
+	owner, other, moderator := f.people["owner"].ID, f.people["other"].ID, f.people["moderator"].ID
+	target := f.details[0]
+	venue := target.Item.Venues[0].ID
+	var errs []error
+	past := []models.EventDetail{}
+	for i, name := range []string{"Spring showcase at the hall", "Winter warm-up night"} {
+		d := target
+		id := fmt.Sprintf("ReviewPast_%d", i)
+		start := target.Item.Start.DateTime.AddDate(0, 0, -45*(i+1))
+		date := start.Format(time.DateOnly)
+		d.Item.ID, d.Item.Source.ID, d.Item.Name = "ticketmaster:"+id, id, name
+		d.Item.Start.DateTime, d.Item.Start.LocalDate = &start, &date
+		d.Item.Venues = append([]models.Venue(nil), target.Item.Venues...)
+		errs = append(errs, f.cacheSeed("ticketmaster:v1:event:"+d.Item.ID, d.Item, f.now))
+		past = append(past, d)
+	}
+	if err := errors.Join(append(errs, f.save(owner, past...))...); err != nil {
+		return nil, err
+	}
+	for _, d := range past {
+		errs = append(errs, f.db.Exec(f.ctx, "INSERT IGNORE INTO "+f.db.Name+".event_search_facets (event_id,kind,value) VALUES (?,'venue',?)", d.Item.ID, venue))
+	}
+	react := func(who, id string) {
+		_, err := f.p.Discussions().React(f.ctx, who, id, true)
+		errs = append(errs, err)
+	}
+	entry, err := f.post(other, past[0].Item.ID, "", "", "Which entrance is quickest? The main doors had a long line at seven.")
+	if err != nil {
+		return nil, err
+	}
+	side, err := f.post(moderator, past[0].Item.ID, entry.ID, entry.ID, "Use the side entrance on the river walk. It opens at the same time and the line was half as long.")
+	if err != nil {
+		return nil, err
+	}
+	react(owner, side.ID)
+	react(other, side.ID)
+	bags, err := f.post(moderator, past[1].Item.ID, "", "", strings.Repeat("Bag check is strict: clear bags only, smaller than a sheet of paper. They turned several people away, so leave anything bigger in the car. ", 3))
+	if err != nil {
+		return nil, err
+	}
+	react(other, bags.ID)
+	_, err = f.post(owner, past[1].Item.ID, "", "", "Coat check fills up by eight, so come early if you're bringing one.")
+	errs = append(errs, err)
+	return map[string]string{
+		"venue_tips_event":   eventPath(target.Item.ID) + "?section=discussion",
+		"venue_tips_preview": "/?" + url.Values{"selected_event": {target.Item.ID}, "section": {"discussion"}}.Encode(),
+		"past_show":          eventPath(past[0].Item.ID) + "?section=discussion",
 	}, errors.Join(errs...)
 }
 
