@@ -194,7 +194,8 @@ Parts 1–2 are deployed.
       Platform (the production OAuth app is in Testing mode). Sign in fails
       otherwise. If that isn't possible, use the
       [local fallback](#fallback-sessions-on-your-laptop).
-- [ ] Turn on scheduled collection for the Los Angeles area in Coolify:
+- [x] Turn on scheduled collection for the Los Angeles area in Coolify (done
+      2026-11-28; the 53-city area's 92 days read complete and fresh):
       `EVENT_HISTORY_ENABLED=true`,
       `EVENT_HISTORY_CITIES=[{"city":"Los Angeles","country":"US","area":"metro"}]`
       and `EVENT_HISTORY_INTERVAL=5h` (about 700 requests a day; see
