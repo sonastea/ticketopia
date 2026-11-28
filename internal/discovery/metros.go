@@ -20,17 +20,31 @@ type Metro struct {
 }
 
 // Venue city names as Ticketmaster spells them. Membership is curated, not
-// geographic: a name that matches no venue simply contributes no events.
+// geographic: a name that matches no venue simply contributes no events, and
+// each member costs a provider request per refresh.
+//
+// The Los Angeles area is Los Angeles County south of the mountains plus
+// Orange County: the venue cities Ticketmaster lists within about 50 miles of
+// downtown (audited 2026-11-27 with a radius venue search). It leaves out the
+// Antelope Valley (Palmdale, Lancaster), the Inland Empire (Ontario, Corona)
+// and Ventura County (Thousand Oaks).
 var metros = []Metro{{
 	Name: "Los Angeles area", Country: "US",
 	Cities: []string{
+		// Los Angeles and its neighbourhoods that venues list as cities.
 		"Los Angeles", "Hollywood", "West Hollywood", "North Hollywood", "Studio City",
-		"Universal City", "Burbank", "Glendale", "Pasadena", "Arcadia", "Inglewood",
-		"Culver City", "Santa Monica", "Venice", "Beverly Hills", "Sherman Oaks",
-		"Van Nuys", "El Segundo", "Redondo Beach", "Torrance", "Carson", "Long Beach",
-		"Huntington Park", "Downey", "Cerritos", "La Mirada", "Pomona",
-		"Anaheim", "Santa Ana", "Costa Mesa", "Irvine", "Fullerton",
-		"Huntington Beach", "Newport Beach",
+		"Universal City", "Sherman Oaks", "Van Nuys", "Highland Park", "Venice",
+		"Pacific Palisades", "San Pedro",
+		// Los Angeles County.
+		"Burbank", "Glendale", "Pasadena", "South Pasadena", "Arcadia", "Inglewood",
+		"Culver City", "Santa Monica", "Malibu", "Agoura Hills", "Beverly Hills",
+		"El Segundo", "Redondo Beach", "Torrance", "Carson", "Long Beach",
+		"Huntington Park", "Commerce", "Pico Rivera", "Downey", "Whittier", "Cerritos",
+		"La Mirada", "West Covina", "Pomona", "Claremont",
+		// Orange County.
+		"Anaheim", "Santa Ana", "Costa Mesa", "Irvine", "Fullerton", "Brea",
+		"Yorba Linda", "Garden Grove", "Cypress", "Huntington Beach", "Newport Beach",
+		"Laguna Beach", "Aliso Viejo", "Mission Viejo", "San Juan Capistrano",
 	},
 }}
 

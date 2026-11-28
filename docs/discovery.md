@@ -109,9 +109,13 @@ These apply in MariaDB mode. The web turns both on; the JSON API and the
 
 **Metro areas.** `internal/discovery/metros.go` defines fixed sets of venue
 cities, spelled as Ticketmaster spells them. The only one so far is the
-**Los Angeles area**: 34 cities from Hollywood, Inglewood and Pasadena to Long
-Beach and Orange County (Anaheim, Santa Ana, Costa Mesa, Irvine), but not the
-Inland Empire. Searching any member city, in any case and with or without
+**Los Angeles area**: 53 venue cities in Los Angeles County south of the
+mountains and in Orange County, from Hollywood, Inglewood and Malibu to Long
+Beach, Anaheim and San Juan Capistrano. It leaves out the Antelope Valley, the
+Inland Empire and Ventura County. Membership came from a Ticketmaster radius
+venue search on 2026-11-27, which also showed stray spaces in some venues'
+cities (" Long Beach"); collected places are trimmed so they match. Searching
+any member city, in any case and with or without
 country `US`, reads every member. The location line says **Includes nearby
 cities** with an **Only {city}** link; **Include nearby cities** links back. Both
 are ordinary links, and a hidden `area=city` field keeps the narrower choice when
@@ -123,7 +127,7 @@ claims, budget and cooldowns; a read refreshes only the members whose coverage i
 due. The area's coverage is `complete` only when every member is complete and
 fresh, `stale` if any member is stale, and `partial` otherwise; `data_as_of` is
 the oldest member's and `collected_days` the least-collected member's. A cold area
-takes about ten seconds to collect fully (34 or more requests at four a second);
+takes about fifteen seconds to collect fully (53 or more requests at four a second);
 a first visitor sees results as soon as any finished member has some, within the
 12-second wait, and later visits serve last-good results while members refresh.
 [Scheduled collection](event-history.md#metro-areas) can keep an area fresh without

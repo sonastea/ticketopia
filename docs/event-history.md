@@ -170,8 +170,8 @@ about 90 requests per member per pass. Instead, whenever no scheduled day is due
 the collector reads the area over the same horizon every five minutes, as a
 visitor would. That read checks coverage only and refreshes the members whose
 on-demand coverage has expired, one broad request each. For the Los Angeles area
-that is about 92 daily requests for Los Angeles per interval plus about 40 member
-requests every six hours, roughly 600 a day. An interval below the six-hour
+that is about 92 daily requests for Los Angeles per interval plus about 60 member
+requests every six hours, roughly 700 a day. An interval below the six-hour
 freshness keeps the city's days from briefly reading as stale.
 
 Every replica checks the area; durable claims keep one collection per member.

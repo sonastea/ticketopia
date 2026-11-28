@@ -168,9 +168,11 @@ func normalizePlace(raw providerPlace) models.Place {
 			address = append(address, line)
 		}
 	}
+	// Some venues carry stray spaces in their city (" Long Beach"); a city
+	// search compares the stored name exactly, so trim the place names.
 	return models.Place{
-		Name: raw.Name, Address: strings.Join(address, ", "), City: raw.City.Name,
-		State: raw.State.Name, Country: raw.Country.Name, CountryCode: raw.Country.CountryCode,
+		Name: raw.Name, Address: strings.Join(address, ", "), City: strings.TrimSpace(raw.City.Name),
+		State: strings.TrimSpace(raw.State.Name), Country: raw.Country.Name, CountryCode: strings.TrimSpace(raw.Country.CountryCode),
 		PostalCode: raw.PostalCode, Latitude: raw.Location.Latitude, Longitude: raw.Location.Longitude,
 	}
 }

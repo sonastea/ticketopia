@@ -6,6 +6,23 @@ import (
 	"time"
 )
 
+// Venues spell some cities with stray spaces (" Long Beach"); stored places
+// must match the metro's spelling exactly.
+func TestPlaceCityIsTrimmed(t *testing.T) {
+	var raw providerPlace
+	raw.City.Name, raw.Country.CountryCode = " Long Beach ", "US "
+	if p := normalizePlace(raw); p.City != "Long Beach" || p.CountryCode != "US" {
+		t.Fatalf("place not trimmed: %q %q", p.City, p.CountryCode)
+	}
+	seen := map[string]bool{}
+	for _, city := range metros[0].Cities {
+		if seen[city] {
+			t.Fatalf("duplicate member %s", city)
+		}
+		seen[city] = true
+	}
+}
+
 func TestAreaAndFoldParsing(t *testing.T) {
 	for _, tt := range []struct {
 		raw, area, country string

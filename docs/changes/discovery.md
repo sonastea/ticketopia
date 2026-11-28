@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-11-27 — Los Angeles area membership from a venue audit
+
+- A Ticketmaster radius venue audit (1,326 venues) grew the Los Angeles area from
+  34 to 53 cities: Los Angeles County south of the mountains plus Orange County,
+  adding venue cities with events such as Brea, Garden Grove, San Juan
+  Capistrano, Laguna Beach, Highland Park and Malibu. See
+  [metro areas](../discovery.md#metro-areas-and-runs).
+- Collected venue and event places trim their city, state and country code, so
+  venues listed as " Long Beach" match city searches.
+
 ### 2026-11-27 — Los Angeles area, one row per run, no ticket add-ons
 
 - Pre-pilot fixes from the [pilot-city plan](../design/pilot-city-relevance.md).

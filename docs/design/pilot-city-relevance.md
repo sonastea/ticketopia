@@ -51,12 +51,17 @@ only entry is Los Angeles. Every member is collected and covered by the
 existing per-city on-demand scopes, so collection, budget, leases and coverage
 receipts are unchanged.
 
-- **Membership.** Curated: 34 cities in `internal/discovery/metros.go`, from
-  Hollywood, Inglewood and Pasadena to Long Beach, Pomona and Orange County
-  (Anaheim, Santa Ana, Costa Mesa, Irvine, Fullerton, Huntington Beach, Newport
-  Beach). The planned coordinate audit could not run against production's
-  database; after deploying, check the production list's venue cities and add
-  any LA-area spellings it reveals.
+- **Membership.** Curated in `internal/discovery/metros.go`: 34 cities at first,
+  53 after the 2026-11-27 audit. The audit ran Ticketmaster radius venue searches
+  around downtown LA, the Valley and Orange County (1,326 venues with upcoming
+  event counts) and compared their city spellings with the list. It added the
+  LA- and Orange-County venue cities with events (such as Brea Improv, Garden
+  Grove, The Coach House in San Juan Capistrano, Laguna Beach, the Lodge Room in
+  Highland Park, Malibu), so the rule is now "Los Angeles County south of the
+  mountains plus Orange County". It also found stray spaces in some venues'
+  cities (" Long Beach"), which collection now trims. Left out by rule: the
+  Antelope Valley, the Inland Empire (Ontario Improv, Toyota Arena, Corona
+  Improv) and Ventura County (Thousand Oaks).
 - **Matching.** A city search for a metro's anchor or any member resolves to the
   metro. The stored read uses `p.city IN (members) AND p.country=?`. The
   existing `event_search_places` lookup already starts from place rows, so this
@@ -192,7 +197,7 @@ Parts 1–2 are deployed.
 - [ ] Turn on scheduled collection for the Los Angeles area in Coolify:
       `EVENT_HISTORY_ENABLED=true`,
       `EVENT_HISTORY_CITIES=[{"city":"Los Angeles","country":"US","area":"metro"}]`
-      and `EVENT_HISTORY_INTERVAL=5h` (about 600 requests a day; see
+      and `EVENT_HISTORY_INTERVAL=5h` (about 700 requests a day; see
       [metro areas](../event-history.md#metro-areas)). Without it, Los Angeles's
       default 90-day view exceeds the provider's 1,000-result on-demand limit and
       reads as incomplete, and the area stays fresh only when someone visits.
