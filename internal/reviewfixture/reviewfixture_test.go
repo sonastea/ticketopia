@@ -123,6 +123,8 @@ func TestMariaDBScenarios(t *testing.T) {
 						want = http.StatusServiceUnavailable
 					case who == "" && (key == "reminders" || key == "paused_reminders_other"):
 						want = http.StatusSeeOther
+					case who == "" && key == "helpful_notifications":
+						want = http.StatusUnauthorized
 					}
 					request, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, m.BaseURL+path, nil)
 					if cookie != nil {
@@ -148,6 +150,14 @@ func TestMariaDBScenarios(t *testing.T) {
 				}
 				if body := get(t, m, "owner", "/me/reminders"); !strings.Contains(body, "Accepted by SES") {
 					t.Error("owner reminder is not shown as SES accepted")
+				}
+			}
+			if name == "helpful-updates" {
+				body := get(t, m, "owner", m.ScenarioPaths["helpful_notifications"])
+				for _, want := range []string{"found your reply helpful", "found your question or tip helpful", "Mo", "Sam", "Open your reply"} {
+					if !strings.Contains(body, want) {
+						t.Errorf("owner notifications lack %q", want)
+					}
 				}
 			}
 			if name == "venue-tips" {

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"os"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -45,7 +46,7 @@ func TestMariaDBInboxQueryCosts(t *testing.T) {
 			for i, statement := range []string{old, query} {
 				var items []discussionfollows.Notification
 				err := queryRowsTx(ctx, p.db, statement, args, func(row *sql.Rows) error {
-					var n discussionfollows.Notification
+					n := discussionfollows.Notification{Kind: discussionfollows.KindReplies}
 					err := row.Scan(&n.ID, &n.EventID, &n.ThreadID, &n.EventName, &n.AvailableAt, &n.Read, &n.ReplyCount, &n.PostID)
 					items = append(items, n)
 					return err
@@ -55,7 +56,7 @@ func TestMariaDBInboxQueryCosts(t *testing.T) {
 				}
 				if i == 0 {
 					want = items
-				} else if !slices.Equal(items, want) {
+				} else if !reflect.DeepEqual(items, want) {
 					t.Fatal("notification fields or order changed")
 				}
 				var times []float64
@@ -84,7 +85,7 @@ func TestMariaDBInboxQueryCosts(t *testing.T) {
 				later, err := p.DiscussionFollows().Notifications(ctx, owner, discussionfollows.Query{
 					Limit: q.Limit, Cursor: &discussionfollows.Cursor{At: last.AvailableAt, ID: last.ID},
 				})
-				if err != nil || len(later) != q.Limit+1 || later[0] != want[q.Limit] {
+				if err != nil || len(later) != q.Limit+1 || !reflect.DeepEqual(later[0], want[q.Limit]) {
 					t.Fatalf("continuation did not start at the lookahead: %v", err)
 				}
 			}

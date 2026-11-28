@@ -1,6 +1,12 @@
 package home
 
-import "github.com/sonastea/ticketopia/internal/discussionfollows"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/sonastea/ticketopia/internal/discussionfollows"
+)
+
 import "github.com/sonastea/ticketopia/views/layouts"
 
 type DiscussionFollowPage struct {
@@ -24,4 +30,34 @@ func conversationFrequency(frequency string) string {
 	default:
 		return "Frequency unavailable"
 	}
+}
+
+// helpfulSummary says who found the recipient's post helpful: opted-in first
+// names first, everyone else only counted.
+func helpfulSummary(n discussionfollows.Notification) string {
+	what := ternary(n.Reply, "your reply", "your question or tip")
+	names := n.HelpfulNames
+	if len(names) > n.HelpfulCount {
+		names = names[:n.HelpfulCount]
+	}
+	others := n.HelpfulCount - len(names)
+	var who string
+	switch {
+	case len(names) == 0 && others == 1:
+		who = "Someone"
+	case len(names) == 0:
+		who = fmt.Sprintf("%d people", others)
+	case others == 0:
+		who = joinNames(names)
+	default:
+		who = strings.Join(names, ", ") + fmt.Sprintf(" and %d %s", others, ternary(others == 1, "other", "others"))
+	}
+	return who + " found " + what + " helpful"
+}
+
+func joinNames(names []string) string {
+	if len(names) == 1 {
+		return names[0]
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }

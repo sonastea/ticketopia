@@ -13,8 +13,9 @@ Open a conversation and expand **Follow this conversation**. Choose:
 - **Weekly summary:** one grouped update at the next Monday midnight UTC.
 - **Muted:** retain the follow without delivering updates.
 
-Read `/me/discussions` for followed conversations and `/me/notifications` for due
-reply updates; both are linked from Profile. Updates name the event and visible
+Read `/me/discussions` for followed conversations and **Notifications**
+(`/me/notifications`) for due reply and [Helpful](#helpful-updates) updates; both
+are linked from Profile. Updates name the event and visible
 reply count, not a copy of contribution text. **Open conversation at reply** selects
 the latest visible reply even outside the first reply page. Mark read separately;
 opening a link does not silently change state. Read updates remain in the inbox.
@@ -34,10 +35,39 @@ Already queued pre-pause updates remain. Digest schedules use UTC, not the profi
 time zone; the UI explicitly explains this.
 
 No historical replay occurs on follow, resume or re-follow. Own replies, edits,
-Helpful, reports and moderation decisions do not generate updates. Repeated
+reports and moderation decisions do not generate updates; Helpful generates only
+the post author's [Helpful update](#helpful-updates). Repeated
 publication requests do not duplicate notifications. Changing frequency cancels
 unread updates, including pending summaries; unchanged retries preserve them.
 Unfollowing deletes that conversation's notification history and pending updates.
+
+## Helpful updates
+
+When other people mark your question, tip or reply Helpful, **Notifications**
+shows one private update per post per UTC day, after that day ends: "Sam and 2
+others found your reply helpful", with **Open your reply**. It doesn't depend on
+following the conversation.
+
+- **Names:** only first names people chose to show in live activity (up to two,
+  newest first); everyone else is counted ("Someone", "3 people"). Helpful stays
+  anonymous to everyone else, as before.
+- **What counts:** that day's marks that still stand, from people other than you.
+  Marks made before schema 29 have no time, so they keep the public count but
+  never count or get named.
+  Removing a mark before delivery cancels it; an update with no marks left isn't
+  shown. Your own marks never count.
+- **Withheld:** a hidden or removed post shows no update, and pause works as for
+  replies. A post's day is queued only by a mark that arrives while you aren't
+  paused; once queued, it counts all that day's standing marks. Pausing also
+  withholds the inbox until you resume.
+- **Storage:** an envelope (`helpful_notifications`) holds only the recipient,
+  post and delivery window. Counts and names are read from current marks
+  (`post_helpful.created_at`) when the inbox loads. A new mark queues its day's
+  envelope in the same transaction.
+- **Inbox page:** reply and Helpful updates share one newest-first page and
+  cursor. Each kind reads its own keyset page, and the page merges them.
+- **Agents:** may set Helpful with `publish`, which notifies like a person's
+  mark. Thank-you notes from the design are not built.
 
 ## Visibility and privacy
 
@@ -47,7 +77,9 @@ filtered projection as discussions. Hidden/removed roots remain content-free
 placeholders in the follow collection, with remaining replies reachable normally.
 
 Delivery checks current visibility, not the publication-time snapshot. Hidden or
-removed roots suppress all notifications for that thread. Hidden/removed replies
+removed roots suppress all reply notifications for that thread. A Helpful update
+depends only on its own post, so one on a visible reply still shows under a
+hidden root. Hidden/removed replies
 are excluded from summaries and direct link selection. An empty summary is withheld.
 Restored, currently public content can become eligible again. Following a hidden
 root retains it privately but does not queue replies while the root is hidden.
@@ -69,7 +101,7 @@ OpenAPI **1.12.0** documents:
 | --- | --- | --- |
 | GET, PUT, DELETE | `/api/v1/events/{event_id}/discussions/{discussion_id}/follow` | Read/set/remove your follow |
 | GET | `/api/v1/me/discussions` | Private followed collection |
-| GET | `/api/v1/me/notifications` | Due, currently visible reply updates |
+| GET | `/api/v1/me/notifications` | Due, currently visible reply and Helpful updates (`kind`) |
 | PUT | `/api/v1/me/notifications/{notification_id}/read` | Mark a delivered update read |
 
 Follow PUT requires `{"frequency":"immediate|daily|weekly|muted"}` (one enum value).
@@ -90,9 +122,9 @@ their roots in the same query. Delivery happens on
 inbox reads after the due time; no background worker, external transport, live
 polling, retention job or high-fanout capacity certification is included.
 
-Drain older binaries, back up, migrate explicitly, reconcile runtime grants, then
-start schema-12 apps. Do not run `make db-setup` against a shared service. See
-[upgrade compatibility](persistence.md#rolling-update-compatibility).
+For upgrades (currently to schema 29, which adds Helpful updates and a runtime
+grant), follow [upgrade compatibility](persistence.md#rolling-update-compatibility).
+Do not run `make db-setup` against a shared service.
 
 ## Verification
 

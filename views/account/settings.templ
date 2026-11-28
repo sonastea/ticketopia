@@ -223,7 +223,7 @@ templ Privacy(p Page) {
 					First name <span>(optional)</span>
 					@input.Input(input.Props{ID:"activity-first-name",Name:"activity_first_name",Value:activityName(p.Account, ""),Attributes:templ.Attributes{"aria-describedby":"activity-name-help", "autocomplete":"off"}})
 				}
-				<p id="activity-name-help" class="field-note">Shown publicly in live activity when you recommend an event, even if you turn live activity off in <a href="/me/preferences#live-preferences-heading" class="text-link">Preferences</a>. Leave it blank, and save, to appear as Someone.</p>
+				<p id="activity-name-help" class="field-note">Shown publicly in live activity when you recommend an event, even if you turn live activity off in <a href="/me/preferences#live-preferences-heading" class="text-link">Preferences</a>. It also tells people whose posts you mark Helpful that you found them helpful, in their private notifications. Leave it blank, and save, to appear as Someone; their updates then count you without your name, including ones they already have.</p>
 				<div class="activity-preview" aria-hidden="true">
 					<span class="activity-preview-label">Preview</span>
 					<p><strong data-activity-name-preview>{ activityName(p.Account, "Someone") }</strong> recommended an event</p>
@@ -421,17 +421,17 @@ templ Preferences(p Page) {
 						<input type="checkbox" name="notifications_paused" aria-labelledby="notification-pause-label" aria-describedby="notification-pause-help" checked?={ p.Account.Preferences.NotificationsPaused }/>
 						<span class="notification-copy">
 							<span id="notification-pause-label" class="notification-title">Pause all notifications</span>
-							<span id="notification-pause-help" class="field-note">Stops live activity, on-sale emails and reply updates across your account. Uncheck to resume your configured notifications.</span>
+							<span id="notification-pause-help" class="field-note">Stops live activity, on-sale emails, reply updates and Helpful updates across your account. Uncheck to resume your configured notifications.</span>
 						</span>
 					</label>
 				</div>
 			</div>
 			<div class="notification-replies">
-				<h3>Replies in the app</h3>
-				<p class="field-note">Updates from conversations you follow. These stay in Ticketopia, not email.</p>
+				<h3>Replies and Helpful in the app</h3>
+				<p class="field-note">Updates from conversations you follow, and a daily update when people mark your posts Helpful. These stay in Ticketopia, not email.</p>
 				<div class="notification-links">
 					<a href="/me/discussions" class="text-link">Choose reply frequency</a>
-					<a href="/me/notifications" class="text-link">Read reply updates</a>
+					<a href="/me/notifications" class="text-link">Read notifications</a>
 				</div>
 			</div>
 			<details class="account-more notification-delivery">

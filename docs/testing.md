@@ -146,6 +146,10 @@ make review-server scenario=event-edge-cases
   Discover, with tips, a reply and Helpful marks. That event's **Questions &
   tips** (`venue_tips_event`) shows "From past shows at this venue", and a past
   show (`past_show`) offers after-show prompts.
+- `helpful-updates`: resumes the owner's notifications and delivers two Helpful
+  updates, on the owner's baseline answer and question, at
+  `helpful_notifications` (`/me/notifications`). Each names two opted-in first
+  names and sits beside the owner's reply update.
 - `reminder-email`: sends one real on-sale reminder for the owner through the
   production SES sender in local emulator mode (MiniStack from `make ses-setup`;
   dummy credentials, never the AWS credential chain). The reminder shows SES

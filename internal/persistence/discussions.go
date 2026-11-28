@@ -324,12 +324,30 @@ func (r *DiscussionRepository) Remove(ctx context.Context, owner, id string) err
 	}
 	return nil
 }
+
+// React sets or clears the owner's Helpful mark. A new mark queues the
+// author's Helpful update in the same transaction, which takes the author's
+// account row after the post: reply publication takes them in the opposite
+// order, so a deadlock is retried like publication's.
 func (r *DiscussionRepository) React(ctx context.Context, owner, id string, set bool) (discussions.Post, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
+	for attempt := range 3 {
+		p, err := r.reactOnce(ctx, owner, id, set)
+		if err == nil || errors.Is(err, discussions.ErrNotFound) {
+			return p, err
+		}
+		if !retryable(err) || attempt == 2 {
+			return discussions.Post{}, safeError("Helpful write", err)
+		}
+	}
+	panic("unreachable")
+}
+
+func (r *DiscussionRepository) reactOnce(ctx context.Context, owner, id string, set bool) (discussions.Post, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return discussions.Post{}, safeError("Helpful write", err)
+		return discussions.Post{}, err
 	}
 	defer tx.Rollback()
 	var removed bool
@@ -338,22 +356,30 @@ func (r *DiscussionRepository) React(ctx context.Context, owner, id string, set 
 		return discussions.Post{}, discussions.ErrNotFound
 	}
 	if err != nil {
-		return discussions.Post{}, safeError("Helpful write", err)
+		return discussions.Post{}, err
 	}
 	if set {
-		_, err = tx.ExecContext(ctx, `INSERT INTO post_helpful (account_id,post_id) VALUES (?,?) ON DUPLICATE KEY UPDATE post_id=VALUES(post_id)`, owner, id)
+		var res sql.Result
+		// created_at is stamped only on new marks; marks from before schema
+		// 29 keep NULL and never count toward an update.
+		res, err = tx.ExecContext(ctx, `INSERT INTO post_helpful (account_id,post_id,created_at) VALUES (?,?,UTC_TIMESTAMP(6)) ON DUPLICATE KEY UPDATE post_id=VALUES(post_id)`, owner, id)
+		// A new mark (one row affected, not an unchanged duplicate) tells
+		// the author, in the same transaction.
+		if n, _ := resultRows(res, err); n == 1 {
+			err = enqueueHelpful(ctx, tx, owner, id)
+		}
 	} else {
 		_, err = tx.ExecContext(ctx, `DELETE FROM post_helpful WHERE account_id=? AND post_id=?`, owner, id)
 	}
 	if err != nil {
-		return discussions.Post{}, safeError("Helpful write", err)
+		return discussions.Post{}, err
 	}
 	p, err := readPost(ctx, tx, owner, id)
 	if err != nil {
 		return discussions.Post{}, err
 	}
 	if err = tx.Commit(); err != nil {
-		return discussions.Post{}, safeError("Helpful write", err)
+		return discussions.Post{}, err
 	}
 	return p, nil
 }
@@ -598,4 +624,11 @@ func (r *DiscussionRepository) NewReplies(ctx context.Context, viewer, event, th
 		out.Replies, out.More = out.Replies[:discussions.MaxNewReplies], true
 	}
 	return out, nil
+}
+
+func resultRows(res sql.Result, err error) (int64, error) {
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }

@@ -40,6 +40,7 @@ var runtimeTablePermissions = []struct {
 	{"discussion_follows", "frequency", true},
 	{"discussion_notifications", "read_at", true},
 	{"discussion_notification_posts", "", false},
+	{"helpful_notifications", "read_at", false},
 	{"moderation_reports", "decision_id", false},
 	{"moderation_decisions", "", false},
 	{"moderation_appeals", "reviewed_by", false},

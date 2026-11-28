@@ -437,6 +437,21 @@ spec:
 apiVersion: k8s.mariadb.com/v1alpha1
 kind: Grant
 metadata:
+  name: ticketopia-runtime-helpful-notifications
+  namespace: ticketopia
+spec:
+  mariaDbRef: {name: ticketopia-db}
+  privileges: [INSERT, UPDATE]
+  database: ticketopia
+  table: helpful_notifications
+  username: ticketopia_runtime
+  host: "%"
+  grantOption: false
+  cleanupPolicy: Skip
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
   name: ticketopia-runtime-post-helpful
   namespace: ticketopia
 spec:

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.33.0
+  version: 1.34.0
   license:
     name: MIT
     identifier: MIT
@@ -2033,8 +2033,14 @@ paths:
   /api/v1/me/notifications:
     get:
       operationId: listDiscussionNotifications
-      summary: Read your private in-app reply notification inbox
+      summary: Read your private in-app notification inbox (replies and Helpful)
       description: |
+        Two kinds share one page (`kind`): reply updates for conversations you
+        follow, and daily Helpful updates on your own visible posts, which name only
+        people who chose to show a first name in live activity and count the rest.
+        A Helpful update counts only that UTC day's marks that still stand, so it
+        disappears if every mark is removed, the post is hidden or removed, or you
+        pause notifications; your own marks never count.
         Due envelopes only, newest available_at first with binary ID tie-break and
         owner/collection-bound keyset cursors. Live visibility is rechecked for root
         and replies; hidden/removed replies never count or become link targets.
@@ -2049,7 +2055,7 @@ paths:
         - {$ref: '#/components/parameters/DiscussionCursor'}
       responses:
         '200':
-          description: Due, currently visible reply updates.
+          description: Due, currently visible reply and Helpful updates.
           content:
             application/json:
               schema:
@@ -3040,17 +3046,21 @@ components:
     DiscussionNotification:
       type: object
       additionalProperties: false
-      required: [id, event_id, thread_id, post_id, event_name, reply_count, available_at, read, url]
+      required: [id, kind, event_id, thread_id, post_id, event_name, reply_count, available_at, read, url]
       properties:
         id: {$ref: '#/components/schemas/AccountID'}
+        kind: {type: string, enum: [replies, helpful], description: '`replies`: new replies in a conversation you follow. `helpful`: a daily update (UTC) when other people marked your own post Helpful; it does not depend on following.'}
         event_id: {$ref: '#/components/schemas/ResourceID'}
         thread_id: {$ref: '#/components/schemas/AccountID'}
-        post_id: {$ref: '#/components/schemas/AccountID'}
+        post_id: {$ref: '#/components/schemas/AccountID', description: 'For `replies`, the latest visible reply; for `helpful`, your post.'}
         event_name: {type: string}
-        reply_count: {type: integer, minimum: 1}
+        reply_count: {type: integer, minimum: 0, description: 'Visible replies a `replies` update covers (at least 1); 0 for `helpful`.'}
+        helpful_count: {type: integer, minimum: 1, description: 'For `helpful`: other people who marked the post Helpful that UTC day and still do. Removing a mark before delivery cancels it.'}
+        helpful_names: {type: array, maxItems: 2, items: {type: string, maxLength: 40}, description: 'For `helpful`: up to two first names, most recent mark first, only of people who chose to show one in live activity; everyone else is only counted.'}
+        reply: {type: boolean, description: 'For `helpful`: the post is a reply rather than a question or tip. Omitted when false.'}
         available_at: {type: string, format: date-time}
         read: {type: boolean}
-        url: {type: string, description: 'Same-origin relative URL selecting the latest visible reply, including post_id and fragment.'}
+        url: {type: string, description: 'Same-origin relative URL selecting the post (the latest visible reply for `replies`), including post_id and fragment.'}
     DiscussionList:
       type: object
       additionalProperties: false

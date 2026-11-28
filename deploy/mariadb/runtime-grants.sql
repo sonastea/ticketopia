@@ -26,6 +26,7 @@ GRANT INSERT, DELETE ON ticketopia.discussion_same_question TO 'ticketopia_runti
 GRANT INSERT, UPDATE, DELETE ON ticketopia.discussion_follows TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE, DELETE ON ticketopia.discussion_notifications TO 'ticketopia_runtime'@'%';
 GRANT INSERT ON ticketopia.discussion_notification_posts TO 'ticketopia_runtime'@'%';
+GRANT INSERT, UPDATE ON ticketopia.helpful_notifications TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE ON ticketopia.moderation_reports TO 'ticketopia_runtime'@'%';
 GRANT INSERT ON ticketopia.moderation_decisions TO 'ticketopia_runtime'@'%';
 GRANT INSERT, UPDATE ON ticketopia.moderation_appeals TO 'ticketopia_runtime'@'%';

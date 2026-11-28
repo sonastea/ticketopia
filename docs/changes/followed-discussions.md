@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 2026-11-28 — "Your answer helped"
+
+- When other people mark your question, tip or reply Helpful, a private daily
+  update (UTC) appears in **Notifications** (formerly Reply notifications). It
+  does not depend on following.
+- It names only people who chose to show a first name in live activity, and
+  counts everyone else. Your own marks never count.
+- Removing a mark before delivery cancels it. Hidden or removed posts and paused
+  notifications withhold the update.
+- `my_notifications` and `GET /api/v1/me/notifications` return both kinds
+  (contract v1.34.0, schema v29). See
+  [Helpful updates](../followed-discussions.md#helpful-updates).
+
 ### 2026-11-24 — Page notification envelopes before reading details
 
 - Keep visibility filtering ahead of pagination; fetch the event name, reply

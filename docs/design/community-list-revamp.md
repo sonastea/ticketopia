@@ -1,6 +1,6 @@
 # Community list revamp: making participation feel alive
 
-**Status: Phases 0–3 shipped (2026-11-22), Phase 5 shipped (2026-11-28); Phases 4 and 6 proposed.** Each phase
+**Status: Phases 0–3 shipped (2026-11-22), Phases 4 and 5 shipped (2026-11-28); Phase 6 proposed.** Each phase
 can ship on its own and lists what it needs, what success looks like and what
 it leaves out. Shipped phases end with a **Shipped** note recording departures
 from the plan. Check a phase only when its user-facing behavior ships and is
@@ -10,7 +10,7 @@ verified.
 - [x] Phase 1 — Show what is already there
 - [x] Phase 2 — "Can you help?"
 - [x] Phase 3 — Threads that update while you read
-- [ ] Phase 4 — "Your answer helped"
+- [x] Phase 4 — "Your answer helped"
 - [x] Phase 5 — Conversations that fit the moment
 - [ ] Phase 6, optional — Anonymous signs of others
 
@@ -291,6 +291,17 @@ build took 3.8 s (8.3 s p95) and 134 ms (354 ms p95).
 
 **Done when** a pilot participant sees their answer acknowledged, and pausing
 notifications stops these updates along with reply updates.
+
+**Shipped (2026-11-28)**, apart from the thank-you note. See the
+[guide](../followed-discussions.md#helpful-updates).
+
+- **Names:** only people who chose to show a first name in live activity are
+  named, and everyone else is counted, so Helpful stays anonymous by default.
+- **Frequency:** updates are daily per post (UTC). Followed-discussion frequency
+  is set per conversation and these don't depend on following, so there was no
+  account-wide frequency to follow.
+- **Not built:** the optional thank-you note.
+- **Not yet verified:** the pilot outcome.
 
 ## Phase 5 — Conversations that fit the moment
 

@@ -31,7 +31,8 @@ var localTestAccountTables = []string{
 
 // RemoveLocalTestAccounts deletes every throwaway account and everything it
 // owns in one transaction: its posts with replies in their threads (even
-// other accounts'), Helpful marks, follows and notifications on them, and its
+// other accounts'), Helpful marks, follows and notifications on them (Helpful
+// updates cascade from posts and accounts), and its
 // saves, interests, recommendations, reminders, follows, drafts, OAuth
 // connections and credentials. It reports how many accounts it removed. Use
 // it only on a local database; it needs operator (migration) credentials.

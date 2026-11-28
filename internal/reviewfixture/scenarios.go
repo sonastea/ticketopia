@@ -60,6 +60,8 @@ var scenarios = map[string]scenario{
 		events: reminderEmailEvents, seed: seedReminderEmail},
 	"populated": {description: "Adds 40 signed-in members with browser sessions (manifest members) over stored Discover, for simulated-user load (make simulate-users). Their actions write to this disposable schema only.",
 		stored: true, seed: seedPopulated},
+	"helpful-updates": {description: "Resumes the owner's notifications and delivers two Helpful updates on the owner's baseline answer and question, each naming two opted-in first names, beside the reply update, at /me/notifications.",
+		seed: seedHelpfulUpdates},
 	"venue-tips": {description: "Adds two past shows at the first event's venue with Helpful tips and a reply, so that event's Questions & tips shows \"From past shows at this venue\" and the past shows use after-show prompts.",
 		seed: seedVenueTips},
 	"reminder-states": {description: "Adds owner reminders in every state (scheduled, sending, pending, accepted, failed, uncertain, expired, pending date, cancelled, refresh failed), a stopped reminder, and a paused reminder for other. A fixture sender returns outcomes; no email is sent.",
@@ -106,11 +108,13 @@ type fixture struct {
 	paths         map[string]string
 	scenarioPaths map[string]string
 	threadID      string
-	base, ses     string
-	db            *persistencetest.Database
-	discovery     *discovery.Service
-	upstream      *upstream
-	queries       []discovery.Query
+	// ownerPosts are the owner's baseline answer and question, both marked Helpful.
+	ownerPosts []string
+	base, ses  string
+	db         *persistencetest.Database
+	discovery  *discovery.Service
+	upstream   *upstream
+	queries    []discovery.Query
 }
 
 const (
@@ -325,6 +329,7 @@ func (f *fixture) seed(sc scenario) error {
 		return err
 	}
 	f.threadID = root.ID
+	f.ownerPosts = []string{answer.ID, second.ID}
 	f.paths = map[string]string{
 		"discover": "/?" + q.Values().Encode(), "event": "/events/" + url.PathEscape(event), "mcp": "/mcp",
 		"discussion": "/events/" + url.PathEscape(event) + "/discussions/" + root.ID,
@@ -552,6 +557,27 @@ func seedEdgeCases(f *fixture, events []models.EventDetail) (map[string]string, 
 		"canceled_event":  eventPath(canceled),
 		"busy_discussion": eventPath(busy) + "/discussions/" + root.ID,
 	}, errors.Join(errs...)
+}
+
+// seedHelpfulUpdates resumes the owner's notifications, adds a second Helpful
+// mark to each of the owner's baseline posts (now queued for the owner), then
+// ages those marks and envelopes by a day so the updates are due.
+func seedHelpfulUpdates(f *fixture, _ []models.EventDetail) (map[string]string, error) {
+	owner, other, moderator := f.people["owner"].ID, f.people["other"].ID, f.people["moderator"].ID
+	off := false
+	if _, err := f.auth.UpdatePreferences(f.ctx, owner, accounts.PreferencesPatch{NotificationsPaused: &off}); err != nil {
+		return nil, err
+	}
+	answer, question := f.ownerPosts[0], f.ownerPosts[1]
+	var errs []error
+	for _, mark := range []struct{ who, post string }{{moderator, answer}, {other, question}} {
+		_, err := f.p.Discussions().React(f.ctx, mark.who, mark.post, true)
+		errs = append(errs, err)
+	}
+	errs = append(errs,
+		f.db.Exec(f.ctx, "UPDATE "+f.db.Name+".post_helpful SET created_at=created_at-INTERVAL 1 DAY WHERE post_id IN (?,?)", answer, question),
+		f.db.Exec(f.ctx, "UPDATE "+f.db.Name+".helpful_notifications SET window_start=window_start-INTERVAL 1 DAY,available_at=available_at-INTERVAL 1 DAY WHERE account_id=?", owner))
+	return map[string]string{"helpful_notifications": "/me/notifications"}, errors.Join(errs...)
 }
 
 // seedVenueTips adds two past shows at the first baseline event's venue,

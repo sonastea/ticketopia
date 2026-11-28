@@ -1,6 +1,7 @@
 package home
 
 import "fmt"
+import "github.com/sonastea/ticketopia/internal/discussionfollows"
 import "github.com/sonastea/ticketopia/views/layouts"
 import "github.com/sonastea/ticketopia/views/components/button"
 import "github.com/sonastea/ticketopia/views/components/label"
@@ -59,7 +60,7 @@ templ ConversationFollow(event,thread,frequency,csrf,returnURL string,paused boo
 templ FollowedDiscussions(p DiscussionFollowPage) {
 	@layouts.App("profile","Your conversations") {
 		<main id="main" class="destination-page discussion-page">
-			@layouts.AccountHeader(ternary(p.Notifications,"Reply notifications","Followed discussions"), "Your private way back to event conversations. Updates appear here in Ticketopia; no email or push is sent.", ternary(p.Notifications,"notifications","discussions"), p.Navigation)
+			@layouts.AccountHeader(ternary(p.Notifications,"Notifications","Followed discussions"), ternary(p.Notifications, "Replies in conversations you follow, and when people find your posts helpful. Updates appear here in Ticketopia; no email or push is sent.", "Your private way back to event conversations. Updates appear here in Ticketopia; no email or push is sent."), ternary(p.Notifications,"notifications","discussions"), p.Navigation)
 			if p.Paused {
 				<p class="field-note">All notifications are paused. <a href="/me/preferences" class="text-link">Resume in Preferences</a> to receive future activity. Your follows are kept.</p>
 			}
@@ -68,8 +69,8 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 			} else if p.Notifications {
 				if len(p.Inbox.Items)==0 {
 					<div class="destination-state">
-						<h2>No reply updates on this page</h2>
-						<p>Follow a conversation and choose a frequency to receive future replies.</p>
+						<h2>No updates on this page</h2>
+						<p>Follow a conversation and choose a frequency to receive future replies. When people mark your posts Helpful, a daily update appears here too.</p>
 						<a class="text-link" href="/me/discussions">See followed discussions</a>
 					</div>
 				}
@@ -77,11 +78,19 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 					for _,n:=range p.Inbox.Items {
 						<li class="discussion-post conversation-record" data-notification-read={ fmt.Sprint(n.Read) }>
 							<h2>{ n.EventName }</h2>
-							<p class="conversation-meta"><strong>{ fmt.Sprint(n.ReplyCount) }</strong>
-								if n.ReplyCount==1 {
-									new reply ·
+							<p class="conversation-meta">
+								if n.Kind==discussionfollows.KindHelpful {
+									<span class="helpful-summary">
+										@layouts.Icon("helpful")
+										<strong>{ helpfulSummary(n) }</strong>
+									</span> ·
 								} else {
-									new replies ·
+									<strong>{ fmt.Sprint(n.ReplyCount) }</strong>
+									if n.ReplyCount==1 {
+										new reply ·
+									} else {
+										new replies ·
+									}
 								}
 								if n.Read {
 									Read
@@ -91,7 +100,13 @@ templ FollowedDiscussions(p DiscussionFollowPage) {
 							</p>
 							<p class="field-note">{ "Available " }@layouts.Stamp(n.AvailableAt)</p>
 							<div class="account-actions">
-								@button.Button(button.Props{Href:n.URL,Variant:button.VariantOutline,Class:"action action-secondary"}) { Open conversation at reply }
+								@button.Button(button.Props{Href:n.URL,Variant:button.VariantOutline,Class:"action action-secondary"}) {
+									if n.Kind==discussionfollows.KindHelpful {
+										{ ternary(n.Reply, "Open your reply", "Open your question or tip") }
+									} else {
+										Open conversation at reply
+									}
+								}
 								if !n.Read {
 									<form action="/discussion-follow-actions" method="post">
 										<input type="hidden" name="csrf_token" value={ p.CSRF }/><input type="hidden" name="notification_id" value={ n.ID }/><input type="hidden" name="return_to" value={ p.URL }/>

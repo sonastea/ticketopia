@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -223,41 +224,121 @@ func notificationListQuery(who string, q discussionfollows.Query) (string, []any
  FROM (` + keys + `) page STRAIGHT_JOIN event_snapshots e ON e.event_id=page.event_id ORDER BY page.available_at DESC,page.notification_id DESC`, args
 }
 
+// Notifications merges reply and Helpful updates into one newest-first page:
+// each kind reads its own keyset page of up to Limit+1, and the merge keeps
+// the first Limit+1, so the shared cursor works across both.
 func (r *DiscussionFollowRepository) Notifications(ctx context.Context, who string, q discussionfollows.Query) ([]discussionfollows.Notification, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	query, args := notificationListQuery(who, q)
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	items := []discussionfollows.Notification{}
+	err := queryRowsTx(ctx, r.db, query, args, func(rows *sql.Rows) error {
+		n := discussionfollows.Notification{Kind: discussionfollows.KindReplies}
+		if err := rows.Scan(&n.ID, &n.EventID, &n.ThreadID, &n.EventName, &n.AvailableAt, &n.Read, &n.ReplyCount, &n.PostID); err != nil {
+			return err
+		}
+		items = append(items, n)
+		return nil
+	})
 	if err != nil {
 		return nil, safeError("discussion notifications", err)
 	}
-	defer rows.Close()
-	items := []discussionfollows.Notification{}
-	for rows.Next() {
-		var n discussionfollows.Notification
-		if err = rows.Scan(&n.ID, &n.EventID, &n.ThreadID, &n.EventName, &n.AvailableAt, &n.Read, &n.ReplyCount, &n.PostID); err != nil {
-			return nil, safeError("discussion notifications", err)
+	query, args = helpfulListQuery(who, q)
+	err = queryRowsTx(ctx, r.db, query, args, func(rows *sql.Rows) error {
+		n := discussionfollows.Notification{Kind: discussionfollows.KindHelpful}
+		var first, second sql.NullString
+		if err := rows.Scan(&n.ID, &n.EventID, &n.ThreadID, &n.PostID, &n.EventName, &n.AvailableAt, &n.Read, &n.HelpfulCount, &first, &second); err != nil {
+			return err
+		}
+		n.Reply = n.PostID != n.ThreadID
+		for _, name := range []sql.NullString{first, second} {
+			if name.Valid && name.String != "" {
+				n.HelpfulNames = append(n.HelpfulNames, name.String)
+			}
 		}
 		items = append(items, n)
+		return nil
+	})
+	if err != nil {
+		return nil, safeError("helpful notifications", err)
 	}
-	if err = rows.Err(); err != nil {
-		return nil, safeError("discussion notifications", err)
+	slices.SortFunc(items, func(a, b discussionfollows.Notification) int {
+		if c := b.AvailableAt.Compare(a.AvailableAt); c != 0 {
+			return c
+		}
+		return strings.Compare(b.ID, a.ID)
+	})
+	if len(items) > q.Limit+1 {
+		items = items[:q.Limit+1]
 	}
 	return items, nil
 }
+
+// Helpful updates: one envelope per post per UTC day for its author. Delivery
+// counts that day's Helpful marks from other people that still stand, so
+// unmarking before delivery cancels a mark, and an envelope with none left,
+// or whose post is withheld, is not shown. Pause withholds them like replies.
+func helpfulMarks(n string) string {
+	return ` FROM post_helpful h WHERE h.post_id=` + n + `.post_id AND h.created_day=DATE(` + n + `.window_start) AND h.account_id<>` + n + `.account_id`
+}
+
+const helpfulScopeJoin = ` FROM helpful_notifications hn JOIN accounts a ON a.account_id=hn.account_id JOIN discussion_posts p ON p.post_id=hn.post_id`
+
+var helpfulVisible = ` AND hn.available_at<=UTC_TIMESTAMP(6) AND a.notifications_paused=FALSE AND p.account_id=hn.account_id AND p.hidden_at IS NULL AND p.removed_at IS NULL AND EXISTS(SELECT 1` + helpfulMarks("hn") + `)`
+
+// helpfulName is the nth newest opted-in first name among the counted marks.
+func helpfulName(offset int) string {
+	return `(SELECT m.activity_first_name FROM post_helpful h JOIN accounts m ON m.account_id=h.account_id WHERE h.post_id=page.post_id AND h.created_day=DATE(page.window_start) AND h.account_id<>page.account_id AND m.activity_first_name IS NOT NULL ORDER BY h.created_at DESC,h.account_id DESC LIMIT 1 OFFSET ` + strconv.Itoa(offset) + `)`
+}
+
+func helpfulListQuery(who string, q discussionfollows.Query) (string, []any) {
+	where := ` WHERE hn.account_id=?` + helpfulVisible
+	args := []any{who}
+	if q.Cursor != nil {
+		where += ` AND (hn.available_at<? OR (hn.available_at=? AND hn.notification_id<?))`
+		args = append(args, q.Cursor.At, q.Cursor.At, q.Cursor.ID)
+	}
+	args = append(args, q.Limit+1)
+	keys := `SELECT hn.notification_id,hn.account_id,hn.post_id,hn.window_start,hn.available_at,hn.read_at` + helpfulScopeJoin + where + ` ORDER BY hn.available_at DESC,hn.notification_id DESC LIMIT ?`
+	names := make([]string, discussionfollows.MaxHelpfulNames)
+	for i := range names {
+		names[i] = helpfulName(i)
+	}
+	return `SELECT page.notification_id,p.event_id,COALESCE(p.root_id,p.post_id),p.post_id,COALESCE(JSON_UNQUOTE(JSON_EXTRACT(e.snapshot,'$.name')),''),page.available_at,page.read_at IS NOT NULL,(SELECT COUNT(*)` + helpfulMarks("page") + `),` + strings.Join(names, ",") + `
+ FROM (` + keys + `) page JOIN discussion_posts p ON p.post_id=page.post_id JOIN event_snapshots e ON e.event_id=p.event_id ORDER BY page.available_at DESC,page.notification_id DESC`, args
+}
+
+// enqueueHelpful runs in the Helpful write's transaction after a new mark:
+// the post author's envelope for the mark's own UTC day, unless the marker is
+// the author or the author has paused notifications. The day comes from the
+// stored mark, so a mark at midnight can't fall between windows.
+func enqueueHelpful(ctx context.Context, tx *sql.Tx, marker, post string) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO helpful_notifications (notification_id,account_id,post_id,window_start,available_at)
+ SELECT ?,p.account_id,p.post_id,DATE(h.created_at),DATE(h.created_at)+INTERVAL 1 DAY
+ FROM post_helpful h JOIN discussion_posts p ON p.post_id=h.post_id JOIN accounts a ON a.account_id=p.account_id
+ WHERE h.account_id=? AND h.post_id=? AND p.account_id<>h.account_id AND a.notifications_paused=FALSE
+ ON DUPLICATE KEY UPDATE notification_id=notification_id`, accounts.ID(), marker, post)
+	return err
+}
+
 func (r *DiscussionFollowRepository) Read(ctx context.Context, who, id string) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 	// Owner-only and idempotent, including already-read notifications.
 	var found string
 	err := r.db.QueryRowContext(ctx, `SELECT n.notification_id`+notificationJoin+` WHERE n.account_id=? AND n.notification_id=?`+notificationVisible, who, id).Scan(&found)
+	table := "discussion_notifications"
+	if errors.Is(err, sql.ErrNoRows) {
+		table = "helpful_notifications"
+		err = r.db.QueryRowContext(ctx, `SELECT hn.notification_id`+helpfulScopeJoin+` WHERE hn.account_id=? AND hn.notification_id=?`+helpfulVisible, who, id).Scan(&found)
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return discussions.ErrNotFound
 	}
 	if err != nil {
 		return safeError("notification read", err)
 	}
-	_, err = r.db.ExecContext(ctx, `UPDATE discussion_notifications SET read_at=COALESCE(read_at,UTC_TIMESTAMP(6)) WHERE notification_id=? AND account_id=?`, id, who)
+	_, err = r.db.ExecContext(ctx, `UPDATE `+table+` SET read_at=COALESCE(read_at,UTC_TIMESTAMP(6)) WHERE notification_id=? AND account_id=?`, id, who)
 	if err != nil {
 		return safeError("notification read", err)
 	}

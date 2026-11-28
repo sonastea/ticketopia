@@ -1,5 +1,6 @@
-// Package discussionfollows owns private conversation subscriptions and in-app
-// reply notifications. Notification payloads deliberately contain no post text.
+// Package discussionfollows owns private conversation subscriptions and the
+// in-app inbox: reply notifications and Helpful updates on the recipient's own
+// posts. Notification payloads deliberately contain no post text.
 package discussionfollows
 
 import (
@@ -30,13 +31,37 @@ type Follow struct {
 	// Root uses the same moderation-filtered projection as public discussions.
 	Root discussions.Post `json:"root"`
 }
+
+// Notification kinds.
+const (
+	// KindReplies is new replies in a followed conversation.
+	KindReplies = "replies"
+	// KindHelpful is people marking the recipient's own post Helpful.
+	KindHelpful = "helpful"
+)
+
+// MaxHelpfulNames bounds the first names a Helpful update shows.
+const MaxHelpfulNames = 2
+
 type Notification struct {
-	ID          string    `json:"id"`
-	EventID     string    `json:"event_id"`
-	ThreadID    string    `json:"thread_id"`
-	PostID      string    `json:"post_id"`
-	EventName   string    `json:"event_name"`
-	ReplyCount  int       `json:"reply_count"`
+	ID string `json:"id"`
+	// Kind is KindReplies or KindHelpful.
+	Kind      string `json:"kind"`
+	EventID   string `json:"event_id"`
+	ThreadID  string `json:"thread_id"`
+	PostID    string `json:"post_id"`
+	EventName string `json:"event_name"`
+	// ReplyCount is the visible replies a replies update holds; 0 for Helpful.
+	ReplyCount int `json:"reply_count"`
+	// HelpfulCount is how many other people marked the post Helpful in the
+	// update's UTC day and still do. HelpfulNames are up to MaxHelpfulNames
+	// of their first names, most recent mark first, only from people who chose to show one in live
+	// activity; the rest are counted, never named.
+	HelpfulCount int      `json:"helpful_count,omitempty"`
+	HelpfulNames []string `json:"helpful_names,omitempty"`
+	// Reply is true when a Helpful update's post is a reply, not a question
+	// or tip.
+	Reply       bool      `json:"reply,omitempty"`
 	AvailableAt time.Time `json:"available_at"`
 	Read        bool      `json:"read"`
 	URL         string    `json:"url"`

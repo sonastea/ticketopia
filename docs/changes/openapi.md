@@ -4,6 +4,16 @@
 
 ## Unreleased
 
+### 2026-11-28 — Helpful updates in the inbox, contract v1.34.0
+
+- `DiscussionNotification` adds `kind` (`replies` or `helpful`), `helpful_count`,
+  `helpful_names` and `reply`. `reply_count` may now be 0, for Helpful updates.
+  See [Helpful updates](../followed-discussions.md#helpful-updates).
+- **Breaking for strict clients:** every item now has `kind`, which the old
+  schema's `additionalProperties: false` rejected, and Helpful items carry
+  `reply_count: 0`. Clients should accept `kind`, treat only `replies` items as
+  reply counts, and skip kinds they don't know.
+
 ### 2026-11-28 — Moderation queue triage fields, contract v1.33.0
 
 - `ModerationQueueItem` adds `pending_reasons` (reason codes with counts),
@@ -83,13 +93,3 @@
   first, with account-bound cursors.
 - Add problem code `community_activity_unavailable`. See
   [community activity from other clients](../accounts.md#community-activity-from-other-clients).
-
-### 2026-11-14 — Recommendation attribution and draft errors, contract v1.24.0
-
-- `EventRecommendation` gains optional `via` and `via_host`: the connected app
-  that published the recommendation or wrote its reason, and its verified
-  metadata host, omitted for a person's own writing. Clients should show both
-  beside the author as plain text.
-- Add problem codes `draft_not_found`, `draft_limit`, `drafts_unavailable` and
-  `recommendation_changed` for agent drafts (reviewed on the web at
-  `/me/drafts`, not a JSON route).

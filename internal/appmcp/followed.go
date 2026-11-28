@@ -16,7 +16,7 @@ import (
 var errNotificationNotFound = callMistake{errors.New("notification_id: no notification with this id for you; use an id from my_notifications")}
 
 // FollowedDiscussions are the caller's private discussion follows and their
-// reply notifications, as /api/v1/me/discussions and /me/notifications.
+// notifications (replies and Helpful updates), as /api/v1/me/discussions and /me/notifications.
 type FollowedDiscussions interface {
 	List(ctx context.Context, who string, values url.Values) (discussionfollows.Page[discussionfollows.Follow], error)
 	Notifications(ctx context.Context, who string, values url.Values) (discussionfollows.Page[discussionfollows.Notification], error)
@@ -39,10 +39,13 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		privateTool(d, func(ctx context.Context, owner string, in pageInput) (discussionfollows.Page[discussionfollows.Follow], error) {
 			return d.FollowedDiscussions.List(ctx, owner, in.values())
 		}))
-	addTool(server, d, &mcp.Tool{Name: "my_notifications", Title: "My reply notifications", OutputSchema: outputSchema[discussionfollows.Page[discussionfollows.Notification]](),
+	addTool(server, d, &mcp.Tool{Name: "my_notifications", Title: "My notifications", OutputSchema: outputSchema[discussionfollows.Page[discussionfollows.Notification]](),
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: &no},
-		Description: "Reply notifications for discussions the signed-in user follows, read and unread, newest first: each with the event name, " +
-			"reply_count (the replies it covers), read, the reply's post_id, and url, a path on the Ticketopia site (prefix the site's address to link it). " +
+		Description: "The signed-in user's notifications, read and unread, newest first. kind is \"replies\" (new replies in a discussion they follow: " +
+			"reply_count is the replies it covers and post_id the latest) or \"helpful\" (a daily UTC update when other people marked the user's own post Helpful: " +
+			"helpful_count is how many other people marked it that day and still do, so it can be lower than the post's public count; later marks come in a " +
+			"later update, and an update whose marks were all removed is withdrawn. helpful_names are up to two first names, most recent first, of people who " +
+			"chose to show one; the rest are only counted. post_id is that post; reply is true for a reply and absent for a question or tip; reply_count is 0). Each has the event name, read, and url, a path on the Ticketopia site (prefix the site's address to link it). " +
 			"Open the conversation with discussion_thread using event_id and thread_id. Listing marks nothing read; use mark_notification_read with its id. " +
 			"For the next page, pass next_cursor as cursor."},
 		privateTool(d, func(ctx context.Context, owner string, in pageInput) (discussionfollows.Page[discussionfollows.Notification], error) {
@@ -50,7 +53,7 @@ func addFollowedTools(server *mcp.Server, d Deps) {
 		}))
 	addTool(server, d, &mcp.Tool{Name: "mark_notification_read", Title: "Mark notification read", OutputSchema: outputSchema[notificationState](),
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &no, IdempotentHint: true, OpenWorldHint: &no},
-		Description: "Mark one of the signed-in user's reply notifications read, by its id from my_notifications. Marking it again changes nothing. " +
+		Description: "Mark one of the signed-in user's notifications (replies or Helpful) read, by its id from my_notifications. Marking it again changes nothing. " +
 			"Read state is private."},
 		privateTool(d, func(ctx context.Context, owner string, in notificationInput) (notificationState, error) {
 			err := d.FollowedDiscussions.Read(ctx, owner, in.NotificationID)

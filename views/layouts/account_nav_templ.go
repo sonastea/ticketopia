@@ -37,7 +37,7 @@ func accountFamilies(p AccountNavPermissions) []accountFamily {
 	if p.Drafts {
 		updates = append(updates, accountDestination{"drafts", "/me/drafts", "Agent drafts", p.PendingDrafts})
 	}
-	updates = append(updates, accountDestination{"reminders", "/me/reminders", "On-sale reminders", 0}, accountDestination{"discussions", "/me/discussions", "Followed discussions", 0}, accountDestination{"notifications", "/me/notifications", "Reply notifications", 0})
+	updates = append(updates, accountDestination{"reminders", "/me/reminders", "On-sale reminders", 0}, accountDestination{"discussions", "/me/discussions", "Followed discussions", 0}, accountDestination{"notifications", "/me/notifications", "Notifications", 0})
 	families := []accountFamily{
 		{"Account", []accountDestination{{"profile", "/me", "Profile", 0}, {"privacy", "/me/privacy", "Privacy", 0}, {"preferences", "/me/preferences", "Preferences", 0}, {"security", "/me/security", "Security & Apps", 0}}},
 		{"Your events", []accountDestination{{"radar", "/radar", "Radar", 0}, {"interests", "/me/interests", "Interests", 0}, {"follows", "/follows", "Artists & venues", 0}}},

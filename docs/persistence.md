@@ -386,8 +386,14 @@ Recovery is a reviewed operator action, not automatic rollback or a blind retry:
 
 ### Rolling-update compatibility
 
-This binary supports **clean schema version 28 only**. Versions 0–27 and 29+ are rejected.
-Partial schemas/missing columns or non-InnoDB tables fail startup. The v27-to-v28
+This binary supports **clean schema version 29 only**. Versions 0–28 and 30+ are rejected.
+Partial schemas/missing columns or non-InnoDB tables fail startup. The v28-to-v29
+upgrade adds `post_helpful.created_at` (NULL for existing marks, which never
+count toward updates), adds its UTC day `created_day`, replaces the
+`helpful_post` index with `helpful_post_day`, and adds the `helpful_notifications` table
+([Helpful updates](followed-discussions.md#helpful-updates)). Drain v28
+replicas, migrate, reconcile the new runtime `INSERT, UPDATE` grant
+(`deploy/mariadb/runtime-grants.sql`), then start v29. The v27-to-v28
 upgrade adds `account_credentials.scopes` and gives existing API tokens
 `read write`; drain v27 replicas, migrate, then start v28; existing runtime grants
 suffice. The v26-to-v27

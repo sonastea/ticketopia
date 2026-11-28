@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+### 2026-11-28 — Helpful updates, schema v29
+
+- Schema 29 adds `post_helpful.created_at` and the `helpful_notifications`
+  table, with a runtime `INSERT, UPDATE` grant to reconcile. Its rows cascade
+  from their post and account. See
+  [persistence](../persistence.md#rolling-update-compatibility).
+
 ### 2026-11-25 — API token scopes, schema v28
 
 - Schema 28 adds `account_credentials.scopes` (`read` or `read write`; empty for
@@ -85,11 +92,3 @@
 - Align startup, local SQL/operator grants and setup checks in database-free
   contract tests; verify missing grants, recovery, no data changes and deadlines
   on isolated MariaDB. See [permission validation](../persistence.md#startup-permission-validation).
-
-### 2026-10-07 — Private moderation and durable roles schema v8
-
-- Add hiding/review versions, private reports, append-only decisions and author requests.
-- Keep role membership/audits runtime-read-only; add audited operator grant/revoke CLI.
-  See [moderation](../moderation.md) and [upgrade/grants](../persistence.md).
-- Verify v7 preservation, races/rollback, privacy/restart and immediate role revocation;
-  require drained old traffic. Leave the running database and real role grants unchanged.

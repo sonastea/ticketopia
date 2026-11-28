@@ -150,7 +150,7 @@ line, and the account navigation. The current family's pages are tabs, with the
 current location labeled; each other family is one link, on the same rule, to
 its first page. **Account** (Profile, Privacy, Preferences, Security & Apps),
 **Your events** (Radar, Interests, Artists & venues), **Updates** (Agent drafts
-when enabled, On-sale reminders, Followed discussions, Reply notifications), and
+when enabled, On-sale reminders, Followed discussions, Notifications), and
 **Safety** (reports/outcomes when enabled; review queue only for moderators).
 Pending agent drafts are counted on their tab and on the Updates link. Tabs wrap
 rather than scroll. Links use normal document navigation and work without

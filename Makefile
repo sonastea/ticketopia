@@ -19,7 +19,7 @@ help:
 		'                   credentials go to .local/local-test-accounts.json. Rerun to replace them and refresh tokens.' \
 		'make local-test-accounts-clean Remove those accounts and everything they made.' \
 		'make review-server Serve signed-in fixture accounts on an isolated schema until Ctrl-C.' \
-		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email, populated, venue-tips).' \
+		'                   Add scenario=<name> (event-edge-cases, event-data-gaps, discover-last-known, reminder-states, reminder-email, populated, venue-tips, helpful-updates).' \
 		'make review-mcp    Serve the review fixtures to an MCP client over stdio (local only).' \
 		'make review-mcp-config Print MCP client setup for this checkout.' \
 		'make review-clean  Drop fixture schemas left by killed review servers or tests (local only).' \

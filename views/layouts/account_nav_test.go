@@ -24,7 +24,7 @@ func TestAccountNavigationFamiliesAndPermissions(t *testing.T) {
 		{"drafts", "/me/drafts", "Updates", "Agent drafts"},
 		{"reminders", "/me/reminders", "Updates", "On-sale reminders"},
 		{"discussions", "/me/discussions", "Updates", "Followed discussions"},
-		{"notifications", "/me/notifications", "Updates", "Reply notifications"},
+		{"notifications", "/me/notifications", "Updates", "Notifications"},
 		{"reports", "/me/reports", "Safety", "Your reports"},
 		{"outcomes", "/me/moderation", "Safety", "Moderation outcomes"},
 	}

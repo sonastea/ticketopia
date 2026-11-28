@@ -36,7 +36,7 @@ Use **Discover** as the primary destination. `/` is its canonical route.
 | Security & Apps | `/me/security` | Google sign-in and Sign out, Connected apps, API tokens, and a confirmed **Sign out of all devices** last |
 | On-sale reminders | `/me/reminders` | Private event-named rows with recorded targets/time zones and readiness; event settings offer preset/custom lead times, a non-guaranteed preview and native Save/Stop |
 | Followed discussions | `/me/discussions` | Private conversation collection and per-thread immediate/daily/weekly or muted reply frequency |
-| Reply notifications | `/me/notifications` | Private due reply updates, read state and exact visible-reply links |
+| Notifications | `/me/notifications` | Private due reply and Helpful updates, read state and exact post links |
 
 The shell uses a labeled sidebar from **72rem**, a compact rail and list/context
 layout from **62rem**, and a single-column layout with **Discover / Saved /

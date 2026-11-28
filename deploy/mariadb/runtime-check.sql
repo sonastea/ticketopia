@@ -59,6 +59,8 @@ INSERT INTO discussion_notifications SELECT * FROM discussion_notifications WHER
 UPDATE discussion_notifications SET read_at=read_at WHERE FALSE;
 DELETE FROM discussion_notifications WHERE FALSE;
 INSERT INTO discussion_notification_posts SELECT * FROM discussion_notification_posts WHERE FALSE;
+INSERT INTO helpful_notifications SELECT * FROM helpful_notifications WHERE FALSE;
+UPDATE helpful_notifications SET read_at=read_at WHERE FALSE;
 SELECT account_id, role FROM account_roles LIMIT 0;
 SELECT role_event_id FROM account_role_events LIMIT 0;
 INSERT INTO moderation_reports SELECT * FROM moderation_reports WHERE FALSE;

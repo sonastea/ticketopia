@@ -4411,6 +4411,8 @@ details.composer-card > .composer-form { padding: 1.125rem; }
   background: var(--surface);
 }
 .note-list > .note + .note { border-block-start: 1px solid color-mix(in oklch, var(--ink) 8%, transparent); }
+/* A Helpful update's icon sits beside its summary, which wraps as text. */
+.helpful-summary > .icon { display: inline-block; inline-size: 1.125rem; block-size: 1.125rem; margin-inline-end: .375rem; vertical-align: -.2em; }
 /* Venue tips belong to other events: a quieter, dashed panel set apart from
    this event's own conversations, with a plain note instead of a count pill. */
 .venue-tips .note-list-head > .list-meta {
