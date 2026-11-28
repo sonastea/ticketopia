@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ticketopia API
-  version: 1.32.0
+  version: 1.33.0
   license:
     name: MIT
     identifier: MIT
@@ -2968,11 +2968,22 @@ components:
         reviewed: {type: boolean}
     ModerationQueueItem:
       type: object
-      required: [post, pending_reports, pending_appeals]
+      required: [post, pending_reports, pending_appeals, pending_reasons, waiting_since]
       properties:
         post: {$ref: '#/components/schemas/DiscussionPost'}
         pending_reports: {type: integer, minimum: 0}
         pending_appeals: {type: integer, minimum: 0}
+        pending_reasons:
+          type: array
+          description: 'Pending reports counted by reason code, in reason order. Never reporter identities or text.'
+          items:
+            type: object
+            required: [reason, count]
+            properties:
+              reason: {type: string, enum: [spam, abuse, private_information, other]}
+              count: {type: integer, minimum: 1}
+        waiting_since: {type: [string, 'null'], format: date-time, description: 'When the oldest pending report or author review request arrived; null when nothing is pending.'}
+        last_action: {type: string, enum: [keep, hide, restore], description: 'The latest decision on this contribution. Omitted before the first decision.'}
     ModerationCase:
       type: object
       required: [post, author_id, current_body, version, reports, decisions, appeals, next_reports_cursor, next_decisions_cursor, next_appeals_cursor]

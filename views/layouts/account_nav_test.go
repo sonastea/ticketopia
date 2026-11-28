@@ -27,10 +27,9 @@ func TestAccountNavigationFamiliesAndPermissions(t *testing.T) {
 		{"notifications", "/me/notifications", "Updates", "Reply notifications"},
 		{"reports", "/me/reports", "Safety", "Your reports"},
 		{"outcomes", "/me/moderation", "Safety", "Moderation outcomes"},
-		{"queue", "/moderation", "Safety", "Moderator review queue"},
 	}
 	visible := func(p AccountNavPermissions, key, family string) bool {
-		return !(key == "drafts" && !p.Drafts) && !(family == "Safety" && (!p.ModerationEnabled || key == "queue" && !p.Moderator))
+		return !(key == "drafts" && !p.Drafts) && !(family == "Safety" && !p.ModerationEnabled)
 	}
 	for _, permissions := range []AccountNavPermissions{
 		{},
@@ -101,6 +100,10 @@ func TestAccountNavigationFamiliesAndPermissions(t *testing.T) {
 					} else {
 						wantFamilies[d.family] = first[d.family]
 					}
+				}
+				// Moderator work is a separate tool beside the families, never a tab.
+				if permissions.ModerationEnabled && permissions.Moderator {
+					wantFamilies["Review queue"] = "/moderation"
 				}
 				if current != 1 || !reflect.DeepEqual(tabs, wantTabs) || !reflect.DeepEqual(families, wantFamilies) {
 					t.Fatalf("current=%d\ntabs %v\nwant %v\nfamilies %v\nwant %v", current, tabs, wantTabs, families, wantFamilies)

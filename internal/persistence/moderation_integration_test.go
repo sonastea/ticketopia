@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -106,6 +107,11 @@ func TestMariaDBModerationWorkflowPrivacyAndRevocation(t *testing.T) {
 	if _, err = s.Decide(t.Context(), mod.ID, root.ID, stale); !errors.Is(err, moderation.ErrConflict) {
 		t.Fatal("closed an unseen report", err)
 	}
+	// Pending reasons are counted per reason, in reason order, before any decision.
+	pending, err := s.Queue(t.Context(), mod.ID, nil)
+	if err != nil || len(pending.Items) != 1 || !reflect.DeepEqual(pending.Items[0].PendingReasons, []moderation.ReasonCount{{Reason: "other", Count: 1}, {Reason: "private_information", Count: 1}}) || pending.Items[0].WaitingSince == nil || pending.Items[0].LastAction != "" {
+		t.Fatalf("pending summary: %+v %v", pending.Items, err)
+	}
 	c, err = s.Case(t.Context(), mod.ID, root.ID, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -155,6 +161,17 @@ func TestMariaDBModerationWorkflowPrivacyAndRevocation(t *testing.T) {
 	queue, err := s.Queue(t.Context(), mod.ID, nil)
 	if err != nil || len(queue.Items) != 1 || queue.Items[0].PendingReports != 0 || queue.Items[0].PendingAppeals != 1 {
 		t.Fatal("appeal queue", queue, err)
+	}
+	// The triage summary: no pending reasons once the reports are decided, the
+	// author's request as the wait, and the latest decision.
+	if item := queue.Items[0]; len(item.PendingReasons) != 0 || item.WaitingSince == nil || item.LastAction != "hide" {
+		t.Fatalf("queue summary: %+v", item)
+	}
+	if n, ok, err := s.PendingCases(t.Context(), mod.ID); err != nil || !ok || n != 1 {
+		t.Fatal("pending cases", n, ok, err)
+	}
+	if _, _, err := s.PendingCases(t.Context(), author.ID); !errors.Is(err, moderation.ErrForbidden) {
+		t.Fatal("pending cases for a non-moderator", err)
 	}
 	cache := kv.NewMemory()
 	defer cache.Close()
@@ -215,6 +232,9 @@ func TestMariaDBModerationWorkflowPrivacyAndRevocation(t *testing.T) {
 		if err != nil || len(ownQueue.Items) != 0 {
 			t.Fatal("own queue leaked case activity", ownQueue, err)
 		}
+	}
+	if n, ok, err := s.PendingCases(t.Context(), author.ID); err != nil || !ok || n != 0 {
+		t.Fatal("own pending count leaked case activity", n, err)
 	}
 	for _, path := range []string{"/me/reports", "/me/moderation", "/api/v1/me/moderation"} {
 		w = request(path, authorRaw)

@@ -4,6 +4,21 @@
 
 ## Unreleased
 
+### 2026-11-28 — A separate moderator workspace
+
+- The review queue leaves the personal Safety tabs, which now hold only your own
+  reports and moderation outcomes. Moderators get a separate **Review queue**
+  link with a pending count, and the queue and case pages open their own
+  workspace header with one **Awaiting review / All cases** filter, following
+  Discourse, Reddit, Mastodon and NodeBB, which all keep moderator tools apart
+  from the personal account.
+- Queue cases show status, pending reasons with counts, when they were reported,
+  the event, the contribution and its author. A case shows its evidence before
+  the decision: the exact reply in context, dated reports and author requests,
+  and earlier decisions. Decisions are choices that state their effect.
+- `GET /api/v1/moderation` items add `pending_reasons`, `waiting_since` and
+  `last_action` (contract v1.33.0). See [moderation](../moderation.md).
+
 ### 2026-11-26 — Replies expand in place
 
 - On an event's **Questions & tips**, each question or tip has a **N replies**
@@ -80,18 +95,3 @@
   views), responsive (150/5), discussions (69/14), conversation ergonomics (now on
   the shared `axe-scan.cjs`, which discounts fixed-navigation overlap) and moderation.
   WebKit iPhone emulation shows no overflow; real phones/screen readers remain open.
-
-### 2026-11-20 — Readable event community notes and composer cards
-
-- On the event, recommendations, questions and replies share one note shape:
-  initials avatar, linked name and date on one 44px line, then the person's words
-  at body size in ink. Your own recommendation is marked **You** on a pale-plum wash;
-  public interest shows as name chips.
-- Composers are cards whose summary invites the action; publishing is the primary
-  action and spans phone-width cards. Each post has one compact action row (Reply,
-  Helpful, Edit, Remove, Report) with full accessible names. Publishing, privacy,
-  public-audience guidance and the API are unchanged. See [DESIGN.md](../../DESIGN.md#public-recommendations).
-- Chromium journeys pass with zero axe violations: recommendations (126 checks/22
-  views), responsive (150/5), discussions (69/14), plus moderation. Browser scripts
-  now use the stable `[data-recommendation-editor]` hook and the note's body path.
-  Real phones, WebKit and manual screen readers remain unchecked.

@@ -83,8 +83,12 @@ Start every personal destination with shared presentation-only
 `layouts.AccountHeader` (heading, at most one intro line, `layouts.AccountNav`).
 The current **Account**, **Your events**, **Updates**, or enabled **Safety** family
 shows as wrapping tabs with `aria-current`; each other family is one link to its
-first page on the same rule. Reports/outcomes retain their enablement gate and
-review tools their moderator gate. Do not background-swap unrelated destinations.
+first page on the same rule. Reports/outcomes retain their enablement gate.
+Work done for others is not a family tab: moderators get a separate **Review
+queue** link (shield icon, pending count) after the family links, and the queue
+and case pages open their own workspace header (back link, "Moderator tools"
+marker, one status filter) instead of `AccountHeader`. Do not background-swap
+unrelated destinations.
 Each account page has one job and one form per section, with at most one note per
 section. Confirmations sit beside the section they confirm. Destructive account
 actions come last, behind a native disclosure listing their effects. See

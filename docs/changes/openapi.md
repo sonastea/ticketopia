@@ -4,6 +4,11 @@
 
 ## Unreleased
 
+### 2026-11-28 — Moderation queue triage fields, contract v1.33.0
+
+- `ModerationQueueItem` adds `pending_reasons` (reason codes with counts),
+  `waiting_since` and `last_action`. See [moderation](../moderation.md).
+
 ### 2026-11-27 — Metro areas, runs and event dates, contract v1.32.0
 
 - `GET /api/v1/events` accepts opt-in `area` (`metro`, `city`) and `fold`

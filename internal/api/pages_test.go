@@ -75,18 +75,18 @@ func TestAccountFamilyNavigationRoutesAndRoles(t *testing.T) {
 			if !strings.Contains(body, `class="account-navigation"`) || !strings.Contains(body, `href="`+path+`" aria-current="page"`) || !strings.Contains(body, "More in your space") {
 				t.Fatalf("%s lost current family navigation: %d %s", path, w.Code, body)
 			}
-			// Outside Safety, the family links to its first page; the moderator
-			// queue appears only among Safety's own tabs.
-			if !strings.Contains(body, `href="/me/reports"`) || strings.Contains(body, `href="/moderation"`) {
-				t.Fatalf("%s changed Safety role gate", path)
+			// Outside Safety, the family links to its first page. The moderator
+			// queue is a separate tool shown only to moderators, on every page.
+			if !strings.Contains(body, `href="/me/reports"`) || strings.Contains(body, `href="/moderation"`) != moderator {
+				t.Fatalf("%s moderator=%v changed the review queue gate", path, moderator)
 			}
 			if w.Header().Get("Cache-Control") != "private, no-store" {
 				t.Fatalf("%s lost private response", path)
 			}
 		}
-		// Within Safety, its own tabs carry the moderator gate.
+		// Safety's tabs are the person's own pages; the queue is never one of them.
 		body := accountRequest(a, "GET", "/me/reports", "", browser, "", "", "", "").Body.String()
-		if !strings.Contains(body, `href="/me/reports" aria-current="page"`) || strings.Contains(body, `href="/moderation"`) != moderator {
+		if !strings.Contains(body, `href="/me/reports" aria-current="page"`) || strings.Contains(body, `href="/moderation"`) != moderator || strings.Contains(body, "Moderator review queue") {
 			t.Fatalf("/me/reports moderator=%v changed the queue gate", moderator)
 		}
 	}

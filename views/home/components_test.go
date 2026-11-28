@@ -488,9 +488,8 @@ func TestOnSaleReminderIsAnEventAction(t *testing.T) {
 // so every section nav renders exactly one, inside its current tab.
 func TestSectionNavsMarkOnlyTheCurrentTab(t *testing.T) {
 	for name, component := range map[string]templ.Component{
-		"community":  CommunityNav("conversations"),
-		"event":      EventSections(EventPage{Section: "discussion"}),
-		"moderation": ModerationQueue(ModerationQueuePage{All: true}),
+		"community": CommunityNav("conversations"),
+		"event":     EventSections(EventPage{Section: "discussion"}),
 	} {
 		doc, err := html.Parse(strings.NewReader(renderNeighbor(t, component)))
 		if err != nil {

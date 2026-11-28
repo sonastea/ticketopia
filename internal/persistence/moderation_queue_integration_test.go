@@ -101,8 +101,16 @@ func TestMariaDBModerationQueueStatementsAreBounded(t *testing.T) {
 					t.Fatalf("post projection differs: %v", err)
 				}
 			}
-			if got > 2 {
-				t.Errorf("queue ran %d statements for %d rows; want at most 2", got, len(items))
+			// The page, its triage summaries (pending reasons, then pending author
+			// requests, each one aggregate over the page's IDs) and the posts:
+			// a fixed number of statements however many rows, never one per row.
+			if got > 4 {
+				t.Errorf("queue ran %d statements for %d rows; want at most 4", got, len(items))
+			}
+			for _, item := range items {
+				if len(item.PendingReasons) != 1 || item.PendingReasons[0].Count != 1 || item.WaitingSince == nil {
+					t.Fatalf("queue summary: %+v", item)
+				}
 			}
 		})
 	}

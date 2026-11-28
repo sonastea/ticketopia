@@ -191,17 +191,21 @@ func (r *ModerationRepository) Queue(ctx context.Context, who string, q moderati
 	// Load bounded identities first, then current public projections. No raw body
 	// or reporter identity is needed to scan the queue.
 	args = append(args, q.Limit+1)
-	rows, err := r.db.QueryContext(ctx, `SELECT p.post_id,`+pendingReports+`,`+pendingAppeals+` FROM discussion_posts p`+where+` ORDER BY p.created_at DESC,p.post_id DESC LIMIT ?`, args...)
+	// The latest decision is one indexed lookup per row (decision_post).
+	lastAction := `,(SELECT d.action FROM moderation_decisions d WHERE d.post_id=p.post_id ORDER BY d.created_at DESC,d.decision_id DESC LIMIT 1)`
+	rows, err := r.db.QueryContext(ctx, `SELECT p.post_id,`+pendingReports+`,`+pendingAppeals+lastAction+` FROM discussion_posts p`+where+` ORDER BY p.created_at DESC,p.post_id DESC LIMIT ?`, args...)
 	if err != nil {
 		return nil, safeError("moderation queue", err)
 	}
 	items := []moderation.QueueItem{}
 	for rows.Next() {
 		var v moderation.QueueItem
-		if err = rows.Scan(&v.Post.ID, &v.PendingReports, &v.PendingAppeals); err != nil {
+		var action sql.NullString
+		if err = rows.Scan(&v.Post.ID, &v.PendingReports, &v.PendingAppeals, &action); err != nil {
 			rows.Close()
 			return nil, safeError("moderation queue", err)
 		}
+		v.PendingReasons, v.LastAction = []moderation.ReasonCount{}, action.String
 		items = append(items, v)
 	}
 	err = rows.Err()
@@ -213,6 +217,9 @@ func (r *ModerationRepository) Queue(ctx context.Context, who string, q moderati
 	for i, item := range items {
 		ids[i] = item.Post.ID
 	}
+	if err := queueSummaries(ctx, r.db, items, ids); err != nil {
+		return nil, err
+	}
 	posts, err := readPosts(ctx, r.db, "", ids)
 	if err != nil {
 		return nil, err
@@ -222,6 +229,77 @@ func (r *ModerationRepository) Queue(ctx context.Context, who string, q moderati
 	}
 	return items, nil
 }
+
+// queueSummaries adds each page item's pending reasons (counted per fixed
+// reason code, never reporter text) and when its oldest pending report or
+// author request arrived, in two aggregates bounded by the page's post IDs.
+func queueSummaries(ctx context.Context, db *sql.DB, items []moderation.QueueItem, ids []any) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	index := make(map[string]int, len(items))
+	for i, item := range items {
+		index[item.Post.ID] = i
+	}
+	waiting := func(i int, at time.Time) {
+		if v := &items[i]; v.WaitingSince == nil || at.Before(*v.WaitingSince) {
+			t := at.UTC()
+			v.WaitingSince = &t
+		}
+	}
+	in := placeholders(len(ids))
+	err := queryRowsTx(ctx, db, `SELECT post_id,reason,COUNT(*),MIN(created_at) FROM moderation_reports WHERE decision_id IS NULL AND post_id IN (`+in+`) GROUP BY post_id,reason ORDER BY post_id,reason`, ids, func(rows *sql.Rows) error {
+		var post, reason string
+		var n int
+		var at time.Time
+		if err := rows.Scan(&post, &reason, &n, &at); err != nil {
+			return err
+		}
+		if i, ok := index[post]; ok {
+			items[i].PendingReasons = append(items[i].PendingReasons, moderation.ReasonCount{Reason: reason, Count: n})
+			waiting(i, at)
+		}
+		return nil
+	})
+	if err == nil {
+		err = queryRowsTx(ctx, db, `SELECT d.post_id,MIN(ap.created_at) FROM moderation_appeals ap JOIN moderation_decisions d ON d.decision_id=ap.decision_id WHERE ap.reviewed_by IS NULL AND d.post_id IN (`+in+`) GROUP BY d.post_id`, ids, func(rows *sql.Rows) error {
+			var post string
+			var at time.Time
+			if err := rows.Scan(&post, &at); err != nil {
+				return err
+			}
+			if i, ok := index[post]; ok {
+				waiting(i, at)
+			}
+			return nil
+		})
+	}
+	if err != nil {
+		return safeError("moderation queue summary", err)
+	}
+	return nil
+}
+
+var _ moderation.PendingCounter = (*ModerationRepository)(nil)
+
+// PendingCases counts contributions with a pending report or review request,
+// other than the moderator's own, up to moderation.MaxPendingCount. It starts
+// from the pending rows, not every post, and stops once the cap is reached.
+func (r *ModerationRepository) PendingCases(ctx context.Context, who string) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
+	var n int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM (SELECT DISTINCT x.post_id FROM (
+ SELECT r.post_id FROM moderation_reports r WHERE r.decision_id IS NULL
+ UNION ALL
+ SELECT d.post_id FROM moderation_appeals ap JOIN moderation_decisions d ON d.decision_id=ap.decision_id WHERE ap.reviewed_by IS NULL
+) x JOIN discussion_posts p ON p.post_id=x.post_id WHERE p.account_id<>? LIMIT ?) c`, who, moderation.MaxPendingCount).Scan(&n)
+	if err != nil {
+		return 0, safeError("pending moderation cases", err)
+	}
+	return n, nil
+}
+
 func reviewAfter(alias, id string, q moderation.Query) (string, []any) {
 	if q.After == "" {
 		return "", nil

@@ -261,7 +261,12 @@ func (a *api) moderationQueuePage(c echo.Context) error {
 	if err != nil {
 		return a.moderationPageError(c, err)
 	}
-	return render(c, 200, home.ModerationQueue(home.ModerationQueuePage{List: list, URL: c.Request().URL.RequestURI(), All: c.QueryParam("state") == "all", Navigation: a.accountNavigation(c, p.Account.ID)}))
+	page := home.ModerationQueuePage{List: list, URL: c.Request().URL.RequestURI(), All: c.QueryParam("state") == "all", Later: c.QueryParam("cursor") != ""}
+	// The count labels the Awaiting review filter; a failed count omits it.
+	if n, ok, err := a.moderation.PendingCases(c.Request().Context(), p.Account.ID); err == nil && ok {
+		page.Pending, page.PendingKnown = n, true
+	}
+	return render(c, 200, home.ModerationQueue(page))
 }
 func (a *api) moderationCasePage(c echo.Context) error {
 	write := c.Request().Method == "POST"

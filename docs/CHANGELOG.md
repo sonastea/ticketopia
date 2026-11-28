@@ -4,11 +4,11 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-11-28 — [OpenAPI contract](changes/openapi.md)
+- 2026-11-28 — [Positive event communities](changes/event-communities.md)
 - 2026-11-27 — [Reliable event history](changes/event-history.md)
 - 2026-11-27 — [Event discovery](changes/discovery.md)
 - 2026-11-27 — [Agent tools (MCP)](changes/app-mcp.md)
-- 2026-11-27 — [OpenAPI contract](changes/openapi.md)
-- 2026-11-26 — [Positive event communities](changes/event-communities.md)
 - 2026-11-26 — [Authentication and accounts](changes/accounts.md)
 - 2026-11-26 — [Container deployment](changes/deployment.md)
 - 2026-11-25 — [Database and persistence](changes/database.md)

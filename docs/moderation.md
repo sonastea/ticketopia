@@ -15,15 +15,22 @@ participation restrictions are not part of this release.
   shows pending/reviewed status with a shared decision reason. One immutable report
   per reporter/contribution is retained; retries return it unchanged, even after
   hiding or author removal.
-- Moderators use **Profile → Moderator review queue** (`/moderation`). Pending
-  cases have unresolved reports or author requests; **All cases** includes resolved
-  cases. Ordering is newest contribution creation, never report volume or replies.
-- A case includes event/current contribution context, private reported text as it
-  appeared at reporting time, concerns, author requests, and decision history.
-  Follow **Read the full conversation** before deciding. Each history is independently
+- Moderators open the **Review queue** (`/moderation`), a separate moderator
+  workspace linked from every personal page's navigation with its pending count;
+  it is not a Safety tab, which holds only the person's own reports and outcomes.
+  One status filter switches **Awaiting review** (unresolved reports or author
+  requests) and **All cases** (including resolved). Each case shows its status,
+  pending reasons with counts, when the oldest pending item arrived, the event, the
+  contribution and its author. Ordering is newest contribution creation, never
+  report volume or replies.
+- A case shows the evidence before the decision: event and current contribution
+  (with **See it in the conversation** linking to the exact reply), dated private
+  reports (reporter and reported text behind a disclosure that says when the text
+  has since changed), dated author requests, and earlier decisions. Each history is independently
   paginated, default 20/max 100. Decisions close all currently pending reports/requests
   for that contribution, including those on other history pages.
-- **Keep**, **Hide**, or **Restore** requires a reason shared with reporters and the
+- **Keep it**, **Hide it** (or **Keep it hidden**), or **Restore it** are choices
+  that each state their effect, and require a reason shared with reporters and the
   affected author. Optional notes stay moderator-only. Never put reporter identities
   or sensitive evidence in the shared reason. Moderators cannot read or decide their
   own cases, which are excluded from their queue; another moderator must handle them.
@@ -183,10 +190,11 @@ Optional Chromium/axe verification uses `scripts/moderation-browser.cjs` and
 `TestMariaDBModerationBrowserReview`, with `MODERATION_BROWSER_SCRIPT`,
 `PLAYWRIGHT_MODULE`, and `AXE_SCRIPT` configured like the
 [recommendation fixture](event-recommendations.md#verification). Use `go test -count=1`
-after changing the external script. The synthetic isolated journey passed 51 checks
+after changing the external script. The synthetic isolated journey passed 54 checks
 and 13 zero-violation accessibility captures across desktop/tablet/390px/320px/200%
 text, with native writes, stale review/drafts, privacy, hiding/restoration, appeals,
-and forced-colors focus/reduced-motion checks.
+the separate review-queue workspace, and forced-colors focus/reduced-motion checks
+(2026-11-28, after the moderator workspace redesign).
 
 The independent finish-review verdict is **ship** for the three scored fixes:
 moderator-author evidence isolation, recognizable personal records/direct targets,

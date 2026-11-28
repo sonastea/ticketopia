@@ -3910,7 +3910,7 @@ html:has(.filter-sheet:modal) {
     block-size: 100%;
     object-fit: cover;
   }
-  /* Community and moderation tabs are page links: the underline slides to the
+  /* Community tabs are page links: the underline slides to the
      new tab like the in-place event segments (app.js), which are excluded here
      because their white surface would cover the labels in a snapshot. */
   .section-nav:not(.event-section-nav) .tab-mark { view-transition-name: section-tab-mark; }
@@ -4781,6 +4781,68 @@ details.composer-card > .composer-form { padding: 1.125rem; }
 .moderation-alert > p { margin: 0; }
 .moderation-utility { display: inline-flex; align-items: center; min-block-size: 2.75rem; }
 .moderation-empty { margin-block-start: 1.5rem; }
+
+/* Moderator tools are their own workspace: a way back to the person's own space,
+   a quiet "Moderator tools" marker, then one heading and one status filter. */
+.moderation-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem 1rem; }
+.moderation-toolbar > .back-link { margin-block-end: 0; color: var(--muted-warm); font-weight: 600; }
+.moderation-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .2rem .65rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--brand-dark); font-size: .8125rem; font-weight: 650; }
+.moderation-badge .icon { flex: none; inline-size: 1em; block-size: 1em; }
+.moderation-filter { display: inline-flex; flex-wrap: wrap; gap: .25rem; margin-block: .25rem 1.5rem; padding: .25rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.moderation-filter a { display: inline-flex; align-items: center; gap: .45rem; min-block-size: 2.75rem; padding-inline: 1rem; border: 1px solid transparent; border-radius: calc(var(--radius) - .25rem); color: var(--muted-warm); font-weight: 650; text-decoration: none; }
+.moderation-filter a[aria-current="page"] { background: var(--brand-soft); border-color: color-mix(in oklch, var(--brand) 22%, transparent); color: var(--brand-dark); }
+.moderation-filter a:active { color: var(--brand-active); background: var(--brand-soft); }
+@media (hover: hover) and (pointer: fine) {
+  .moderation-filter a:not([aria-current="page"]):hover { color: var(--brand); }
+}
+.moderation-filter-count { min-inline-size: 1.5em; padding-inline: .4em; border-radius: 999px; background: var(--brand); color: var(--surface); font-size: .8125rem; line-height: 1.5; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* Each case reads like the case it opens: status and why, where, then what. */
+.moderation-cases { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.moderation-case { display: grid; gap: .6rem; padding: 1.25rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-inline-size: 0; }
+.moderation-case > * { margin-block: 0; }
+.moderation-case h2 { font-size: 1.0625rem; line-height: 1.35; }
+.moderation-case h2 a { display: inline-flex; align-items: center; min-block-size: 2.75rem; color: var(--ink); text-decoration-line: underline; text-decoration-thickness: 1px; text-decoration-color: color-mix(in oklch, var(--brand) 55%, transparent); text-underline-offset: .2em; }
+.moderation-case h2 a:active { color: var(--brand-active); }
+@media (hover: hover) and (pointer: fine) {
+  .moderation-case h2 a:hover { color: var(--brand); text-decoration-color: currentColor; }
+}
+.moderation-case-status { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .5rem; margin: 0; }
+.moderation-pill { display: inline-flex; align-items: center; padding: .1rem .6rem; border: 1px solid var(--line); border-radius: 999px; color: var(--muted-warm); font-size: .8125rem; font-weight: 650; }
+.moderation-pill.is-pending { border-color: color-mix(in oklch, var(--brand) 25%, transparent); background: var(--brand-soft); color: var(--brand-dark); }
+.moderation-pill.is-reason { border-color: color-mix(in oklch, var(--warning) 30%, transparent); background: var(--warning-bg); color: var(--warning); }
+.moderation-waiting { color: var(--muted-warm); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.moderation-excerpt { margin: 0; padding-inline-start: .875rem; border-inline-start: 3px solid var(--line); }
+.moderation-placeholder { color: var(--muted-warm); font-style: italic; }
+.moderation-case-context { margin-block: -.5rem 1rem; }
+
+/* Reports, requests and decisions read as dated entries. */
+.moderation-timeline { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.moderation-timeline > li { display: grid; gap: .4rem; padding-inline-start: .875rem; border-inline-start: 3px solid var(--line); min-inline-size: 0; }
+.moderation-timeline > li > * { margin-block: 0; }
+
+/* A decision is a choice between stated effects, not a bare dropdown. */
+.moderation-choices { display: grid; gap: .5rem; margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+.moderation-choices legend { margin-block-end: .5rem; padding: 0; font-weight: 700; }
+.moderation-choice { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .75rem; min-block-size: 2.75rem; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
+.moderation-choice input { flex: none; inline-size: 1.25rem; block-size: 1.25rem; margin: .1rem 0 0; accent-color: var(--brand); }
+.moderation-choice > span { display: grid; gap: .2rem; }
+.moderation-choice > span > span { color: var(--muted-warm); font-size: .875rem; }
+.moderation-choice:has(input:checked) { border-color: var(--brand); background: color-mix(in oklch, var(--brand-soft) 55%, var(--surface)); }
+.moderation-choice:has(input:focus-visible) { outline: 3px solid var(--brand); outline-offset: 2px; }
+.moderation-decision .account-form { max-inline-size: 70ch; }
+
+/* The moderator tool in the account navigation stands apart from the families. */
+.account-families .account-tool a { color: var(--brand-dark); }
+.account-families .account-tool a::after { content: none; }
+.account-families .account-tool .icon { flex: none; inline-size: 1.05em; block-size: 1.05em; }
+
+@media (forced-colors: active) {
+  .moderation-filter a[aria-current="page"] { border-color: Highlight; color: Highlight; }
+  .moderation-pill, .moderation-badge, .moderation-case, .moderation-choice { border-color: CanvasText; }
+  .moderation-choice:has(input:checked) { border-color: Highlight; }
+  .moderation-timeline > li, .moderation-excerpt { border-inline-start-color: CanvasText; }
+}
 @container workspace (min-width: 40rem) {
   .recommendation-event { grid-template-columns: 8rem minmax(0, 1fr); gap: 1.25rem; }
   .recommendation-event .event-art { margin: 0; }

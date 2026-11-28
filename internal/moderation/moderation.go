@@ -94,6 +94,26 @@ type QueueItem struct {
 	Post           discussions.Post `json:"post"`
 	PendingReports int              `json:"pending_reports"`
 	PendingAppeals int              `json:"pending_appeals"`
+	// PendingReasons counts pending reports by reason, in reason order.
+	PendingReasons []ReasonCount `json:"pending_reasons"`
+	// WaitingSince is when the oldest pending report or review request arrived.
+	WaitingSince *time.Time `json:"waiting_since"`
+	// LastAction is the latest decision's action, if any: keep, hide or restore.
+	LastAction string `json:"last_action,omitempty"`
+}
+
+type ReasonCount struct {
+	Reason string `json:"reason"`
+	Count  int    `json:"count"`
+}
+
+// MaxPendingCount caps PendingCases: a badge needs "99+", not an exact backlog.
+const MaxPendingCount = 100
+
+// PendingCounter is an optional Repository capability: how many cases await
+// review, excluding the moderator's own contributions, up to MaxPendingCount.
+type PendingCounter interface {
+	PendingCases(context.Context, string) (int, error)
 }
 type List[T any] struct {
 	Items      []T     `json:"items"`
@@ -260,6 +280,21 @@ func (s *Service) Outcomes(ctx context.Context, who string, values url.Values) (
 	items, err := s.repo.Outcomes(ctx, who, q)
 	return page(items, q, scope, func(r Outcome) string { return r.ID }, func(r Outcome) time.Time { return r.CreatedAt }), err
 }
+
+// PendingCases counts cases awaiting the moderator's review. It reports
+// ErrForbidden for anyone else, and ok=false when the count isn't available.
+func (s *Service) PendingCases(ctx context.Context, who string) (n int, ok bool, err error) {
+	if err := s.RequireModerator(ctx, who); err != nil {
+		return 0, false, err
+	}
+	counter, ok := s.repo.(PendingCounter)
+	if !ok {
+		return 0, false, nil
+	}
+	n, err = counter.PendingCases(ctx, who)
+	return n, err == nil, err
+}
+
 func (s *Service) Queue(ctx context.Context, who string, values url.Values) (List[QueueItem], error) {
 	if err := s.RequireModerator(ctx, who); err != nil {
 		return List[QueueItem]{}, err

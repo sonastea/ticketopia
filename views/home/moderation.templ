@@ -144,61 +144,135 @@ templ AppealFailure(f AppealForm) {
 	}
 }
 
+// ModerationWorkspace opens every moderator page: a way back to the person's
+// own space, then the page heading. Moderator work is not a tab of the
+// personal account navigation.
+templ ModerationWorkspace(back, backLabel, title, intro string) {
+	<div class="moderation-toolbar">
+		<a href={ templ.URL(back) } class="text-link back-link">
+			@layouts.Icon("back")
+			<span>{ backLabel }</span>
+		</a>
+		<span class="moderation-badge">
+			@layouts.Icon("shield")
+			Moderator tools
+		</span>
+	</div>
+	@layouts.PageHeader(title, intro) {
+		{ children... }
+	}
+}
+
 templ ModerationQueue(p ModerationQueuePage) {
-	@layouts.App("profile","Moderator review queue") {
+	@layouts.App("profile","Review queue") {
 		<main id="main" class="destination-page moderation-page">
-			@layouts.AccountHeader("Moderator review queue", "Review the contribution and its conversation before deciding. Report counts are context, never votes for removal. Cases about your own contributions are private to other moderators.", "queue", p.Navigation)
-			<nav class="section-nav" aria-label="Review queue filter">
-				<a href="/moderation" aria-current={ layouts.CurrentPage(!p.All) } class="text-link">
-					Awaiting review
-					@tabMark(!p.All)
-				</a>
-				<a href="/moderation?state=all" aria-current={ layouts.CurrentPage(p.All) } class="text-link">
-					All cases
-					@tabMark(p.All)
-				</a>
-			</nav>
-			if len(p.List.Items)==0 {
-				<p class="moderation-empty">No cases on this page. { ternary(p.All,"Reports and decisions will appear here.","There are no reports or review requests awaiting a decision on this page.") }</p>
+			@ModerationWorkspace("/me", "Your profile", "Review queue", "Reported questions, tips and replies. Report counts are context, not votes. Cases about your own contributions go to other moderators.") {
+				// One status filter for one list, not a second navigation row.
+				<nav class="moderation-filter" aria-label="Case status">
+					<a href="/moderation" aria-current={ layouts.CurrentPage(!p.All) }>
+						Awaiting review
+						if p.PendingKnown {
+							<span class="moderation-filter-count">{ layouts.CountLabel(p.Pending) }</span>
+						}
+					</a>
+					<a href="/moderation?state=all" aria-current={ layouts.CurrentPage(p.All) }>All cases</a>
+				</nav>
 			}
-			for _,v:=range p.List.Items {
-				<article class="moderation-record">
-					<h2>{ ternary(v.PendingReports + v.PendingAppeals > 0, "Awaiting review", "Reviewed") }</h2>
-					if v.Post.Hidden {
-						<p class="field-note">Contribution hidden by a moderator</p>
-					} else if v.Post.Removed {
-						<p class="field-note">Contribution removed by its author</p>
+			if len(p.List.Items)==0 && p.Later {
+				<div class="destination-state moderation-empty">
+					<h2>No more cases</h2>
+					<p>Cases may have been decided since this page was opened.</p>
+					<a href={ templ.URL(ternary(p.All, "/moderation?state=all", "/moderation")) } class="text-link moderation-utility">Back to the first page</a>
+				</div>
+			} else if len(p.List.Items)==0 {
+				<div class="destination-state moderation-empty">
+					if p.All {
+						<h2>No cases yet</h2>
+						<p>Reported contributions and their decisions will appear here.</p>
 					} else {
-						<blockquote class="discussion-body">{ v.Post.Body }</blockquote>
+						<h2>Nothing awaiting review</h2>
+						<p>New reports and author review requests will appear here.</p>
+						<a href="/moderation?state=all" class="text-link moderation-utility">View all cases</a>
 					}
-					<a href={ templ.URL("/moderation/posts/"+v.Post.ID) } class="text-link moderation-utility">Review contribution</a>
-					if !v.Post.Hidden && !v.Post.Removed {
-						@PostAttribution(v.Post)
-					}
-					<p class="list-meta"><strong>{ v.Post.Event.Name }</strong>{ " · " }{ startLabel(v.Post.Event.Start) }{ " · " }{ venueLabel(v.Post.Event) }</p>
-					<p class="field-note">{ fmt.Sprint(v.PendingReports) } reports and { fmt.Sprint(v.PendingAppeals) } author review requests awaiting a decision</p>
-				</article>
+				</div>
 			}
+			<ol class="moderation-cases" role="list">
+				for _,v:=range p.List.Items {
+					@ModerationQueueCase(v)
+				}
+			</ol>
 			if p.List.NextCursor!=nil {
-				<a href={ templ.URL(CollectionNextURL(p.URL,p.List.NextCursor)) } class="text-link">More cases</a>
+				<a href={ templ.URL(CollectionNextURL(p.URL,p.List.NextCursor)) } class="text-link moderation-utility">More cases</a>
 			}
 		</main>
 	}
 }
 
+// ModerationQueueCase reads like the case it opens: status, why it was
+// reported and for how long, where it was posted, then what was said.
+templ ModerationQueueCase(v moderation.QueueItem) {
+	{{ pending := v.PendingReports + v.PendingAppeals > 0 }}
+	{{ headingID := "case-" + v.Post.ID }}
+	<li>
+		<article class="moderation-case" aria-labelledby={ headingID }>
+			<div class="moderation-case-status">
+				if pending {
+					<span class="moderation-pill is-pending">Awaiting review</span>
+				} else if v.LastAction != "" {
+					<span class="moderation-pill">Last decision: { moderationAction(v.LastAction) }</span>
+				} else {
+					<span class="moderation-pill">Reviewed</span>
+				}
+				for _, r := range v.PendingReasons {
+					<span class="moderation-pill is-reason">{ reasonCount(r) }</span>
+				}
+				if v.PendingAppeals > 0 {
+					<span class="moderation-pill is-reason">{ ternary(v.PendingAppeals == 1, "Author asked for another review", fmt.Sprintf("%d author review requests", v.PendingAppeals)) }</span>
+				}
+				if v.WaitingSince != nil {
+					<span class="moderation-waiting">
+						{ ternary(v.PendingReports > 0, "Reported", "Review requested") }{ " " }
+						@layouts.Stamp(*v.WaitingSince)
+					</span>
+				}
+			</div>
+			<h2 id={ headingID }>
+				<a href={ templ.URL("/moderation/posts/"+v.Post.ID) }>{ caseTitle(v.Post) }</a>
+			</h2>
+			<p class="list-meta">{ startLabel(v.Post.Event.Start) }{ " · " }{ venueLabel(v.Post.Event) }</p>
+			if v.Post.Hidden {
+				<p class="moderation-placeholder">Hidden by a moderator</p>
+			} else if v.Post.Removed {
+				<p class="moderation-placeholder">Removed by its author</p>
+			} else {
+				<blockquote class="discussion-body moderation-excerpt">{ v.Post.Body }</blockquote>
+				@PostAttribution(v.Post)
+			}
+			if summary := pendingSummary(v.PendingReports, v.PendingAppeals); summary != "" {
+				<p class="field-note">{ summary } awaiting a decision</p>
+			}
+		</article>
+	</li>
+}
+
 templ ModerationCase(p ModerationCasePage) {
 	@layouts.App("profile","Review contribution") {
 		<main id="main" class="destination-page moderation-page">
-			<a href="/moderation" class="text-link">Back to review queue</a>
-			@layouts.PageHeader("Review contribution", "")
-			<header class="discussion-event-heading"><h2>{ p.Case.Post.Event.Name }</h2><p class="event-date">{ startLabel(p.Case.Post.Event.Start) }</p><p class="event-venue">{ venueLabel(p.Case.Post.Event) }</p><a href={ templ.URL(ThreadURL(p.Case.Post.EventID,p.Case.Post.ThreadID,"/")) } class="text-link moderation-utility">Read the full conversation</a></header>
-			<section class="moderation-record" aria-labelledby="current-contribution"><h2 id="current-contribution">Current contribution</h2>
-				<p class="list-meta">{ ternary(p.Case.Post.Removed,"Removed by the author",ternary(p.Case.Post.Hidden,"Hidden by a moderator","Publicly visible")) }</p>
+			@ModerationWorkspace("/moderation", "Review queue", caseTitle(p.Case.Post), "")
+			<p class="list-meta moderation-case-context">{ startLabel(p.Case.Post.Event.Start) }{ " · " }{ venueLabel(p.Case.Post.Event) }</p>
+			<section class="moderation-record" aria-labelledby="current-contribution"><h2 id="current-contribution">Contribution</h2>
+				<p class="moderation-case-status">
+					<span class="moderation-pill">{ ternary(p.Case.Post.Removed,"Removed by the author",ternary(p.Case.Post.Hidden,"Hidden by a moderator","Publicly visible")) }</span>
+				</p>
 				if p.Case.CurrentBody!="" {
-					<blockquote class="discussion-body">{ p.Case.CurrentBody }</blockquote>
+					<blockquote class="discussion-body moderation-excerpt">{ p.Case.CurrentBody }</blockquote>
 				} else {
 					<p class="field-note">The author removed the text. It cannot be restored.</p>
 				}
+				if !p.Case.Post.Hidden && !p.Case.Post.Removed {
+					@PostAttribution(p.Case.Post)
+				}
+				<a href={ templ.URL(ContributionURL(p.Case.Post.EventID,p.Case.Post.ThreadID,p.Case.Post.ID)) } class="text-link moderation-utility">See it in the conversation</a>
 				<details class="account-token-details">
 					<summary>Evidence identifiers</summary>
 					<p class="list-meta">Author account: { p.Case.AuthorID }</p>
@@ -208,26 +282,78 @@ templ ModerationCase(p ModerationCasePage) {
 				</details>
 			</section>
 			<section class="moderation-record" aria-labelledby="reported-concerns"><h2 id="reported-concerns">Private reports</h2>
-				for _,r:=range p.Case.Reports {
-					<details class="account-token-details"><summary>{ reportReason(r.Reason) } · { ternary(r.Reviewed,"Reviewed","Awaiting review") }</summary><p class="list-meta">Reporter account: { r.ReporterID }</p><p class="discussion-body">{ r.Context }</p><p class="field-note">Contribution text at reporting time:</p><blockquote class="discussion-body">{ r.ReportedBody }</blockquote></details>
-				}
 				if len(p.Case.Reports)==0 {
 					<p class="field-note">No reports for this contribution.</p>
 				}
+				<ol class="moderation-timeline" role="list">
+					for _,r:=range p.Case.Reports {
+						<li>
+							<p class="moderation-case-status">
+								<span class="moderation-pill is-reason">{ reportReason(r.Reason) }</span>
+								<span class={ "moderation-pill", templ.KV("is-pending", !r.Reviewed) }>{ ternary(r.Reviewed,"Reviewed","Awaiting review") }</span>
+								<span class="moderation-waiting">
+						Reported{ " " }
+						@layouts.Stamp(r.CreatedAt)
+					</span>
+							</p>
+							if r.Context!="" {
+								<p class="discussion-body">{ r.Context }</p>
+							} else {
+								<p class="field-note">No context given.</p>
+							}
+							<details class="account-token-details">
+								<summary>{ ternary(r.ReportedBody==p.Case.CurrentBody,"Reporter and text at reporting time","Reporter and text at reporting time (since changed)") }</summary>
+								<p class="list-meta">Reporter account: { r.ReporterID }</p>
+								<blockquote class="discussion-body">{ r.ReportedBody }</blockquote>
+							</details>
+						</li>
+					}
+				</ol>
 				if p.Case.NextReportsCursor!=nil {
-					<a href={ templ.URL(caseNextURL(p.URL,"reports",p.Case.NextReportsCursor)) } class="text-link">More private reports</a>
+					<a href={ templ.URL(caseNextURL(p.URL,"reports",p.Case.NextReportsCursor)) } class="text-link moderation-utility">More private reports</a>
 				}
 			</section>
 			if len(p.Case.Appeals)>0 {
 				<section class="moderation-record" aria-labelledby="author-requests"><h2 id="author-requests">Author review requests</h2>
-					for _,v:=range p.Case.Appeals {
-						<p><strong>{ ternary(v.Reviewed,"Reviewed","Awaiting review") }</strong></p><p class="discussion-body">{ v.Context }</p>
-					}
+					<ol class="moderation-timeline" role="list">
+						for _,v:=range p.Case.Appeals {
+							<li>
+								<p class="moderation-case-status">
+									<span class={ "moderation-pill", templ.KV("is-pending", !v.Reviewed) }>{ ternary(v.Reviewed,"Reviewed","Awaiting review") }</span>
+									<span class="moderation-waiting">
+						Requested{ " " }
+						@layouts.Stamp(v.CreatedAt)
+					</span>
+								</p>
+								<p class="discussion-body">{ v.Context }</p>
+							</li>
+						}
+					</ol>
 					if p.Case.NextAppealsCursor!=nil {
-						<a href={ templ.URL(caseNextURL(p.URL,"appeals",p.Case.NextAppealsCursor)) } class="text-link">More author review requests</a>
+						<a href={ templ.URL(caseNextURL(p.URL,"appeals",p.Case.NextAppealsCursor)) } class="text-link moderation-utility">More author review requests</a>
 					}
 				</section>
 			}
+			// History comes before the decision: a new decision closes everything pending.
+			<section class="moderation-record" aria-labelledby="decision-history"><h2 id="decision-history">Earlier decisions</h2>
+				if len(p.Case.Decisions)==0 {
+					<p class="field-note">No decisions yet.</p>
+				}
+				<ol class="moderation-timeline" role="list">
+					for _,d:=range p.Case.Decisions {
+						<li>
+							@OutcomeSummary(d.Outcome)
+							<p class="list-meta">Moderator account: { d.ModeratorID }</p>
+							if d.Notes!="" {
+								<p class="discussion-body"><strong>Private notes:</strong> { d.Notes }</p>
+							}
+						</li>
+					}
+				</ol>
+				if p.Case.NextDecisionsCursor!=nil {
+					<a href={ templ.URL(caseNextURL(p.URL,"decisions",p.Case.NextDecisionsCursor)) } class="text-link moderation-utility">More decisions</a>
+				}
+			</section>
 			if p.Error!="" {
 				// One alert: what went wrong, then what to do, as separate sentences.
 				<div class="account-notice moderation-alert" role="alert">
@@ -238,50 +364,31 @@ templ ModerationCase(p ModerationCasePage) {
 			if p.Case.AuthorID==p.ViewerID {
 				<p class="field-note">Another moderator must review your own contribution.</p>
 			} else {
-				<section class="moderation-record" aria-labelledby="decision-heading"><h2 id="decision-heading">Record a decision</h2>
+				<section class="moderation-record moderation-decision" aria-labelledby="decision-heading"><h2 id="decision-heading">Record a decision</h2>
 					<form action={ "/moderation/posts/"+p.Case.Post.ID } method="post" class="account-form">
 						<input type="hidden" name="csrf_token" value={ p.CSRF }/><input type="hidden" name="expected_version" value={ fmt.Sprint(p.Case.Version) }/><input type="hidden" name="expected_updated_at" value={ p.Case.Post.UpdatedAt.Format(time.RFC3339Nano) }/>
-						<label class="field" for="decision-action"><span id="decision-action-label">Action</span>
-						@selectcomp.Native(selectcomp.NativeProps{ID:"decision-action",Name:"action",Attributes:templ.Attributes{"required":true,"aria-labelledby":"decision-action-label"}}) {
-							<option value="" selected?={ p.Review.Action=="" }>Choose an action</option>
-							if !p.Case.Post.Hidden {
-								<option value="keep" selected?={ p.Review.Action=="keep" }>Keep contribution / no further action</option>
-								}
-							if !p.Case.Post.Removed {
-								<option value="hide" selected?={ p.Review.Action=="hide" }>Hide contribution / uphold hiding</option>
-								}
-							if p.Case.Post.Hidden && !p.Case.Post.Removed {
-								<option value="restore" selected?={ p.Review.Action=="restore" }>Restore contribution</option>
-								}
-						}
-						</label>
+						<fieldset class="moderation-choices">
+							<legend>Decision</legend>
+							for _, choice := range decisionChoices(p.Case) {
+								<label class="moderation-choice">
+									<input type="radio" name="action" value={ choice.Value } required checked?={ p.Review.Action==choice.Value }/>
+									<span><strong>{ choice.Label }</strong><span>{ choice.Effect }</span></span>
+								</label>
+							}
+						</fieldset>
 						<div class="field">
-							<label for="decision-reason">Decision reason <span>(shared with reporters and the affected author; up to 2000 characters)</span></label>
+							<label for="decision-reason">Shared reason <span>(seen by the people your choice names; up to 2000 characters)</span></label>
 							<p id="decision-reason-privacy">Never include reporter identities or private evidence in the shared reason.</p>
 							<textarea id="decision-reason" name="reason" rows="3" required maxlength="2000" aria-describedby="decision-reason-privacy">{ p.Review.Reason }</textarea>
 						</div>
-						<label class="field">Private moderator notes <span>(optional, up to 2000 characters)</span><textarea name="notes" rows="3" maxlength="2000">{ p.Review.Notes }</textarea></label>
-						<p class="field-note">This closes all reports and author review requests currently awaiting review. Hiding withholds text, attribution and Helpful counts while keeping replies. Restoration doesn't undo an author's removal.</p>
-						@button.Button(button.Props{Type:button.TypeSubmit,Class:"action action-secondary"}) {
+						<label class="field">Private moderator notes <span>(optional, only moderators see them; up to 2000 characters)</span><textarea name="notes" rows="3" maxlength="2000">{ p.Review.Notes }</textarea></label>
+						<p class="field-note">Recording a decision closes every report and author review request awaiting review, including any on later pages. Restoring doesn't undo an author's removal.</p>
+						@button.Button(button.Props{Type:button.TypeSubmit,Class:"action"}) {
 							Record decision
 						}
 					</form>
 				</section>
 			}
-			<section class="moderation-record" aria-labelledby="decision-history"><h2 id="decision-history">Decision history</h2>
-				if len(p.Case.Decisions)==0 {
-					<p class="field-note">No decisions yet.</p>
-				}
-				for _,d:=range p.Case.Decisions {
-					@OutcomeSummary(d.Outcome)<p class="list-meta">Moderator account: { d.ModeratorID }</p>
-					if d.Notes!="" {
-						<p class="discussion-body">Private notes: { d.Notes }</p>
-					}
-				}
-				if p.Case.NextDecisionsCursor!=nil {
-					<a href={ templ.URL(caseNextURL(p.URL,"decisions",p.Case.NextDecisionsCursor)) } class="text-link">More decisions</a>
-				}
-			</section>
 		</main>
 	}
 }

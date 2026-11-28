@@ -337,13 +337,15 @@ func TestMariaDBDiscoverMetroCollectsMembers(t *testing.T) {
 	if list.Area == nil || list.Area.Name != "Los Angeles area" || len(list.Area.Cities) != len(m.Cities) {
 		t.Fatalf("metro area: %+v", list.Area)
 	}
-	if len(list.Items) != 1 || list.Items[0].ID != "ticketmaster:metro-1" {
-		t.Fatalf("metro results: %+v", list.Items)
-	}
-	// Once every member is collected, the metro is complete and fresh.
+	// A cold visitor's first read may end its bounded wait before every member
+	// is collected (53 members at the durable four-a-second pace). Once every
+	// member is collected, the metro lists their events, complete and fresh.
 	list, err = s.Events(t.Context(), catalogQuery(t, "city=Los+Angeles&country=US&area=metro&start_date=2026-10-08&end_date=2026-10-10"))
 	if err != nil || list.Meta.Coverage == nil || list.Meta.Coverage.Status != "complete" || list.Meta.Stale {
 		t.Fatalf("collected metro coverage: %+v %v", list.Meta, err)
+	}
+	if len(list.Items) != 1 || list.Items[0].ID != "ticketmaster:metro-1" {
+		t.Fatalf("metro results: %+v", list.Items)
 	}
 	// One stale member refreshes alone; fresh members make no provider calls.
 	if _, err := p.db.ExecContext(t.Context(), `UPDATE discovery_scopes SET last_success=TIMESTAMPADD(HOUR,-7,last_success),next_refresh=UTC_TIMESTAMP(6) WHERE city='Inglewood'`); err != nil {
