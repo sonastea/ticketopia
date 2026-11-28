@@ -142,14 +142,40 @@ Use the existing [MariaDB connection settings](persistence.md) and Ticketmaster
 key. Collection is **off by default**, independent of authentication, and requires
 a key and MariaDB. `EVENT_HISTORY_CITIES` accepts 1–20 city/country objects;
 whitespace/country case are normalized and duplicate scopes deduplicated. Days
-accepts 1–366 (default 90); interval accepts 1h–168h (default 6h).
+accepts 1–365 (default 90); interval accepts 1h–168h (default 6h).
 
-The scheduler seeds one all-category task for each city and date, starting with
-today UTC through `DAYS-1` days later. Queries use inclusive **venue-local** dates.
+The scheduler seeds one all-category task for each city and date, from yesterday
+UTC through `DAYS` days after today: a city's local today can be yesterday in UTC
+(a US evening), and Discover's default range runs 90 days after today. Queries
+use inclusive **venue-local** dates.
 It refreshes due tasks oldest-first, fetching at most ten pages of 100 events per
 task. One-day windows reduce Ticketmaster's 1,000-result paging limit. It polls
 idle/error conditions once per minute. Removing a city or shrinking the horizon
 stops claiming those tasks without deleting their history.
+
+### Metro areas
+
+Add `"area":"metro"` to a city in a [metro area](discovery.md#metro-areas-and-runs)
+to keep the whole area fresh:
+
+```sh
+export EVENT_HISTORY_CITIES='[{"city":"Los Angeles","country":"US","area":"metro"}]'
+export EVENT_HISTORY_INTERVAL=5h
+```
+
+The city itself is still collected day by day, which keeps a large city such as
+Los Angeles (about 1,300 events in 90 days) clear of the provider's 1,000-result
+limit. The area's other members are not scheduled day by day; that would cost
+about 90 requests per member per pass. Instead, whenever no scheduled day is due,
+the collector reads the area over the same horizon every five minutes, as a
+visitor would. That read checks coverage only and refreshes the members whose
+on-demand coverage has expired, one broad request each. For the Los Angeles area
+that is about 92 daily requests for Los Angeles per interval plus about 40 member
+requests every six hours, roughly 600 a day. An interval below the six-hour
+freshness keeps the city's days from briefly reading as stale.
+
+Every replica checks the area; durable claims keep one collection per member.
+Any other value, or `metro` for a city without a metro area, fails startup.
 
 Tasks/runs are claimed atomically in MariaDB with two-minute leases. Every page
 and completion checks ownership; successfully committed pages renew the lease.

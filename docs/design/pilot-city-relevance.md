@@ -189,8 +189,13 @@ Parts 1–2 are deployed.
       Platform (the production OAuth app is in Testing mode). Sign in fails
       otherwise. If that isn't possible, use the
       [local fallback](#fallback-sessions-on-your-laptop).
-- [ ] The day before each session, open Discover for Los Angeles once so the
-      data is fresh (no scheduled collection runs in production).
+- [ ] Turn on scheduled collection for the Los Angeles area in Coolify:
+      `EVENT_HISTORY_ENABLED=true`,
+      `EVENT_HISTORY_CITIES=[{"city":"Los Angeles","country":"US","area":"metro"}]`
+      and `EVENT_HISTORY_INTERVAL=5h` (about 600 requests a day; see
+      [metro areas](../event-history.md#metro-areas)). Without it, Los Angeles's
+      default 90-day view exceeds the provider's 1,000-result on-demand limit and
+      reads as incomplete, and the area stays fresh only when someone visits.
 - [ ] Confirm your moderator role works on production: open the review queue.
 - [ ] Line up a second person to reply to questions during the session (another
       participant, or you on a separate account).
@@ -216,7 +221,8 @@ people.
    Use `other`: `owner` has Chicago as its account city, which would change
    where Discover starts. Don't show the file on screen.
 4. Open Discover for Los Angeles once before the participant arrives so the area
-   is collected and fresh (about ten seconds the first time).
+   is collected and fresh (about ten seconds the first time), or set the same
+   scheduled collection in your `.env`.
 5. Afterwards, run `make local-test-accounts-clean`.
 
 Checked 2026-11-27 against the `air` setup: a browser with `other`'s cookie
@@ -311,9 +317,11 @@ separate community verification items and do not block this checkpoint.
    debrief question about missing venues checks this choice.
 3. Web defaults to the area; API and agents default to exact city. Recommended
    as written, so existing clients keep their behavior.
-4. Whether to enable scheduled collection for Los Angeles in production during
-   the pilot so data stays fresh between visits. Recommended: yes, for the
-   pilot window only; it is an operator change you would make in Coolify.
+4. Scheduled collection: decided (2026-11-27) to keep the Los Angeles area fresh
+   with scheduled collection. Los Angeles alone has about 1,300 events in
+   Discover's default 90 days, beyond on-demand collection's 1,000 results, so it
+   is collected day by day while the other members refresh broadly. Enabling it
+   is an operator change in Coolify.
 
 ## Verification
 

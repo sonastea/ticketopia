@@ -126,6 +126,9 @@ the oldest member's and `collected_days` the least-collected member's. A cold ar
 takes about ten seconds to collect fully (34 or more requests at four a second);
 a first visitor sees results as soon as any finished member has some, within the
 12-second wait, and later visits serve last-good results while members refresh.
+[Scheduled collection](event-history.md#metro-areas) can keep an area fresh without
+visitors, and collects a large city day by day: on-demand collection stops at
+Ticketmaster's 1,000 results, which Los Angeles alone exceeds over 90 days.
 Each read checks every member's coverage (two or three small statements per
 member), shared for ten seconds per replica. Radar reads the preferred city's area
 the same way and names it. Community, Happening Now and recommendation city

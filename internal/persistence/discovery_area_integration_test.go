@@ -12,6 +12,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/sonastea/ticketopia/internal/discovery"
+	"github.com/sonastea/ticketopia/internal/history"
 	"github.com/sonastea/ticketopia/internal/kv"
 	"github.com/sonastea/ticketopia/internal/models"
 )
@@ -218,6 +219,79 @@ func TestMariaDBDiscoverRunIdentityAndTimes(t *testing.T) {
 	// Listings that have started are no longer upcoming.
 	if dates, err := r.Dates(t.Context(), tba, "2026-10-01", "2026-12-31", time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), 10); err != nil || len(dates) != 0 {
 		t.Fatalf("started dates listed: %+v %v", dates, err)
+	}
+}
+
+// Scheduled collection of a metro city collects the city day by day, then
+// keeps the rest of its area fresh with one broad read per member, never the
+// city's own broad range. Once everything is fresh, nothing is collected.
+func TestMariaDBScheduledMetroKeepsAreaFresh(t *testing.T) {
+	f := newMaria(t)
+	f.migrate(t)
+	p := f.open(t)
+	var mu sync.Mutex
+	daily, broad := map[string]int{}, map[string]int{}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		q := req.URL.Query()
+		city, dates := q.Get("city"), strings.Split(q.Get("localStartDateTime"), ",")
+		mu.Lock()
+		if len(dates) == 2 && dates[0][:10] == dates[1][:10] {
+			daily[city]++
+		} else {
+			broad[city]++
+		}
+		mu.Unlock()
+		events := []any{}
+		if city == "Inglewood" {
+			events = append(events, map[string]any{"id": "kept-fresh", "name": "Stadium Show", "dates": map[string]any{"start": map[string]string{"localDate": time.Now().UTC().Format(time.DateOnly), "localTime": "19:00:00"}, "status": map[string]string{"code": "onsale"}},
+				"_embedded": map[string]any{"venues": []any{map[string]any{"id": "stadium", "name": "Stadium", "city": map[string]string{"name": "Inglewood"}, "country": map[string]string{"countryCode": "US"}}}}})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"_embedded": map[string]any{"events": events}, "page": map[string]int{"number": 0, "totalElements": len(events), "totalPages": 1}})
+	}))
+	t.Cleanup(upstream.Close)
+	cache := kv.NewMemory()
+	t.Cleanup(func() { _ = cache.Close() })
+	s := discovery.New(t.Context(), cache, zerolog.Nop(), discovery.Config{APIKey: "metro-schedule", BaseURL: upstream.URL, Catalog: p.Discovery(),
+		Coordinator: p.ProviderBudget("metro-schedule", 1000), DailyBudget: 1000, RequestInterval: time.Millisecond})
+	t.Cleanup(s.WaitRefreshes)
+	c := history.New(p.History(), s, history.Config{Cities: []history.Scope{{City: "Los Angeles", Country: "US", Area: discovery.AreaMetro}}, Days: 1, Interval: 6 * time.Hour}, zerolog.Nop())
+	for range 10 {
+		worked, err := c.Once(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !worked {
+			break
+		}
+	}
+	s.WaitRefreshes()
+	m, _ := discovery.MetroFor("Los Angeles", "US")
+	mu.Lock()
+	if daily["Los Angeles"] != 3 || broad["Los Angeles"] != 0 {
+		t.Fatalf("Los Angeles collected daily %d times and broadly %d times", daily["Los Angeles"], broad["Los Angeles"])
+	}
+	for _, city := range m.Cities[1:] {
+		if broad[city] != 1 {
+			t.Errorf("member %s collected %d times", city, broad[city])
+		}
+	}
+	clear(daily)
+	clear(broad)
+	mu.Unlock()
+	today := time.Now().UTC()
+	q := catalogQuery(t, "city=Los+Angeles&country=US&area=metro&start_date="+today.AddDate(0, 0, -1).Format(time.DateOnly)+"&end_date="+today.AddDate(0, 0, 1).Format(time.DateOnly))
+	list, err := s.Events(t.Context(), q)
+	if err != nil || list.Meta.Coverage == nil || list.Meta.Coverage.Status != "complete" || list.Meta.Stale || len(list.Items) != 1 {
+		t.Fatalf("kept-fresh area: %+v items=%d %v", list.Meta, len(list.Items), err)
+	}
+	if err := s.KeepFresh(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	s.WaitRefreshes()
+	mu.Lock()
+	defer mu.Unlock()
+	if len(daily)+len(broad) != 0 {
+		t.Fatalf("fresh area collected again: daily %v broad %v", daily, broad)
 	}
 }
 

@@ -26,6 +26,16 @@ type Provider interface {
 	Collect(context.Context, discovery.Query) (models.EventList, error)
 }
 
+// AreaRefresher is an optional Provider capability: read a metro search as a
+// visitor would, refreshing only its member cities whose coverage is due.
+type AreaRefresher interface {
+	KeepFresh(context.Context, discovery.Query) error
+}
+
+// areaEvery is how often metro areas are checked. A check reads coverage
+// only; provider requests happen only for members whose coverage expired.
+const areaEvery = 5 * time.Minute
+
 type Collector struct {
 	repository Repository
 	provider   Provider
@@ -35,6 +45,39 @@ type Collector struct {
 	day        string
 	ids        []string
 	detailAt   time.Time
+	areaAt     time.Time
+}
+
+// horizon is the scheduled dates: from yesterday through Days after today, in
+// UTC. That covers every city's local today (a US evening is already
+// tomorrow in UTC) and Discover's default range, today through 90 days later.
+func (c *Collector) horizon(now time.Time) (string, string, []string) {
+	dates := make([]string, 0, c.config.Days+2)
+	for offset := -1; offset <= c.config.Days; offset++ {
+		dates = append(dates, now.AddDate(0, 0, offset).Format(time.DateOnly))
+	}
+	return dates[0], dates[len(dates)-1], dates
+}
+
+// keepAreasFresh reads each metro scope over the scheduled horizon. Its city
+// is covered by its day-by-day tasks; other members refresh through ordinary
+// on-demand collection, one broad request each, only when due.
+func (c *Collector) keepAreasFresh(ctx context.Context, now time.Time) {
+	refresher, ok := c.provider.(AreaRefresher)
+	if !ok || now.Sub(c.areaAt) < areaEvery {
+		return
+	}
+	c.areaAt = now
+	start, end, _ := c.horizon(now)
+	for _, scope := range c.config.Cities {
+		if scope.Area == "" {
+			continue
+		}
+		q := discovery.Query{City: scope.City, Country: scope.Country, StartDate: start, EndDate: end, Limit: 1}.WithArea(scope.Area)
+		if err := refresher.KeepFresh(ctx, q); err != nil && ctx.Err() == nil {
+			c.logger.Warn().Err(err).Str("city", scope.City).Msg("Metro area refresh incomplete")
+		}
+	}
 }
 
 func New(repository Repository, provider Provider, config Config, logger zerolog.Logger) *Collector {
@@ -80,9 +123,10 @@ func (c *Collector) Once(ctx context.Context) (_ bool, err error) {
 	if c.day != day {
 		tasks := []Task{}
 		ids := []string{}
+		_, _, dates := c.horizon(now)
 		for _, scope := range c.config.Cities {
-			for offset := range c.config.Days {
-				task := NewTask(scope, now.AddDate(0, 0, offset).Format(time.DateOnly))
+			for _, date := range dates {
+				task := NewTask(Scope{City: scope.City, Country: scope.Country}, date)
 				tasks = append(tasks, task)
 				ids = append(ids, task.ID)
 			}
@@ -94,6 +138,9 @@ func (c *Collector) Once(ctx context.Context) (_ bool, err error) {
 	}
 	claim, err := c.repository.Claim(ctx, c.ids)
 	if errors.Is(err, ErrNoTask) {
+		// Only once the cities' own days are caught up: a metro's city is then
+		// covered by its tasks, so the area read refreshes only other members.
+		c.keepAreasFresh(ctx, now)
 		return false, nil
 	}
 	if err != nil {

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 2026-11-27 — Scheduled metro areas and a local-day horizon
+
+- `EVENT_HISTORY_CITIES` entries accept `"area":"metro"`: the city is collected
+  day by day, and once its days are caught up the collector keeps the rest of its
+  metro area fresh every five minutes, refreshing only expired members with one
+  broad request each. See [metro areas](../event-history.md#metro-areas).
+- The schedule now runs from yesterday UTC through `DAYS` days after today, so a
+  city's local today (a US evening) and Discover's default 90-day range are
+  covered. `EVENT_HISTORY_DAYS` accepts 1–365.
+
 ### 2026-11-08 — Label omitted Discover events per row
 
 - Fresh complete coverage now dates and freshens the stored Discover list. Events

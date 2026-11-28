@@ -243,6 +243,9 @@ func KnownFacts(before, after models.Event) models.Event {
 type Scope struct {
 	City    string `json:"city"`
 	Country string `json:"country"`
+	// Area "metro" also keeps the city's metro area fresh (see Collector). The
+	// city alone is collected day by day; the area does not change task IDs.
+	Area string `json:"area,omitempty"`
 }
 
 func (s Scope) ID() string {

@@ -40,18 +40,29 @@ func ConfigFromEnv() (Config, error) {
 		if err != nil || q.City == "" || q.Country == "" {
 			return c, fmt.Errorf("event history requires a valid city and two-letter country for every scope")
 		}
-		city = Scope{q.City, q.Country}
+		if city.Area != "" && (city.Area != discovery.AreaMetro || !q.HasMetro()) {
+			return c, fmt.Errorf("EVENT_HISTORY_CITIES area must be metro, for a city in a metro area such as Los Angeles")
+		}
+		city = Scope{City: q.City, Country: q.Country, Area: city.Area}
 		if !seen[city.ID()] {
 			unique = append(unique, city)
 			seen[city.ID()] = true
+		} else if city.Area != "" {
+			// A repeated city keeps its metro choice from either entry.
+			for i := range unique {
+				if unique[i].ID() == city.ID() {
+					unique[i].Area = city.Area
+				}
+			}
 		}
 	}
 	c.Cities = unique
 	if v := os.Getenv("EVENT_HISTORY_DAYS"); v != "" {
 		var err error
 		c.Days, err = strconv.Atoi(v)
-		if err != nil || c.Days < 1 || c.Days > 366 {
-			return c, fmt.Errorf("EVENT_HISTORY_DAYS must be from 1 to 366")
+		// The horizon also spans yesterday, within Discover's 366-day range.
+		if err != nil || c.Days < 1 || c.Days > 365 {
+			return c, fmt.Errorf("EVENT_HISTORY_DAYS must be from 1 to 365")
 		}
 	}
 	if v := os.Getenv("EVENT_HISTORY_INTERVAL"); v != "" {

@@ -88,10 +88,18 @@ func TestHistoryConfiguration(t *testing.T) {
 	if err != nil || len(c.Cities) != 1 || c.Cities[0].City != "Chicago" || c.Cities[0].Country != "US" || c.Days != 2 || c.Interval != 12*time.Hour {
 		t.Fatalf("invalid normalization: %+v %v", c, err)
 	}
+	// A metro city keeps its area, however it is listed.
+	t.Setenv("EVENT_HISTORY_CITIES", `[{"city":"los angeles","country":"us"},{"city":"Los Angeles","country":"US","area":"metro"}]`)
+	if c, err := ConfigFromEnv(); err != nil || len(c.Cities) != 1 || c.Cities[0].Area != "metro" {
+		t.Fatalf("metro scope: %+v %v", c.Cities, err)
+	}
+	t.Setenv("EVENT_HISTORY_CITIES", `[{"city":"Chicago","country":"US"}]`)
 	for _, setting := range []struct{ key, value string }{
 		{"EVENT_HISTORY_CITIES", `[{"city":"","country":"US"}]`},
 		{"EVENT_HISTORY_CITIES", `[{"city":"Boston","country":"USA"}]`},
-		{"EVENT_HISTORY_DAYS", "367"},
+		{"EVENT_HISTORY_DAYS", "366"},
+		{"EVENT_HISTORY_CITIES", `[{"city":"Boston","country":"US","area":"metro"}]`},
+		{"EVENT_HISTORY_CITIES", `[{"city":"Los Angeles","country":"US","area":"nearby"}]`},
 		{"EVENT_HISTORY_INTERVAL", "1m"},
 		{"TICKETMASTER_KEY", ""},
 	} {

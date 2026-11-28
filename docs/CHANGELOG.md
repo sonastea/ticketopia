@@ -4,6 +4,7 @@ Recent feature histories, ordered by latest update, with at most 20 links and
 one entry per feature. Related changes stay in the same feature document. Browse
 [all feature histories](changes/) or open only the feature relevant to your task.
 
+- 2026-11-27 — [Reliable event history](changes/event-history.md)
 - 2026-11-27 — [Event discovery](changes/discovery.md)
 - 2026-11-27 — [Agent tools (MCP)](changes/app-mcp.md)
 - 2026-11-27 — [OpenAPI contract](changes/openapi.md)
@@ -20,7 +21,6 @@ one entry per feature. Related changes stay in the same feature document. Browse
 - 2026-11-19 — [Observability](changes/observability.md)
 - 2026-11-15 — [Local development services](changes/local-development.md)
 - 2026-11-12 — [UI components](changes/ui-components.md)
-- 2026-11-08 — [Reliable event history](changes/event-history.md)
 - 2026-10-29 — [Public HTTP and KV caching](changes/cache.md)
 - 2026-10-26 — [Private saved events](changes/saved-events.md)
 - 2026-10-12 — [Release verification and scope](changes/release-verification.md)

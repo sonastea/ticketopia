@@ -461,7 +461,9 @@ func TestMariaDBScheduledProviderCollectionEndToEnd(t *testing.T) {
 	if calls.Load() != 2 {
 		t.Fatal("interactive cache read used scheduled quota")
 	}
-	execSQL(t, f.admin, "UPDATE "+f.runtime.Database+".collection_tasks SET next_refresh=UTC_TIMESTAMP(6)")
+	// Retry the collected day now; the horizon's other days wait, so only the
+	// failure and its durable retry time are observed.
+	execSQL(t, f.admin, "UPDATE "+f.runtime.Database+".collection_tasks SET next_refresh=IF(last_success IS NULL,TIMESTAMPADD(DAY,1,UTC_TIMESTAMP(6)),UTC_TIMESTAMP(6))")
 	if worked, err := collector.Once(t.Context()); err != nil || !worked {
 		t.Fatal("provider failure not recorded", worked, err)
 	}

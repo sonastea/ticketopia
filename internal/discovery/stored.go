@@ -102,6 +102,17 @@ func (s *Service) storedEvents(ctx context.Context, q Query) (models.EventList, 
 	return withArea(q, read.List), nil
 }
 
+// KeepFresh reads q as a visitor would, so stored coverage that has expired
+// is collected again: for a metro, only its due member cities. It needs the
+// stored catalog; scheduled collection calls it for configured metro areas.
+func (s *Service) KeepFresh(ctx context.Context, q Query) error {
+	if s.catalog == nil {
+		return nil
+	}
+	_, err := s.Events(ctx, q)
+	return err
+}
+
 // Stored reports whether searches read the durable catalog, where metro areas
 // and folded runs apply. Database-free discovery ignores both.
 func (s *Service) Stored() bool { return s != nil && s.catalog != nil }
