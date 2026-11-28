@@ -253,7 +253,17 @@ func TestMariaDBOpenQuestionsConnectionsAndEligibility(t *testing.T) {
 		t.Fatalf("an event that started mid-pagination stayed listed: %+v %v", next.Items, err)
 	}
 	// Date-only: listed through its local day, gone once that day is past.
-	execSQL(t, pool.db, `UPDATE events SET start_utc=NULL,timezone='Pacific/Kiritimati',local_date=DATE_FORMAT(CONVERT_TZ(UTC_TIMESTAMP(),'+00:00','+14:00'),'%Y-%m-%d') WHERE event_id=?`, unrelated.Item.ID)
+	// MariaDB offsets stop at +13:00 ('+14:00' converts to NULL, an unknown
+	// date), so the zone's local day comes from Go.
+	kiritimati, err := time.LoadLocation("Pacific/Kiritimati")
+	if err != nil {
+		t.Fatal(err)
+	}
+	execSQL(t, pool.db, `UPDATE events SET start_utc=NULL,timezone='Pacific/Kiritimati',local_date=? WHERE event_id=?`, time.Now().In(kiritimati).Format(time.DateOnly), unrelated.Item.ID)
+	var dated int
+	if err := pool.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM events WHERE event_id=? AND local_date IS NOT NULL`, unrelated.Item.ID).Scan(&dated); err != nil || dated != 1 {
+		t.Fatalf("the date-only fixture lost its local date: %d %v", dated, err)
+	}
 	execSQL(t, pool.db, `UPDATE events SET start_utc=NULL,timezone=NULL,local_date=DATE_FORMAT(UTC_DATE()-INTERVAL 3 DAY,'%Y-%m-%d') WHERE event_id=?`, venue.Item.ID)
 	all, err := svc.OpenQuestions(t.Context(), fan.ID, nil)
 	if err != nil {
